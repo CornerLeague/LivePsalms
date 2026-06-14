@@ -8,6 +8,7 @@ import { createInkCircle, createStoneBasin } from './circles';
 import { createDove, animateDove } from './doves';
 import { createFloatingParticles, animateParticle } from './particles';
 import { CAMERA_STATIONS } from './camera-stations';
+import { buildGardenBlueprint } from './garden-blueprint';
 
 export interface MountGardenOptions {
   scrollProgress: { current: number };
@@ -55,70 +56,47 @@ export function mountGarden(
   renderer.toneMapping = THREE.NoToneMapping;
 
   // ── World composition ──
+  // Layout lives in the declarative GardenBlueprint (node-testable, designer-
+  // iterable). Here we just WALK it, calling the same factories with the same
+  // args. allGroups membership (ground + clusters + stems + posts) drives the
+  // per-frame plant sway below; splashes/circles/basin are created-and-forgotten
+  // (not swayed); doves go to their own list for animateDove.
+  const blueprint = buildGardenBlueprint();
   const allGroups: THREE.Object3D[] = [];
 
-  allGroups.push(createCrosshatchGround(scene));
-
-  // 13 plant clusters scattered to support 7 stations
-  allGroups.push(createPlantCluster(scene,  -5, 0,  -3, 1.2, 5));
-  allGroups.push(createPlantCluster(scene,   6, 0,  -2, 0.8, 4));
-  allGroups.push(createPlantCluster(scene,  -3, 0,   2, 0.6, 3));
-  allGroups.push(createPlantCluster(scene,   4, 0,   3, 0.5, 3));
-  allGroups.push(createPlantCluster(scene, -15, 0,  -5, 1.4, 6));
-  allGroups.push(createPlantCluster(scene, -12, 0,   0, 1.0, 5));
-  allGroups.push(createPlantCluster(scene, -18, 0,   2, 0.7, 3));
-  allGroups.push(createPlantCluster(scene, -10, 0,  -8, 0.9, 4));
-  allGroups.push(createPlantCluster(scene,  15, 0,  -4, 1.3, 5));
-  allGroups.push(createPlantCluster(scene,  12, 0,   1, 1.1, 6));
-  allGroups.push(createPlantCluster(scene,  18, 0,  -1, 0.6, 3));
-  allGroups.push(createPlantCluster(scene,  -4, 0, -22, 0.9, 4));
-  allGroups.push(createPlantCluster(scene,   5, 0, -20, 1.0, 5));
-
-  // Station 5 — row of 7 paper stems centered on x=0
-  for (let i = 0; i < 7; i++) {
-    const x = (i - 3) * 1.8; // -5.4, -3.6, -1.8, 0, 1.8, 3.6, 5.4
-    allGroups.push(createPaperStem(scene, x, 0, 2, 0.9));
+  if (blueprint.ground) {
+    allGroups.push(createCrosshatchGround(scene));
   }
 
-  // Station 6 — 8 tier-post clusters along -Z
-  for (let i = 0; i < 8; i++) {
-    const z = -4 - i * 2.5; // -4, -6.5, -9 ... -21.5
-    const x = (i % 2 === 0 ? -1 : 1) * 1.2;
-    allGroups.push(createPlantCluster(scene, x, 0, z, 0.7, 2));
+  for (const c of blueprint.clusters) {
+    allGroups.push(createPlantCluster(scene, c.x, c.y, c.z, c.scale, c.complexity));
   }
 
-  // Ink splashes
-  createInkSplash(scene, -2, 0.5, -1, 20);
-  createInkSplash(scene, 3, 1, -4, 15);
-  createInkSplash(scene, -8, 0.3, -3, 25);
-  createInkSplash(scene, 10, 0.8, -2, 18);
-  createInkSplash(scene, -1, 0.2, -15, 30);
+  for (const s of blueprint.stems) {
+    allGroups.push(createPaperStem(scene, s.x, s.y, s.z, s.scale));
+  }
 
-  // Decorative ink circles
-  createInkCircle(scene, 0, 3, -5, 2.5, 0.15);
-  createInkCircle(scene, -14, 2.5, -3, 1.8, 0.1);
-  createInkCircle(scene, 14, 3.2, -2, 2.0, 0.12);
-  createInkCircle(scene, 0, 2.8, -20, 3.0, 0.2);
-  // Station 3 — the lamp itself (a single big halo high above)
-  createInkCircle(scene, 0, 5.5, -3, 1.4, 0.08, 0.35);
+  for (const p of blueprint.posts) {
+    allGroups.push(createPlantCluster(scene, p.x, p.y, p.z, p.scale, p.complexity));
+  }
 
-  // Station 7 — stone basin near origin
-  createStoneBasin(scene, 0, 0.02, -2);
+  for (const sp of blueprint.splashes) {
+    createInkSplash(scene, sp.x, sp.y, sp.z, sp.count);
+  }
 
-  // Doves — 6 distributed
+  for (const ci of blueprint.circles) {
+    // opacity undefined → createInkCircle's default applies (byte-identical).
+    createInkCircle(scene, ci.x, ci.y, ci.z, ci.radius, ci.wobble, ci.opacity);
+  }
+
+  createStoneBasin(scene, blueprint.basin.x, blueprint.basin.y, blueprint.basin.z);
+
   const doves: THREE.Group[] = [];
-  for (let i = 0; i < 6; i++) {
-    const d = createDove(
-      scene,
-      (Math.random() - 0.5) * 20,
-      1.5 + Math.random() * 3,
-      (Math.random() - 0.5) * 15 - 5,
-    );
-    doves.push(d);
+  for (const d of blueprint.doves) {
+    doves.push(createDove(scene, d.x, d.y, d.z));
   }
 
-  // Floating particles
-  const particles = createFloatingParticles(scene, 60);
+  const particles = createFloatingParticles(scene, blueprint.particleCount);
 
   // ── Resize ──
   function onResize() {
