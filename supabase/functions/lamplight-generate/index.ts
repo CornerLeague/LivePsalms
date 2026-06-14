@@ -13,19 +13,19 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '../_shared/supabase.ts';
 import { embedQuery, type VoyageDeps } from '../_shared/voyage.ts';
 import { searchBible } from '../_shared/retrieval.ts';
-import { buildPassages, type BiblePassageRow } from '../_shared/bible-passage.ts';
+import { type BiblePassageRow } from '../_shared/bible-passage.ts';
 import { createAnthropicAdapter } from '../_shared/anthropic.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
+import { retrieveNoteContext, type NoteContextDeps, type RawNoteRow } from '../_shared/note-context.ts';
 import { sanitizeFirstName } from '../_shared/personalization.ts';
 import {
   extractVerseRefsFromNoteContent,
   intersectTagsAndVerseRefs,
 } from '../_shared/note-signals.ts';
-import { runSmokeTestPipeline, type SmokeTestContext, type SmokeTestPassage } from './pipeline.ts';
+import { runSmokeTestPipeline, type SmokeTestContext } from './pipeline.ts';
 import {
   runDailyDevotionPipeline,
   type DailyDevotionContext,
-  type DailyDevotionPassage,
 } from './daily-devotion-pipeline.ts';
 import {
   runConnectionWhyPipeline,
@@ -194,72 +194,72 @@ async function handleGenerate(req: Request): Promise<Response> {
 }
 
 
-// ── Smoke-test context builder (unchanged from sub-project 3) ────────────
-async function buildSmokeTestContext(
+// ── Shared note-context retrieval deps (§NoteContext) ─────────────────────
+// The .from('notes')… and .from('bible_passages')… query strings live here,
+// written ONCE; both context builders pass these into retrieveNoteContext.
+function noteContextDeps(
   supabase: SupabaseClient,
-  args: { userId: string; voyageDeps: VoyageDeps; rerankEnabled: boolean },
-): Promise<SmokeTestContext | null> {
-  const { data: noteRows, error: nErr } = await supabase
-    .from('notes')
-    .select('id, title, content, updated_at')
-    .eq('user_id', args.userId)
-    .order('updated_at', { ascending: false })
-    .limit(5);
-  if (nErr) throw nErr;
-
-  const notes = (noteRows ?? [])
-    .map(n => ({
-      id: n.id as string,
-      title: (n.title as string) ?? '(untitled)',
-      plaintext: extractTextFromNoteContent(n.content as string).slice(0, 800),
-    }))
-    .filter(n => n.plaintext.trim().length > 0);
-  if (notes.length === 0) return null;
-
-  const themeQuery = [...notes].sort((a, b) => b.plaintext.length - a.plaintext.length)[0].plaintext;
-  const queryEmbedding = await embedQuery(themeQuery, args.voyageDeps);
-  const retrievedBible = await searchBible(
-    { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
-    { query: themeQuery, k: 3, queryEmbedding },
-  );
-
-  const sourceIds = retrievedBible.map(r => r.source_id);
-  const { data: passageRows, error: pErr } = await supabase
-    .from('bible_passages')
-    .select('id, book, chapter, verse_start, verse_end, text')
-    .in('id', sourceIds);
-  if (pErr) throw pErr;
-  const passages: SmokeTestPassage[] = buildPassages((passageRows ?? []) as BiblePassageRow[], retrievedBible);
-
+  voyageDeps: VoyageDeps,
+  rerankEnabled: boolean,
+): NoteContextDeps {
   return {
-    notes, passages,
-    allowedNoteIds: new Set(notes.map(n => n.id)),
-    allowedVerseRefs: new Set(passages.map(p => p.ref)),
-    rerankUsed: args.rerankEnabled && passages.length > 0,
+    async fetchRecentNotes(userId, limit) {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('id, title, content, updated_at')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as RawNoteRow[];
+    },
+    embedQuery: (text) => embedQuery(text, voyageDeps),
+    searchBible: (queryArgs) => searchBible({ supabase, voyage: voyageDeps, rerankEnabled }, queryArgs),
+    async fetchPassages(sourceIds) {
+      const { data, error } = await supabase
+        .from('bible_passages')
+        .select('id, book, chapter, verse_start, verse_end, text')
+        .in('id', sourceIds);
+      if (error) throw error;
+      return (data ?? []) as BiblePassageRow[];
+    },
   };
 }
 
+// ── Smoke-test context builder ───────────────────────────────────────────
+// Theme query = longest survivor's plaintext.
+function buildSmokeTestContext(
+  supabase: SupabaseClient,
+  args: { userId: string; voyageDeps: VoyageDeps; rerankEnabled: boolean },
+): Promise<SmokeTestContext | null> {
+  return retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled), {
+    userId: args.userId,
+    noteLimit: 5,
+    rerankEnabled: args.rerankEnabled,
+    buildThemeQuery: (notes) =>
+      [...notes].sort((a, b) => b.plaintext.length - a.plaintext.length)[0].plaintext,
+  });
+}
+
 // ── Daily devotion context builder ───────────────────────────────────────
+// Theme query = titled join capped at 4000. Wraps the seam with the
+// profiles→firstName fetch + localDate, and only AFTER a non-null retrieval, so
+// the profile is never read when the user has no notes.
 async function buildDailyDevotionContext(
   supabase: SupabaseClient,
   args: { userId: string; localDate: string; voyageDeps: VoyageDeps; rerankEnabled: boolean },
 ): Promise<DailyDevotionContext | null> {
-  const { data: noteRows, error: nErr } = await supabase
-    .from('notes')
-    .select('id, title, content, updated_at')
-    .eq('user_id', args.userId)
-    .order('updated_at', { ascending: false })
-    .limit(3);
-  if (nErr) throw nErr;
-
-  const notes = (noteRows ?? [])
-    .map(n => ({
-      id: n.id as string,
-      title: ((n.title as string) ?? '').trim() || '(untitled)',
-      plaintext: extractTextFromNoteContent(n.content as string).slice(0, 800),
-    }))
-    .filter(n => n.plaintext.trim().length > 0);
-  if (notes.length === 0) return null;
+  const base = await retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled), {
+    userId: args.userId,
+    noteLimit: 3,
+    rerankEnabled: args.rerankEnabled,
+    buildThemeQuery: (notes) =>
+      notes
+        .map((n) => `${n.title}: ${n.plaintext.slice(0, 200)}`)
+        .join('\n\n')
+        .slice(0, 4000),
+  });
+  if (!base) return null;
 
   const { data: profile, error: profileErr } = await supabase
     .from('profiles')
@@ -269,32 +269,7 @@ async function buildDailyDevotionContext(
   if (profileErr) throw profileErr;
   const firstName = sanitizeFirstName((profile?.full_name as string | undefined) ?? null);
 
-  const themeQuery = notes
-    .map(n => `${n.title}: ${n.plaintext.slice(0, 200)}`)
-    .join('\n\n')
-    .slice(0, 4000);
-  const queryEmbedding = await embedQuery(themeQuery, args.voyageDeps);
-  const retrievedBible = await searchBible(
-    { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
-    { query: themeQuery, k: 3, queryEmbedding },
-  );
-
-  const sourceIds = retrievedBible.map(r => r.source_id);
-  const { data: passageRows, error: pErr } = await supabase
-    .from('bible_passages')
-    .select('id, book, chapter, verse_start, verse_end, text')
-    .in('id', sourceIds);
-  if (pErr) throw pErr;
-  const passages: DailyDevotionPassage[] = buildPassages((passageRows ?? []) as BiblePassageRow[], retrievedBible);
-
-  return {
-    notes, passages,
-    localDate: args.localDate,
-    firstName,
-    allowedNoteIds: new Set(notes.map(n => n.id)),
-    allowedVerseRefs: new Set(passages.map(p => p.ref)),
-    rerankUsed: args.rerankEnabled && passages.length > 0,
-  };
+  return { ...base, localDate: args.localDate, firstName };
 }
 
 // ── Connection-why context builder ───────────────────────────────────────
