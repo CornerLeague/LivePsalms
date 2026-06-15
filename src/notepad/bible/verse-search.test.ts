@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { routeQuery, detectGrain, normalizeFtsRow, osisForRef, osisBookToCanonical } from './verse-search';
-import type { RawFtsRow } from './verse-search-types';
+import { routeQuery, detectGrain, normalizeFtsRow, osisForRef, osisBookToCanonical, normalizeSemanticRow } from './verse-search';
+import type { RawFtsRow, RawSemanticRow, PericopeRange } from './verse-search-types';
 
 describe('routeQuery', () => {
   it('routes a parseable reference to kind=reference with parsed fields', () => {
@@ -53,5 +53,42 @@ describe('normalizeFtsRow', () => {
     expect(c.score).toBeCloseTo(0.55);
     expect(c.osis).toBe('jhn.3.16');
     expect(c.translation).toBe('BSB');
+  });
+});
+
+describe('normalizeSemanticRow', () => {
+  const noResolve = async () => null;
+
+  it('maps a verse-grain row to a single-verse candidate (score = similarity)', async () => {
+    const row: RawSemanticRow = { sourceId: 'jhn.3.16', text: 'For God so loved...', similarity: 0.82 };
+    const c = await normalizeSemanticRow(row, { resolvePericope: noResolve, signal: undefined });
+    expect(c).not.toBeNull();
+    expect(c!.source).toBe('semantic');
+    expect(c!.osis).toBe('jhn.3.16');
+    expect(c!.book).toBe('John');
+    expect(c!.chapter).toBe(3);
+    expect(c!.verseStart).toBe(16);
+    expect(c!.verseEnd).toBeNull();
+    expect(c!.score).toBeCloseTo(0.82);
+  });
+
+  it('resolves a pericope-grain row to a ranged candidate with a distinct label', async () => {
+    const range: PericopeRange = { book: 'John', chapter: 3, verseStart: 1, verseEnd: 21, text: 'pericope text' };
+    const resolvePericope = async (id: string) => (id === 'jhn.3' ? range : null);
+    const row: RawSemanticRow = { sourceId: 'jhn.3', text: 'ignored — replaced by pericope text', similarity: 0.7 };
+    const c = await normalizeSemanticRow(row, { resolvePericope, signal: undefined });
+    expect(c).not.toBeNull();
+    expect(c!.osis).toBe('jhn.3.1');
+    expect(c!.verseStart).toBe(1);
+    expect(c!.verseEnd).toBe(21);
+    expect(c!.text).toBe('pericope text');
+    expect(c!.label).toBe('John 3:1–21 · passage');
+    expect(c!.score).toBeCloseTo(0.7);
+  });
+
+  it('drops a pericope row that cannot be resolved', async () => {
+    const row: RawSemanticRow = { sourceId: 'jhn.3', text: 'x', similarity: 0.7 };
+    const c = await normalizeSemanticRow(row, { resolvePericope: noResolve, signal: undefined });
+    expect(c).toBeNull();
   });
 });

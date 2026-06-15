@@ -1,5 +1,5 @@
 import { parseVerseRef, BOOK_TO_OSIS } from '../graph/reference-parser';
-import type { RawFtsRow, VerseCandidate } from './verse-search-types';
+import type { RawFtsRow, RawSemanticRow, PericopeRange, VerseCandidate } from './verse-search-types';
 
 const FTS_SCORE = 0.55;
 
@@ -47,5 +47,57 @@ export function normalizeFtsRow(row: RawFtsRow): VerseCandidate {
     translation: 'BSB',
     source: 'fts',
     score: FTS_SCORE,
+  };
+}
+
+// Parse a verse-grain source id like "jhn.3.16" -> { osisBook, chapter, verse }.
+function parseVerseSourceId(sourceId: string): { osisBook: string; chapter: number; verse: number } | null {
+  const parts = sourceId.split('.');
+  if (parts.length < 3) return null;
+  const chapter = Number(parts[1]);
+  const verse = Number(parts[2]);
+  if (!Number.isFinite(chapter) || !Number.isFinite(verse)) return null;
+  return { osisBook: parts[0], chapter, verse };
+}
+
+export async function normalizeSemanticRow(
+  row: RawSemanticRow,
+  opts: {
+    resolvePericope: (id: string, o: { signal?: AbortSignal }) => Promise<PericopeRange | null>;
+    signal?: AbortSignal;
+  },
+): Promise<VerseCandidate | null> {
+  if (detectGrain(row.sourceId) === 'verse') {
+    const parsed = parseVerseSourceId(row.sourceId);
+    if (!parsed) return null;
+    const book = osisBookToCanonical(parsed.osisBook);
+    if (!book) return null;
+    return {
+      osis: row.sourceId,
+      book,
+      chapter: parsed.chapter,
+      verseStart: parsed.verse,
+      verseEnd: null,
+      text: row.text,
+      translation: 'BSB',
+      source: 'semantic',
+      score: row.similarity,
+    };
+  }
+
+  // Pericope grain: resolve to a ranged candidate.
+  const range = await opts.resolvePericope(row.sourceId, { signal: opts.signal });
+  if (!range) return null;
+  return {
+    osis: osisForRef(range.book, range.chapter, range.verseStart),
+    book: range.book,
+    chapter: range.chapter,
+    verseStart: range.verseStart,
+    verseEnd: range.verseEnd,
+    text: range.text || row.text,
+    translation: 'BSB',
+    source: 'semantic',
+    score: row.similarity,
+    label: `${range.book} ${range.chapter}:${range.verseStart}–${range.verseEnd} · passage`,
   };
 }
