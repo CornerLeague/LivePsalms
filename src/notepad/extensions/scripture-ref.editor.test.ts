@@ -71,6 +71,37 @@ describe('collapse state is ephemeral', () => {
   });
 });
 
+import { buildReferenceItems, buildKeywordItems } from './scripture-ref';
+import type { VerseSearchDeps } from '../bible/verse-search-types';
+
+function fakeDeps(): VerseSearchDeps {
+  return {
+    ftsSearch: async () => [{ id: 'jhn.3.16', book: 'John', chapter: 3, verseStart: 16, verseEnd: null, text: 'fts' }],
+    semanticSearch: async () => [],
+    resolvePericope: async () => null,
+    fetchVerseText: async () => ({ text: 'For God so loved', translation: 'BSB', reference: 'John 3:16' }),
+  };
+}
+
+describe('suggestion item builders', () => {
+  it('buildReferenceItems resolves the typed reference to one candidate', async () => {
+    const items = await buildReferenceItems('John 3:16', fakeDeps(), new AbortController().signal);
+    expect(items).toHaveLength(1);
+    expect(items[0].osis).toBe('jhn.3.16');
+    expect(items[0].text).toBe('For God so loved');
+  });
+
+  it('buildKeywordItems returns FTS candidates instantly (no deps -> empty)', async () => {
+    const items = await buildKeywordItems('love', fakeDeps(), new AbortController().signal);
+    expect(items[0].osis).toBe('jhn.3.16');
+  });
+
+  it('builders return [] when search deps are null', async () => {
+    expect(await buildReferenceItems('John 3:16', null, new AbortController().signal)).toEqual([]);
+    expect(await buildKeywordItems('love', null, new AbortController().signal)).toEqual([]);
+  });
+});
+
 // Helper: depth-first search for the first node of a type.
 function findNode(json: unknown, type: string): { type: string; attrs: Record<string, unknown> } | null {
   if (!json || typeof json !== 'object') return null;

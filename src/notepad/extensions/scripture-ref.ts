@@ -1,6 +1,17 @@
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node, mergeAttributes, type Editor } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import type { VerseSearchDeps } from '../bible/verse-search-types';
+import Suggestion, { type SuggestionOptions } from '@tiptap/suggestion';
+import { PluginKey } from '@tiptap/pm/state';
+import type { VerseSearchDeps, VerseCandidate } from '../bible/verse-search-types';
+import {
+  completeReference,
+  normalizeFtsRow,
+  mergeCandidates,
+  routeQuery,
+  referenceCandidate,
+} from '../bible/verse-search';
+import { matchReferenceBeforeCursor } from './scripture-ref-matchers';
+import { renderVerseSuggestList } from './verse-suggest-renderer';
 import { ScriptureRefNodeView } from './ScriptureRefView';
 
 export interface ScriptureRefOptions {
@@ -31,6 +42,34 @@ function num(value: string | null): number | null {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
+
+export async function buildReferenceItems(
+  query: string,
+  search: VerseSearchDeps | null,
+  signal: AbortSignal,
+): Promise<VerseCandidate[]> {
+  if (!search) return [];
+  const c = await completeReference(query, search, { signal });
+  return c ? [c] : [];
+}
+
+export async function buildKeywordItems(
+  query: string,
+  search: VerseSearchDeps | null,
+  signal: AbortSignal,
+): Promise<VerseCandidate[]> {
+  if (!search) return [];
+  // Instant FTS slice (plus a reference pin if the query parses as a ref) for the
+  // synchronous `items` contract. v1 does not live-upgrade with semantic results
+  // in the dropdown; semantic ranking is available via the pure module if wired later.
+  const rows = await search.ftsSearch(query, { signal });
+  const route = routeQuery(query);
+  const pin = route.kind === 'reference' ? referenceCandidate(route.parsed, '') : null;
+  return mergeCandidates(pin, rows.map(normalizeFtsRow), []);
+}
+
+const PREDICTIVE_KEY = new PluginKey('scriptureRefPredictive');
+const VERSE_PICKER_KEY = new PluginKey('scriptureRefPicker');
 
 export const ScriptureRef = Node.create<ScriptureRefOptions>({
   name: 'scriptureRef',
@@ -86,5 +125,75 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
 
   addNodeView() {
     return ReactNodeViewRenderer(ScriptureRefNodeView);
+  },
+
+  addProseMirrorPlugins() {
+    const search = this.options.search;
+
+    const insertFromCandidate = (
+      editor: Editor,
+      range: { from: number; to: number },
+      c: VerseCandidate,
+    ): void => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertScriptureRef({
+          osis: c.osis,
+          book: c.book,
+          chapter: c.chapter,
+          verseStart: c.verseStart,
+          verseEnd: c.verseEnd,
+          translation: 'BSB',
+          text: c.text,
+        })
+        .run();
+    };
+
+    const command = ({ editor, range, props }: { editor: Editor; range: { from: number; to: number }; props: VerseCandidate }) =>
+      insertFromCandidate(editor, range, props);
+
+    // B — predictive reference (no trigger char; book-pattern matcher).
+    const predictive: SuggestionOptions<VerseCandidate, VerseCandidate> = {
+      editor: this.editor,
+      pluginKey: PREDICTIVE_KEY,
+      char: '',
+      command,
+      // Stand down while the /verse picker (C) is active, otherwise both plugins
+      // match `/verse John 3:16` and stack two dropdowns. The suggestion plugin's
+      // internal state exposes a boolean `active` flag (see @tiptap/suggestion).
+      allow: ({ state }) => {
+        const pickerState = VERSE_PICKER_KEY.getState(state) as { active?: boolean } | undefined;
+        return !pickerState?.active;
+      },
+      render: () => renderVerseSuggestList(),
+      findSuggestionMatch: ({ $position }) => {
+        const textBefore = $position.parent.textBetween(0, $position.parentOffset, undefined, '￼');
+        const m = matchReferenceBeforeCursor(textBefore);
+        if (!m) return null;
+        const blockStart = $position.start();
+        return { range: { from: blockStart + m.from, to: blockStart + m.to }, query: m.query, text: m.query };
+      },
+      items: ({ query }) => buildReferenceItems(query, search, new AbortController().signal),
+    };
+
+    // C — /verse keyword picker.
+    const picker: SuggestionOptions<VerseCandidate, VerseCandidate> = {
+      editor: this.editor,
+      pluginKey: VERSE_PICKER_KEY,
+      char: '/',
+      allowSpaces: true,
+      startOfLine: false,
+      command,
+      render: () => renderVerseSuggestList(),
+      items: ({ query }) => {
+        if (!/^verse/i.test(query)) return [];
+        const stripped = query.replace(/^verse\s*/i, '');
+        return buildKeywordItems(stripped, search, new AbortController().signal);
+      },
+    };
+
+    return [Suggestion(predictive), Suggestion(picker)];
   },
 });
