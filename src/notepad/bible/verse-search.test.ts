@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { routeQuery, detectGrain, normalizeFtsRow, osisForRef, osisBookToCanonical, normalizeSemanticRow, referenceCandidate, mergeCandidates } from './verse-search';
-import type { RawFtsRow, RawSemanticRow, PericopeRange, VerseCandidate } from './verse-search-types';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { routeQuery, detectGrain, normalizeFtsRow, osisForRef, osisBookToCanonical, normalizeSemanticRow, referenceCandidate, mergeCandidates, completeReference, createVerseSearch } from './verse-search';
+import type { RawFtsRow, RawSemanticRow, PericopeRange, VerseCandidate, VerseSearchDeps } from './verse-search-types';
 
 describe('routeQuery', () => {
   it('routes a parseable reference to kind=reference with parsed fields', () => {
@@ -145,5 +145,100 @@ describe('mergeCandidates', () => {
     expect(merged).toHaveLength(1);
     expect(merged[0].score).toBe(1);
     expect(merged[0].source).toBe('reference');
+  });
+});
+
+function makeDeps(over: Partial<VerseSearchDeps> = {}): VerseSearchDeps {
+  return {
+    ftsSearch: vi.fn(async () => []),
+    semanticSearch: vi.fn(async () => []),
+    resolvePericope: vi.fn(async () => null),
+    fetchVerseText: vi.fn(async () => ({ text: 'verse text', translation: 'BSB', reference: 'John 3:16' })),
+    ...over,
+  };
+}
+
+describe('completeReference', () => {
+  it('returns a single reference candidate once the ref resolves', async () => {
+    const deps = makeDeps();
+    const c = await completeReference('John 3:16', deps, {});
+    expect(c).not.toBeNull();
+    expect(c!.source).toBe('reference');
+    expect(c!.osis).toBe('jhn.3.16');
+    expect(c!.text).toBe('verse text');
+    expect(deps.fetchVerseText).toHaveBeenCalledOnce();
+  });
+
+  it('returns null for an incomplete reference', async () => {
+    const deps = makeDeps();
+    expect(await completeReference('John', deps, {})).toBeNull();
+  });
+
+  it('still returns a candidate (empty text) when fetch fails/offline', async () => {
+    const deps = makeDeps({ fetchVerseText: vi.fn(async () => null) });
+    const c = await completeReference('John 3:16', deps, {});
+    expect(c).not.toBeNull();
+    expect(c!.text).toBe('');
+  });
+});
+
+describe('createVerseSearch debounce + abort', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('runs FTS immediately and semantic only after the trailing debounce (>=3 chars)', async () => {
+    const ftsSearch = vi.fn(async () => [
+      { id: 'jhn.3.16', book: 'John', chapter: 3, verseStart: 16, verseEnd: null, text: 'fts' },
+    ]);
+    const semanticSearch = vi.fn(async () => []);
+    const deps = makeDeps({ ftsSearch, semanticSearch });
+    const search = createVerseSearch(deps, { debounceMs: 250 });
+    const emit = vi.fn();
+
+    search.query('love', emit);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ftsSearch).toHaveBeenCalledOnce();         // instant
+    expect(semanticSearch).not.toHaveBeenCalled();    // not yet
+    expect(emit).toHaveBeenCalledWith(expect.any(Array), 'instant');
+
+    await vi.advanceTimersByTimeAsync(250);
+    expect(semanticSearch).toHaveBeenCalledOnce();     // trailing
+    expect(emit).toHaveBeenCalledWith(expect.any(Array), 'complete');
+  });
+
+  it('does not run semantic for queries shorter than 3 chars', async () => {
+    const semanticSearch = vi.fn(async () => []);
+    const deps = makeDeps({ semanticSearch });
+    const search = createVerseSearch(deps, { debounceMs: 250 });
+    search.query('lo', vi.fn());
+    await vi.advanceTimersByTimeAsync(500);
+    expect(semanticSearch).not.toHaveBeenCalled();
+  });
+
+  it('aborts the previous in-flight query when a new one starts', async () => {
+    const deps = makeDeps();
+    const search = createVerseSearch(deps, { debounceMs: 250 });
+    search.query('first', vi.fn());
+    const cancel = search.query('second', vi.fn());
+    // The signal passed to the first ftsSearch call should be aborted.
+    const firstSignal = (deps.ftsSearch as ReturnType<typeof vi.fn>).mock.calls[0][1].signal as AbortSignal;
+    expect(firstSignal.aborted).toBe(true);
+    cancel();
+  });
+
+  it('does not emit results from an aborted query', async () => {
+    const ftsSearch = vi.fn(() => new Promise<RawFtsRow[]>((resolve) => setTimeout(() => resolve([]), 100)));
+    const deps = makeDeps({ ftsSearch });
+    const search = createVerseSearch(deps, { debounceMs: 250 });
+    const emit1 = vi.fn();
+    const emit2 = vi.fn();
+
+    search.query('first', emit1);
+    await vi.advanceTimersByTimeAsync(50); // first FTS in flight
+    search.query('second', emit2);         // cancels first
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(emit1).not.toHaveBeenCalled();  // stale emit suppressed after abort
+    expect(emit2).toHaveBeenCalled();
   });
 });

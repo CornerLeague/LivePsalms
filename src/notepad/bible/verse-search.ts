@@ -1,5 +1,5 @@
 import { parseVerseRef, BOOK_TO_OSIS } from '../graph/reference-parser';
-import type { RawFtsRow, RawSemanticRow, PericopeRange, VerseCandidate } from './verse-search-types';
+import type { RawFtsRow, RawSemanticRow, PericopeRange, VerseCandidate, VerseSearchDeps } from './verse-search-types';
 
 const FTS_SCORE = 0.55;
 
@@ -157,4 +157,81 @@ export function mergeCandidates(
     .sort((x, y) => (y.c.score - x.c.score) || (x.i - y.i))
     .map((x) => x.c);
   return [...refs, ...rest];
+}
+
+const MIN_SEMANTIC_CHARS = 3;
+
+export async function completeReference(
+  partial: string,
+  deps: VerseSearchDeps,
+  opts: { signal?: AbortSignal },
+): Promise<VerseCandidate | null> {
+  const route = routeQuery(partial);
+  if (route.kind !== 'reference') return null;
+  // Lookup key for fetchVerseText (which parses ref strings); hyphen-minus is
+  // intentional here — the en-dash is only for the human-facing passage label.
+  const ref = `${route.parsed.book} ${route.parsed.chapter}:${route.parsed.verseStart}${route.parsed.verseEnd ? `-${route.parsed.verseEnd}` : ''}`;
+  let text = '';
+  try {
+    const result = await deps.fetchVerseText(ref, { signal: opts.signal });
+    if (result) text = result.text;
+  } catch {
+    // offline / abort — candidate still inserts with empty text (lazy-fill later)
+  }
+  return referenceCandidate(route.parsed, text);
+}
+
+export type EmitPhase = 'instant' | 'complete';
+
+export function createVerseSearch(deps: VerseSearchDeps, opts: { debounceMs?: number } = {}) {
+  const debounceMs = opts.debounceMs ?? 250;
+  let controller: AbortController | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  function cancel() {
+    if (controller) { controller.abort(); controller = null; }
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+
+  function query(text: string, emit: (results: VerseCandidate[], phase: EmitPhase) => void): () => void {
+    cancel();
+    const ctrl = new AbortController();
+    controller = ctrl;
+    const signal = ctrl.signal;
+    const trimmed = text.trim();
+    const route = routeQuery(trimmed);
+
+    // Reference pin (local parse; text fetched lazily by the node, not here).
+    const pin = route.kind === 'reference' ? referenceCandidate(route.parsed, '') : null;
+
+    // FTS — instant.
+    (async () => {
+      let ftsCands: VerseCandidate[] = [];
+      try {
+        const rows = await deps.ftsSearch(trimmed, { signal });
+        ftsCands = rows.map(normalizeFtsRow);
+      } catch { /* FTS error -> empty, picker stays usable */ }
+      if (signal.aborted) return;
+      emit(mergeCandidates(pin, ftsCands, []), 'instant');
+
+      // Semantic — trailing debounce, only >= MIN_SEMANTIC_CHARS.
+      if (trimmed.length < MIN_SEMANTIC_CHARS) return;
+      timer = setTimeout(async () => {
+        let semCands: VerseCandidate[] = [];
+        try {
+          const rows = await deps.semanticSearch(trimmed, { signal });
+          const resolved = await Promise.all(
+            rows.map((r) => normalizeSemanticRow(r, { resolvePericope: deps.resolvePericope, signal })),
+          );
+          semCands = resolved.filter((c): c is VerseCandidate => c !== null);
+        } catch { /* semantic error/timeout -> degrade to FTS+reference */ }
+        if (signal.aborted) return;
+        emit(mergeCandidates(pin, ftsCands, semCands), 'complete');
+      }, debounceMs);
+    })();
+
+    return cancel;
+  }
+
+  return { query, cancel };
 }
