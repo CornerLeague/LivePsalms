@@ -1,0 +1,91 @@
+import { describe, it, expect, vi } from 'vitest';
+import { createBrowserVerseSearchDeps } from './verse-search-client';
+
+function makeSupabaseStub(over: Record<string, unknown> = {}) {
+  return {
+    from: vi.fn(),
+    functions: { invoke: vi.fn(async () => ({ data: { matches: [] }, error: null })) },
+    ...over,
+  };
+}
+
+describe('createBrowserVerseSearchDeps.ftsSearch', () => {
+  it('queries text_tsv with websearch, BSB filter, and maps rows', async () => {
+    const order = vi.fn(async () => ({
+      data: [{ id: 'jhn.3.16', book: 'John', chapter: 3, verse_start: 16, verse_end: null, text: 'For God...' }],
+      error: null,
+    }));
+    const limit = vi.fn(() => ({ order }));
+    const textSearch = vi.fn(() => ({ limit }));
+    const eq = vi.fn(() => ({ textSearch }));
+    const select = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ select }));
+    const deps = createBrowserVerseSearchDeps(makeSupabaseStub({ from }) as never);
+
+    const rows = await deps.ftsSearch('love', {});
+    expect(from).toHaveBeenCalledWith('bible_passages');
+    expect(eq).toHaveBeenCalledWith('translation', 'BSB');
+    expect(textSearch).toHaveBeenCalledWith('text_tsv', 'love', { type: 'websearch' });
+    expect(rows[0]).toMatchObject({ id: 'jhn.3.16', book: 'John', chapter: 3, verseStart: 16, verseEnd: null });
+  });
+});
+
+describe('createBrowserVerseSearchDeps.semanticSearch', () => {
+  it('invokes the verse-search edge fn and maps matches', async () => {
+    const invoke = vi.fn(async () => ({
+      data: { matches: [{ sourceId: 'jhn.3.16', text: 'x', similarity: 0.8 }] }, error: null,
+    }));
+    const deps = createBrowserVerseSearchDeps(makeSupabaseStub({ functions: { invoke } }) as never);
+    const rows = await deps.semanticSearch('love', {});
+    expect(invoke).toHaveBeenCalledWith('verse-search', { body: { query: 'love' } });
+    expect(rows[0]).toMatchObject({ sourceId: 'jhn.3.16', similarity: 0.8 });
+  });
+
+  it('returns [] when the edge fn errors (graceful degrade)', async () => {
+    const invoke = vi.fn(async () => ({ data: null, error: { message: 'boom' } }));
+    const deps = createBrowserVerseSearchDeps(makeSupabaseStub({ functions: { invoke } }) as never);
+    expect(await deps.semanticSearch('love', {})).toEqual([]);
+  });
+});
+
+describe('createBrowserVerseSearchDeps.resolvePericope', () => {
+  function pericopeStub(result: { data: unknown; error: unknown }) {
+    const order = vi.fn(async () => result);
+    const eq2 = vi.fn(() => ({ order }));
+    const eq1 = vi.fn(() => ({ eq: eq2 }));
+    const select = vi.fn(() => ({ eq: eq1 }));
+    const from = vi.fn(() => ({ select }));
+    return { stub: makeSupabaseStub({ from }), from, eq1, eq2 };
+  }
+
+  it('returns null for an unknown osis book (no DB call)', async () => {
+    const { stub, from } = pericopeStub({ data: [], error: null });
+    const deps = createBrowserVerseSearchDeps(stub as never);
+    expect(await deps.resolvePericope('zzz.3', {})).toBeNull();
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the query errors', async () => {
+    const { stub } = pericopeStub({ data: null, error: { message: 'boom' } });
+    const deps = createBrowserVerseSearchDeps(stub as never);
+    expect(await deps.resolvePericope('jhn.3', {})).toBeNull();
+  });
+
+  it('aggregates rows into a PericopeRange (min/max verses, joined text, canonical book)', async () => {
+    const rows = [
+      { chapter: 3, verse_start: 1, verse_end: null, text: 'a' },
+      { chapter: 3, verse_start: 2, verse_end: 21, text: 'b' },
+    ];
+    const { stub, eq1, eq2 } = pericopeStub({ data: rows, error: null });
+    const deps = createBrowserVerseSearchDeps(stub as never);
+    const range = await deps.resolvePericope('jhn.3', {});
+    expect(range).not.toBeNull();
+    expect(range!.book).toBe('John');
+    expect(range!.chapter).toBe(3);
+    expect(range!.verseStart).toBe(1);
+    expect(range!.verseEnd).toBe(21);
+    expect(range!.text).toBe('a b');
+    expect(eq1).toHaveBeenCalledWith('pericope_id', 'jhn.3');
+    expect(eq2).toHaveBeenCalledWith('translation', 'BSB');
+  });
+});
