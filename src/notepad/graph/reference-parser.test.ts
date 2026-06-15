@@ -4,6 +4,7 @@ import {
   toCanonicalScriptureId,
   parseVerseRef,
   findNoteLinkSnippet,
+  walkNodes,
 } from './reference-parser';
 
 // ---------------------------------------------------------------------------
@@ -397,5 +398,47 @@ describe('findNoteLinkSnippet — match cases', () => {
     );
     const snippet = findNoteLinkSnippet(content, 'target');
     expect(snippet).toBe('right [target text]');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// walkNodes + node-aware scriptureRef extraction
+// ---------------------------------------------------------------------------
+
+function docWithScriptureRef() {
+  return JSON.stringify({
+    type: 'doc',
+    content: [{
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'Meditating on ' },
+        { type: 'scriptureRef', attrs: { osis: 'jhn.3.16', book: 'John', chapter: 3, verseStart: 16, verseEnd: null, translation: 'BSB', text: 'For God...' } },
+      ],
+    }],
+  });
+}
+
+describe('walkNodes', () => {
+  it('collects nodes of the given type', () => {
+    const found = walkNodes(JSON.parse(docWithScriptureRef()), 'scriptureRef');
+    expect(found).toHaveLength(1);
+    expect((found[0].attrs as { osis: string }).osis).toBe('jhn.3.16');
+  });
+});
+
+describe('parseReferencesFromContent — node-aware', () => {
+  it('emits a scripture edge + ref from a scriptureRef node', () => {
+    const { edges, scriptureRefs } = parseReferencesFromContent('note1', docWithScriptureRef());
+    // toCanonicalScriptureId('John 3:16') === 'scripture:jn-3-16' (shortest John abbrev is "Jn")
+    expect(scriptureRefs.map((s) => s.id)).toContain('scripture:jn-3-16');
+    expect(edges.some((e) => e.type === 'scripture_reference' && e.target === 'scripture:jn-3-16')).toBe(true);
+  });
+
+  it('dedupes a verse that appears both in prose and as a node (counts once)', () => {
+    const doc = JSON.parse(docWithScriptureRef());
+    doc.content[0].content.push({ type: 'text', text: ' see John 3:16 again' });
+    const { scriptureRefs } = parseReferencesFromContent('note1', JSON.stringify(doc));
+    const johns = scriptureRefs.filter((s) => s.id === 'scripture:jn-3-16');
+    expect(johns).toHaveLength(1);
   });
 });

@@ -253,6 +253,20 @@ export function walkMarks(doc: unknown, markType: string): Array<Record<string, 
   return found;
 }
 
+export function walkNodes(doc: unknown, nodeType: string): Array<Record<string, unknown>> {
+  const found: Array<Record<string, unknown>> = [];
+  function walk(node: unknown): void {
+    if (!node || typeof node !== 'object') return;
+    const n = node as Record<string, unknown>;
+    if (n.type === nodeType) found.push(n);
+    if (Array.isArray(n.content)) {
+      for (const child of n.content) walk(child);
+    }
+  }
+  walk(doc);
+  return found;
+}
+
 /**
  * Builds a snippet around the first `noteLink` mark in `content` that targets
  * `noteId`. Returns the marked text wrapped in [brackets] inside up to
@@ -372,6 +386,28 @@ export function parseReferencesFromContent(
     if (seen.has(key)) continue;
     seen.add(key);
     edges.push({ target: scriptureId, type: 'scripture_reference', weight: 0.9 });
+    scriptureRefs.push({ id: scriptureId, ref });
+  }
+
+  // Node-aware: deliberate scriptureRef inserts carry a canonical ref in attrs.
+  // An atom node has no text child, so extractPlainText never sees it — walk
+  // nodes explicitly. Route through the SAME canonicalizer + seen key as prose
+  // so a verse typed in prose AND inserted as a node dedupe to one ScriptureNode.
+  const scriptureNodes = walkNodes(doc, 'scriptureRef');
+  for (const node of scriptureNodes) {
+    const attrs = node.attrs as Record<string, unknown> | undefined;
+    if (!attrs) continue;
+    const book = attrs.book as string | undefined;
+    const chapter = attrs.chapter as number | undefined;
+    const verseStart = attrs.verseStart as number | undefined;
+    if (!book || chapter == null || verseStart == null) continue;
+    const verseEnd = (attrs.verseEnd ?? null) as number | null;
+    const ref = `${book} ${chapter}:${verseStart}${verseEnd ? `-${verseEnd}` : ''}`;
+    const scriptureId = toCanonicalScriptureId(ref);
+    const key = `scripture_reference:${scriptureId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    edges.push({ target: scriptureId, type: 'scripture_reference', weight: 0.95 });
     scriptureRefs.push({ id: scriptureId, ref });
   }
 
