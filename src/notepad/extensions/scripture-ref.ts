@@ -1,5 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { ReactNodeViewRenderer } from '@tiptap/react';
 import type { VerseSearchDeps } from '../bible/verse-search-types';
+import { ScriptureRefNodeView } from './ScriptureRefView';
 
 export interface ScriptureRefOptions {
   // null in tests / when search is unavailable; set in production wiring (Task 14).
@@ -80,5 +82,9 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
         ({ chain }) =>
           chain().insertContent({ type: this.name, attrs }).run(),
     };
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ScriptureRefNodeView);
   },
 });

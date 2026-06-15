@@ -59,6 +59,18 @@ describe('serialization round-trip', () => {
   });
 });
 
+describe('collapse state is ephemeral', () => {
+  it('node JSON has no collapsed/view-state attr (toggle cannot dirty the doc)', () => {
+    editor = makeEditor();
+    editor.commands.insertScriptureRef(ATTRS);
+    const node = findNode(editor.getJSON(), 'scriptureRef')!;
+    expect(node.attrs).not.toHaveProperty('collapsed');
+    expect(Object.keys(node.attrs).sort()).toEqual(
+      ['book', 'chapter', 'osis', 'text', 'translation', 'verseEnd', 'verseStart'],
+    );
+  });
+});
+
 // Helper: depth-first search for the first node of a type.
 function findNode(json: unknown, type: string): { type: string; attrs: Record<string, unknown> } | null {
   if (!json || typeof json !== 'object') return null;
