@@ -6,6 +6,8 @@ import { BibleVerse } from '../extensions/bible-verse';
 import { NoteLink } from '../extensions/note-link';
 import { TagMark } from '../extensions/tag-mark';
 import { StyleHighlight } from '../extensions/style-highlight';
+import { ScriptureRef } from '../extensions/scripture-ref';
+import { createBrowserVerseSearchDeps } from '../bible/verse-search-client';
 import { STYLE_ASSETS, filterAssets } from '../styles/manifest';
 import type { Note } from '../types';
 import { parseNoteContent } from './note-editor';
@@ -57,6 +59,7 @@ export function useNoteEditor({
       StarterKit,
       Placeholder.configure({ placeholder: 'Start writing...' }),
       BibleVerse,
+      ScriptureRef.configure({ search: createBrowserVerseSearchDeps() }),
       NoteLink,
       TagMark,
       StyleHighlight.configure({ defaultSwatchId: defaultHighlightSwatchId }),
