@@ -101,3 +101,60 @@ export async function normalizeSemanticRow(
     label: `${range.book} ${range.chapter}:${range.verseStart}–${range.verseEnd} · passage`,
   };
 }
+
+const CORROBORATION_BOOST = 0.15;
+const SOURCE_PRIORITY: Record<VerseCandidate['source'], number> = { reference: 3, semantic: 2, fts: 1 };
+
+export function referenceCandidate(
+  parsed: { book: string; chapter: number; verseStart: number; verseEnd: number | null },
+  text: string,
+): VerseCandidate {
+  return {
+    osis: osisForRef(parsed.book, parsed.chapter, parsed.verseStart),
+    book: parsed.book,
+    chapter: parsed.chapter,
+    verseStart: parsed.verseStart,
+    verseEnd: parsed.verseEnd,
+    text,
+    translation: 'BSB',
+    source: 'reference',
+    score: 1,
+  };
+}
+
+export function mergeCandidates(
+  reference: VerseCandidate | null,
+  fts: VerseCandidate[],
+  semantic: VerseCandidate[],
+): VerseCandidate[] {
+  const byOsis = new Map<string, VerseCandidate[]>();
+  const all = [...(reference ? [reference] : []), ...semantic, ...fts];
+  for (const c of all) {
+    const group = byOsis.get(c.osis);
+    if (group) group.push(c);
+    else byOsis.set(c.osis, [c]);
+  }
+
+  const merged: VerseCandidate[] = [];
+  for (const group of byOsis.values()) {
+    if (group.length === 1) { merged.push(group[0]); continue; }
+    const best = group.reduce((a, b) => (SOURCE_PRIORITY[b.source] > SOURCE_PRIORITY[a.source] ? b : a));
+    const maxScore = Math.max(...group.map((g) => g.score));
+    const text = group.find((g) => g.text.trim().length > 0)?.text ?? best.text;
+    const label = group.find((g) => g.label)?.label;
+    merged.push({
+      ...best,
+      text,
+      ...(label !== undefined && { label }),
+      score: best.source === 'reference' ? 1 : Math.min(1, maxScore + CORROBORATION_BOOST * (group.length - 1)),
+    });
+  }
+
+  // Reference pinned first (in insertion order); rest by score desc, stable.
+  const refs = merged.filter((c) => c.source === 'reference');
+  const rest = merged.filter((c) => c.source !== 'reference')
+    .map((c, i) => ({ c, i }))
+    .sort((x, y) => (y.c.score - x.c.score) || (x.i - y.i))
+    .map((x) => x.c);
+  return [...refs, ...rest];
+}
