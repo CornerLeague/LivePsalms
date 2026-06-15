@@ -36,6 +36,19 @@ export function MobileBottomDock({ onNavTrigger }: MobileBottomDockProps) {
   const adaptiveTheme = useAdaptiveDockTheme(isMobile && isNotepadLanding);
   const bgTheme: DockTheme = isNotepadLanding ? adaptiveTheme : 'dark';
 
+  // Auto-close the panel when the route changes. Covers every navigation
+  // path — link taps inside the panel, the logo tile, browser back/forward,
+  // and programmatic navigation — without coupling to specific click
+  // handlers. Initial mount with the panel already closed is a no-op.
+  // MUST stay above the `if (!isMobile) return null` early return so the hook
+  // count is stable across a viewport resize across the breakpoint — otherwise
+  // React throws "Rendered fewer/more hooks than expected" and, with no error
+  // boundary above it, the whole app unmounts to the bare app-bg.
+  useEffect(() => {
+    setPanelOpenRaw(false);
+    setSocialExpanded(false);
+  }, [location.pathname]);
+
   if (!isMobile) return null;
 
   const visible = panelOpen ? true : dir !== 'down';
@@ -48,15 +61,6 @@ export function MobileBottomDock({ onNavTrigger }: MobileBottomDockProps) {
     setPanelOpenRaw(next);
     if (!next) setSocialExpanded(false);
   };
-
-  // Auto-close the panel when the route changes. Covers every navigation
-  // path — link taps inside the panel, the logo tile, browser back/forward,
-  // and programmatic navigation — without coupling to specific click
-  // handlers. Initial mount with the panel already closed is a no-op.
-  useEffect(() => {
-    setPanelOpenRaw(false);
-    setSocialExpanded(false);
-  }, [location.pathname]);
 
   return (
     <aside
