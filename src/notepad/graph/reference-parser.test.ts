@@ -441,4 +441,41 @@ describe('parseReferencesFromContent — node-aware', () => {
     const johns = scriptureRefs.filter((s) => s.id === 'scripture:jn-3-16');
     expect(johns).toHaveLength(1);
   });
+
+  it('dedupes an OSIS-book node (e.g. /verse FTS insert) with a prose mention', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'See John 3:16 — ' },
+          { type: 'scriptureRef', attrs: { osis: 'jhn.3.16', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: null, translation: 'BSB', text: 'For God...' } },
+        ],
+      }],
+    };
+    const { scriptureRefs } = parseReferencesFromContent('note1', JSON.stringify(doc));
+    const johns = scriptureRefs.filter((s) => s.id === 'scripture:jn-3-16');
+    expect(johns).toHaveLength(1);
+    expect(scriptureRefs.some((s) => s.id === 'scripture:jhn-3-16')).toBe(false);
+  });
+
+  it('walkNodes finds a scriptureRef nested in a list', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'bulletList',
+        content: [{
+          type: 'listItem',
+          content: [{
+            type: 'paragraph',
+            content: [{ type: 'scriptureRef', attrs: { osis: 'rom.8.28', book: 'Romans', chapter: 8, verseStart: 28, verseEnd: null, translation: 'BSB', text: 'x' } }],
+          }],
+        }],
+      }],
+    };
+    const found = walkNodes(doc, 'scriptureRef');
+    expect(found).toHaveLength(1);
+    const { scriptureRefs } = parseReferencesFromContent('n', JSON.stringify(doc));
+    expect(scriptureRefs.some((s) => s.id === 'scripture:ro-8-28')).toBe(true);
+  });
 });

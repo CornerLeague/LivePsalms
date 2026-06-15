@@ -127,6 +127,13 @@ export const BOOK_TO_OSIS: Record<string, string> = {
   '3 John': '3jn', 'Jude': 'jud', 'Revelation': 'rev',
 };
 
+// Inverse of BOOK_TO_OSIS for mapping an OSIS abbrev ("jhn") back to its
+// canonical name ("John"). Used by the node-aware pass to canonicalize a
+// scriptureRef node whose `book` attr leaked the OSIS form (FTS-sourced inserts).
+const OSIS_TO_CANONICAL_BOOK: Record<string, string> = Object.fromEntries(
+  Object.entries(BOOK_TO_OSIS).map(([name, osis]) => [osis, name]),
+);
+
 /**
  * Fetches verse text from the local `bible_passages` table (BSB, ingested in
  * sub-project 2). Returns { text, reference, translation } or null on:
@@ -397,10 +404,13 @@ export function parseReferencesFromContent(
   for (const node of scriptureNodes) {
     const attrs = node.attrs as Record<string, unknown> | undefined;
     if (!attrs) continue;
-    const book = attrs.book as string | undefined;
+    const rawBook = attrs.book as string | undefined;
     const chapter = attrs.chapter as number | undefined;
     const verseStart = attrs.verseStart as number | undefined;
-    if (!book || chapter == null || verseStart == null) continue;
+    if (!rawBook || chapter == null || verseStart == null) continue;
+    // A node may carry the OSIS abbrev ("jhn") if it came from an FTS-sourced
+    // /verse insert; canonicalize so its ref dedupes with prose mentions.
+    const book = OSIS_TO_CANONICAL_BOOK[rawBook.toLowerCase()] ?? rawBook;
     const verseEnd = (attrs.verseEnd ?? null) as number | null;
     const ref = `${book} ${chapter}:${verseStart}${verseEnd ? `-${verseEnd}` : ''}`;
     const scriptureId = toCanonicalScriptureId(ref);

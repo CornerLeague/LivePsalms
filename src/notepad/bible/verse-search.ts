@@ -39,7 +39,10 @@ export function detectGrain(sourceId: string): 'verse' | 'pericope' {
 export function normalizeFtsRow(row: RawFtsRow): VerseCandidate {
   return {
     osis: row.id,
-    book: row.book,
+    // bible_passages.book stores the OSIS abbrev ("jhn"); the VerseCandidate
+    // contract requires the canonical display name ("John"). Fall back to the
+    // raw value for any abbrev not in the map.
+    book: osisBookToCanonical(row.book) ?? row.book,
     chapter: row.chapter,
     verseStart: row.verseStart,
     verseEnd: row.verseEnd,

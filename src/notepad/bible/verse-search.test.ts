@@ -45,13 +45,16 @@ describe('osisBookToCanonical', () => {
 describe('normalizeFtsRow', () => {
   it('maps a raw FTS row to a candidate with flat fts score', () => {
     const row: RawFtsRow = {
-      id: 'jhn.3.16', book: 'John', chapter: 3, verseStart: 16, verseEnd: null,
+      id: 'jhn.3.16', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: null,
       text: 'For God so loved the world...',
     };
     const c = normalizeFtsRow(row);
     expect(c.source).toBe('fts');
     expect(c.score).toBeCloseTo(0.55);
     expect(c.osis).toBe('jhn.3.16');
+    // bible_passages stores the OSIS abbrev; normalizeFtsRow must canonicalize
+    // it so /verse-inserted chips render "John" and dedupe with prose mentions.
+    expect(c.book).toBe('John');
     expect(c.translation).toBe('BSB');
   });
 });
