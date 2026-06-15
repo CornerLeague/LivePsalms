@@ -60,8 +60,10 @@ export async function buildKeywordItems(
 ): Promise<VerseCandidate[]> {
   if (!search) return [];
   // Instant FTS slice (plus a reference pin if the query parses as a ref) for the
-  // synchronous `items` contract. v1 does not live-upgrade with semantic results
-  // in the dropdown; semantic ranking is available via the pure module if wired later.
+  // synchronous `items` contract — this is the instant first paint. The live
+  // /verse picker now upgrades the dropdown with semantic results after a
+  // debounce via createVerseSearch in the renderer (see renderVerseSuggestList);
+  // this builder stays the instant FTS slice + reference pin.
   const rows = await search.ftsSearch(query, { signal });
   const route = routeQuery(query);
   const pin = route.kind === 'reference' ? referenceCandidate(route.parsed, '') : null;
@@ -186,7 +188,7 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
       allowSpaces: true,
       startOfLine: false,
       command,
-      render: () => renderVerseSuggestList(),
+      render: () => renderVerseSuggestList(search),
       items: ({ query }) => {
         if (!/^verse/i.test(query)) return [];
         const stripped = query.replace(/^verse\s*/i, '');

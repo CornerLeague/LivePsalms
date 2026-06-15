@@ -162,7 +162,7 @@ export function mergeCandidates(
   return [...refs, ...rest];
 }
 
-const MIN_SEMANTIC_CHARS = 3;
+export const MIN_SEMANTIC_CHARS = 3;
 
 export async function completeReference(
   partial: string,
