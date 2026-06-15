@@ -568,3 +568,79 @@ describe('SupabaseLamplightAdapter.generateConnectionWhy', () => {
     });
   });
 });
+
+describe('SupabaseLamplightAdapter — admin jobs', () => {
+  function makeRpcClient(data: unknown) {
+    return {
+      async rpc() {
+        return { data, error: null };
+      },
+    };
+  }
+
+  it('adminListJobs maps a snake_case row → camelCase AdminJobRow (email survives, null fields coalesce)', async () => {
+    const client = makeRpcClient([
+      {
+        id: 'job-1',
+        user_id: 'user-1',
+        email: 'person@example.com',
+        kind: 'daily_devotion',
+        status: 'failed',
+        attempts: 2,
+        payload: { foo: 'bar' },
+        scheduled_at: '2026-06-14T00:00:00Z',
+        started_at: null,
+        finished_at: null,
+        error: null,
+      },
+    ]);
+    const adapter = new SupabaseLamplightAdapter(client as unknown as SupabaseClient);
+    expect(await adapter.adminListJobs({ status: ['failed'] })).toEqual([
+      {
+        id: 'job-1',
+        userId: 'user-1',
+        email: 'person@example.com',
+        kind: 'daily_devotion',
+        status: 'failed',
+        attempts: 2,
+        payload: { foo: 'bar' },
+        scheduledAt: '2026-06-14T00:00:00Z',
+        startedAt: null,
+        finishedAt: null,
+        error: null,
+      },
+    ]);
+  });
+
+  it('adminRequeueJob maps its row AND forces email:null even when the row carries an email', async () => {
+    // The admin_requeue_lamplight_job RPC does NOT join email — the requeue
+    // path hardcodes null regardless of what the row happens to contain.
+    const client = makeRpcClient({
+      id: 'job-9',
+      user_id: 'user-2',
+      email: 'should-be-ignored@example.com',
+      kind: 'connection_card_why',
+      status: 'queued',
+      attempts: 0,
+      payload: null,
+      scheduled_at: '2026-06-14T12:00:00Z',
+      started_at: '2026-06-14T12:01:00Z',
+      finished_at: null,
+      error: null,
+    });
+    const adapter = new SupabaseLamplightAdapter(client as unknown as SupabaseClient);
+    expect(await adapter.adminRequeueJob('job-9')).toEqual({
+      id: 'job-9',
+      userId: 'user-2',
+      email: null,
+      kind: 'connection_card_why',
+      status: 'queued',
+      attempts: 0,
+      payload: null,
+      scheduledAt: '2026-06-14T12:00:00Z',
+      startedAt: '2026-06-14T12:01:00Z',
+      finishedAt: null,
+      error: null,
+    });
+  });
+});

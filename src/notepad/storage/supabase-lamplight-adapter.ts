@@ -263,6 +263,26 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
     };
   }
 
+  // Shared snake→camel mapper for admin job rows. `email` is supplied by the
+  // caller because the two RPCs differ on exactly one field:
+  // admin_list_lamplight_jobs joins email, admin_requeue_lamplight_job does not
+  // (the requeue path passes null). Every other field maps identically.
+  #mapAdminJobRow(r: Record<string, unknown>, email: string | null): AdminJobRow {
+    return {
+      id: r.id as string,
+      userId: r.user_id as string,
+      email,
+      kind: r.kind as string,
+      status: r.status as AdminJobRow['status'],
+      attempts: r.attempts as number,
+      payload: r.payload,
+      scheduledAt: r.scheduled_at as string,
+      startedAt: (r.started_at as string) ?? null,
+      finishedAt: (r.finished_at as string) ?? null,
+      error: (r.error as string) ?? null,
+    };
+  }
+
   async isLamplightAdmin(): Promise<boolean> {
     const { data, error } = await this.#client.rpc('is_lamplight_admin');
     if (error) return false;
@@ -284,19 +304,9 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
     }
     const { data, error } = await this.#client.rpc('admin_list_lamplight_jobs', params);
     if (error) throw error;
-    return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
-      id: r.id as string,
-      userId: r.user_id as string,
-      email: (r.email as string) ?? null,
-      kind: r.kind as string,
-      status: r.status as AdminJobRow['status'],
-      attempts: r.attempts as number,
-      payload: r.payload,
-      scheduledAt: r.scheduled_at as string,
-      startedAt: (r.started_at as string) ?? null,
-      finishedAt: (r.finished_at as string) ?? null,
-      error: (r.error as string) ?? null,
-    }));
+    return ((data ?? []) as Array<Record<string, unknown>>).map((r) =>
+      this.#mapAdminJobRow(r, (r.email as string) ?? null),
+    );
   }
 
   async adminJobCounts(sinceIso: string): Promise<AdminJobCounts> {
@@ -320,19 +330,8 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
     });
     if (error) throw error;
     const r = data as Record<string, unknown>;
-    return {
-      id: r.id as string,
-      userId: r.user_id as string,
-      email: null,
-      kind: r.kind as string,
-      status: r.status as AdminJobRow['status'],
-      attempts: r.attempts as number,
-      payload: r.payload,
-      scheduledAt: r.scheduled_at as string,
-      startedAt: (r.started_at as string) ?? null,
-      finishedAt: (r.finished_at as string) ?? null,
-      error: (r.error as string) ?? null,
-    };
+    // The requeue RPC does not join email — keep the historical null.
+    return this.#mapAdminJobRow(r, null);
   }
 
   async adminRequeueAllFailed(kind?: string, limit?: number): Promise<number> {
