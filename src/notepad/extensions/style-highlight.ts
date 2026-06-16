@@ -28,9 +28,16 @@ export interface StyleHighlightStorage {
 
 export function highlightBackgroundStyle(displayUrl: string | undefined): string {
   if (!displayUrl) return '';
+  // Cover-and-center the swatch instead of stretching one copy to fit each
+  // fragment. `cover` preserves the texture's aspect ratio and crops to the
+  // swatch's solid interior (dropping the feathered/rounded edges that would
+  // otherwise tile into visible seams), so the highlight reads as one smooth,
+  // even-density wash across any length and continues consistently on every
+  // wrapped line rather than squishing and restarting per word/line.
   return (
     `background-image:url(${displayUrl});` +
-    'background-size:100% 100%;' +
+    'background-size:cover;' +
+    'background-position:center;' +
     'background-repeat:no-repeat;' +
     'border-radius:3px;' +
     'padding:0 2px;' +

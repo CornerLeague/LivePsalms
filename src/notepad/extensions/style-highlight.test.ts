@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { highlightBackgroundStyle, nextHighlightAction } from './style-highlight';
 
 describe('highlightBackgroundStyle', () => {
-  it('stretches the swatch display image behind the text', () => {
+  it('tiles the swatch texture at a consistent scale so highlights flow across words and lines', () => {
     const style = highlightBackgroundStyle('/styles/highlight/highlight-60.webp');
     expect(style).toContain('background-image:url(/styles/highlight/highlight-60.webp)');
-    expect(style).toContain('background-size:100% 100%');
-    expect(style).toContain('background-repeat:no-repeat');
+    expect(style).toContain('background-size:cover');
+    expect(style).toContain('background-position:center');
+    expect(style).toContain('box-decoration-break:clone');
   });
 
   it('returns an empty string for a missing url', () => {
