@@ -21,11 +21,22 @@ describe('ScriptureRefCard', () => {
     expect(fetchVerseText).not.toHaveBeenCalled();
   });
 
-  it('expands to show verse text + BSB label on click', () => {
+  it('keeps the reference pill visible when expanded', () => {
     render(<ScriptureRefCard attrs={baseAttrs} online updateText={vi.fn()} fetchVerseText={vi.fn()} />);
     fireEvent.click(screen.getByText(/John 3:16/));
+    // Pill stays AND the verse + translation are now revealed.
+    expect(screen.getByText(/John 3:16/)).toBeTruthy();
     expect(screen.getByText(/For God so loved/)).toBeTruthy();
     expect(screen.getByText('BSB')).toBeTruthy();
+  });
+
+  it('collapses again on a second click, hiding the verse but keeping the pill', () => {
+    render(<ScriptureRefCard attrs={baseAttrs} online updateText={vi.fn()} fetchVerseText={vi.fn()} />);
+    fireEvent.click(screen.getByText(/John 3:16/)); // expand
+    expect(screen.getByText(/For God so loved/)).toBeTruthy();
+    fireEvent.click(screen.getByText(/John 3:16/)); // collapse
+    expect(screen.queryByText(/For God so loved/)).toBeNull();
+    expect(screen.getByText(/John 3:16/)).toBeTruthy();
   });
 
   it('lazy-fills empty text when online and writes it back', async () => {

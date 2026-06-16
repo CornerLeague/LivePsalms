@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import type { ScriptureRefAttrs, ScriptureRefOptions } from './scripture-ref';
+import './scripture-ref.css';
 
 type FetchVerseText = (
   ref: string,
@@ -24,6 +25,7 @@ export function ScriptureRefCard({ attrs, online, updateText, fetchVerseText }: 
   // Ephemeral, local — never serialized. Default collapsed.
   const [collapsed, setCollapsed] = useState(true);
   const filledRef = useRef(false);
+  const verseId = useId();
 
   useEffect(() => {
     if (filledRef.current) return;
@@ -38,21 +40,23 @@ export function ScriptureRefCard({ attrs, online, updateText, fetchVerseText }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attrs.osis, online]);
 
-  if (collapsed) {
-    return (
-      <button type="button" className="scripture-ref-link" onClick={() => setCollapsed(false)}>
+  return (
+    <span className={`scripture-ref-inline${collapsed ? '' : ' is-expanded'}`}>
+      <button
+        type="button"
+        className="scripture-ref-link"
+        aria-expanded={!collapsed}
+        aria-controls={collapsed ? undefined : verseId}
+        onClick={() => setCollapsed((c) => !c)}
+      >
         {'📖 '}{refLabel(attrs)}
       </button>
-    );
-  }
-
-  return (
-    <span className="scripture-ref-card">
-      <span className="scripture-ref-card__text">{attrs.text || refLabel(attrs)}</span>
-      <span className="scripture-ref-card__meta">{attrs.translation}</span>
-      <button type="button" className="scripture-ref-card__collapse" aria-label="Collapse verse" onClick={() => setCollapsed(true)}>
-        {'✕'}
-      </button>
+      {!collapsed && (
+        <span id={verseId} className="scripture-ref-verse">
+          <span className="scripture-ref-verse__text">{attrs.text || refLabel(attrs)}</span>
+          <span className="scripture-ref-verse__meta">{attrs.translation}</span>
+        </span>
+      )}
     </span>
   );
 }
