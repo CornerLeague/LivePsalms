@@ -198,6 +198,18 @@
   color: var(--silica);
 }
 
+/* Selection contrast — the global App.css `::selection` flips selected text to
+   the light `--plaster` and relies on a dark `--deep-umber` background that
+   doesn't reliably paint over this non-editable NodeView, leaving light text on
+   the light-cream verse card. Scope selection here to keep the text dark with a
+   translucent gold highlight, so the verse stays legible while selected even if
+   the selection background never paints. */
+.scripture-ref-verse__text::selection,
+.scripture-ref-verse__meta::selection {
+  background: rgba(184, 132, 58, 0.3);
+  color: var(--deep-umber);
+}
+
 /* ── Reduced motion — keep gentle opacity fades, drop movement/scale. ──── */
 @media (prefers-reduced-motion: reduce) {
   .verse-suggest,

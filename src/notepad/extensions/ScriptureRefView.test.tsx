@@ -22,19 +22,29 @@ describe('ScriptureRefCard', () => {
   });
 
   it('keeps the reference pill visible when expanded', () => {
-    render(<ScriptureRefCard attrs={baseAttrs} online updateText={vi.fn()} fetchVerseText={vi.fn()} />);
-    fireEvent.click(screen.getByText(/John 3:16/));
-    // Pill stays AND the verse + translation are now revealed.
-    expect(screen.getByText(/John 3:16/)).toBeTruthy();
+    const { container } = render(<ScriptureRefCard attrs={baseAttrs} online updateText={vi.fn()} fetchVerseText={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    // Pill stays AND the verse + reference·translation meta are now revealed.
+    expect(screen.getByRole('button').textContent).toContain('John 3:16');
     expect(screen.getByText(/For God so loved/)).toBeTruthy();
-    expect(screen.getByText('BSB')).toBeTruthy();
+    expect(container.querySelector('.scripture-ref-verse__meta')?.textContent).toBe('John 3:16 · BSB');
+  });
+
+  it('shows the reference alongside the translation in the expanded meta line', () => {
+    const { container } = render(<ScriptureRefCard attrs={baseAttrs} online updateText={vi.fn()} fetchVerseText={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button')); // expand
+    // Collapsed pill query would now be ambiguous (pill + meta both say "John 3:16"),
+    // so scope to the verse-panel meta span.
+    const meta = container.querySelector('.scripture-ref-verse__meta');
+    expect(meta?.textContent).toBe('John 3:16 · BSB');
   });
 
   it('collapses again on a second click, hiding the verse but keeping the pill', () => {
     render(<ScriptureRefCard attrs={baseAttrs} online updateText={vi.fn()} fetchVerseText={vi.fn()} />);
-    fireEvent.click(screen.getByText(/John 3:16/)); // expand
+    const pill = screen.getByRole('button');
+    fireEvent.click(pill); // expand
     expect(screen.getByText(/For God so loved/)).toBeTruthy();
-    fireEvent.click(screen.getByText(/John 3:16/)); // collapse
+    fireEvent.click(pill); // collapse
     expect(screen.queryByText(/For God so loved/)).toBeNull();
     expect(screen.getByText(/John 3:16/)).toBeTruthy();
   });

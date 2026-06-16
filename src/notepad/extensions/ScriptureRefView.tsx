@@ -54,7 +54,7 @@ export function ScriptureRefCard({ attrs, online, updateText, fetchVerseText }: 
       {!collapsed && (
         <span id={verseId} className="scripture-ref-verse">
           <span className="scripture-ref-verse__text">{attrs.text || refLabel(attrs)}</span>
-          <span className="scripture-ref-verse__meta">{attrs.translation}</span>
+          <span className="scripture-ref-verse__meta">{refLabel(attrs)}{' · '}{attrs.translation}</span>
         </span>
       )}
     </span>
