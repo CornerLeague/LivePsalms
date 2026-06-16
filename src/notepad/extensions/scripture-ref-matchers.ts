@@ -21,3 +21,26 @@ export function matchReferenceBeforeCursor(textBeforeCursor: string): Suggestion
   const from = to - query.length;
   return { from, to, query };
 }
+
+// The /verse keyword command: a literal "/verse" at the start of a line or after
+// whitespace, optionally followed by a space and free-text keywords (which may
+// contain spaces — semantic queries like "love your enemies"). Anchored to the
+// END of text-before-cursor. The word boundary after "verse" (\s or end) keeps
+// "/versed" and "/version" from triggering. Replaces the default Suggestion
+// char-matcher so the picker fires ONLY on /verse — not on every "/word".
+const VERSE_TRIGGER_AT_END = /(?:^|\s)(\/verse(?:\s.*)?)$/i;
+
+/**
+ * Returns the /verse-command match anchored at the end of `textBeforeCursor`,
+ * or null. `query` mirrors the default Suggestion contract (`match.slice(char)`)
+ * — i.e. the matched run minus the leading "/", so "/verse love" → "verse love".
+ * The picker's `items`/renderer strip the leading "verse" exactly as before.
+ */
+export function matchVersePickerBeforeCursor(textBeforeCursor: string): SuggestionTextMatch | null {
+  const m = VERSE_TRIGGER_AT_END.exec(textBeforeCursor);
+  if (!m) return null;
+  const full = m[1]; // "/verse" or "/verse <keywords>"
+  const to = textBeforeCursor.length;
+  const from = to - full.length;
+  return { from, to, query: full.slice(1) }; // drop the leading "/"
+}

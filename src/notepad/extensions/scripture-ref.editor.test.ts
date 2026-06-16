@@ -71,7 +71,7 @@ describe('collapse state is ephemeral', () => {
   });
 });
 
-import { buildReferenceItems, buildKeywordItems } from './scripture-ref';
+import { buildReferenceItems, buildKeywordItems, buildReferencePinItems } from './scripture-ref';
 import type { VerseSearchDeps } from '../bible/verse-search-types';
 
 function fakeDeps(): VerseSearchDeps {
@@ -99,6 +99,19 @@ describe('suggestion item builders', () => {
   it('builders return [] when search deps are null', async () => {
     expect(await buildReferenceItems('John 3:16', null, new AbortController().signal)).toEqual([]);
     expect(await buildKeywordItems('love', null, new AbortController().signal)).toEqual([]);
+  });
+
+  // The /verse picker uses buildReferencePinItems (synchronous, no FTS) so the
+  // renderer's createVerseSearch is the single FTS request per keystroke.
+  it('buildReferencePinItems pins a typed reference without any FTS fetch', () => {
+    const pinned = buildReferencePinItems('John 3:16');
+    expect(pinned).toHaveLength(1);
+    expect(pinned[0]).toMatchObject({ book: 'John', chapter: 3, verseStart: 16, source: 'reference' });
+    expect(pinned[0].osis).toBe('jhn.3.16');
+  });
+
+  it('buildReferencePinItems returns [] for a keyword query (renderer owns FTS)', () => {
+    expect(buildReferencePinItems('love')).toEqual([]);
   });
 });
 

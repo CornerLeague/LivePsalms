@@ -49,7 +49,10 @@ export function renderVerseSuggestList(search: VerseSearchDeps | null = null) {
       el.style.position = 'fixed';
       el.style.left = `${rect.left}px`;
       el.style.top = `${rect.bottom}px`;
-      el.style.zIndex = '50';
+      // Match the editor's other floating popups (verse tooltip, note-link
+      // popup) so the dropdown clears the text layer (TEXT_Z = 100000) and
+      // sticky toolbars instead of rendering behind them.
+      el.style.zIndex = '9999';
     }
   };
 

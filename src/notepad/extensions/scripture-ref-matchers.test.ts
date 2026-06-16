@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchReferenceBeforeCursor } from './scripture-ref-matchers';
+import { matchReferenceBeforeCursor, matchVersePickerBeforeCursor } from './scripture-ref-matchers';
 
 describe('matchReferenceBeforeCursor', () => {
   it('matches a full reference at the end of text', () => {
@@ -46,5 +46,49 @@ describe('matchReferenceBeforeCursor', () => {
     expect(m).not.toBeNull();
     expect(m!.query).toBe('1 John 4:8');
     expect(m!.from).toBe(0);
+  });
+});
+
+describe('matchVersePickerBeforeCursor', () => {
+  it('matches the bare /verse command (start of line)', () => {
+    const m = matchVersePickerBeforeCursor('/verse');
+    expect(m).not.toBeNull();
+    expect(m!.query).toBe('verse');
+    expect(m!.from).toBe(0);
+  });
+
+  it('matches /verse followed by keywords (spaces allowed)', () => {
+    const m = matchVersePickerBeforeCursor('/verse love your enemies');
+    expect(m!.query).toBe('verse love your enemies');
+    expect(m!.from).toBe(0);
+  });
+
+  it('matches /verse with a trailing space before keywords are typed', () => {
+    const m = matchVersePickerBeforeCursor('/verse ');
+    expect(m).not.toBeNull();
+    expect(m!.query).toBe('verse ');
+  });
+
+  it('matches /verse after whitespace mid-paragraph', () => {
+    const text = 'note: /verse grace';
+    const m = matchVersePickerBeforeCursor(text);
+    expect(m!.query).toBe('verse grace');
+    expect(m!.from).toBe(6);
+    expect(m!.to).toBe(text.length);
+  });
+
+  it('does NOT fire on other slash words', () => {
+    expect(matchVersePickerBeforeCursor('/todo')).toBeNull();
+    expect(matchVersePickerBeforeCursor('note /h')).toBeNull();
+  });
+
+  it('does NOT fire on words that merely start with verse', () => {
+    expect(matchVersePickerBeforeCursor('/versed')).toBeNull();
+    expect(matchVersePickerBeforeCursor('/verses')).toBeNull();
+    expect(matchVersePickerBeforeCursor('/verselove')).toBeNull();
+  });
+
+  it('does NOT fire mid-word (slash embedded after a non-space char)', () => {
+    expect(matchVersePickerBeforeCursor('and/verse')).toBeNull();
   });
 });

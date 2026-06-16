@@ -8,13 +8,14 @@ import {
 } from 'react';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import { decideOnboardingActions } from './onboarding-state';
-import { mergeAnonIntoAccount } from './merge-anon-progress';
+import { decideMerge } from './onboarding-lifecycle';
 import { appendStudyDate, hasThreeConsecutiveDays } from './streak';
 import { useOnboardingAdapter } from './useOnboardingAdapter';
 import {
   ANON_EVENT_TO_ITEM,
   JOURNEY_EVENT_TO_ITEM,
   ONBOARDING_LAUNCH_MS,
+  defaultAccountProgress,
 } from './onboarding-types';
 import type {
   AccountProgress,
@@ -112,28 +113,38 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     [adapter],
   );
 
-  // One-time anon -> account merge on first signed-in load.
+  // One-time anon -> account merge on first signed-in load. The decision is a
+  // pure function over a state snapshot; this effect owns only the mergedRef
+  // latch and the I/O dispatch.
   const mergedRef = useRef(false);
   useEffect(() => {
-    if (mergedRef.current) return;
-    if (!signedIn || !adapter) return;
-    if (loading) return;
-    // Wait for the async account load to settle. Until then `account` may be a
-    // transient null (load not yet resolved), and merging against it would
-    // clobber a returning user's real stored progress with a fresh default.
-    if (!accountLoaded) return;
-    if (account?.merged === true) {
-      mergedRef.current = true;
-      return;
-    }
-    mergedRef.current = true;
-    try {
-      const merged = mergeAnonIntoAccount(anon, anonTourDone, account, nowIso());
-      setAccount(merged);
-      persistAccount(merged);
-      clearAnon(localStorage);
-    } catch (err) {
-      console.warn('[OnboardingProvider] merge failed:', err);
+    const decision = decideMerge({
+      alreadyMerged: mergedRef.current,
+      authLoading: loading,
+      signedIn,
+      hasAdapter: !!adapter,
+      accountLoaded,
+      account,
+      anon,
+    });
+    switch (decision.kind) {
+      case 'idle':
+        break;
+      case 'already-merged':
+        mergedRef.current = true;
+        break;
+      case 'merge':
+        // Latch BEFORE writes so a thrown persist still consumes the once-latch
+        // (no retry loop).
+        mergedRef.current = true;
+        try {
+          setAccount(decision.next);
+          persistAccount(decision.next);
+          clearAnon(localStorage);
+        } catch (err) {
+          console.warn('[OnboardingProvider] merge failed:', err);
+        }
+        break;
     }
   }, [signedIn, adapter, account, anon, anonTourDone, loading, accountLoaded, persistAccount]);
 
@@ -159,14 +170,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         if (!eligibleForJourney) return;
 
         setAccount((prev) => {
-          const base: AccountProgress =
-            prev ?? {
-              guidedNote: 'pending',
-              items: {},
-              dismissed: false,
-              studyDates: [],
-              merged: false,
-            };
+          const base: AccountProgress = prev ?? defaultAccountProgress();
           const items = { ...base.items };
           const itemId = JOURNEY_EVENT_TO_ITEM[event];
           if (itemId && items[itemId] == null) items[itemId] = nowIso();
@@ -199,14 +203,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     (status: 'done' | 'skipped') => {
       try {
         setAccount((prev) => {
-          const base: AccountProgress =
-            prev ?? {
-              guidedNote: 'pending',
-              items: {},
-              dismissed: false,
-              studyDates: [],
-              merged: false,
-            };
+          const base: AccountProgress = prev ?? defaultAccountProgress();
           const next: AccountProgress = { ...base, guidedNote: status };
           persistAccount(next);
           return next;
@@ -230,14 +227,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         return;
       }
       setAccount((prev) => {
-        const base: AccountProgress =
-          prev ?? {
-            guidedNote: 'pending',
-            items: {},
-            dismissed: false,
-            studyDates: [],
-            merged: false,
-          };
+        const base: AccountProgress = prev ?? defaultAccountProgress();
         const next: AccountProgress = { ...base, dismissed: true };
         persistAccount(next);
         return next;

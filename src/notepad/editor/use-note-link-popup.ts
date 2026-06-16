@@ -63,7 +63,6 @@ export function useNoteLinkPopup({
 
   useEffect(() => {
     if (!editor) return;
-    const dom = editor.view.dom as HTMLElement;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== '[') return;
@@ -91,8 +90,28 @@ export function useNoteLinkPopup({
       setPopup({ x, y });
     };
 
-    dom.addEventListener('keydown', handleKeyDown);
-    return () => dom.removeEventListener('keydown', handleKeyDown);
+    // `editor.view` is a throwing proxy until the ProseMirror view is mounted.
+    // On reload/teardown the editor instance can exist while its view is null
+    // (e.g. after unmount, or before the view attaches), so reading
+    // `editor.view.dom` unguarded crashes the whole editor to a blank screen.
+    // Attach now if the view is ready, otherwise wait for the `mount` event.
+    let dom: HTMLElement | null = null;
+    const attach = () => {
+      if (dom) return;
+      dom = editor.view.dom as HTMLElement;
+      dom.addEventListener('keydown', handleKeyDown);
+    };
+
+    try {
+      attach();
+    } catch {
+      editor.on('mount', attach);
+    }
+
+    return () => {
+      editor.off('mount', attach);
+      dom?.removeEventListener('keydown', handleKeyDown);
+    };
   }, [editor]);
 
   const dismiss = useCallback(() => {

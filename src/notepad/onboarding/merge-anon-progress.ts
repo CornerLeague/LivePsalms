@@ -5,12 +5,7 @@ import { defaultAccountProgress } from './onboarding-types';
  *  Returns the same reference unchanged when account.merged is already true. */
 export function mergeAnonIntoAccount(
   anon: AnonProgress | null,
-  _anonTourDone: boolean,
   account: AccountProgress | null,
-  // Part of the merge API contract the provider call passes (current rules reuse
-  // the anon timestamp; retained for future credit-timestamp use).
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _nowIso: string,
 ): AccountProgress {
   if (account?.merged) return account;
 

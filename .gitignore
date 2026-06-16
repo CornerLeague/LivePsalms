@@ -7,6 +7,9 @@ dist
 *.log
 .env
 .env.local
+.env.production
+.env.*.local
+supabase/.env.production
 .vscode
 
 # Local scratch / reference images (not shipped)

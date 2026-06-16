@@ -17,7 +17,8 @@ describe('createBrowserVerseSearchDeps.ftsSearch', () => {
     }));
     const limit = vi.fn(() => ({ order }));
     const textSearch = vi.fn(() => ({ limit }));
-    const eq = vi.fn(() => ({ textSearch }));
+    const like = vi.fn(() => ({ textSearch }));
+    const eq = vi.fn(() => ({ like, textSearch }));
     const select = vi.fn(() => ({ eq }));
     const from = vi.fn(() => ({ select }));
     const deps = createBrowserVerseSearchDeps(makeSupabaseStub({ from }) as never);
@@ -27,6 +28,40 @@ describe('createBrowserVerseSearchDeps.ftsSearch', () => {
     expect(eq).toHaveBeenCalledWith('translation', 'BSB');
     expect(textSearch).toHaveBeenCalledWith('text_tsv', 'love', { type: 'websearch' });
     expect(rows[0]).toMatchObject({ id: 'jhn.3.16', book: 'John', chapter: 3, verseStart: 16, verseEnd: null });
+  });
+
+  it('restricts the FTS query to verse-grain ids (≥2 dots) to protect the row budget', async () => {
+    const order = vi.fn(async () => ({ data: [], error: null }));
+    const limit = vi.fn(() => ({ order }));
+    const textSearch = vi.fn(() => ({ limit }));
+    const like = vi.fn(() => ({ textSearch }));
+    const eq = vi.fn(() => ({ like, textSearch }));
+    const select = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ select }));
+    const deps = createBrowserVerseSearchDeps(makeSupabaseStub({ from }) as never);
+
+    await deps.ftsSearch('shepherd', {});
+    expect(like).toHaveBeenCalledWith('id', '%.%.%');
+  });
+
+  it('excludes pericope-grain aggregate rows from FTS results', async () => {
+    const order = vi.fn(async () => ({
+      data: [
+        { id: 'psa.23.1', book: 'Psa', chapter: 23, verse_start: 1, verse_end: null, text: 'The LORD is my shepherd' },
+        { id: 'psa.23', book: 'Psa', chapter: 23, verse_start: 1, verse_end: 6, text: 'A psalm of David...' },
+      ],
+      error: null,
+    }));
+    const limit = vi.fn(() => ({ order }));
+    const textSearch = vi.fn(() => ({ limit }));
+    const like = vi.fn(() => ({ textSearch }));
+    const eq = vi.fn(() => ({ like, textSearch }));
+    const select = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ select }));
+    const deps = createBrowserVerseSearchDeps(makeSupabaseStub({ from }) as never);
+
+    const rows = await deps.ftsSearch('shepherd', {});
+    expect(rows.map((r) => r.id)).toEqual(['psa.23.1']);
   });
 });
 
@@ -45,6 +80,14 @@ describe('createBrowserVerseSearchDeps.semanticSearch', () => {
     const invoke = vi.fn(async () => ({ data: null, error: { message: 'boom' } }));
     const deps = createBrowserVerseSearchDeps(makeSupabaseStub({ functions: { invoke } }) as never);
     expect(await deps.semanticSearch('love', {})).toEqual([]);
+  });
+
+  it('forwards the abort signal into functions.invoke (cancels stale requests)', async () => {
+    const invoke = vi.fn(async () => ({ data: { matches: [] }, error: null }));
+    const deps = createBrowserVerseSearchDeps(makeSupabaseStub({ functions: { invoke } }) as never);
+    const controller = new AbortController();
+    await deps.semanticSearch('love', { signal: controller.signal });
+    expect(invoke).toHaveBeenCalledWith('verse-search', { body: { query: 'love' }, signal: controller.signal });
   });
 });
 

@@ -45,7 +45,11 @@ export function normalizeFtsRow(row: RawFtsRow): VerseCandidate {
     book: osisBookToCanonical(row.book) ?? row.book,
     chapter: row.chapter,
     verseStart: row.verseStart,
-    verseEnd: row.verseEnd,
+    // bible_passages.verse_end is NOT NULL and equals verse_start for a single
+    // verse (009 schema). The VerseCandidate contract uses verseEnd=null for
+    // single verses, so collapse a self-equal range — otherwise every keyword
+    // FTS hit renders "John 3:16–16". A real pericope range (end > start) stays.
+    verseEnd: row.verseEnd != null && row.verseEnd !== row.verseStart ? row.verseEnd : null,
     text: row.text,
     translation: 'BSB',
     source: 'fts',

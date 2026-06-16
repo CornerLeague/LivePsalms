@@ -677,3 +677,47 @@ Pure of Supabase: it takes an injected `LLMAdapter`, so it is node-testable with
 `formatContentFamilyStricter` (in `validators.ts`) is the shared companion helper: it maps the `banned` / `contested` / `growth` content-violation families to their stricter-prompt lines, deduplicating prose that the smoke and daily pipelines held byte-identical copies of. It deliberately does **not** handle the `name` family — that is daily-devotion-specific and composed in that pipeline's `formatStricter`.
 
 `formatVerseRef` + `buildPassages` (in `_shared/bible-passage.ts`) are the parallel companion on the retrieval side: `formatVerseRef` owns the verse-reference string (Reference-domain logic, per §Reference / §ScriptureNode) and `buildPassages` owns the `bible_passages`→passage join, deduplicating the byte-identical Map-build/format/filter blocks that the smoke and daily-devotion context builders in `lamplight-generate/index.ts` both held. Both callers now pass `passageRows` + `retrievedBible` and get back the same passage objects, so the structurally-identical `SmokeTestPassage` / `DailyDevotionPassage` shapes stay assignable without touching either pipeline.
+
+## NoteContext
+
+The deepened module that owns the recent-notes → theme-query → Bible-passage retrieval shared by the smoke-test and daily-devotion context builders in `lamplight-generate/index.ts`. Surfaced as `retrieveNoteContext(deps, opts)` in `supabase/functions/_shared/note-context.ts`, returning a `NoteContext` or `null`.
+
+```ts
+interface NoteContext {
+  notes: NoteContextNote[];        // { id, title, plaintext }
+  passages: BiblePassage[];        // from buildPassages (§GenerateWithRetry companion)
+  allowedNoteIds: Set<string>;
+  allowedVerseRefs: Set<string>;
+  rerankUsed: boolean;
+}
+
+interface NoteContextDeps {
+  fetchRecentNotes(userId: string, limit: number): Promise<RawNoteRow[]>;   // { id, title, content }
+  embedQuery(text: string): Promise<number[]>;
+  searchBible(args: { query: string; k: number; queryEmbedding: number[] }): Promise<RetrievedBibleRow[]>;
+  fetchPassages(sourceIds: string[]): Promise<BiblePassageRow[]>;
+}
+
+function retrieveNoteContext(
+  deps: NoteContextDeps,
+  opts: {
+    userId: string;
+    noteLimit: number;
+    rerankEnabled: boolean;
+    buildThemeQuery: (notes: NoteContextNote[]) => string;
+    k?: number; // default 3
+  },
+): Promise<NoteContext | null>;
+```
+
+Owns the sequence both builders previously open-coded: fetch the N most-recently-updated notes, map each to `{ id, title, plaintext: extractTextFromNoteContent(content).slice(0, 800) }`, drop the blank ones, short-circuit to `null` when none survive (**no embed/search work happens** — those deps are never called), invoke `buildThemeQuery` on the survivors, embed it, search the Bible (`k` default 3), fetch the matched `bible_passages`, run `buildPassages`, and derive `allowedNoteIds` / `allowedVerseRefs` / `rerankUsed` (`rerankEnabled && passages.length > 0`).
+
+The **only** thing that varies between callers is the theme query, so it is the injected `buildThemeQuery(notes)` strategy — smoke uses the longest survivor's plaintext; daily joins `"{title}: {plaintext.slice(0,200)}"` capped at 4000. The note limit (5 smoke / 3 daily) is a plain option.
+
+Canonicalizes the **title fallback** to the stricter daily form — `(title ?? '').trim() || '(untitled)'` — retiring smoke's looser `title ?? '(untitled)'`. A whitespace-only title now reads as `(untitled)` for both callers; a defensive consolidation in the spirit of `§tiptap-text`'s `type === 'text'` gate, not a behavior the smoke pipeline depended on.
+
+Pure of Supabase, mirroring `§GenerationLifecycle` / `§GenerateWithRetry`: the four I/O leaves are injected `NoteContextDeps`, so the orchestration is node-testable with plain fakes (no Supabase query-builder stub). `index.ts` writes the `.from('notes')…` and `.from('bible_passages')…` queries **once** as the shared dep impls both builders pass. The invariants previously reachable only through `pipeline.test.ts` get one focused `note-context.test.ts`: blank-notes short-circuits to `null` without calling embed/search; plaintext is sliced to 800 and blank notes filtered; `buildThemeQuery` receives the surviving notes; the allowed-sets and `rerankUsed` gate are derived correctly.
+
+`buildSmokeTestContext` and `buildDailyDevotionContext` shrink to: call `retrieveNoteContext` with their strategy, and — daily only — wrap the result with the `profiles.full_name` → `firstName` fetch and `localDate`. Both are daily-specific, so they stay in the builder, *around* the seam; daily fetches the profile only after a non-null retrieval, preserving "no profile read when the user has no notes."
+
+Does **not** own: the connection-why retrieval (`buildConnectionWhyContext` loads a note **pair by id** + source embedding + neighbor RPC + composite hash — a different shape that shares only the already-shared `extractTextFromNoteContent`, so it stays out of this seam), the per-kind result shaping (`firstName` / `localDate` / the distinct context interfaces), quota/usage accounting (`§GenerationLifecycle`), or the generate→validate→retry loop (`§GenerateWithRetry`).

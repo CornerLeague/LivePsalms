@@ -10,7 +10,7 @@ import {
   routeQuery,
   referenceCandidate,
 } from '../bible/verse-search';
-import { matchReferenceBeforeCursor } from './scripture-ref-matchers';
+import { matchReferenceBeforeCursor, matchVersePickerBeforeCursor } from './scripture-ref-matchers';
 import { renderVerseSuggestList } from './verse-suggest-renderer';
 import { ScriptureRefNodeView } from './ScriptureRefView';
 
@@ -68,6 +68,18 @@ export async function buildKeywordItems(
   const route = routeQuery(query);
   const pin = route.kind === 'reference' ? referenceCandidate(route.parsed, '') : null;
   return mergeCandidates(pin, rows.map(normalizeFtsRow), []);
+}
+
+// Pin-only instant items for the /verse picker (C). The picker's live results —
+// FTS-instant then FTS+semantic — are owned by createVerseSearch in the renderer
+// (see renderVerseSuggestList). Pinning just the local reference parse here lets
+// the dropdown's first paint be instant WITHOUT issuing a second FTS request per
+// keystroke (the renderer already fetches FTS). Synchronous + dependency-free,
+// so it needs no AbortSignal. Returns [] for keyword queries — the renderer fills
+// those a beat later.
+export function buildReferencePinItems(query: string): VerseCandidate[] {
+  const route = routeQuery(query);
+  return route.kind === 'reference' ? [referenceCandidate(route.parsed, '')] : [];
 }
 
 const PREDICTIVE_KEY = new PluginKey('scriptureRefPredictive');
@@ -132,6 +144,12 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
   addProseMirrorPlugins() {
     const search = this.options.search;
 
+    // Predictive (B) resolves each typed reference via fetchVerseText. Hold the
+    // controller so a new keystroke aborts the prior in-flight request instead
+    // of leaking it (each `items` call previously made a throwaway controller it
+    // never aborted). completeReference swallows the resulting AbortError.
+    let predictiveAbort: AbortController | null = null;
+
     const insertFromCandidate = (
       editor: Editor,
       range: { from: number; to: number },
@@ -177,10 +195,16 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
         const blockStart = $position.start();
         return { range: { from: blockStart + m.from, to: blockStart + m.to }, query: m.query, text: m.query };
       },
-      items: ({ query }) => buildReferenceItems(query, search, new AbortController().signal),
+      items: ({ query }) => {
+        predictiveAbort?.abort();
+        predictiveAbort = new AbortController();
+        return buildReferenceItems(query, search, predictiveAbort.signal);
+      },
     };
 
-    // C — /verse keyword picker.
+    // C — /verse keyword picker. A custom matcher fires the picker ONLY on the
+    // literal "/verse" command (not on every "/word"); the matcher's query keeps
+    // the leading "verse" so items/renderer strip it exactly as before.
     const picker: SuggestionOptions<VerseCandidate, VerseCandidate> = {
       editor: this.editor,
       pluginKey: VERSE_PICKER_KEY,
@@ -189,13 +213,28 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
       startOfLine: false,
       command,
       render: () => renderVerseSuggestList(search),
+      findSuggestionMatch: ({ $position }) => {
+        const textBefore = $position.parent.textBetween(0, $position.parentOffset, undefined, '￼');
+        const m = matchVersePickerBeforeCursor(textBefore);
+        if (!m) return null;
+        const blockStart = $position.start();
+        return { range: { from: blockStart + m.from, to: blockStart + m.to }, query: m.query, text: m.query };
+      },
       items: ({ query }) => {
         if (!/^verse/i.test(query)) return [];
         const stripped = query.replace(/^verse\s*/i, '');
-        return buildKeywordItems(stripped, search, new AbortController().signal);
+        // Pin only the local reference parse; createVerseSearch in the renderer
+        // owns FTS + semantic for the picker, so we must NOT fetch FTS here too
+        // (that was the double FTS request per keystroke). Synchronous, no signal.
+        return buildReferencePinItems(stripped);
       },
     };
 
-    return [Suggestion(predictive), Suggestion(picker)];
+    // Picker is registered FIRST so its plugin state is computed before the
+    // predictive plugin's `apply` reads it via VERSE_PICKER_KEY.getState — that
+    // ordering is what lets the predictive `allow` gate see a fresh (not stale)
+    // picker.active and stand down on "/verse <ref>" instead of stacking a
+    // second dropdown.
+    return [Suggestion(picker), Suggestion(predictive)];
   },
 });

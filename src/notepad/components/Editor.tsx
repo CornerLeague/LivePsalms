@@ -30,6 +30,7 @@ import { useReferenceGraph } from '../context/useReferenceGraph';
 import { useNoteEditor } from '../editor/use-note-editor';
 import { useNoteLinkPopup } from '../editor/use-note-link-popup';
 import { useVerseTooltip } from '../editor/use-verse-tooltip';
+import { useSelectionAnchor, detectDoubleTap } from '../editor/use-selection-anchor';
 import { formatTag } from '../utils/tags';
 import { useAccountProfile } from '../../auth/context/useAccountProfile';
 import { emptyStateMessage } from '../utils/empty-state-message';
@@ -95,7 +96,6 @@ export function NotepadEditor({
   // click that would otherwise immediately clear that fresh selection.
   const justSelectedAtRef = useRef(0);
   const titleRef = useRef<HTMLTextAreaElement>(null);
-  const lastInteractionRef = useRef<'pointer' | 'keyboard'>('pointer');
   // The title is a textarea so long titles wrap within the column instead of
   // running off the edge. Auto-grow its height to fit the wrapped content,
   // re-measuring when the active note or its title changes.
@@ -105,16 +105,6 @@ export function NotepadEditor({
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   }, [activeNote?.id, activeNote?.title]);
-  useEffect(() => {
-    const onPointer = () => { lastInteractionRef.current = 'pointer'; };
-    const onKey = () => { lastInteractionRef.current = 'keyboard'; };
-    window.addEventListener('pointerdown', onPointer, true);
-    window.addEventListener('keydown', onKey, true);
-    return () => {
-      window.removeEventListener('pointerdown', onPointer, true);
-      window.removeEventListener('keydown', onKey, true);
-    };
-  }, []);
 
   // A behind-text decoration sits below the editor text, so a normal click lands
   // on the text (keeping it editable). Alt-click or double-click over the
@@ -134,82 +124,24 @@ export function NotepadEditor({
   // close, quick taps and route it through selectBehindDecoration. e.timeStamp is
   // monotonic; gated to mobile so desktop's dblclick/alt paths stay untouched.
   const lastTapRef = useRef<{ t: number; x: number; y: number } | null>(null);
-  const DOUBLE_TAP_MS = 300;
-  const DOUBLE_TAP_PX = 24;
   const isDoubleTap = (e: React.MouseEvent): boolean => {
-    const prev = lastTapRef.current;
-    const isDbl =
-      prev != null &&
-      e.timeStamp - prev.t <= DOUBLE_TAP_MS &&
-      Math.abs(e.clientX - prev.x) <= DOUBLE_TAP_PX &&
-      Math.abs(e.clientY - prev.y) <= DOUBLE_TAP_PX;
-    if (isDbl) return true;
-    lastTapRef.current = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+    const tap = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+    if (detectDoubleTap(lastTapRef.current, tap)) return true;
+    lastTapRef.current = tap;
     return false;
   };
 
-  const [swatchAnchor, setSwatchAnchor] = useState<{ top: number; left: number } | null>(null);
+  // Search query for the desktop swatch popover — view-local UI state, not a
+  // selection-anchor concern, so it stays here.
   const [swatchQuery, setSwatchQuery] = useState('');
-  const [swatchDismissed, setSwatchDismissed] = useState(false);
-  const [swatchAutoFocus, setSwatchAutoFocus] = useState(false);
-  const dismissedRangeRef = useRef<{ from: number; to: number } | null>(null);
-  // Mobile-only highlight pill, shown just above the selection once it settles.
-  const [pillAnchor, setPillAnchor] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
-  const pillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pillRangeRef = useRef<{ from: number; to: number } | null>(null);
-  const PILL_SETTLE_MS = 250;
-  const PILL_TOP_MARGIN = 56; // if the selection sits this close to the top, flip the pill below it
 
-  useEffect(() => {
-    if (!editor) return;
-    const update = () => {
-      const { from, to } = editor.state.selection;
-      if (isBottomToolbar) {
-        // Mobile: never show the pill mid-drag. Hide while the range is moving,
-        // then reveal ~250ms after it settles. Recompute the anchor on fire.
-        if (from === to) {
-          if (pillTimerRef.current) { clearTimeout(pillTimerRef.current); pillTimerRef.current = null; }
-          pillRangeRef.current = null;
-          setPillAnchor(null);
-          return;
-        }
-        const prev = pillRangeRef.current;
-        if (prev && prev.from === from && prev.to === to) return; // unchanged → no-op, avoid flicker
-        pillRangeRef.current = { from, to };
-        setPillAnchor(null);
-        if (pillTimerRef.current) clearTimeout(pillTimerRef.current);
-        pillTimerRef.current = setTimeout(() => {
-          const coords = editor.view.coordsAtPos(from);
-          const left = Math.max(8, Math.min(coords.left, window.innerWidth - 8));
-          const anchor = coords.top < PILL_TOP_MARGIN
-            ? { top: coords.bottom + 6, left }                       // near top → below
-            : { bottom: window.innerHeight - coords.top + 6, left }; // default → above
-          setPillAnchor(anchor);
-        }, PILL_SETTLE_MS);
-        return;
-      }
-      // Desktop: unchanged auto-open behavior.
-      if (from === to) {
-        setSwatchAnchor(null);
-        setSwatchDismissed(false);
-        dismissedRangeRef.current = null;
-        return;
-      }
-      const start = editor.view.coordsAtPos(from);
-      setSwatchAnchor({ top: start.bottom + 6, left: start.left });
-      setSwatchAutoFocus(lastInteractionRef.current === 'pointer');
-      const dismissed = dismissedRangeRef.current;
-      if (!dismissed || dismissed.from !== from || dismissed.to !== to) {
-        setSwatchDismissed(false);
-        dismissedRangeRef.current = null;
-      }
-    };
-    editor.on('selectionUpdate', update);
-    return () => {
-      editor.off('selectionUpdate', update);
-      if (pillTimerRef.current) { clearTimeout(pillTimerRef.current); pillTimerRef.current = null; }
-    };
-  }, [editor, isBottomToolbar]);
+  // Selection-anchor controller — owns the mobile pill (settle-timer + dedup +
+  // viewport clamp) and the desktop swatch (anchor + auto-focus + dismissed
+  // range). The view renders the pill + swatch from these snapshots.
+  const { pillAnchor, swatchAnchor, dismiss: dismissSelectionAnchor } = useSelectionAnchor({
+    editor,
+    isBottomToolbar,
+  });
 
   // `[[` popup controller — owns trigger detection, anchor, search, insertion.
   const {
@@ -816,20 +748,16 @@ export function NotepadEditor({
       )}
 
       {/* Highlight swatch popover */}
-      {editor && swatchAnchor && !swatchDismissed && (
+      {editor && swatchAnchor && (
         <HighlightSwatchPopover
           assets={STYLE_ASSETS}
           query={swatchQuery}
           onQueryChange={setSwatchQuery}
-          anchor={swatchAnchor}
+          anchor={{ top: swatchAnchor.top, left: swatchAnchor.left }}
           onPick={(id) => editor.chain().focus().setStyleHighlight(id).run()}
           onRemove={() => editor.chain().focus().unsetStyleHighlight().run()}
-          onClose={() => {
-            setSwatchDismissed(true);
-            const { from, to } = editor.state.selection;
-            dismissedRangeRef.current = { from, to };
-          }}
-          autoFocus={swatchAutoFocus}
+          onClose={dismissSelectionAnchor}
+          autoFocus={swatchAnchor.autoFocus}
           onRequestEditorFocus={() => editor.commands.focus()}
         />
       )}
@@ -840,13 +768,13 @@ export function NotepadEditor({
           anchor={pillAnchor}
           onPick={(id) => {
             editor.chain().focus().setStyleHighlight(id).run();
-            setPillAnchor(null);
+            dismissSelectionAnchor();
           }}
           onRemove={() => {
             editor.chain().focus().unsetStyleHighlight().run();
-            setPillAnchor(null);
+            dismissSelectionAnchor();
           }}
-          onClose={() => setPillAnchor(null)}
+          onClose={dismissSelectionAnchor}
         />
       )}
 

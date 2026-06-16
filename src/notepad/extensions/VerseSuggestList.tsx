@@ -1,4 +1,5 @@
 import type { VerseCandidate } from '../bible/verse-search-types';
+import './scripture-ref.css';
 
 export interface VerseSuggestListProps {
   /** Candidates to display. Must be deduplicated by `osis` (invariant upheld by mergeCandidates). */

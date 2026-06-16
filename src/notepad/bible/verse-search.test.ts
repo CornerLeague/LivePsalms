@@ -57,6 +57,27 @@ describe('normalizeFtsRow', () => {
     expect(c.book).toBe('John');
     expect(c.translation).toBe('BSB');
   });
+
+  // Real bible_passages rows have `verse_end NOT NULL`, set to verse_start for a
+  // single verse (009 schema + ingest-bsb.ts). The VerseCandidate contract uses
+  // verseEnd=null for single verses, so a self-equal range MUST collapse to null
+  // — otherwise the label helpers render "John 3:16–16".
+  it('collapses a single-verse range (verseEnd === verseStart) to null', () => {
+    const row: RawFtsRow = {
+      id: 'jhn.3.16', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16,
+      text: 'For God so loved the world...',
+    };
+    expect(normalizeFtsRow(row).verseEnd).toBeNull();
+  });
+
+  // A genuine pericope-grain FTS row (verse_end > verse_start) keeps its range.
+  it('preserves a real multi-verse range', () => {
+    const row: RawFtsRow = {
+      id: 'psa.23', book: 'psa', chapter: 23, verseStart: 1, verseEnd: 6,
+      text: 'The LORD is my shepherd...',
+    };
+    expect(normalizeFtsRow(row).verseEnd).toBe(6);
+  });
 });
 
 describe('normalizeSemanticRow', () => {
