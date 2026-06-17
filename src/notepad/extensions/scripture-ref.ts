@@ -13,6 +13,9 @@ import {
 import { matchReferenceBeforeCursor, matchVersePickerBeforeCursor, matchLookupPickerBeforeCursor } from './scripture-ref-matchers';
 import { renderVerseSuggestList } from './verse-suggest-renderer';
 import { ScriptureRefNodeView } from './ScriptureRefView';
+import { renderBookPicker } from './book-picker-renderer';
+import { applyVerseSelection } from './verse-picker-commands';
+import type { BookOrVerseItem } from './book-matcher';
 
 export interface ScriptureRefOptions {
   // null in tests / when search is unavailable; set in production wiring (Task 14).
@@ -204,17 +207,22 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
       },
     };
 
-    // C — /verse keyword picker. A custom matcher fires the picker ONLY on the
-    // literal "/verse" command (not on every "/word"); the matcher's query keeps
-    // the leading "verse" so items/renderer strip it exactly as before.
-    const picker: SuggestionOptions<VerseCandidate, VerseCandidate> = {
+    // C — /verse book typeahead. The custom matcher fires only on "/verse"; the
+    // renderer (renderBookPicker) computes its own view from the query
+    // (book list / hint / resolved verse), so `items` returns []. Selecting a
+    // book autocompletes the text; selecting a resolved verse inserts a node —
+    // both via applyVerseSelection.
+    const verseCommand = ({ editor, range, props }: { editor: Editor; range: { from: number; to: number }; props: BookOrVerseItem }) =>
+      applyVerseSelection(editor, range, props);
+
+    const picker: SuggestionOptions<BookOrVerseItem, BookOrVerseItem> = {
       editor: this.editor,
       pluginKey: VERSE_PICKER_KEY,
       char: '/',
       allowSpaces: true,
       startOfLine: false,
-      command,
-      render: () => renderVerseSuggestList(search),
+      command: verseCommand,
+      render: () => renderBookPicker(search),
       findSuggestionMatch: ({ $position }) => {
         const textBefore = $position.parent.textBetween(0, $position.parentOffset, undefined, '￼');
         const m = matchVersePickerBeforeCursor(textBefore);
@@ -222,14 +230,7 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
         const blockStart = $position.start();
         return { range: { from: blockStart + m.from, to: blockStart + m.to }, query: m.query, text: m.query };
       },
-      items: ({ query }) => {
-        if (!/^verse/i.test(query)) return [];
-        const stripped = query.replace(/^verse\s*/i, '');
-        // Pin only the local reference parse; createVerseSearch in the renderer
-        // owns FTS + semantic for the picker, so we must NOT fetch FTS here too
-        // (that was the double FTS request per keystroke). Synchronous, no signal.
-        return buildReferencePinItems(stripped);
-      },
+      items: () => [],
     };
 
     // D — /lookup verse-text picker. This is the verse-text search that /verse
