@@ -62,3 +62,52 @@ describe('matchBooks', () => {
     expect(matchBooks('zzz')).toEqual([]);
   });
 });
+
+import { routeVersePicker } from './book-matcher';
+
+describe('routeVersePicker', () => {
+  it('empty query → books view with all 66', () => {
+    const v = routeVersePicker('');
+    expect(v.kind).toBe('books');
+    if (v.kind === 'books') expect(v.books).toHaveLength(66);
+  });
+
+  it('partial book token → books view (State B)', () => {
+    const v = routeVersePicker('rom');
+    expect(v).toEqual({ kind: 'books', books: ['Romans'] });
+  });
+
+  it('complete book + trailing space → hint (State C)', () => {
+    expect(routeVersePicker('Romans ')).toEqual({ kind: 'hint' });
+  });
+
+  it('complete book + chapter, no colon → hint (State C)', () => {
+    expect(routeVersePicker('Romans 8')).toEqual({ kind: 'hint' });
+  });
+
+  it('complete book + chapter + colon, no verse → hint (State C)', () => {
+    expect(routeVersePicker('Romans 8:')).toEqual({ kind: 'hint' });
+  });
+
+  it('numbered book + trailing space → hint (State C)', () => {
+    expect(routeVersePicker('1 Corinthians ')).toEqual({ kind: 'hint' });
+  });
+
+  it('a bare "1 " is NOT a complete book → still books view', () => {
+    const v = routeVersePicker('1 ');
+    expect(v.kind).toBe('books');
+    if (v.kind === 'books') expect(v.books).toContain('1 Samuel');
+  });
+
+  it('a complete book with no trailing space stays in books view (State B)', () => {
+    expect(routeVersePicker('Romans')).toEqual({ kind: 'books', books: ['Romans'] });
+  });
+
+  it('full reference → resolve view (State D)', () => {
+    expect(routeVersePicker('Romans 8:28')).toEqual({ kind: 'resolve', query: 'Romans 8:28' });
+  });
+
+  it('full reference range → resolve view', () => {
+    expect(routeVersePicker('John 3:16-18')).toEqual({ kind: 'resolve', query: 'John 3:16-18' });
+  });
+});
