@@ -31,6 +31,7 @@ afterEach(() => { editor?.destroy(); editor = null; });
 function deps(): VerseSearchDeps {
   return {
     ftsSearch: async () => [],
+    prefixSearch: async () => [],
     semanticSearch: async () => [],
     resolvePericope: async () => null,
     fetchVerseText: async () => null,
@@ -87,6 +88,7 @@ describe('follow-up #1 — predictive aborts stale in-flight fetches', () => {
     const signals: AbortSignal[] = [];
     const capturing: VerseSearchDeps = {
       ftsSearch: async () => [],
+      prefixSearch: async () => [],
       semanticSearch: async () => [],
       resolvePericope: async () => null,
       fetchVerseText: async (_ref, opts) => {
@@ -124,5 +126,64 @@ describe('regression guard — intended flows still work', () => {
     type(editor, 'see John 3:16');
     expect(suggestionState(editor, PREDICTIVE)?.active).toBe(true);
     expect(suggestionState(editor, PICKER)?.active).toBe(false);
+  });
+});
+
+const LOOKUP = 'scriptureRefLookup$';
+
+describe('/lookup picker (verse-text search moved here)', () => {
+  it('"/lookup these" opens the lookup picker with the lookup-prefixed query', () => {
+    editor = makeEditor();
+    type(editor, '/lookup these');
+    const lookup = suggestionState(editor, LOOKUP);
+    expect(lookup?.active).toBe(true);
+    expect(lookup?.query).toBe('lookup these');
+  });
+
+  it('predictive stands down while the /lookup picker is active', () => {
+    editor = makeEditor();
+    type(editor, '/lookup John 3:16');
+    expect(suggestionState(editor, LOOKUP)?.active).toBe(true);
+    expect(suggestionState(editor, PREDICTIVE)?.active).toBe(false);
+  });
+
+  it('"/verse" does NOT open the lookup picker', () => {
+    editor = makeEditor();
+    type(editor, '/verse love');
+    expect(suggestionState(editor, LOOKUP)?.active).toBe(false);
+  });
+});
+
+import { applyVerseSelection } from './verse-picker-commands';
+
+describe('/verse book picker', () => {
+  it('"/verse rom" keeps the picker active with the verse-prefixed query', () => {
+    editor = makeEditor();
+    type(editor, '/verse rom');
+    const picker = suggestionState(editor, PICKER);
+    expect(picker?.active).toBe(true);
+    expect(picker?.query).toBe('verse rom');
+  });
+
+  it('selecting a book autocompletes the text to "/verse Romans " and keeps the picker open', () => {
+    editor = makeEditor();
+    type(editor, '/verse rom');
+    const before = suggestionState(editor, PICKER);
+    expect(before?.active).toBe(true);
+    // The Suggestion range for "/verse rom" spans the whole trigger run. Drive
+    // the documented select action directly against that range.
+    const to = editor.state.selection.from;
+    const from = to - '/verse rom'.length;
+    applyVerseSelection(editor, { from, to }, { kind: 'book', book: 'Romans' });
+    expect(editor.getText()).toContain('/verse Romans ');
+    // Still a /verse trigger → picker stays active (now in the hint state).
+    expect(suggestionState(editor, PICKER)?.active).toBe(true);
+  });
+
+  it('"/verse John 3:16" activates only the picker (predictive stands down)', () => {
+    editor = makeEditor();
+    type(editor, '/verse John 3:16');
+    expect(suggestionState(editor, PICKER)?.active).toBe(true);
+    expect(suggestionState(editor, PREDICTIVE)?.active).toBe(false);
   });
 });

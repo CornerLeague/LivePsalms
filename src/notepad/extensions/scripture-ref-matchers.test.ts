@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchReferenceBeforeCursor, matchVersePickerBeforeCursor } from './scripture-ref-matchers';
+import { matchReferenceBeforeCursor, matchVersePickerBeforeCursor, matchLookupPickerBeforeCursor } from './scripture-ref-matchers';
 
 describe('matchReferenceBeforeCursor', () => {
   it('matches a full reference at the end of text', () => {
@@ -90,5 +90,41 @@ describe('matchVersePickerBeforeCursor', () => {
 
   it('does NOT fire mid-word (slash embedded after a non-space char)', () => {
     expect(matchVersePickerBeforeCursor('and/verse')).toBeNull();
+  });
+});
+
+describe('matchLookupPickerBeforeCursor', () => {
+  it('matches the bare /lookup command', () => {
+    const m = matchLookupPickerBeforeCursor('/lookup');
+    expect(m).not.toBeNull();
+    expect(m!.query).toBe('lookup');
+    expect(m!.from).toBe(0);
+  });
+
+  it('matches /lookup followed by keywords (spaces allowed)', () => {
+    const m = matchLookupPickerBeforeCursor('/lookup these are the words');
+    expect(m!.query).toBe('lookup these are the words');
+  });
+
+  it('matches /lookup after whitespace mid-paragraph', () => {
+    const text = 'note: /lookup grace';
+    const m = matchLookupPickerBeforeCursor(text);
+    expect(m!.query).toBe('lookup grace');
+    expect(m!.from).toBe(6);
+    expect(m!.to).toBe(text.length);
+  });
+
+  it('does NOT fire on other slash words or on /verse', () => {
+    expect(matchLookupPickerBeforeCursor('/verse')).toBeNull();
+    expect(matchLookupPickerBeforeCursor('/todo')).toBeNull();
+  });
+
+  it('does NOT fire on words that merely start with lookup', () => {
+    expect(matchLookupPickerBeforeCursor('/lookups')).toBeNull();
+    expect(matchLookupPickerBeforeCursor('/lookuplove')).toBeNull();
+  });
+
+  it('does NOT fire mid-word', () => {
+    expect(matchLookupPickerBeforeCursor('and/lookup')).toBeNull();
   });
 });

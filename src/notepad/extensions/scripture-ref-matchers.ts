@@ -44,3 +44,23 @@ export function matchVersePickerBeforeCursor(textBeforeCursor: string): Suggesti
   const from = to - full.length;
   return { from, to, query: full.slice(1) }; // drop the leading "/"
 }
+
+// The /lookup keyword command — identical shape to the /verse picker matcher,
+// keyed on "/lookup". The word boundary after "lookup" (\s or end) keeps
+// "/lookups" and "/lookuplove" from triggering.
+const LOOKUP_TRIGGER_AT_END = /(?:^|\s)(\/lookup(?:\s.*)?)$/i;
+
+/**
+ * Returns the /lookup-command match anchored at the end of `textBeforeCursor`,
+ * or null. `query` is the matched run minus the leading "/", so
+ * "/lookup these" → "lookup these". The picker's items/renderer strip the
+ * leading "lookup" the same way the /verse path strips "verse".
+ */
+export function matchLookupPickerBeforeCursor(textBeforeCursor: string): SuggestionTextMatch | null {
+  const m = LOOKUP_TRIGGER_AT_END.exec(textBeforeCursor);
+  if (!m) return null;
+  const full = m[1];
+  const to = textBeforeCursor.length;
+  const from = to - full.length;
+  return { from, to, query: full.slice(1) };
+}
