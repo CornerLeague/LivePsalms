@@ -72,4 +72,19 @@ describe('runBibleChatPipeline', () => {
     expect(out.ok).toBe(true);
     if (out.ok) expect(out.citations).toEqual([{ type: 'verse', ref: 'jhn 10:11' }]);
   });
+
+  it('passes the requested model through to the LLM adapter', async () => {
+    const generate = vi.fn().mockResolvedValue({
+      parsed: { reply: 'ok', citations: [] },
+      modelUsed: 'claude-opus-4-8', promptTokens: 5, completionTokens: 7,
+    });
+    const llm = { generate } as unknown as import('../_shared/anthropic.ts').LLMAdapter;
+    const ctx: import('./bible-chat-pipeline.ts').BibleChatContext = {
+      passageRef: 'jhn 10', passageText: 'I am the good shepherd.',
+      crossRefs: [], notes: [], history: [], userMessage: 'hi',
+      allowedNoteIds: new Set(), allowedVerseRefs: new Set(),
+    };
+    await runBibleChatPipeline({ llm, ctx, model: 'opus' });
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ model: 'opus' }));
+  });
 });
