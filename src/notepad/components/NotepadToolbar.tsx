@@ -24,6 +24,7 @@ import {
 import { useNoteCollection } from '../context/useNoteCollection';
 import type { NoteType } from '../types';
 import { UploadModal } from './UploadModal';
+import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -96,6 +97,9 @@ export function NotepadToolbar({
             className="h-6 w-auto object-contain cursor-pointer"
             onClick={() => navigate('/')}
           />
+
+          {/* Mode toggle */}
+          <StudyModeToggle />
 
           {/* Search bar button */}
           <button
