@@ -318,7 +318,7 @@ function NotepadOnboardingOverlay() {
   );
 }
 
-function NotepadWorkspace() {
+export function NotepadWorkspace() {
   const isMobile = useIsMobile();
   return (
     <OnboardingProvider>
