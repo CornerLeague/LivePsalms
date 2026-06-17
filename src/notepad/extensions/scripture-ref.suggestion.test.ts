@@ -31,6 +31,7 @@ afterEach(() => { editor?.destroy(); editor = null; });
 function deps(): VerseSearchDeps {
   return {
     ftsSearch: async () => [],
+    prefixSearch: async () => [],
     semanticSearch: async () => [],
     resolvePericope: async () => null,
     fetchVerseText: async () => null,
@@ -87,6 +88,7 @@ describe('follow-up #1 — predictive aborts stale in-flight fetches', () => {
     const signals: AbortSignal[] = [];
     const capturing: VerseSearchDeps = {
       ftsSearch: async () => [],
+      prefixSearch: async () => [],
       semanticSearch: async () => [],
       resolvePericope: async () => null,
       fetchVerseText: async (_ref, opts) => {
@@ -124,5 +126,30 @@ describe('regression guard — intended flows still work', () => {
     type(editor, 'see John 3:16');
     expect(suggestionState(editor, PREDICTIVE)?.active).toBe(true);
     expect(suggestionState(editor, PICKER)?.active).toBe(false);
+  });
+});
+
+const LOOKUP = 'scriptureRefLookup$';
+
+describe('/lookup picker (verse-text search moved here)', () => {
+  it('"/lookup these" opens the lookup picker with the lookup-prefixed query', () => {
+    editor = makeEditor();
+    type(editor, '/lookup these');
+    const lookup = suggestionState(editor, LOOKUP);
+    expect(lookup?.active).toBe(true);
+    expect(lookup?.query).toBe('lookup these');
+  });
+
+  it('predictive stands down while the /lookup picker is active', () => {
+    editor = makeEditor();
+    type(editor, '/lookup John 3:16');
+    expect(suggestionState(editor, LOOKUP)?.active).toBe(true);
+    expect(suggestionState(editor, PREDICTIVE)?.active).toBe(false);
+  });
+
+  it('"/verse" does NOT open the lookup picker', () => {
+    editor = makeEditor();
+    type(editor, '/verse love');
+    expect(suggestionState(editor, LOOKUP)?.active).toBe(false);
   });
 });

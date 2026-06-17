@@ -10,7 +10,7 @@ import {
   routeQuery,
   referenceCandidate,
 } from '../bible/verse-search';
-import { matchReferenceBeforeCursor, matchVersePickerBeforeCursor } from './scripture-ref-matchers';
+import { matchReferenceBeforeCursor, matchVersePickerBeforeCursor, matchLookupPickerBeforeCursor } from './scripture-ref-matchers';
 import { renderVerseSuggestList } from './verse-suggest-renderer';
 import { ScriptureRefNodeView } from './ScriptureRefView';
 
@@ -84,6 +84,7 @@ export function buildReferencePinItems(query: string): VerseCandidate[] {
 
 const PREDICTIVE_KEY = new PluginKey('scriptureRefPredictive');
 const VERSE_PICKER_KEY = new PluginKey('scriptureRefPicker');
+const LOOKUP_PICKER_KEY = new PluginKey('scriptureRefLookup');
 
 export const ScriptureRef = Node.create<ScriptureRefOptions>({
   name: 'scriptureRef',
@@ -184,8 +185,9 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
       // match `/verse John 3:16` and stack two dropdowns. The suggestion plugin's
       // internal state exposes a boolean `active` flag (see @tiptap/suggestion).
       allow: ({ state }) => {
-        const pickerState = VERSE_PICKER_KEY.getState(state) as { active?: boolean } | undefined;
-        return !pickerState?.active;
+        const verse = VERSE_PICKER_KEY.getState(state) as { active?: boolean } | undefined;
+        const lookup = LOOKUP_PICKER_KEY.getState(state) as { active?: boolean } | undefined;
+        return !verse?.active && !lookup?.active;
       },
       render: () => renderVerseSuggestList(),
       findSuggestionMatch: ({ $position }) => {
@@ -230,11 +232,35 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
       },
     };
 
+    // D — /lookup verse-text picker. This is the verse-text search that /verse
+    // used to do (FTS + semantic + prefix), moved verbatim to its own command.
+    const lookup: SuggestionOptions<VerseCandidate, VerseCandidate> = {
+      editor: this.editor,
+      pluginKey: LOOKUP_PICKER_KEY,
+      char: '/',
+      allowSpaces: true,
+      startOfLine: false,
+      command,
+      render: () => renderVerseSuggestList(search, { command: 'lookup' }),
+      findSuggestionMatch: ({ $position }) => {
+        const textBefore = $position.parent.textBetween(0, $position.parentOffset, undefined, '￼');
+        const m = matchLookupPickerBeforeCursor(textBefore);
+        if (!m) return null;
+        const blockStart = $position.start();
+        return { range: { from: blockStart + m.from, to: blockStart + m.to }, query: m.query, text: m.query };
+      },
+      items: ({ query }) => {
+        if (!/^lookup/i.test(query)) return [];
+        const stripped = query.replace(/^lookup\s*/i, '');
+        return buildReferencePinItems(stripped);
+      },
+    };
+
     // Picker is registered FIRST so its plugin state is computed before the
     // predictive plugin's `apply` reads it via VERSE_PICKER_KEY.getState — that
     // ordering is what lets the predictive `allow` gate see a fresh (not stale)
     // picker.active and stand down on "/verse <ref>" instead of stacking a
     // second dropdown.
-    return [Suggestion(picker), Suggestion(predictive)];
+    return [Suggestion(picker), Suggestion(lookup), Suggestion(predictive)];
   },
 });

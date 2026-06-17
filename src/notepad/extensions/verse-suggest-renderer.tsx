@@ -13,7 +13,11 @@ import type { VerseCandidate, VerseSearchDeps } from '../bible/verse-search-type
 // in between. When `search` is null/absent (the predictive path, B), the
 // renderer behaves exactly as before — it paints `props.items` with no semantic
 // upgrade and never spins.
-export function renderVerseSuggestList(search: VerseSearchDeps | null = null) {
+export function renderVerseSuggestList(
+  search: VerseSearchDeps | null = null,
+  opts: { command?: 'verse' | 'lookup' } = {},
+) {
+  const stripRe = new RegExp(`^${opts.command ?? 'verse'}\\s*`, 'i');
   let el: HTMLDivElement | null = null;
   let root: Root | null = null;
   let selectedIndex = 0;
@@ -60,7 +64,7 @@ export function renderVerseSuggestList(search: VerseSearchDeps | null = null) {
   // (C) path. Strips the keyword prefix the same way C's `items` builder does.
   const runSearch = (props: SuggestionProps<VerseCandidate, VerseCandidate>) => {
     if (!verseSearch) return;
-    const q = props.query.replace(/^verse\s*/i, '');
+    const q = props.query.replace(stripRe, '');
     const semanticWillRun = q.trim().length >= MIN_SEMANTIC_CHARS;
     loading = semanticWillRun;
     verseSearch.query(q, (results, phase) => {
