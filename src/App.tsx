@@ -34,11 +34,17 @@ import './App.css';
 const NotepadLanding = lazy(() =>
   import('@/notepad-landing').then((m) => ({ default: m.NotepadLanding })),
 );
-const LegacyNotepadRoute = lazy(() =>
-  import('@/auth/username/NotepadRoutes').then((m) => ({ default: m.LegacyNotepadRoute })),
+const LocalNotepadLayout = lazy(() =>
+  import('@/auth/username/NotepadRoutes').then((m) => ({ default: m.LocalNotepadLayout })),
 );
-const VanityNotepadRoute = lazy(() =>
-  import('@/auth/username/NotepadRoutes').then((m) => ({ default: m.VanityNotepadRoute })),
+const VanityNotepadLayout = lazy(() =>
+  import('@/auth/username/NotepadRoutes').then((m) => ({ default: m.VanityNotepadLayout })),
+);
+const NotepadWorkspace = lazy(() =>
+  import('@/components/sections/Notepad').then((m) => ({ default: m.NotepadWorkspace })),
+);
+const StudyWorkspace = lazy(() =>
+  import('@/notepad/study/StudyWorkspace').then((m) => ({ default: m.StudyWorkspace })),
 );
 const CommunityComingSoon = lazy(() =>
   import('@/components/sections/CommunityComingSoon').then((m) => ({ default: m.CommunityComingSoon })),
@@ -243,8 +249,14 @@ function App() {
               }
             />
             <Route path="/notepad" element={<NotepadLanding />} />
-            <Route path="/notepad/notes" element={<LegacyNotepadRoute />} />
-            <Route path="/notepad/u/:username" element={<VanityNotepadRoute />} />
+            <Route path="/notepad/notes" element={<LocalNotepadLayout />}>
+              <Route index element={<NotepadWorkspace />} />
+              <Route path="study" element={<StudyWorkspace />} />
+            </Route>
+            <Route path="/notepad/u/:username" element={<VanityNotepadLayout />}>
+              <Route index element={<NotepadWorkspace />} />
+              <Route path="study" element={<StudyWorkspace />} />
+            </Route>
             <Route path="/community" element={<CommunityComingSoon />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />

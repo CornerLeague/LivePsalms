@@ -16,7 +16,16 @@ vi.mock('./UsernameClaim', () => ({
   UsernameClaim: () => <div>PICKER</div>,
 }));
 
-import { LegacyNotepadRoute, VanityNotepadRoute } from './NotepadRoutes';
+// Mocks for the new layout components (T19)
+const mountSpy = vi.fn();
+vi.mock('@/notepad/context/NotepadProvider', () => ({
+  NotepadProvider: ({ children }: { children: React.ReactNode }) => { mountSpy(); return <>{children}</>; },
+}));
+vi.mock('@/auth/context/useAuthSession', () => ({
+  useAuthSession: () => ({ adapter: undefined }),
+}));
+
+import { LegacyNotepadRoute, VanityNotepadRoute, LocalNotepadLayout } from './NotepadRoutes';
 
 afterEach(cleanup);
 
@@ -105,5 +114,24 @@ describe('loading state', () => {
     renderAt('/notepad/u/natalie');
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
     expect(screen.queryByText('EDITOR')).not.toBeInTheDocument();
+  });
+});
+
+describe('LocalNotepadLayout', () => {
+  it('mounts NotepadProvider once and renders the active child', () => {
+    mockGate = { kind: 'signed-out' };
+    mountSpy.mockClear();
+    render(
+      <MemoryRouter initialEntries={['/notepad/notes/study']}>
+        <Routes>
+          <Route path="/notepad/notes" element={<LocalNotepadLayout />}>
+            <Route index element={<div>journal</div>} />
+            <Route path="study" element={<div>study</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('study')).toBeTruthy();
+    expect(mountSpy).toHaveBeenCalledTimes(1);
   });
 });
