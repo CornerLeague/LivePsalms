@@ -115,3 +115,21 @@ describe('checkQuota', () => {
     expect(captured).toBe(new Date(NOW - 24 * 60 * 60 * 1000).toISOString());
   });
 });
+
+const envFrom = (m: Record<string, string>) => ({ get: (k: string) => m[k] });
+
+describe('resolveQuotaLimits — study scope', () => {
+  it('defaults the study scope to a tighter cap and counts only bible_study', () => {
+    const cfg = resolveQuotaLimits(envFrom({}));
+    expect(cfg.study.kinds).toEqual(['bible_study']);
+    expect(cfg.study.perUser).toEqual({ none: 3, lite: 10, plus: 30 });
+  });
+  it('honors per-tier study env overrides (0 is a valid override)', () => {
+    const cfg = resolveQuotaLimits(envFrom({
+      LAMPLIGHT_QUOTA_STUDY_NONE: '0',
+      LAMPLIGHT_QUOTA_STUDY_LITE: '5',
+      LAMPLIGHT_QUOTA_STUDY_PLUS: '50',
+    }));
+    expect(cfg.study.perUser).toEqual({ none: 0, lite: 5, plus: 50 });
+  });
+});
