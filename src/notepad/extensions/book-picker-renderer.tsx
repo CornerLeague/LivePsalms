@@ -97,7 +97,7 @@ export function renderBookPicker(search: VerseSearchDeps | null) {
       const n = items.length;
       if (props.event.key === 'ArrowDown') { selectedIndex = n === 0 ? 0 : (selectedIndex + 1) % n; paint(); return true; }
       if (props.event.key === 'ArrowUp') { selectedIndex = n === 0 ? 0 : (selectedIndex - 1 + n) % n; paint(); return true; }
-      if (props.event.key === 'Enter') { const item = items[selectedIndex]; if (item) current.command(item); return true; }
+      if (props.event.key === 'Enter') { const item = items[selectedIndex]; if (item) { current.command(item); return true; } return false; }
       if (props.event.key === 'Escape') { return true; }
       return false;
     },
