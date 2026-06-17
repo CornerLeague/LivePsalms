@@ -317,7 +317,7 @@ export function BibleReader({
                         }
                   }
                 >
-                  <sup className="text-[9px] font-bold mr-1" style={{ color: '#C49A78' }}>{v.verse}</sup>
+                  <sup className="text-[9px] font-bold mr-1" style={{ color: 'var(--lamplight-accent)' }}>{v.verse}</sup>
                   {v.text}{' '}
                 </span>
               );

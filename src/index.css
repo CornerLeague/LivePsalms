@@ -97,6 +97,7 @@
     --charred: #19130C;
     --silica: #8A8B90;
     --alabaster: #F5F0E8;
+    --lamplight-accent: #C49A78; /* scripture gold; overridden to indigo under [data-mode="study"] */
     
     --background: 40 20% 92%;
     --foreground: 30 10% 15%;

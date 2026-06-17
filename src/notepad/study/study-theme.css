@@ -1,0 +1,4 @@
+/* Study Desk recolors from one scope: the indigo accent on the cream base. */
+[data-mode='study'] {
+  --lamplight-accent: #43508C; /* Twilight Indigo */
+}
