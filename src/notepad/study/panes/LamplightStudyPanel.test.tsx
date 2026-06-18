@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+
+afterEach(cleanup);
 
 const sendStudyMessage = vi.fn();
 vi.mock('../study-chat-client', () => ({
@@ -15,6 +17,11 @@ vi.mock('@/lib/supabase', () => ({ supabase: { functions: { invoke: vi.fn() } } 
 import { LamplightStudyPanel } from './LamplightStudyPanel';
 
 describe('LamplightStudyPanel notes-on-offer', () => {
+  it('shows an inviting empty state when there are no messages yet', () => {
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    expect(screen.getByText(/start a conversation to dive into the word/i)).toBeTruthy();
+  });
+
   it('shows the offer after a reply returns offered notes', async () => {
     sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'r', citations: [], offeredNotes: [{ id: 'n1', title: 'A', snippet: 's' }] });
     render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);

@@ -12,7 +12,7 @@ export function StudyReader({ book, chapter, onPassageChange }: StudyReaderProps
     <BibleReader
       initialBook={book}
       initialChapter={chapter}
-      onPassageChange={(ref) => onPassageChange({ book: ref.book, chapter: ref.chapter })}
+      onPassageChange={onPassageChange}
     />
   );
 }

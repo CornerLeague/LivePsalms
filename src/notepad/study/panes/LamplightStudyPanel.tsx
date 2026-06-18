@@ -52,7 +52,12 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Outfit, sans-serif' }}>
-      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column' }}>
+        {!thread.loading && thread.messages.length === 0 && notes.offered.length === 0 && !error && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--silica)', fontSize: 13, padding: 24 }}>
+            Start a conversation to dive into the Word.
+          </div>
+        )}
         {thread.messages.map((m) => (
           <div key={m.id} style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: 'var(--silica)', marginBottom: 2 }}>{m.role === 'user' ? 'You' : 'Lamplight Study'}</div>
