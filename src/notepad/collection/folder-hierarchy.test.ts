@@ -71,4 +71,31 @@ describe('FolderHierarchy', () => {
     hierarchy.rebindAdapter(new FakeStorageAdapter());
     expect(hierarchy.getSnapshot().folders).toEqual([]);
   });
+
+  it('starts with a null studyFolderId', () => {
+    expect(hierarchy.getSnapshot().studyFolderId).toBeNull();
+  });
+
+  it('ensureStudyFolder adds the folder and records its id', async () => {
+    await hierarchy.init();
+    const folder = await hierarchy.ensureStudyFolder();
+    const state = hierarchy.getSnapshot();
+    expect(state.studyFolderId).toBe(folder.id);
+    expect(state.folders.filter((f) => f.kind === 'study')).toHaveLength(1);
+  });
+
+  it('ensureStudyFolder is idempotent across calls', async () => {
+    await hierarchy.init();
+    const first = await hierarchy.ensureStudyFolder();
+    const second = await hierarchy.ensureStudyFolder();
+    expect(second.id).toBe(first.id);
+    expect(hierarchy.getSnapshot().folders.filter((f) => f.kind === 'study')).toHaveLength(1);
+  });
+
+  it('rebindAdapter clears studyFolderId', async () => {
+    await hierarchy.init();
+    await hierarchy.ensureStudyFolder();
+    hierarchy.rebindAdapter(new FakeStorageAdapter());
+    expect(hierarchy.getSnapshot().studyFolderId).toBeNull();
+  });
 });
