@@ -35,6 +35,8 @@ import { useDeferredMenuAction } from './useDeferredMenuAction';
 
 export interface FolderItemProps {
   folder: Folder;
+  /** When true (the system Study root), hide Rename + Delete actions. */
+  isSystem?: boolean;
   /** Notes whose `folderId` matches this folder, already filtered. */
   notes: Note[];
   /** Direct child folders, already sorted by `order`. */
@@ -59,6 +61,7 @@ export interface FolderItemProps {
 export function FolderItem(props: FolderItemProps) {
   const {
     folder,
+    isSystem = false,
     notes,
     childFolders,
     notesByFolder,
@@ -114,6 +117,8 @@ export function FolderItem(props: FolderItemProps) {
               <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
                 <DropdownMenuTrigger asChild>
                   <span
+                    role="button"
+                    aria-label="Folder options"
                     className="shrink-0 cursor-pointer rounded hover:bg-black/10 transition-all"
                     style={{
                       opacity: hovering || menuOpen || isMobile ? 1 : 0,
@@ -130,12 +135,14 @@ export function FolderItem(props: FolderItemProps) {
                   style={{ fontFamily: 'Outfit, sans-serif' }}
                   onCloseAutoFocus={menuAction.onCloseAutoFocus}
                 >
-                  <DropdownMenuItem
-                    onSelect={() => menuAction.run(() => setRenaming(true))}
-                    style={{ fontFamily: 'Outfit, sans-serif' }}
-                  >
-                    Rename
-                  </DropdownMenuItem>
+                  {!isSystem && (
+                    <DropdownMenuItem
+                      onSelect={() => menuAction.run(() => setRenaming(true))}
+                      style={{ fontFamily: 'Outfit, sans-serif' }}
+                    >
+                      Rename
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onSelect={() => menuAction.run(() => setNewNoteOpen(true))}
                     style={{ fontFamily: 'Outfit, sans-serif' }}
@@ -151,14 +158,18 @@ export function FolderItem(props: FolderItemProps) {
                   >
                     New Subfolder
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => menuAction.run(() => setDeleteOpen(true))}
-                    className="text-red-600 focus:text-red-600"
-                    style={{ fontFamily: 'Outfit, sans-serif' }}
-                  >
-                    Delete
-                  </DropdownMenuItem>
+                  {!isSystem && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => menuAction.run(() => setDeleteOpen(true))}
+                        className="text-red-600 focus:text-red-600"
+                        style={{ fontFamily: 'Outfit, sans-serif' }}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -234,12 +245,14 @@ export function FolderItem(props: FolderItemProps) {
           style={{ fontFamily: 'Outfit, sans-serif' }}
           onCloseAutoFocus={menuAction.onCloseAutoFocus}
         >
-          <ContextMenuItem
-            onSelect={() => menuAction.run(() => setRenaming(true))}
-            style={{ fontFamily: 'Outfit, sans-serif' }}
-          >
-            Rename
-          </ContextMenuItem>
+          {!isSystem && (
+            <ContextMenuItem
+              onSelect={() => menuAction.run(() => setRenaming(true))}
+              style={{ fontFamily: 'Outfit, sans-serif' }}
+            >
+              Rename
+            </ContextMenuItem>
+          )}
           <ContextMenuItem
             onSelect={() => menuAction.run(() => setNewNoteOpen(true))}
             style={{ fontFamily: 'Outfit, sans-serif' }}
@@ -255,14 +268,18 @@ export function FolderItem(props: FolderItemProps) {
           >
             New Subfolder
           </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onSelect={() => menuAction.run(() => setDeleteOpen(true))}
-            className="text-red-600 focus:text-red-600"
-            style={{ fontFamily: 'Outfit, sans-serif' }}
-          >
-            Delete
-          </ContextMenuItem>
+          {!isSystem && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                onSelect={() => menuAction.run(() => setDeleteOpen(true))}
+                className="text-red-600 focus:text-red-600"
+                style={{ fontFamily: 'Outfit, sans-serif' }}
+              >
+                Delete
+              </ContextMenuItem>
+            </>
+          )}
         </ContextMenuContent>
       </ContextMenu>
 
