@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { Note } from '../../types';
 import type { ReactNode } from 'react';
 import { NoteCollection } from '../../collection/note-collection';
 import { FolderHierarchy } from '../../collection/folder-hierarchy';
@@ -62,5 +64,18 @@ describe('StudyNotesTab', () => {
     render(<StudyNotesTab />, { wrapper });
     await waitFor(() => expect(screen.getByText('Study')).toBeInTheDocument());
     expect(screen.getByText('My study note')).toBeInTheDocument();
+  });
+
+  it('docks a New note button that creates a general note in the Study root', async () => {
+    await hierarchy.ensureStudyFolder();
+    const studyId = hierarchy.getSnapshot().studyFolderId!;
+    // Stub createNote so the click doesn't auto-open a note (which would render TipTap).
+    const create = vi.spyOn(collection, 'createNote').mockResolvedValue({} as Note);
+
+    render(<StudyNotesTab />, { wrapper });
+    await waitFor(() => expect(screen.getByText('Study')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: /new note/i }));
+    expect(create).toHaveBeenCalledWith(studyId, 'general');
   });
 });

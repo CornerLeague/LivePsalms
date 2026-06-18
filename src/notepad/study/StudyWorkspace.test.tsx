@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
 vi.mock('./panes/ApparatusRail', () => ({ ApparatusRail: () => <div>rail</div> }));
 vi.mock('./panes/StudySidePanel', () => ({ StudySidePanel: () => <div>panel</div> }));
@@ -21,18 +21,23 @@ vi.mock('./panes/StudyReader', async () => {
 });
 vi.mock('@/auth/context/useAuthSession', () => ({ useAuthSession: () => ({ user: { id: 'u1' }, loading: false }) }));
 
+import { MemoryRouter } from 'react-router-dom';
 import { FolderHierarchyContext } from '../context/useFolderHierarchy';
 import { FolderHierarchy } from '../collection/folder-hierarchy';
 import { FakeStorageAdapter } from '../collection/fake-storage-adapter';
 import { StudyWorkspace } from './StudyWorkspace';
 
+afterEach(cleanup);
+
 describe('StudyWorkspace', () => {
   it('renders the toggle and three panes under data-mode="study" without an update loop', () => {
     const hierarchy = new FolderHierarchy(new FakeStorageAdapter());
     const { container } = render(
-      <FolderHierarchyContext.Provider value={hierarchy}>
-        <StudyWorkspace />
-      </FolderHierarchyContext.Provider>,
+      <MemoryRouter>
+        <FolderHierarchyContext.Provider value={hierarchy}>
+          <StudyWorkspace />
+        </FolderHierarchyContext.Provider>
+      </MemoryRouter>,
     );
     const root = container.querySelector('[data-mode="study"]');
     expect(root).toBeTruthy();
@@ -40,5 +45,20 @@ describe('StudyWorkspace', () => {
     expect(root?.textContent).toContain('rail');
     expect(root?.textContent).toContain('reader jhn:1');
     expect(root?.textContent).toContain('panel');
+  });
+
+  it('collapses the context rail to a reopen strip', () => {
+    const hierarchy = new FolderHierarchy(new FakeStorageAdapter());
+    render(
+      <MemoryRouter>
+        <FolderHierarchyContext.Provider value={hierarchy}>
+          <StudyWorkspace />
+        </FolderHierarchyContext.Provider>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('rail')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /collapse context/i }));
+    expect(screen.queryByText('rail')).toBeNull();
+    expect(screen.getByRole('button', { name: /expand context/i })).toBeInTheDocument();
   });
 });

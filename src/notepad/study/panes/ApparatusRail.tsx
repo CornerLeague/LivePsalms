@@ -21,13 +21,24 @@ export function ApparatusRail({ book, chapter }: ApparatusRailProps) {
       {ctx && (
         <section style={{ marginBottom: 24 }}>
           <h2 style={{ fontSize: 16, color: 'var(--deep-umber)', margin: '0 0 8px' }}>{ctx.full_name}</h2>
-          <dl style={{ fontSize: 12, color: 'var(--deep-umber)', lineHeight: 1.5 }}>
+          <dl
+            style={{
+              fontSize: 12,
+              color: 'var(--deep-umber)',
+              lineHeight: 1.7,
+              letterSpacing: '0.01em',
+              margin: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
             <div><strong>Author:</strong> {ctx.author}{ctx.author_note ? ` — ${ctx.author_note}` : ''}</div>
             {ctx.date_label && <div><strong>Date:</strong> {ctx.date_label}</div>}
             {ctx.region && <div><strong>Region:</strong> {ctx.region}</div>}
             {ctx.genre && <div><strong>Genre:</strong> {ctx.genre}</div>}
-            {ctx.cultural_context && <p style={{ margin: '8px 0 0' }}>{ctx.cultural_context}</p>}
-            {ctx.summary && <p style={{ margin: '8px 0 0' }}>{ctx.summary}</p>}
+            {ctx.cultural_context && <p style={{ margin: '4px 0 0' }}>{ctx.cultural_context}</p>}
+            {ctx.summary && <p style={{ margin: '4px 0 0' }}>{ctx.summary}</p>}
           </dl>
         </section>
       )}
@@ -37,7 +48,7 @@ export function ApparatusRail({ book, chapter }: ApparatusRailProps) {
           <h3 style={{ fontSize: 12, letterSpacing: '0.12em', color: 'var(--silica)', margin: '0 0 8px' }}>CROSS-REFERENCES</h3>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {crossRefs.map((x, i) => (
-              <li key={i} style={{ marginBottom: 10, fontSize: 12 }}>
+              <li key={i} style={{ marginBottom: 14, fontSize: 12, lineHeight: 1.6 }}>
                 <span style={{ color: 'var(--lamplight-accent)', fontWeight: 600 }}>{refLabel(x)}</span>
                 {x.crossesTestament && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--lamplight-accent)' }}>OT ↔ NT</span>}
                 {x.text && <div style={{ color: 'var(--deep-umber)', marginTop: 2 }}>{x.text}</div>}

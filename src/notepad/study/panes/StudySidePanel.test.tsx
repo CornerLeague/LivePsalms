@@ -72,4 +72,38 @@ describe('StudySidePanel', () => {
     render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
     await waitFor(() => expect(screen.getByText('Study')).toBeInTheDocument());
   });
+
+  it('renders expand + collapse controls and fires their callbacks', () => {
+    const onToggleExpand = vi.fn();
+    const onCollapse = vi.fn();
+    render(
+      <StudySidePanel
+        book="jhn"
+        chapter={10}
+        userId="u1"
+        expanded={false}
+        onToggleExpand={onToggleExpand}
+        onCollapse={onCollapse}
+      />,
+      { wrapper },
+    );
+    fireEvent.click(screen.getByRole('button', { name: /expand panel/i }));
+    expect(onToggleExpand).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: /collapse panel/i }));
+    expect(onCollapse).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a shrink control when expanded', () => {
+    render(
+      <StudySidePanel book="jhn" chapter={10} userId="u1" expanded onToggleExpand={vi.fn()} onCollapse={vi.fn()} />,
+      { wrapper },
+    );
+    expect(screen.getByRole('button', { name: /shrink panel/i })).toBeInTheDocument();
+  });
+
+  it('omits the controls when no layout callbacks are provided', () => {
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
+    expect(screen.queryByRole('button', { name: /expand panel/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /collapse panel/i })).toBeNull();
+  });
 });

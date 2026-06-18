@@ -25,9 +25,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { FOLDER_ICONS } from '../components/NewFolderDialog';
-import type { Note, Folder, NoteType } from '../types';
+import type { Note, Folder, NoteType, FolderIcon } from '../types';
 import { NoteItem } from './NoteItem';
 import { NewNoteDialog } from './NewNoteDialog';
+import { NewSubfolderDialog } from './NewSubfolderDialog';
 import { InlineEdit } from './InlineEdit';
 import { useTreeViewState } from './tree-view-state';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -35,7 +36,11 @@ import { useDeferredMenuAction } from './useDeferredMenuAction';
 
 export interface FolderItemProps {
   folder: Folder;
-  /** When true (the system Study root), hide Rename + Delete actions. */
+  /**
+   * When true (the system Study root), hide Rename + Delete and the inline
+   * "New Note Inside" action — a docked accent button in the Study pane
+   * replaces note creation at the root. Subfolders keep the full menu.
+   */
   isSystem?: boolean;
   /** Notes whose `folderId` matches this folder, already filtered. */
   notes: Note[];
@@ -55,7 +60,7 @@ export interface FolderItemProps {
   onMoveNote: (noteId: string, folderId: string) => void;
   onRenameFolder: (id: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
-  onCreateSubfolder: (parentId: string, name: string) => void;
+  onCreateSubfolder: (parentId: string, name: string, icon?: FolderIcon, color?: string) => void;
 }
 
 export function FolderItem(props: FolderItemProps) {
@@ -83,6 +88,7 @@ export function FolderItem(props: FolderItemProps) {
   const open = treeView.isExpanded(`folder:${folder.id}`, true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [newNoteOpen, setNewNoteOpen] = useState(false);
+  const [newSubfolderOpen, setNewSubfolderOpen] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -143,17 +149,16 @@ export function FolderItem(props: FolderItemProps) {
                       Rename
                     </DropdownMenuItem>
                   )}
+                  {!isSystem && (
+                    <DropdownMenuItem
+                      onSelect={() => menuAction.run(() => setNewNoteOpen(true))}
+                      style={{ fontFamily: 'Outfit, sans-serif' }}
+                    >
+                      New Note Inside
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
-                    onSelect={() => menuAction.run(() => setNewNoteOpen(true))}
-                    style={{ fontFamily: 'Outfit, sans-serif' }}
-                  >
-                    New Note Inside
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => menuAction.run(() => {
-                      const name = prompt('Subfolder name:');
-                      if (name && name.trim()) onCreateSubfolder(folder.id, name.trim());
-                    })}
+                    onSelect={() => menuAction.run(() => setNewSubfolderOpen(true))}
                     style={{ fontFamily: 'Outfit, sans-serif' }}
                   >
                     New Subfolder
@@ -253,17 +258,16 @@ export function FolderItem(props: FolderItemProps) {
               Rename
             </ContextMenuItem>
           )}
+          {!isSystem && (
+            <ContextMenuItem
+              onSelect={() => menuAction.run(() => setNewNoteOpen(true))}
+              style={{ fontFamily: 'Outfit, sans-serif' }}
+            >
+              New Note Inside
+            </ContextMenuItem>
+          )}
           <ContextMenuItem
-            onSelect={() => menuAction.run(() => setNewNoteOpen(true))}
-            style={{ fontFamily: 'Outfit, sans-serif' }}
-          >
-            New Note Inside
-          </ContextMenuItem>
-          <ContextMenuItem
-            onSelect={() => menuAction.run(() => {
-              const name = prompt('Subfolder name:');
-              if (name && name.trim()) onCreateSubfolder(folder.id, name.trim());
-            })}
+            onSelect={() => menuAction.run(() => setNewSubfolderOpen(true))}
             style={{ fontFamily: 'Outfit, sans-serif' }}
           >
             New Subfolder
@@ -310,6 +314,14 @@ export function FolderItem(props: FolderItemProps) {
         onOpenChange={setNewNoteOpen}
         folderId={folder.id}
         onCreate={onCreateNote}
+      />
+
+      {/* New Subfolder dialog */}
+      <NewSubfolderDialog
+        open={newSubfolderOpen}
+        onOpenChange={setNewSubfolderOpen}
+        parentName={folder.name}
+        onCreate={(name, icon, color) => onCreateSubfolder(folder.id, name, icon, color)}
       />
     </>
   );

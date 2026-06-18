@@ -52,21 +52,23 @@ beforeEach(() => {
 });
 
 describe('FolderItem isSystem', () => {
-  it('hides Rename and Delete but keeps create actions when isSystem', async () => {
+  it('hides Rename, Delete, and New Note Inside but keeps New Subfolder when isSystem', async () => {
     const user = userEvent.setup();
     renderFolder(true);
     await user.click(screen.getByLabelText(/folder options/i));
     expect(screen.queryByText('Rename')).toBeNull();
     expect(screen.queryByText('Delete')).toBeNull();
-    expect(screen.getByText('New Note Inside')).toBeInTheDocument();
+    // New Note Inside is hidden on the Study root — the docked accent button replaces it.
+    expect(screen.queryByText('New Note Inside')).toBeNull();
     expect(screen.getByText('New Subfolder')).toBeInTheDocument();
   });
 
-  it('shows Rename and Delete for a normal folder', async () => {
+  it('shows Rename, Delete, and New Note Inside for a normal folder', async () => {
     const user = userEvent.setup();
     renderFolder(false);
     await user.click(screen.getByLabelText(/folder options/i));
     expect(screen.getByText('Rename')).toBeInTheDocument();
     expect(screen.getByText('Delete')).toBeInTheDocument();
+    expect(screen.getByText('New Note Inside')).toBeInTheDocument();
   });
 });
