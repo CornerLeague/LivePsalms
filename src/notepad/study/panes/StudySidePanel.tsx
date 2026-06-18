@@ -3,8 +3,13 @@
 // Chat (Lamplight Study). Both tabs stay mounted (visibility toggled) so an
 // in-progress note edit or chat draft survives switching between them.
 import { useState } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import { NotepadEditor } from '@/notepad/components/Editor';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
+import { useFolderHierarchy } from '@/notepad/context/useFolderHierarchy';
+import { FolderItem } from '@/notepad/sidebar/FolderItem';
+import { TreeViewStateProvider } from '@/notepad/sidebar/tree-view-state';
+import { buildFolderTreeView } from '@/notepad/sidebar/folder-tree-view';
 import { LamplightStudyPanel } from './LamplightStudyPanel';
 
 type StudyTab = 'notes' | 'chat';
@@ -31,47 +36,90 @@ function tabStyle(active: boolean): React.CSSProperties {
   };
 }
 
-// The Notes tab reuses the journaling editor (it reads the active note from the
-// hoisted NotepadProvider). With no note open there is nothing to edit yet, so
-// offer a way to start one.
-function StudyNotesTab() {
-  const { activeNote, collection } = useNoteCollection();
-  if (!activeNote) {
+// The Notes tab is a folder browser rooted at the per-user Study folder. With a
+// note open it swaps to the editor (with a back affordance); otherwise it shows
+// the Study folder's expand/collapse tree plus create actions.
+export function StudyNotesTab() {
+  const { notes, activeNote, collection } = useNoteCollection();
+  const { folders, studyFolderId, hierarchy } = useFolderHierarchy();
+
+  if (activeNote) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <button
+          onClick={() => collection.openNote(null)}
+          aria-label="Back to Study notes"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '8px 12px',
+            border: 'none',
+            borderBottom: '1px solid var(--pale-stone)',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: 'var(--deep-umber)',
+            fontFamily: 'Outfit, sans-serif',
+            fontSize: 12,
+          }}
+        >
+          <ChevronLeft className="w-3.5 h-3.5" /> Study notes
+        </button>
+        <div style={{ flex: '1 1 0%', minHeight: 0, overflow: 'auto' }}>
+          <NotepadEditor />
+        </div>
+      </div>
+    );
+  }
+
+  const study = studyFolderId ? folders.find((f) => f.id === studyFolderId) : null;
+  if (!study) {
     return (
       <div
         style={{
           height: '100%',
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 12,
           padding: 24,
           textAlign: 'center',
+          color: 'var(--silica)',
           fontFamily: 'Outfit, sans-serif',
+          fontSize: 13,
         }}
       >
-        <div style={{ color: 'var(--silica)', fontSize: 13 }}>No note open — start one to jot as you study.</div>
-        <button
-          onClick={() => {
-            void collection.createNote('root', 'general');
-          }}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 6,
-            border: 'none',
-            background: 'var(--lamplight-accent)',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: 13,
-          }}
-        >
-          New note
-        </button>
+        Setting up your Study folder…
       </div>
     );
   }
-  return <NotepadEditor />;
+
+  const view = buildFolderTreeView(notes, folders, '', null);
+
+  return (
+    <TreeViewStateProvider>
+      <div style={{ padding: 8 }}>
+        <FolderItem
+          folder={study}
+          isSystem
+          notes={view.notesByFolder.get(study.id) ?? []}
+          childFolders={view.childFoldersByParent.get(study.id) ?? []}
+          notesByFolder={view.notesByFolder}
+          childFoldersByParent={view.childFoldersByParent}
+          allFolders={folders}
+          activeNoteId={null}
+          onOpen={(id) => collection.openNote(id)}
+          onCreateNote={(folderId, type) => { void collection.createNote(folderId, type); }}
+          onRenameNote={(id, title) => { void collection.renameNote(id, title); }}
+          onDuplicateNote={(id) => { void collection.duplicateNote(id); }}
+          onDeleteNote={(id) => { void collection.deleteNote(id); }}
+          onMoveNote={(noteId, folderId) => { void collection.moveNote(noteId, folderId); }}
+          onRenameFolder={(id, name) => { void hierarchy.renameFolder(id, name); }}
+          onDeleteFolder={(id) => { void hierarchy.deleteFolder(id); }}
+          onCreateSubfolder={(parentId, name) => { void hierarchy.createFolder(name, parentId); }}
+        />
+      </div>
+    </TreeViewStateProvider>
+  );
 }
 
 export function StudySidePanel({ book, chapter, userId }: StudySidePanelProps) {
