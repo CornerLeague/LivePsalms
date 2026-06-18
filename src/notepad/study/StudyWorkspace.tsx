@@ -5,11 +5,13 @@ import { ApparatusRail } from './panes/ApparatusRail';
 import { StudyReader } from './panes/StudyReader';
 import { StudySidePanel } from './panes/StudySidePanel';
 import { StudyModeToggle } from './StudyModeToggle';
+import { useEnsureStudyFolder } from './useEnsureStudyFolder';
 import './study-theme.css';
 
 export function StudyWorkspace() {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
+  useEnsureStudyFolder();
   const [passage, setPassage] = useState<{ book: string; chapter: number }>({ book: 'jhn', chapter: 1 });
 
   // BibleReader reports its passage from an effect keyed on this callback. A fresh
