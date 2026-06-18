@@ -7,6 +7,28 @@ function makeAdapter() {
   return new SupabaseStorageAdapter({} as never, 'user-1');
 }
 
+// Capturing client that records the payload passed to .insert()
+function makeCapturingAdapter() {
+  let captured: Record<string, unknown> | null = null;
+  const client = {
+    from: () => ({
+      insert: (payload: Record<string, unknown>) => {
+        captured = payload;
+        return { select: () => ({ single: async () => ({ data: { ...payload }, error: null }) }) };
+      },
+    }),
+  };
+  return { adapter: new SupabaseStorageAdapter(client as never, 'u1'), get: () => captured };
+}
+
+describe('SupabaseStorageAdapter.importFolder kind', () => {
+  it('preserves kind in the insert payload', async () => {
+    const { adapter, get } = makeCapturingAdapter();
+    await adapter.importFolder({ id: 'f1', name: 'Study', parentId: null, order: 0, kind: 'study' });
+    expect(get()?.kind).toBe('study');
+  });
+});
+
 describe('SupabaseStorageAdapter.mapFolder kind', () => {
   it('reads kind from the row', () => {
     const adapter = makeAdapter();

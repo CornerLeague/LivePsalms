@@ -21,11 +21,19 @@ vi.mock('./panes/StudyReader', async () => {
 });
 vi.mock('@/auth/context/useAuthSession', () => ({ useAuthSession: () => ({ user: { id: 'u1' }, loading: false }) }));
 
+import { FolderHierarchyContext } from '../context/useFolderHierarchy';
+import { FolderHierarchy } from '../collection/folder-hierarchy';
+import { FakeStorageAdapter } from '../collection/fake-storage-adapter';
 import { StudyWorkspace } from './StudyWorkspace';
 
 describe('StudyWorkspace', () => {
   it('renders the toggle and three panes under data-mode="study" without an update loop', () => {
-    const { container } = render(<StudyWorkspace />);
+    const hierarchy = new FolderHierarchy(new FakeStorageAdapter());
+    const { container } = render(
+      <FolderHierarchyContext.Provider value={hierarchy}>
+        <StudyWorkspace />
+      </FolderHierarchyContext.Provider>,
+    );
     const root = container.querySelector('[data-mode="study"]');
     expect(root).toBeTruthy();
     expect(root?.textContent).toContain('toggle');

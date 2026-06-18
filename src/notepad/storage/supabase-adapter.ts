@@ -173,6 +173,7 @@ export class SupabaseStorageAdapter implements StorageAdapter {
         order: folder.order,
         icon: folder.icon ?? null,
         color: folder.color ?? null,
+        kind: folder.kind ?? null,
       })
       .select()
       .single();

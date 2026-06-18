@@ -1,7 +1,8 @@
 // src/notepad/study/panes/StudySidePanel.tsx
-// Tabbed Study side panel: Notes (the journaling editor on the active note) and
-// Chat (Lamplight Study). Both tabs stay mounted (visibility toggled) so an
-// in-progress note edit or chat draft survives switching between them.
+// Tabbed Study side panel with Notes and Chat tabs. The Notes tab is a folder
+// browser rooted at the per-user Study folder; when a note is active it swaps to
+// the editor (with a back affordance). The Chat tab hosts Lamplight Study. Tab
+// visibility is toggled via CSS display so in-progress drafts survive tab switching.
 import { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { NotepadEditor } from '@/notepad/components/Editor';

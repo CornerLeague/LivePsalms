@@ -1,43 +1,75 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { NoteCollection } from '../../collection/note-collection';
+import { FolderHierarchy } from '../../collection/folder-hierarchy';
+import { FakeStorageAdapter } from '../../collection/fake-storage-adapter';
+import { NoteCollectionContext } from '../../context/useNoteCollection';
+import { FolderHierarchyContext } from '../../context/useFolderHierarchy';
 
 vi.mock('@/notepad/components/Editor', () => ({ NotepadEditor: () => <div>editor</div> }));
 vi.mock('./LamplightStudyPanel', () => ({ LamplightStudyPanel: () => <div>chat-panel</div> }));
 
-const createNote = vi.fn();
-let activeNote: { id: string; title: string } | null = { id: 'n1', title: 'X' };
-vi.mock('@/notepad/context/useNoteCollection', () => ({
-  useNoteCollection: () => ({ activeNote, collection: { createNote } }),
-}));
-
 import { StudySidePanel } from './StudySidePanel';
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  activeNote = { id: 'n1', title: 'X' };
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
 });
+
 afterEach(cleanup);
 
 describe('StudySidePanel', () => {
-  it('defaults to the Notes tab and renders the editor when a note is active', () => {
-    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />);
-    expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('tab', { name: /chat/i }).getAttribute('aria-selected')).toBe('false');
-    expect(screen.getByText('editor')).toBeTruthy();
+  let adapter: FakeStorageAdapter;
+  let collection: NoteCollection;
+  let hierarchy: FolderHierarchy;
+
+  beforeEach(() => {
+    adapter = new FakeStorageAdapter();
+    collection = new NoteCollection(adapter);
+    hierarchy = new FolderHierarchy(adapter);
   });
 
-  it('switches to the Chat tab on click', () => {
-    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />);
+  function wrapper({ children }: { children: ReactNode }) {
+    return (
+      <NoteCollectionContext.Provider value={collection}>
+        <FolderHierarchyContext.Provider value={hierarchy}>
+          {children}
+        </FolderHierarchyContext.Provider>
+      </NoteCollectionContext.Provider>
+    );
+  }
+
+  it('defaults to the Notes tab (aria-selected true) and Chat tab false', () => {
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
+    expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: /chat/i }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('clicking the Chat tab switches selection', () => {
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
     fireEvent.click(screen.getByRole('tab', { name: /chat/i }));
     expect(screen.getByRole('tab', { name: /chat/i }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('false');
   });
 
-  it('offers a New note button that creates + activates a note when none is open', () => {
-    activeNote = null;
-    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />);
-    fireEvent.click(screen.getByRole('button', { name: /new note/i }));
-    expect(createNote).toHaveBeenCalledWith('root', 'general');
+  it('Notes pane shows setup state before the Study folder exists', () => {
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
+    expect(screen.getByText(/setting up your study folder/i)).toBeInTheDocument();
+  });
+
+  it('Notes pane shows the Study tree after ensureStudyFolder', async () => {
+    await hierarchy.ensureStudyFolder();
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
+    await waitFor(() => expect(screen.getByText('Study')).toBeInTheDocument());
   });
 });
