@@ -29,4 +29,19 @@ describe('LamplightStudyPanel notes-on-offer', () => {
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(screen.getByText(/1 note/i)).toBeTruthy());
   });
+
+  it('gates the chat behind sign-in when logged out', () => {
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId={null} />);
+    expect(screen.getByText(/sign in to use lamplight study/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
+  });
+
+  it('maps the raw edge-function error to a friendly sign-in message', async () => {
+    sendStudyMessage.mockResolvedValue({ ok: false, reason: 'Edge Function returned a non-2xx status code' });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText(/please sign in to use lamplight study/i)).toBeTruthy());
+    expect(screen.queryByText(/non-2xx/i)).toBeNull();
+  });
 });

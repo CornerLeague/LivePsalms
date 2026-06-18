@@ -9,6 +9,20 @@ import type { InvokeFn } from '@/notepad/bible/lamplight-chat-client';
 const invoke: InvokeFn = (name, options) =>
   supabase!.functions.invoke(name, { body: options.body as Record<string, unknown> }) as ReturnType<InvokeFn>;
 
+// The edge function requires an authenticated user and returns 401 otherwise,
+// which supabase-js surfaces as the opaque "Edge Function returned a non-2xx
+// status code". Map known reasons to something a reader can act on.
+function friendlyError(reason: string): string {
+  const r = (reason || '').toLowerCase();
+  if (r.includes('non-2xx') || r.includes('unauthorized') || r.includes('401') || r.includes('jwt')) {
+    return 'Please sign in to use Lamplight Study.';
+  }
+  if (r === 'not_opted_in') {
+    return 'Turn on Lamplight Study in your settings to start chatting.';
+  }
+  return 'Something went wrong. Please try again.';
+}
+
 export interface LamplightStudyPanelProps { book: string; chapter: number; userId: string | null }
 
 export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPanelProps) {
@@ -18,6 +32,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastMessage, setLastMessage] = useState<string>('');
+  const signedIn = !!userId;
 
   const doSend = useCallback(async (message: string, includeIds: string[]) => {
     setSending(true); setError(null);
@@ -30,7 +45,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       noteIds: includeIds,
     });
     setSending(false);
-    if (!res.ok) { setError(res.reason); return; }
+    if (!res.ok) { setError(friendlyError(res.reason)); return; }
     thread.append([{ id: `a-${Date.now()}`, role: 'assistant', content: res.reply, citations: res.citations }]);
     notes.setOffered(res.offeredNotes);
   }, [book, chapter, thread, notes]);
@@ -55,7 +70,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column' }}>
         {!thread.loading && thread.messages.length === 0 && notes.offered.length === 0 && !error && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--silica)', fontSize: 13, padding: 24 }}>
-            Start a conversation to dive into the Word.
+            {signedIn ? 'Start a conversation to dive into the Word.' : 'Sign in to use Lamplight Study.'}
           </div>
         )}
         {thread.messages.map((m) => (
@@ -84,14 +99,31 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
-          placeholder="Ask Lamplight Study about this passage…"
-          style={{ flex: 1, fontSize: 13, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--pale-stone)' }}
+          disabled={!signedIn}
+          placeholder={signedIn ? 'Ask Lamplight Study about this passage…' : 'Sign in to use Lamplight Study'}
+          style={{
+            flex: 1,
+            fontSize: 13,
+            padding: '8px 10px',
+            borderRadius: 6,
+            border: '1px solid var(--pale-stone)',
+            background: signedIn ? undefined : 'rgba(0,0,0,0.03)',
+            cursor: signedIn ? undefined : 'not-allowed',
+          }}
         />
         <button
           aria-label="Send"
           onClick={() => void send()}
-          disabled={sending}
-          style={{ padding: '8px 14px', borderRadius: 6, border: 'none', background: 'var(--lamplight-accent)', color: '#fff', cursor: 'pointer' }}>
+          disabled={sending || !signedIn}
+          style={{
+            padding: '8px 14px',
+            borderRadius: 6,
+            border: 'none',
+            background: 'var(--lamplight-accent)',
+            color: '#fff',
+            opacity: sending || !signedIn ? 0.5 : 1,
+            cursor: sending || !signedIn ? 'not-allowed' : 'pointer',
+          }}>
           Send
         </button>
       </div>
