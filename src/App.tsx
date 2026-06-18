@@ -23,6 +23,7 @@ import type { Project } from '@/types';
 import { AuthProvider } from '@/auth/context/AuthProvider';
 import { useRouteTransition } from '@/transitions/useRouteTransition';
 import { RouteTransitionProvider } from '@/transitions/RouteTransitionContext';
+import { LoadingOverlayContext } from '@/hooks/loading-overlay-context';
 import './App.css';
 
 // ── Route-level code splitting ───────────────────────────────────────────────
@@ -130,8 +131,17 @@ function App() {
     initialActive: false,
   });
 
+  // Tracks whether the loading overlay is covering the screen across its full
+  // visible lifecycle — true the moment it activates (only ever via
+  // handleNavTrigger below), false only once its dissolve finishes
+  // (onCrossfadeComplete). Surfaced via LoadingOverlayContext so the onboarding
+  // tour/checklist don't paint on top of the loading screen.
+  const [overlayPresent, setOverlayPresent] = useState(false);
+  const handleOverlayGone = useCallback(() => setOverlayPresent(false), []);
+
   const handleNavTrigger = useCallback(() => {
     if (initialDecision.prefersReducedMotion) return;
+    setOverlayPresent(true);
     overlay.trigger();
   }, [overlay, initialDecision.prefersReducedMotion]);
 
@@ -194,6 +204,7 @@ function App() {
   return (
     <AuthProvider>
       <RouteTransitionProvider value={routeTransitionValue}>
+        <LoadingOverlayContext.Provider value={overlayPresent}>
         <div
           className={cn(
             'relative min-h-screen',
@@ -298,7 +309,8 @@ function App() {
 
       <div className="grain-bg" aria-hidden="true" />
 
-      <HeroLoadingOverlay active={overlay.active} />
+      <HeroLoadingOverlay active={overlay.active} onCrossfadeComplete={handleOverlayGone} />
+        </LoadingOverlayContext.Provider>
     </RouteTransitionProvider>
     </AuthProvider>
   );
