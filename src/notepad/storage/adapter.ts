@@ -17,4 +17,6 @@ export interface StorageAdapter {
   importFolder(folder: Folder): Promise<Folder>;
   updateFolder(id: string, updates: Partial<Folder>): Promise<Folder>;
   deleteFolder(id: string): Promise<void>;
+  /** Find-or-create the per-user system Study folder. Idempotent. */
+  ensureStudyFolder(): Promise<Folder>;
 }

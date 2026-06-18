@@ -211,6 +211,43 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     if (error) throw error;
   }
 
+  async ensureStudyFolder(): Promise<Folder> {
+    const existing = await this.#getStudyFolder();
+    if (existing) return existing;
+
+    const { data, error } = await this.#client
+      .from('folders')
+      .insert({
+        user_id: this.#userId,
+        name: 'Study',
+        parent_id: null,
+        order: 0,
+        icon: 'book',
+        color: null,
+        kind: 'study',
+      })
+      .select()
+      .single();
+
+    // 23505 = unique_violation: another tab created it first. Re-fetch and use it.
+    if (error?.code === '23505') {
+      const raced = await this.#getStudyFolder();
+      if (raced) return raced;
+    }
+    if (error) throw error;
+    return this.mapFolder(data);
+  }
+
+  async #getStudyFolder(): Promise<Folder | null> {
+    const { data, error } = await this.#client
+      .from('folders')
+      .select('*')
+      .eq('kind', 'study')
+      .maybeSingle();
+    if (error) throw error;
+    return data ? this.mapFolder(data) : null;
+  }
+
   // ── Mappers (snake_case DB → camelCase app) ────────────────────────
 
   mapNote = (row: Record<string, unknown>): Note => ({
