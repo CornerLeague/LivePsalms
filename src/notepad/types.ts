@@ -30,6 +30,8 @@ export type FolderIcon =
   | 'heart' | 'star' | 'cross' | 'flame' | 'dove' | 'crown'
   | 'book' | 'music' | 'sun' | 'shield' | 'lamp' | 'wheat';
 
+export type FolderKind = 'study';
+
 export interface Folder {
   id: string;
   name: string;
@@ -37,6 +39,7 @@ export interface Folder {
   order: number;
   icon?: FolderIcon;
   color?: string;
+  kind?: FolderKind;
 }
 
 export type { ScriptureNode, GraphEdge, GraphNode, AdjacencyList } from './graph/types';

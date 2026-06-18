@@ -152,6 +152,7 @@ export class SupabaseStorageAdapter implements StorageAdapter {
         order: folder.order,
         icon: folder.icon ?? null,
         color: folder.color ?? null,
+        kind: folder.kind ?? null,
       })
       .select()
       .single();
@@ -232,5 +233,6 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     order: row.order as number,
     icon: row.icon as Folder['icon'],
     color: row.color as string | undefined,
+    kind: (row.kind as Folder['kind']) ?? undefined,
   });
 }
