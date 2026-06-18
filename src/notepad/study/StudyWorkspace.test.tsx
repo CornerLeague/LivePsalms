@@ -5,6 +5,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 vi.mock('./panes/ApparatusRail', () => ({ ApparatusRail: () => <div>rail</div> }));
 vi.mock('./panes/StudySidePanel', () => ({ StudySidePanel: () => <div>panel</div> }));
 vi.mock('./StudyModeToggle', () => ({ StudyModeToggle: () => <div>toggle</div> }));
+vi.mock('@/notepad/components/NotepadAuthControls', () => ({ NotepadAuthControls: () => <div>auth</div> }));
 // The StudyReader mock reports its (unchanged) passage from an effect on EVERY
 // render — the exact shape that previously caused "Maximum update depth exceeded".
 // If StudyWorkspace's handler isn't stable + guarded, render() throws here.

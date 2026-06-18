@@ -7,6 +7,7 @@ import { ApparatusRail } from './panes/ApparatusRail';
 import { StudyReader } from './panes/StudyReader';
 import { StudySidePanel } from './panes/StudySidePanel';
 import { StudyModeToggle } from './StudyModeToggle';
+import { NotepadAuthControls } from '@/notepad/components/NotepadAuthControls';
 import { useEnsureStudyFolder } from './useEnsureStudyFolder';
 import './study-theme.css';
 
@@ -67,6 +68,9 @@ export function StudyWorkspace() {
           onClick={() => navigate('/')}
         />
         <StudyModeToggle />
+        {/* Push auth controls to the far right, same spot as the journal toolbar */}
+        <div style={{ flex: 1 }} />
+        <NotepadAuthControls />
       </header>
       <div style={{ flex: '1 1 0%', minHeight: 0, display: 'flex' }}>
         {/* Left: book context — collapses to a thin reopen strip */}
