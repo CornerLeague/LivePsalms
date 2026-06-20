@@ -6,13 +6,16 @@ import { renderHook, waitFor, cleanup, act } from '@testing-library/react';
 // Mock refs wrapped in vi.hoisted so they are initialized before the hoisted
 // vi.mock() factory runs (matches the convention in useBiblePassages.test.ts).
 const {
-  order, eqMsg, selectMsg, eqThread, selectThread, maybeSingle, from,
+  order, eqMsg, selectMsg, eqThread, eqSurface, selectThread, maybeSingle, from,
   threadBuilder, msgBuilder, setOrderResult,
 } = vi.hoisted(() => {
   const order = vi.fn();
   const eqMsg = vi.fn();
   const selectMsg = vi.fn();
+  // eqThread handles all .eq() calls on the thread builder; eqSurface is the
+  // same spy re-exported so callers can assert specifically on ('surface','chat').
   const eqThread = vi.fn();
+  const eqSurface = eqThread;
   const selectThread = vi.fn();
   const maybeSingle = vi.fn();
   const from = vi.fn();
@@ -26,7 +29,7 @@ const {
   };
 
   return {
-    order, eqMsg, selectMsg, eqThread, selectThread, maybeSingle, from,
+    order, eqMsg, selectMsg, eqThread, eqSurface, selectThread, maybeSingle, from,
     threadBuilder, msgBuilder,
     setOrderResult: (v: { data: unknown; error: unknown }) => { orderResult = v; },
   };
@@ -82,8 +85,9 @@ describe('useChatThread', () => {
     maybeSingle.mockResolvedValue({ data: { id: 't1' }, error: null });
     setOrderResult({ data: [{ id: 'm1', role: 'assistant', content: 'x', citations: [] }], error: null });
 
-    // update().eq().eq().eq() chain returns { error: null }
-    const updEq3 = vi.fn().mockResolvedValue({ error: null });
+    // update().eq().eq().eq().eq() chain returns { error: null }
+    const updEq4 = vi.fn().mockResolvedValue({ error: null });
+    const updEq3 = vi.fn(() => ({ eq: updEq4 }));
     const updEq2 = vi.fn(() => ({ eq: updEq3 }));
     const updEq1 = vi.fn(() => ({ eq: updEq2 }));
     const update = vi.fn(() => ({ eq: updEq1 }));
@@ -102,8 +106,9 @@ describe('useChatThread', () => {
     maybeSingle.mockResolvedValue({ data: { id: 't1' }, error: null });
     setOrderResult({ data: [{ id: 'm1', role: 'assistant', content: 'x', citations: [] }], error: null });
 
-    // update().eq().eq().eq() chain rejects with a Postgres error
-    const updEq3 = vi.fn().mockResolvedValue({ error: { message: 'archive failed' } });
+    // update().eq().eq().eq().eq() chain rejects with a Postgres error
+    const updEq4 = vi.fn().mockResolvedValue({ error: { message: 'archive failed' } });
+    const updEq3 = vi.fn(() => ({ eq: updEq4 }));
     const updEq2 = vi.fn(() => ({ eq: updEq3 }));
     const updEq1 = vi.fn(() => ({ eq: updEq2 }));
     const update = vi.fn(() => ({ eq: updEq1 }));
@@ -120,5 +125,12 @@ describe('useChatThread', () => {
     // (not silently cleared and then re-loaded from the still-active thread).
     expect(result.current.error).toBe('archive failed');
     expect(result.current.messages.map((m) => m.id)).toEqual(['m1']);
+  });
+
+  it('scopes the active-thread lookup to the chat surface', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    const { result } = renderHook(() => useChatThread('jhn', 10, 'u1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(eqSurface).toHaveBeenCalledWith('surface', 'chat');
   });
 });

@@ -16,11 +16,12 @@ const ANTHROPIC_VERSION = '2023-06-01';
 const MAX_RETRIES = 3;
 const DEFAULT_MAX_TOKENS = 2048;
 
-export type LLMModel = 'sonnet' | 'haiku';
+export type LLMModel = 'sonnet' | 'haiku' | 'opus';
 
 const MODEL_IDS: Record<LLMModel, string> = {
   sonnet: 'claude-sonnet-4-6',
   haiku:  'claude-haiku-4-5-20251001',
+  opus:   'claude-opus-4-8',
 };
 
 const defaultSleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));

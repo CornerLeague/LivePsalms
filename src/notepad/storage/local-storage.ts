@@ -121,6 +121,18 @@ export class LocalStorageAdapter implements StorageAdapter {
     this.writeNotes(notes);
   }
 
+  async ensureStudyFolder(): Promise<Folder> {
+    const existing = this.readFolders().find((f) => f.kind === 'study');
+    if (existing) return existing;
+    return this.createFolder({
+      name: 'Study',
+      parentId: null,
+      order: 0,
+      icon: 'book',
+      kind: 'study',
+    });
+  }
+
   /**
    * Removes every Note and Folder this adapter owns from `localStorage`.
    * Used by the migration flow to drop the local copy after a successful

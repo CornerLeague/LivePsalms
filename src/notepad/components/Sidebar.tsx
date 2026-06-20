@@ -181,7 +181,7 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
               onMoveNote={(noteId, fId) => moveNote(noteId, fId)}
               onRenameFolder={(id, name) => renameFolder(id, name)}
               onDeleteFolder={(id) => deleteFolder(id)}
-              onCreateSubfolder={(parentId, name) => createFolder(name, parentId)}
+              onCreateSubfolder={(parentId, name, icon, color) => createFolder(name, parentId, icon, color)}
             />
           ))}
         </div>

@@ -86,4 +86,16 @@ export class FakeStorageAdapter implements StorageAdapter {
     this.folders = this.folders.filter((f) => f.id !== id);
     this.notes = this.notes.map((n) => (n.folderId === id ? { ...n, folderId: 'root' } : n));
   }
+
+  async ensureStudyFolder(): Promise<Folder> {
+    const existing = this.folders.find((f) => f.kind === 'study');
+    if (existing) return { ...existing };
+    return this.createFolder({
+      name: 'Study',
+      parentId: null,
+      order: 0,
+      icon: 'book',
+      kind: 'study',
+    });
+  }
 }

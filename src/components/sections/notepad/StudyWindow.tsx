@@ -37,7 +37,7 @@ export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lampl
     fontFamily: 'Outfit, sans-serif',
     color: active ? 'var(--deep-umber)' : 'var(--silica)',
     background: active ? 'rgba(196,154,120,0.16)' : 'transparent',
-    boxShadow: active ? 'inset 0 -2px 0 #C49A78' : 'none',
+    boxShadow: active ? 'inset 0 -2px 0 var(--lamplight-accent)' : 'none',
     cursor: 'pointer',
   });
 

@@ -38,6 +38,7 @@ export function useChatThread(book: string, chapter: number, userId: string | nu
       .update({ archived: true })
       .eq('user_id', userId)
       .eq('passage_ref', passageRef)
+      .eq('surface', 'chat')
       .eq('archived', false);
     // If the archive write fails, surface it and keep the current conversation
     // rather than clearing it (a reload would re-fetch the still-active thread).
@@ -67,6 +68,7 @@ export function useChatThread(book: string, chapter: number, userId: string | nu
         .select('id')
         .eq('user_id', userId)
         .eq('passage_ref', passageRef)
+        .eq('surface', 'chat')
         .eq('archived', false)
         .maybeSingle();
       if (cancelled) return;

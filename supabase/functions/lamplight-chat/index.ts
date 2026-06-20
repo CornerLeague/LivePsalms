@@ -167,7 +167,7 @@ async function upsertThread(
   supabase: SupabaseClient, userId: string, book: string, chapter: number, passageRef: string, firstMessage: string,
 ): Promise<string> {
   const existing = await supabase
-    .from('lamplight_chat_threads').select('id').eq('user_id', userId).eq('passage_ref', passageRef).eq('archived', false).maybeSingle();
+    .from('lamplight_chat_threads').select('id').eq('user_id', userId).eq('passage_ref', passageRef).eq('surface', 'chat').eq('archived', false).maybeSingle();
   if (existing.data?.id) return existing.data.id as string;
   const title = firstMessage.slice(0, 80);
   const ins = await supabase
@@ -177,7 +177,7 @@ async function upsertThread(
   if (ins.data?.id) return ins.data.id as string;
   // Race: re-read.
   const reread = await supabase
-    .from('lamplight_chat_threads').select('id').eq('user_id', userId).eq('passage_ref', passageRef).eq('archived', false).single();
+    .from('lamplight_chat_threads').select('id').eq('user_id', userId).eq('passage_ref', passageRef).eq('surface', 'chat').eq('archived', false).single();
   if (reread.error || !reread.data) throw ins.error ?? reread.error ?? new Error('thread upsert failed');
   return reread.data.id as string;
 }

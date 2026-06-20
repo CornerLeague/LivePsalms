@@ -2,7 +2,7 @@
 // content rules) → retry once. No Supabase / persistence (the handler owns
 // thread + message writes). Node-testable with a fake LLMAdapter.
 
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import type { LLMAdapter, LLMModel } from '../_shared/anthropic.ts';
 import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_shared/voice.ts';
 import {
   validateChatReplyCitations,
@@ -23,6 +23,17 @@ export interface ChatPromptModule {
   buildMessages: (ctx: BibleChatContext) => Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
+export interface BookContext {
+  book: string;            // human name, e.g. "John"
+  author: string;
+  authorNote: string;
+  dateLabel: string;
+  region: string;
+  culturalContext: string;
+  genre: string;
+  summary: string;
+}
+
 export interface BibleChatContext {
   passageRef: string;                  // e.g. "jhn 10"
   passageText: string;                 // open chapter text (joined)
@@ -32,6 +43,7 @@ export interface BibleChatContext {
   userMessage: string;
   allowedNoteIds: Set<string>;
   allowedVerseRefs: Set<string>;
+  bookContext?: BookContext | null;    // study apparatus grounding (optional; chat leaves undefined)
 }
 
 export type BibleChatPipelineResult =
@@ -44,6 +56,7 @@ export async function runBibleChatPipeline(args: {
   llm: LLMAdapter;
   ctx: BibleChatContext;
   prompt?: ChatPromptModule;
+  model?: LLMModel;
 }): Promise<BibleChatPipelineResult> {
   const prompt: ChatPromptModule = args.prompt ?? BIBLE_CHAT_PROMPT;
   const promptVersion = prompt.promptVersion;
@@ -51,7 +64,7 @@ export async function runBibleChatPipeline(args: {
 
   const outcome = await generateWithRetry<ChatReply, ChatViolations>({
     llm: args.llm,
-    model: 'sonnet',
+    model: args.model ?? 'sonnet',
     maxTokens: 1024,
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),

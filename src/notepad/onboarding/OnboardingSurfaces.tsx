@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useLoadingOverlayVisible } from '@/hooks/loading-overlay-context';
 import { useOnboarding } from './useOnboarding';
 import { ChecklistPanel } from './checklist/ChecklistPanel';
 import { GET_STARTED_ITEMS } from './checklist/get-started-items';
@@ -118,6 +119,7 @@ export interface OnboardingSurfacesProps {
  * remaining checklist/offer surfaces render inline within that wrapper.
  */
 export function OnboardingSurfaces({ onStartGuidedNote }: OnboardingSurfacesProps) {
+  const overlayVisible = useLoadingOverlayVisible();
   const {
     actions,
     anon,
@@ -128,6 +130,9 @@ export function OnboardingSurfaces({ onStartGuidedNote }: OnboardingSurfacesProp
     markTourDone,
   } = useOnboarding();
 
+  // Hold the tour + checklist until the global loading screen has fully
+  // dissolved, so they never paint on top of the loading overlay.
+  if (overlayVisible) return null;
   if (actions.length === 0) return null;
 
   return (

@@ -5,9 +5,10 @@ import type { Folder, FolderIcon } from '../types';
 
 export interface FolderHierarchyState {
   folders: Folder[];
+  studyFolderId: string | null;
 }
 
-const EMPTY_STATE: FolderHierarchyState = { folders: [] };
+const EMPTY_STATE: FolderHierarchyState = { folders: [], studyFolderId: null };
 
 export class FolderHierarchy extends Observable<FolderHierarchyState> {
   private adapter: StorageAdapter;
@@ -34,6 +35,18 @@ export class FolderHierarchy extends Observable<FolderHierarchyState> {
     this.setState((prev) => ({ ...prev, folders: [...prev.folders, created] }));
     emitOnboardingEvent('folder-created');
     return created;
+  };
+
+  ensureStudyFolder = async (): Promise<Folder> => {
+    const folder = await this.adapter.ensureStudyFolder();
+    this.setState((prev) => ({
+      ...prev,
+      folders: prev.folders.some((f) => f.id === folder.id)
+        ? prev.folders.map((f) => (f.id === folder.id ? folder : f))
+        : [...prev.folders, folder],
+      studyFolderId: folder.id,
+    }));
+    return folder;
   };
 
   renameFolder = async (id: string, name: string): Promise<Folder> => {

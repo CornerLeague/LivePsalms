@@ -20,15 +20,18 @@ export interface QuotaScope {
 export interface QuotaConfig {
   generation: QuotaScope;
   transcription: QuotaScope;
+  study: QuotaScope;               // Opus-backed study chat — tighter cap
   global: number;                  // all-kinds daily ceiling
 }
 
 const GENERATION_KINDS = ['smoke_test', 'daily_devotion', 'connection_card_why', 'bible_chat'];
 const TRANSCRIPTION_KINDS = ['note_transcription'];
+const STUDY_KINDS = ['bible_study'];
 
 const DEFAULTS = {
   generation: { none: 10, lite: 50, plus: 200 },
   transcription: { none: 5, lite: 20, plus: 50 },
+  study: { none: 3, lite: 10, plus: 30 },
   global: 2000,
 };
 
@@ -56,6 +59,14 @@ export function resolveQuotaLimits(env: { get(key: string): string | undefined }
         none: num('LAMPLIGHT_QUOTA_TRANSCRIPTION_NONE', DEFAULTS.transcription.none),
         lite: num('LAMPLIGHT_QUOTA_TRANSCRIPTION_LITE', DEFAULTS.transcription.lite),
         plus: num('LAMPLIGHT_QUOTA_TRANSCRIPTION_PLUS', DEFAULTS.transcription.plus),
+      },
+    },
+    study: {
+      kinds: STUDY_KINDS,
+      perUser: {
+        none: num('LAMPLIGHT_QUOTA_STUDY_NONE', DEFAULTS.study.none),
+        lite: num('LAMPLIGHT_QUOTA_STUDY_LITE', DEFAULTS.study.lite),
+        plus: num('LAMPLIGHT_QUOTA_STUDY_PLUS', DEFAULTS.study.plus),
       },
     },
     global: num('LAMPLIGHT_QUOTA_GLOBAL', DEFAULTS.global),

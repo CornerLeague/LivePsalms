@@ -1,9 +1,11 @@
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, Outlet, useParams } from 'react-router-dom';
 import { Notepad } from '@/components/sections/Notepad';
 import { HeroLoadingOverlay } from '@/components/sections/HeroLoadingOverlay';
 import { useUsernameGate } from './username-gate';
 import { UsernameClaim } from './UsernameClaim';
 import { normalizeUsername } from './username-rules';
+import { NotepadProvider } from '@/notepad/context/NotepadProvider';
+import { useAuthSession } from '@/auth/context/useAuthSession';
 
 /**
  * While the username gate resolves (e.g. after a full page refresh on the
@@ -43,6 +45,58 @@ export function VanityNotepadRoute() {
     case 'ready':
       return normalizeUsername(param ?? '') === gate.username ? (
         <Notepad />
+      ) : (
+        <Navigate to={`/notepad/u/${gate.username}`} replace />
+      );
+  }
+}
+
+/**
+ * Layout route for /notepad/notes — hoists NotepadProvider above nested children
+ * (journaling workspace + study workspace) so toggling between them does not
+ * remount the notes brain. Signed-out users (local mode) get the provider;
+ * signed-in users are redirected to their vanity URL.
+ */
+export function LocalNotepadLayout() {
+  const gate = useUsernameGate();
+  const { adapter } = useAuthSession();
+  switch (gate.kind) {
+    case 'loading':
+      return <NotepadGateSpinner />;
+    case 'needs-username':
+      return <UsernameClaim />;
+    case 'ready':
+      return <Navigate to={`/notepad/u/${gate.username}`} replace />;
+    case 'signed-out':
+      return (
+        <NotepadProvider adapter={adapter}>
+          <Outlet />
+        </NotepadProvider>
+      );
+  }
+}
+
+/**
+ * Layout route for /notepad/u/:username — hoists NotepadProvider above nested
+ * children (journaling workspace + study workspace). Owner-only; mismatched
+ * username param redirects to the correct vanity URL.
+ */
+export function VanityNotepadLayout() {
+  const gate = useUsernameGate();
+  const { username: param } = useParams();
+  const { adapter } = useAuthSession();
+  switch (gate.kind) {
+    case 'loading':
+      return <NotepadGateSpinner />;
+    case 'signed-out':
+      return <Navigate to="/notepad/notes" replace />;
+    case 'needs-username':
+      return <UsernameClaim />;
+    case 'ready':
+      return normalizeUsername(param ?? '') === gate.username ? (
+        <NotepadProvider adapter={adapter}>
+          <Outlet />
+        </NotepadProvider>
       ) : (
         <Navigate to={`/notepad/u/${gate.username}`} replace />
       );

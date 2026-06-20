@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { LoadingOverlayContext } from '@/hooks/loading-overlay-context';
 import { OnboardingSurfaces } from './OnboardingSurfaces';
 
 const ctx = vi.fn();
@@ -17,6 +18,36 @@ describe('OnboardingSurfaces', () => {
       dismissChecklist: vi.fn(), replayTour: vi.fn(), markTourDone: vi.fn(),
     });
     render(<OnboardingSurfaces />);
+    expect(screen.getByText(/get started/i)).toBeInTheDocument();
+  });
+
+  it('renders nothing while the loading overlay is visible, even with an action', () => {
+    ctx.mockReturnValue({
+      actions: [{ kind: 'show-get-started' }],
+      anon: { items: {}, dismissed: false }, account: null,
+      reportOnboardingEvent: vi.fn(), completeGuidedNote: vi.fn(),
+      dismissChecklist: vi.fn(), replayTour: vi.fn(), markTourDone: vi.fn(),
+    });
+    const { container } = render(
+      <LoadingOverlayContext.Provider value={true}>
+        <OnboardingSurfaces />
+      </LoadingOverlayContext.Provider>,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders the checklist once the loading overlay is gone', () => {
+    ctx.mockReturnValue({
+      actions: [{ kind: 'show-get-started' }],
+      anon: { items: {}, dismissed: false }, account: null,
+      reportOnboardingEvent: vi.fn(), completeGuidedNote: vi.fn(),
+      dismissChecklist: vi.fn(), replayTour: vi.fn(), markTourDone: vi.fn(),
+    });
+    render(
+      <LoadingOverlayContext.Provider value={false}>
+        <OnboardingSurfaces />
+      </LoadingOverlayContext.Provider>,
+    );
     expect(screen.getByText(/get started/i)).toBeInTheDocument();
   });
 

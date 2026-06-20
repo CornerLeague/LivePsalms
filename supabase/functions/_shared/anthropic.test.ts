@@ -170,6 +170,28 @@ describe('createAnthropicAdapter.generate', () => {
   });
 });
 
+describe('anthropic adapter model mapping', () => {
+  it('sends the published Opus model id when model is "opus"', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'tool_use', name: 'emit', input: { ok: true } }],
+        model: 'claude-opus-4-8',
+        usage: { input_tokens: 1, output_tokens: 1 },
+      }),
+    });
+    const llm = createAnthropicAdapter({ apiKey: 'k', fetch: fetch as unknown as typeof globalThis.fetch });
+    await llm.generate({
+      model: 'opus',
+      system: 's',
+      messages: [{ role: 'user', content: 'hi' }],
+      tool: { name: 'emit', description: 'd', input_schema: { type: 'object' } },
+    });
+    const body = JSON.parse((fetch.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.model).toBe('claude-opus-4-8');
+  });
+});
+
 describe('anthropic multimodal', () => {
   it('serializes image content blocks into the request body', async () => {
     let sentBody: any;
