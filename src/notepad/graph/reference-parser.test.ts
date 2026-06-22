@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   parseReferencesFromContent,
   toCanonicalScriptureId,
@@ -477,5 +477,34 @@ describe('parseReferencesFromContent — node-aware', () => {
     expect(found).toHaveLength(1);
     const { scriptureRefs } = parseReferencesFromContent('n', JSON.stringify(doc));
     expect(scriptureRefs.some((s) => s.id === 'scripture:ro-8-28')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchVerseText translation tests
+// vi.mock is hoisted above imports, so shared mutable state must be wrapped
+// in vi.hoisted() to avoid temporal-dead-zone ReferenceErrors — same pattern
+// as src/notepad/bible/useBiblePassages.test.ts.
+// ---------------------------------------------------------------------------
+const { eqCalls, supabaseMock } = vi.hoisted(() => {
+  const eqCalls: Array<{ col: string; val: unknown }> = [];
+  const b: Record<string, (...a: unknown[]) => unknown> = {};
+  for (const m of ['from', 'select', 'in', 'order'] as const) b[m] = vi.fn(() => b);
+  b['eq'] = vi.fn((col: string, val: unknown) => { eqCalls.push({ col, val }); return b; });
+  b['then'] = (res: (v: unknown) => void) =>
+    res({ data: [{ id: 'jhn.3.16', verse_start: 16, text: 'For God so loved…' }], error: null });
+  return { eqCalls, supabaseMock: b };
+});
+
+vi.mock('@/lib/supabase', () => ({ supabase: supabaseMock }));
+
+import { fetchVerseText } from './reference-parser';
+
+describe('fetchVerseText translation', () => {
+  it('filters by translation and echoes it back', async () => {
+    eqCalls.length = 0;
+    const r = await fetchVerseText('John 3:16', { translation: 'WEB' });
+    expect(eqCalls).toContainEqual({ col: 'translation', val: 'WEB' });
+    expect(r?.translation).toBe('WEB');
   });
 });
