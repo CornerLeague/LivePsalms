@@ -1,6 +1,7 @@
 // src/notepad/bible/useBiblePassages.ts
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import type { BibleTranslation } from './translations';
 
 export interface ReaderVerse {
   verse: number;
@@ -24,7 +25,7 @@ interface PassageRow {
  * abbrev (e.g. "jhn"); verse rows are selected via the id prefix so the
  * whole-chapter pericope row ("jhn.10") is excluded.
  */
-export function useBiblePassages(book: string, chapter: number): UseBiblePassagesResult {
+export function useBiblePassages(book: string, chapter: number, translation: BibleTranslation): UseBiblePassagesResult {
   const [verses, setVerses] = useState<ReaderVerse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export function useBiblePassages(book: string, chapter: number): UseBiblePassage
       const { data, error: qErr } = await supabase
         .from('bible_passages')
         .select('id, verse_start, text')
+        .eq('translation', translation)
         .like('id', `${book}.${chapter}.%`)
         .order('verse_start', { ascending: true });
       if (cancelled) return;
@@ -60,7 +62,7 @@ export function useBiblePassages(book: string, chapter: number): UseBiblePassage
     return () => {
       cancelled = true;
     };
-  }, [book, chapter]);
+  }, [book, chapter, translation]);
 
   return { verses, loading, error };
 }
