@@ -48,7 +48,7 @@ export function ChatHistoryList({ threads, loading, onSelect, onBack }: ChatHist
                 className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0"
                 style={{
                   background: t.archived ? 'rgba(188,179,163,0.25)' : 'rgba(196,154,120,0.18)',
-                  color: t.archived ? 'var(--silica)' : 'var(--lamplight-accent)',
+                  color: t.archived ? 'var(--silica)' : 'var(--chat-badge-current)',
                 }}
               >
                 {t.archived ? 'Past' : 'Current'}

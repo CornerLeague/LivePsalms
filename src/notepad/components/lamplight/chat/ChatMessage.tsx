@@ -33,7 +33,7 @@ export function ChatMessage({ role, content, citations, resolveNoteTitle }: Chat
           fontFamily: 'Outfit, sans-serif',
           borderRadius: isUser ? '11px 11px 3px 11px' : '11px 11px 11px 3px',
           background: isUser ? 'var(--lamplight-accent)' : 'var(--surface-elevated)',
-          color: isUser ? 'var(--app-bg)' : 'var(--deep-umber)',
+          color: isUser ? 'var(--chat-on-accent)' : 'var(--deep-umber)',
           border: isUser ? 'none' : '1px solid var(--pale-stone)',
         }}
       >

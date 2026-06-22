@@ -12,7 +12,7 @@ export function ReflectionThreadView({ threadId, onBack }: ReflectionThreadViewP
   const { messages, loading, error } = useThreadMessages(threadId);
 
   return (
-    <div className="flex flex-col h-full" style={{ fontFamily: 'Outfit, sans-serif', background: 'var(--surface-elevated)' }}>
+    <div className="flex flex-col h-full" style={{ fontFamily: 'Outfit, sans-serif', background: 'var(--chat-panel-bg)' }}>
       <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ borderBottom: '1px solid var(--pale-stone)' }}>
         <button
           aria-label="Back to history"

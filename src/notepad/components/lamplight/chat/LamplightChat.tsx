@@ -118,7 +118,7 @@ export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatPr
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ background: 'var(--surface-elevated)', fontFamily: 'Outfit, sans-serif' }}>
+    <div className="flex flex-col h-full" style={{ background: 'var(--chat-panel-bg)', fontFamily: 'Outfit, sans-serif' }}>
       <div className="flex justify-end gap-2 px-3 pt-2 shrink-0">
         <button
           onClick={() => { history.reload(); setView({ kind: 'list' }); }}
@@ -143,7 +143,7 @@ export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatPr
               onClick={() => void requestReflection()}
               disabled={insighting}
               className="text-[12px] tracking-wider px-4 py-2 rounded-full disabled:opacity-40"
-              style={{ background: 'var(--lamplight-accent)', color: 'var(--app-bg)', fontFamily: 'Outfit, sans-serif' }}
+              style={{ background: 'var(--lamplight-accent)', color: 'var(--chat-on-accent)', fontFamily: 'Outfit, sans-serif' }}
             >
               Reflect on this passage
             </button>
@@ -176,7 +176,7 @@ export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatPr
           onClick={() => void send()}
           disabled={sending || !draft.trim()}
           className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-40"
-          style={{ background: 'var(--lamplight-accent)', color: 'var(--app-bg)' }}
+          style={{ background: 'var(--lamplight-accent)', color: 'var(--chat-on-accent)' }}
         >
           ↑
         </button>
