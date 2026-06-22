@@ -98,7 +98,10 @@
     --silica: #8A8B90;
     --alabaster: #F5F0E8;
     --lamplight-accent: #C49A78; /* scripture gold; overridden to indigo under [data-mode="study"] */
-    
+    /* Elevated chrome (toolbars / sidebar headers / popovers) — one step above
+       --plaster. Single source for the warm three-step elevation ramp. */
+    --surface-elevated: rgba(240, 236, 232, 0.97);
+
     --background: 40 20% 92%;
     --foreground: 30 10% 15%;
     --card: 40 20% 92%;
@@ -126,6 +129,52 @@
     --mersi-orange: 18 75% 55%;
     --mersi-green: 150 25% 45%;
     --mersi-cream: 40 30% 96%;
+  }
+}
+
+@layer base {
+  /* Dark theme — applied to <html> only while a notepad workspace route is
+     mounted (see ThemeProvider, Approach C). Values derived from the notepad
+     landing hero: warm near-black bg, warm off-white ink, taupe-gold accent.
+     Three-step warm elevation ramp: --app-bg #0a0a0a → --plaster #16130f →
+     --surface-elevated ~#211d17. Starter values; tuned during Tier 4 visual QA. */
+  .dark {
+    /* PSALMS brand vars (inline-applied across the notepad) */
+    --app-bg: #0a0a0a;
+    --app-bg-rgb: 10, 10, 10;
+    --plaster: #16130f;
+    --surface-elevated: rgba(33, 29, 23, 0.97);
+    --deep-umber: #efedee;            /* body ink inverts to warm off-white */
+    --deep-umber-rgb: 239, 237, 238;  /* keep in sync so rgba(var(--deep-umber-rgb),…) flips */
+    --charred: #f4f0e8;               /* headings/titles */
+    --silica: #8d8478;                /* muted text/icons */
+    --pale-stone: rgba(255, 255, 255, 0.10); /* hairlines */
+    --warm-sand: #c4b5a0;             /* active/hover, blockquote rule */
+    --alabaster: #14120f;             /* lamplight empty bg */
+    --cream: #0e0e0e;                 /* Study desk bg (var(--cream,#F4F1EA) fallback) */
+    --lamplight-accent: #c4b5a0;      /* scripture gold (study overrides to indigo) */
+    --text-muted: #14120f;
+
+    /* shadcn HSL set — warm-tinted dark so portaled dialogs/inputs/toasts match */
+    --background: 30 8% 5%;
+    --foreground: 40 12% 93%;
+    --card: 34 18% 7%;
+    --card-foreground: 40 12% 93%;
+    --popover: 33 18% 11%;
+    --popover-foreground: 40 12% 93%;
+    --primary: 40 12% 93%;
+    --primary-foreground: 30 8% 7%;
+    --secondary: 33 12% 16%;
+    --secondary-foreground: 40 12% 93%;
+    --muted: 33 10% 14%;
+    --muted-foreground: 35 8% 60%;
+    --accent: 33 14% 18%;
+    --accent-foreground: 40 12% 93%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 36 8% 18%;
+    --input: 36 8% 18%;
+    --ring: 36 22% 64%;
   }
 }
 
