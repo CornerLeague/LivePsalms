@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import { useThemePreference } from './useThemePreference';
