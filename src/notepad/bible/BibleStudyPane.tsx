@@ -52,7 +52,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke }: BibleStudyPaneProps
     });
   }, []);
 
-  const { translation, setTranslation } = useBibleTranslation();
+  const { translation, setTranslation } = useBibleTranslation({ userId });
 
   const { swatchByVerse, setHighlight, removeHighlight } = useBibleHighlights(
     passage.book,
