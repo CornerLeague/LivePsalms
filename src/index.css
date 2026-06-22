@@ -98,6 +98,7 @@
     --silica: #8A8B90;
     --alabaster: #F5F0E8;
     --lamplight-accent: #C49A78; /* scripture gold; overridden to indigo under [data-mode="study"] */
+    --error-rose: #b45454;       /* semantic error/warning; lifted in dark */
     /* Elevated chrome (toolbars / sidebar headers / popovers) — one step above
        --plaster. Single source for the warm three-step elevation ramp. */
     --surface-elevated: rgba(240, 236, 232, 0.97);
@@ -162,6 +163,7 @@
     --alabaster: #14120f;             /* lamplight empty bg */
     --cream: #0e0e0e;                 /* Study desk bg (var(--cream,#F4F1EA) fallback) */
     --lamplight-accent: #c4b5a0;      /* scripture gold (study overrides to indigo) */
+    --error-rose: #f1a3a3;            /* lifted rose for dark bg contrast */
     --text-muted: #14120f;
 
     /* Graph canvas palette (read by graph-view.ts via getComputedStyle) */

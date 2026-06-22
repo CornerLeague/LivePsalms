@@ -228,3 +228,48 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* Dark theme — verse suggest and scripture-ref surfaces lift to near-black
+   backgrounds; gold accent remains gold (lamplight-accent shifts warm-neutral
+   in dark so inline refs stay readable). */
+.dark .verse-suggest {
+  background: var(--surface-elevated);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+.dark .verse-suggest::-webkit-scrollbar-thumb {
+  background: rgba(var(--deep-umber-rgb), 0.25);
+}
+.dark .verse-suggest::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--deep-umber-rgb), 0.4);
+}
+
+.dark .verse-suggest__row.is-selected {
+  background: rgba(196, 181, 160, 0.14);
+}
+@media (hover: hover) and (pointer: fine) {
+  .dark .verse-suggest__row:hover { background: rgba(var(--deep-umber-rgb), 0.08); }
+  .dark .verse-suggest__row.is-selected:hover { background: rgba(196, 181, 160, 0.2); }
+}
+.dark .verse-suggest__row:active { background: rgba(196, 181, 160, 0.22); }
+
+.dark .verse-suggest__text {
+  color: rgba(var(--deep-umber-rgb), 0.66);
+}
+
+.dark .scripture-ref-link {
+  color: var(--lamplight-accent);
+  background: rgba(196, 181, 160, 0.12);
+}
+@media (hover: hover) and (pointer: fine) {
+  .dark .scripture-ref-link:hover { background: rgba(196, 181, 160, 0.2); }
+}
+.dark .scripture-ref-link:focus-visible {
+  outline-color: rgba(196, 181, 160, 0.55);
+}
+
+.dark .scripture-ref-verse {
+  background: var(--surface-elevated);
+  border-left-color: rgba(196, 181, 160, 0.55);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
