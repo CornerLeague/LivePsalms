@@ -23,7 +23,7 @@ export function useBibleTranslation(
     if (!userId || !supabase) return;
     (async () => {
       const { data } = await supabase
-        .from('profiles').select('bible_translation').eq('id', userId).single();
+        .from('profiles').select('bible_translation').eq('id', userId).maybeSingle();
       const remote = data?.bible_translation;
       if (!cancelled && isBibleTranslation(remote)) {
         setState(remote);
