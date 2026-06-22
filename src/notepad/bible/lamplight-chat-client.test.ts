@@ -15,13 +15,13 @@ describe('sendChatMessage', () => {
 
   it('maps a function transport error to ok:false', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: null, error: { message: 'network' } });
-    const out = await sendChatMessage(invoke, { book: 'jhn', chapter: 10, message: 'hi' });
+    const out = await sendChatMessage(invoke, { book: 'jhn', chapter: 10, message: 'hi', translation: 'BSB' });
     expect(out).toEqual({ ok: false, reason: 'network' });
   });
 
   it('passes through a server ok:false reason (e.g. no_entitlement)', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { ok: false, reason: 'no_entitlement' }, error: null });
-    const out = await sendChatMessage(invoke, { book: 'jhn', chapter: 10, message: 'hi' });
+    const out = await sendChatMessage(invoke, { book: 'jhn', chapter: 10, message: 'hi', translation: 'BSB' });
     expect(out).toEqual({ ok: false, reason: 'no_entitlement' });
   });
 });
@@ -38,7 +38,7 @@ describe('requestOpeningInsight', () => {
 
   it('maps a skipped insight (already has messages) to ok:false reason skipped', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { ok: true, thread_id: 't1', skipped: true }, error: null });
-    const out = await requestOpeningInsight(invoke, { book: 'jhn', chapter: 10 });
+    const out = await requestOpeningInsight(invoke, { book: 'jhn', chapter: 10, translation: 'BSB' });
     expect(out).toEqual({ ok: false, reason: 'skipped' });
   });
 });
