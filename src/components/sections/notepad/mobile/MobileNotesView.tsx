@@ -2,6 +2,7 @@
 import { Search, User } from 'lucide-react';
 import { NotepadSidebar } from '../../../../notepad/components/Sidebar';
 import { MobileFabMenu } from './MobileFabMenu';
+import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 
 export interface MobileNotesViewProps {
   onExit: () => void;
@@ -50,6 +51,7 @@ export function MobileNotesView({
           >
             <Search size={18} />
           </button>
+          <ThemeToggle className="w-9 h-9" />
           <button
             aria-label="Account"
             onClick={onOpenAccount}

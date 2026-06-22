@@ -19,6 +19,7 @@ import type { NoteType } from '../types';
 import { UploadModal } from './UploadModal';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { NotepadAuthControls } from './NotepadAuthControls';
+import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -121,6 +122,9 @@ export function NotepadToolbar({
 
           {/* Spacer */}
           <div className="flex-1" />
+
+          {/* Theme toggle */}
+          <ThemeToggle className="w-8 h-8" />
 
           {/* NEW NOTE dropdown */}
           <DropdownMenu>

@@ -4,6 +4,7 @@ import { NotepadEditor } from '../../../../notepad/components/Editor';
 import type { Note } from '../../../../notepad/types';
 import { useKeyboardInset } from './useKeyboardInset';
 import { MobileNewNoteFab } from './MobileNewNoteFab';
+import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 
 export interface MobileEditorViewProps {
   /** Tapping the logo returns to the home page. */
@@ -42,6 +43,7 @@ export function MobileEditorView({
           <img src="/logo-icon.png" alt="LivePsalms" className="h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
+        <ThemeToggle className="w-9 h-9" />
         <button
           aria-label="Account"
           onClick={onOpenAccount}

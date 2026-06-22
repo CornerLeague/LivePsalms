@@ -8,6 +8,7 @@ import { StudyReader } from './panes/StudyReader';
 import { StudySidePanel } from './panes/StudySidePanel';
 import { StudyModeToggle } from './StudyModeToggle';
 import { NotepadAuthControls } from '@/notepad/components/NotepadAuthControls';
+import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 import { useEnsureStudyFolder } from './useEnsureStudyFolder';
 import './study-theme.css';
 
@@ -70,6 +71,7 @@ export function StudyWorkspace() {
         <StudyModeToggle />
         {/* Push auth controls to the far right, same spot as the journal toolbar */}
         <div style={{ flex: 1 }} />
+        <ThemeToggle className="w-8 h-8" />
         <NotepadAuthControls />
       </header>
       <div style={{ flex: '1 1 0%', minHeight: 0, display: 'flex' }}>
