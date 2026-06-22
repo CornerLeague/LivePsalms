@@ -102,6 +102,15 @@
        --plaster. Single source for the warm three-step elevation ramp. */
     --surface-elevated: rgba(240, 236, 232, 0.97);
 
+    /* Graph canvas palette (read by graph-view.ts via getComputedStyle) */
+    --graph-node-scripture: #C49A78;
+    --graph-node-sermon: #7A9BAE;
+    --graph-node-devotion: #6B8B7A;
+    --graph-node-theme: #D4A0A0;
+    --graph-node-general: #9E9484;
+    --graph-edge: rgba(168, 160, 145, 1);
+    --graph-label: rgba(62, 50, 40, 1);
+
     --background: 40 20% 92%;
     --foreground: 30 10% 15%;
     --card: 40 20% 92%;
@@ -154,6 +163,15 @@
     --cream: #0e0e0e;                 /* Study desk bg (var(--cream,#F4F1EA) fallback) */
     --lamplight-accent: #c4b5a0;      /* scripture gold (study overrides to indigo) */
     --text-muted: #14120f;
+
+    /* Graph canvas palette (read by graph-view.ts via getComputedStyle) */
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(140, 132, 120, 0.85);
+    --graph-label: rgba(239, 237, 238, 0.9);
 
     /* shadcn HSL set — warm-tinted dark so portaled dialogs/inputs/toasts match */
     --background: 30 8% 5%;

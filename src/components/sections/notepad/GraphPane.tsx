@@ -14,11 +14,11 @@ import type { GraphNode } from '@/notepad/graph/types';
 import { emitOnboardingEvent } from '@/notepad/onboarding/onboarding-events';
 
 const NODE_COLORS: Record<string, string> = {
-  scripture: '#C49A78',
-  sermon: '#7A9BAE',
-  devotion: '#6B8B7A',
-  theme: '#D4A0A0',
-  general: '#9E9484',
+  scripture: 'var(--graph-node-scripture)',
+  sermon: 'var(--graph-node-sermon)',
+  devotion: 'var(--graph-node-devotion)',
+  theme: 'var(--graph-node-theme)',
+  general: 'var(--graph-node-general)',
 };
 
 const NODE_ICONS: Record<string, typeof BookOpen> = {
@@ -243,9 +243,9 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
               fontFamily: 'Outfit, sans-serif',
             }}
           >
-            <div className="text-[12px] font-bold mb-1" style={{ color: 'rgba(62, 50, 40, 1)' }}>{popover.title}</div>
-            <div className="text-[11px]" style={{ color: 'rgba(62, 50, 40, 0.8)' }}>{popover.text}</div>
-            <div className="text-[9px] mt-1" style={{ color: 'rgba(62, 50, 40, 0.5)' }}>{popover.translation}</div>
+            <div className="text-[12px] font-bold mb-1" style={{ color: 'rgba(var(--deep-umber-rgb), 1)' }}>{popover.title}</div>
+            <div className="text-[11px]" style={{ color: 'rgba(var(--deep-umber-rgb), 0.8)' }}>{popover.text}</div>
+            <div className="text-[9px] mt-1" style={{ color: 'rgba(var(--deep-umber-rgb), 0.5)' }}>{popover.translation}</div>
           </div>
         )}
       </div>
@@ -278,7 +278,7 @@ function SettingRow(props: {
       <label className="text-[10px] font-medium tracking-wider w-24 shrink-0"
         style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>{props.label}</label>
       <input type="range" min={props.min} max={props.max} step={props.step} value={props.value}
-        onChange={(e) => props.onChange(Number(e.target.value))} className="flex-1 h-1 accent-[#C49A78]" />
+        onChange={(e) => props.onChange(Number(e.target.value))} className="flex-1 h-1 accent-[color:var(--graph-node-scripture)]" />
       <span className="text-[10px] w-10 text-right" style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>
         {props.format(props.value)}
       </span>
