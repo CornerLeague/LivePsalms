@@ -8,12 +8,14 @@ const KEY_MOBILE_TAB = 'psalms.session.mobileTab';
 const KEY_EDITOR_TAB = 'psalms.session.editorTab';
 const KEY_STUDY_TAB = 'psalms.session.studyTab';
 const KEY_BIBLE_PASSAGE = 'psalms.bible.passage';
+const KEY_BIBLE_TRANSLATION = 'psalms.bible.translation';
 
 export {
   KEY_LAST_NOTE,
   KEY_MOBILE_TAB,
   KEY_EDITOR_TAB,
   KEY_STUDY_TAB,
+  KEY_BIBLE_TRANSLATION,
 };
 
 function readRaw(key: string): string | null {
