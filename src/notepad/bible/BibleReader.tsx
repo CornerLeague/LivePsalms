@@ -1,10 +1,10 @@
 // src/notepad/bible/BibleReader.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, CornerDownLeft, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CornerDownLeft, Search, Info } from 'lucide-react';
 import { bookByAbbrev, type BibleBook } from './bible-books';
 import { searchBooks } from './book-search';
 import { useBiblePassages } from './useBiblePassages';
-import { type BibleTranslation, TRANSLATIONS } from './translations';
+import { type BibleTranslation, TRANSLATIONS, translationInfo } from './translations';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { STYLE_ASSETS, getStyleAsset } from '../styles/manifest';
 import { highlightBackgroundStyle } from '../extensions/style-highlight';
@@ -174,6 +174,9 @@ export function BibleReader({
               <option key={t.id} value={t.id}>{t.label}</option>
             ))}
           </select>
+          <span title={translationInfo(translation).attribution} aria-label="Translation info">
+            <Info className="w-3 h-3" style={{ color: 'var(--silica)' }} />
+          </span>
           <button
             aria-label="Previous chapter"
             onClick={goPrev}

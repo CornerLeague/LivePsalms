@@ -118,4 +118,10 @@ describe('BibleReader translation selector', () => {
     fireEvent.change(select, { target: { value: 'KJV' } });
     expect(onTranslationChange).toHaveBeenCalledWith('KJV');
   });
+
+  it('exposes the active translation attribution', () => {
+    render(<BibleReader translation="KJV" onTranslationChange={() => {}} />);
+    expect(screen.getByLabelText('Translation')
+      .closest('div')!.querySelector('[title]')!.getAttribute('title')).toMatch(/public domain/i);
+  });
 });
