@@ -595,7 +595,7 @@ export class GraphView extends Observable<GraphViewState> {
             screenY,
             title: node.title,
             text: node.scriptureText || 'Verse text unavailable.',
-            translation: node.scriptureTranslation || 'WEB',
+            translation: node.scriptureTranslation || 'BSB',
           },
         }));
       }

@@ -16,10 +16,15 @@ import { ScriptureRefNodeView } from './ScriptureRefView';
 import { renderBookPicker } from './book-picker-renderer';
 import { applyVerseSelection } from './verse-picker-commands';
 import type { BookOrVerseItem } from './book-matcher';
+import { type BibleTranslation, DEFAULT_TRANSLATION } from '../bible/translations';
 
 export interface ScriptureRefOptions {
   // null in tests / when search is unavailable; set in production wiring (Task 14).
   search: VerseSearchDeps | null;
+  // The translation frozen onto nodes inserted via the picker. Captured at the
+  // editor's mount and stamped at insert so a later preference change does not
+  // retroactively rewrite already-inserted references.
+  translation: BibleTranslation;
 }
 
 export interface ScriptureRefAttrs {
@@ -28,7 +33,7 @@ export interface ScriptureRefAttrs {
   chapter: number;
   verseStart: number;
   verseEnd: number | null;
-  translation: 'BSB';
+  translation: BibleTranslation;
   text: string;
 }
 
@@ -70,7 +75,7 @@ export async function buildKeywordItems(
   const rows = await search.ftsSearch(query, { signal });
   const route = routeQuery(query);
   const pin = route.kind === 'reference' ? referenceCandidate(route.parsed, '') : null;
-  return mergeCandidates(pin, rows.map(normalizeFtsRow), []);
+  return mergeCandidates(pin, rows.map((r) => normalizeFtsRow(r)), []);
 }
 
 // Pin-only instant items for the /verse picker (C). The picker's live results —
@@ -98,7 +103,7 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
   draggable: false,
 
   addOptions() {
-    return { search: null };
+    return { search: null, translation: DEFAULT_TRANSLATION };
   },
 
   addAttributes() {
@@ -147,6 +152,10 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
 
   addProseMirrorPlugins() {
     const search = this.options.search;
+    // Freeze the active translation at the editor's mount; the picker stamps THIS
+    // onto every inserted node so changing the preference later never rewrites
+    // already-inserted references.
+    const translation = this.options.translation;
 
     // Predictive (B) resolves each typed reference via fetchVerseText. Hold the
     // controller so a new keystroke aborts the prior in-flight request instead
@@ -169,7 +178,7 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
           chapter: c.chapter,
           verseStart: c.verseStart,
           verseEnd: c.verseEnd,
-          translation: 'BSB',
+          translation,
           text: c.text,
         })
         .run();

@@ -71,6 +71,22 @@ describe('collapse state is ephemeral', () => {
   });
 });
 
+describe('scriptureRef freezes active translation', () => {
+  it('stamps the option translation on inserted nodes', () => {
+    editor = new Editor({
+      element: document.createElement('div'),
+      extensions: [StarterKit, ScriptureRef.configure({ search: null, translation: 'KJV' })],
+    });
+    editor.commands.insertScriptureRef({
+      osis: 'jhn.3.16', book: 'John', chapter: 3, verseStart: 16, verseEnd: null,
+      translation: 'KJV', text: 'For God so loved the world…',
+    });
+    const json = editor.getJSON();
+    const node = JSON.stringify(json);
+    expect(node).toContain('"translation":"KJV"');
+  });
+});
+
 import { buildReferenceItems, buildKeywordItems, buildReferencePinItems } from './scripture-ref';
 import type { VerseSearchDeps } from '../bible/verse-search-types';
 
