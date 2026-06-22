@@ -6,9 +6,9 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 // Supabase mock — must be set up with vi.hoisted so variables are available
 // when vi.mock factory is hoisted to the top of the file.
 // ---------------------------------------------------------------------------
-const { mockFrom, mockSelect, mockSelectEq, mockSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
-  const mockSingle = vi.fn();
-  const mockSelectEq = vi.fn(() => ({ single: mockSingle }));
+const { mockFrom, mockSelect, mockSelectEq, mockMaybeSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
+  const mockMaybeSingle = vi.fn();
+  const mockSelectEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
   const mockSelect = vi.fn(() => ({ eq: mockSelectEq }));
 
   const mockUpdateEq = vi.fn(() => Promise.resolve({ error: null }));
@@ -19,7 +19,7 @@ const { mockFrom, mockSelect, mockSelectEq, mockSingle, mockUpdate, mockUpdateEq
     update: mockUpdate,
   }));
 
-  return { mockFrom, mockSelect, mockSelectEq, mockSingle, mockUpdate, mockUpdateEq };
+  return { mockFrom, mockSelect, mockSelectEq, mockMaybeSingle, mockUpdate, mockUpdateEq };
 });
 
 vi.mock('@/lib/supabase', () => ({
@@ -33,7 +33,7 @@ describe('useBibleTranslation', () => {
     localStorage.clear();
     vi.clearAllMocks();
     // Re-wire after clearAllMocks so chains still return correct shapes
-    mockSelectEq.mockReturnValue({ single: mockSingle });
+    mockSelectEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockSelectEq });
     mockUpdateEq.mockResolvedValue({ error: null });
     mockUpdate.mockReturnValue({ eq: mockUpdateEq });
@@ -65,7 +65,7 @@ describe('useBibleTranslation', () => {
   // Signed-in tests — userId triggers supabase hydration and writes
   // -------------------------------------------------------------------------
   it('hydrates translation from profile when userId is provided', async () => {
-    mockSingle.mockResolvedValue({ data: { bible_translation: 'KJV' }, error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'KJV' }, error: null });
 
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
 
@@ -79,11 +79,11 @@ describe('useBibleTranslation', () => {
     expect(mockFrom).toHaveBeenCalledWith('profiles');
     expect(mockSelect).toHaveBeenCalledWith('bible_translation');
     expect(mockSelectEq).toHaveBeenCalledWith('id', 'user-123');
-    expect(mockSingle).toHaveBeenCalled();
+    expect(mockMaybeSingle).toHaveBeenCalled();
   });
 
   it('does not hydrate when remote value is not a valid translation', async () => {
-    mockSingle.mockResolvedValue({ data: { bible_translation: 'NIV' }, error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'NIV' }, error: null });
 
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
 
@@ -95,12 +95,12 @@ describe('useBibleTranslation', () => {
   });
 
   it('writes to profiles when setTranslation is called with a userId', async () => {
-    mockSingle.mockResolvedValue({ data: { bible_translation: 'BSB' }, error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'BSB' }, error: null });
 
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
 
     // Wait for hydration
-    await waitFor(() => expect(mockSingle).toHaveBeenCalled());
+    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
 
     // Clear mocks to isolate the write test
     vi.clearAllMocks();
