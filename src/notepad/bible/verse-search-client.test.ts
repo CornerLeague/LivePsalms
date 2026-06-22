@@ -1,6 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createBrowserVerseSearchDeps } from './verse-search-client';
 
+function fakeClient(captured: Array<{ col: string; val: unknown }>) {
+  const b: Record<string, (...a: unknown[]) => unknown> = {};
+  for (const m of ['from', 'select', 'like', 'textSearch', 'limit', 'order', 'abortSignal']) b[m] = vi.fn(() => b);
+  (b as Record<string, unknown>).eq = vi.fn((col: string, val: unknown) => { captured.push({ col, val }); return b; });
+  (b as Record<string, unknown>).then = (res: (v: unknown) => void) => res({ data: [], error: null });
+  return b as unknown as Parameters<typeof createBrowserVerseSearchDeps>[0];
+}
+
 function makeSupabaseStub(over: Record<string, unknown> = {}) {
   return {
     from: vi.fn(),
@@ -8,6 +16,22 @@ function makeSupabaseStub(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
+
+describe('createBrowserVerseSearchDeps translation', () => {
+  it('FTS filters by the given translation', async () => {
+    const captured: Array<{ col: string; val: unknown }> = [];
+    const deps = createBrowserVerseSearchDeps(fakeClient(captured), 'KJV');
+    await deps.ftsSearch('love', {});
+    expect(captured).toContainEqual({ col: 'translation', val: 'KJV' });
+  });
+
+  it('resolvePericope filters by the given translation', async () => {
+    const captured: Array<{ col: string; val: unknown }> = [];
+    const deps = createBrowserVerseSearchDeps(fakeClient(captured), 'WEB');
+    await deps.resolvePericope('jhn.3', {});
+    expect(captured).toContainEqual({ col: 'translation', val: 'WEB' });
+  });
+});
 
 describe('createBrowserVerseSearchDeps.ftsSearch', () => {
   it('queries text_tsv with websearch, BSB filter, and maps rows', async () => {

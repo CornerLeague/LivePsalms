@@ -1,5 +1,6 @@
 import { parseVerseRef, BOOK_TO_OSIS } from '../graph/reference-parser';
 import type { RawFtsRow, RawSemanticRow, PericopeRange, VerseCandidate, VerseSearchDeps } from './verse-search-types';
+import { type BibleTranslation, DEFAULT_TRANSLATION } from './translations';
 
 const FTS_SCORE = 0.55;
 
@@ -36,7 +37,7 @@ export function detectGrain(sourceId: string): 'verse' | 'pericope' {
   return sourceId.split('.').length >= 3 ? 'verse' : 'pericope';
 }
 
-export function normalizeFtsRow(row: RawFtsRow): VerseCandidate {
+export function normalizeFtsRow(row: RawFtsRow, translation: BibleTranslation = DEFAULT_TRANSLATION): VerseCandidate {
   return {
     osis: row.id,
     // bible_passages.book stores the OSIS abbrev ("jhn"); the VerseCandidate
@@ -51,7 +52,7 @@ export function normalizeFtsRow(row: RawFtsRow): VerseCandidate {
     // FTS hit renders "John 3:16–16". A real pericope range (end > start) stays.
     verseEnd: row.verseEnd != null && row.verseEnd !== row.verseStart ? row.verseEnd : null,
     text: row.text,
-    translation: 'BSB',
+    translation,
     source: 'fts',
     score: FTS_SCORE,
   };
@@ -72,8 +73,10 @@ export async function normalizeSemanticRow(
   opts: {
     resolvePericope: (id: string, o: { signal?: AbortSignal }) => Promise<PericopeRange | null>;
     signal?: AbortSignal;
+    translation?: BibleTranslation;
   },
 ): Promise<VerseCandidate | null> {
+  const translation = opts.translation ?? DEFAULT_TRANSLATION;
   if (detectGrain(row.sourceId) === 'verse') {
     const parsed = parseVerseSourceId(row.sourceId);
     if (!parsed) return null;
@@ -86,7 +89,7 @@ export async function normalizeSemanticRow(
       verseStart: parsed.verse,
       verseEnd: null,
       text: row.text,
-      translation: 'BSB',
+      translation,
       source: 'semantic',
       score: row.similarity,
     };
@@ -102,7 +105,7 @@ export async function normalizeSemanticRow(
     verseStart: range.verseStart,
     verseEnd: range.verseEnd,
     text: range.text || row.text,
-    translation: 'BSB',
+    translation,
     source: 'semantic',
     score: row.similarity,
     label: `${range.book} ${range.chapter}:${range.verseStart}–${range.verseEnd} · passage`,
@@ -115,6 +118,7 @@ const SOURCE_PRIORITY: Record<VerseCandidate['source'], number> = { reference: 3
 export function referenceCandidate(
   parsed: { book: string; chapter: number; verseStart: number; verseEnd: number | null },
   text: string,
+  translation: BibleTranslation = DEFAULT_TRANSLATION,
 ): VerseCandidate {
   return {
     osis: osisForRef(parsed.book, parsed.chapter, parsed.verseStart),
@@ -123,7 +127,7 @@ export function referenceCandidate(
     verseStart: parsed.verseStart,
     verseEnd: parsed.verseEnd,
     text,
-    translation: 'BSB',
+    translation,
     source: 'reference',
     score: 1,
   };
@@ -216,7 +220,7 @@ export function createVerseSearch(deps: VerseSearchDeps, opts: { debounceMs?: nu
       let ftsCands: VerseCandidate[] = [];
       try {
         const rows = await deps.ftsSearch(trimmed, { signal });
-        ftsCands = rows.map(normalizeFtsRow);
+        ftsCands = rows.map((r) => normalizeFtsRow(r));
       } catch { /* FTS error -> empty, picker stays usable */ }
       if (signal.aborted) return;
       emit(mergeCandidates(pin, ftsCands, []), 'instant');

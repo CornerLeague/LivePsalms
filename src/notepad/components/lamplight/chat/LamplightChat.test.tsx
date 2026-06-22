@@ -61,7 +61,7 @@ describe('LamplightChat', () => {
     fireEvent.change(screen.getByPlaceholderText(/ask about this passage/i), { target: { value: 'what is this about?' } });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
-    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledWith(invoke, { book: 'jhn', chapter: 10, message: 'what is this about?' }));
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledWith(invoke, { book: 'jhn', chapter: 10, message: 'what is this about?', translation: 'BSB' }));
     await waitFor(() => expect(append).toHaveBeenCalled());
   });
 
@@ -94,7 +94,7 @@ describe('LamplightChat reflection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /reflect on this passage/i }));
 
-    await waitFor(() => expect(requestOpeningInsight).toHaveBeenCalledWith(invoke, { book: 'jhn', chapter: 10 }));
+    await waitFor(() => expect(requestOpeningInsight).toHaveBeenCalledWith(invoke, { book: 'jhn', chapter: 10, translation: 'BSB' }));
     await waitFor(() => expect(append).toHaveBeenCalledWith([
       expect.objectContaining({ role: 'assistant', content: 'Opening thought.' }),
     ]));

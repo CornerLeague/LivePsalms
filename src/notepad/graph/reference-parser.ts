@@ -1,5 +1,6 @@
 import { extractPlainText } from '../utils/tiptap-text';
 import { supabase } from '@/lib/supabase';
+import { type BibleTranslation, DEFAULT_TRANSLATION } from '../bible/translations';
 
 // Bible book patterns: each entry is a pipe-separated list of accepted names/abbreviations
 export const BOOK_PATTERNS: string[] = [
@@ -147,9 +148,10 @@ const OSIS_TO_CANONICAL_BOOK: Record<string, string> = Object.fromEntries(
  */
 export async function fetchVerseText(
   ref: string,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; translation?: BibleTranslation },
 ): Promise<VerseResult | null> {
   if (!supabase) return null;
+  const translation = options?.translation ?? DEFAULT_TRANSLATION;
   const parsed = parseVerseRef(ref);
   if (!parsed) return null;
   const osisBook = BOOK_TO_OSIS[parsed.book];
@@ -164,6 +166,7 @@ export async function fetchVerseText(
     let query = supabase
       .from('bible_passages')
       .select('id, verse_start, text')
+      .eq('translation', translation)
       .in('id', ids)
       .order('verse_start', { ascending: true });
     if (options?.signal) query = query.abortSignal(options.signal);
@@ -178,7 +181,7 @@ export async function fetchVerseText(
     return {
       text,
       reference: `${parsed.book} ${parsed.chapter}:${refSuffix}`,
-      translation: 'BSB',
+      translation,
     };
   } catch {
     return null;

@@ -3,6 +3,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { embedQuery, rerank, type VoyageDeps } from './voyage.ts';
+import { fetchPassageText } from './bible-passage.ts';
 
 export interface RetrievalDeps {
   supabase: SupabaseClient;
@@ -39,8 +40,9 @@ const POOL_SIZE = 50;
 
 export async function searchBible(
   deps: RetrievalDeps,
-  args: { query: string; k: number; queryEmbedding?: number[] },
+  args: { query: string; k: number; queryEmbedding?: number[]; translation?: string },
 ): Promise<RetrievedItem[]> {
+  const translation = args.translation ?? 'BSB';
   const vector = args.queryEmbedding ?? await embedQuery(args.query, deps.voyage);
   const limit = deps.rerankEnabled ? POOL_SIZE : args.k;
   const { data, error } = await deps.supabase.rpc('match_bible_embeddings', {
@@ -54,7 +56,7 @@ export async function searchBible(
   if (!deps.rerankEnabled) {
     return rows.slice(0, args.k).map(toRetrievedItem);
   }
-  return rerankBibleRows(deps, args.query, rows, args.k);
+  return rerankBibleRows(deps, args.query, rows, args.k, translation);
 }
 
 export async function searchNeighbors(
@@ -126,16 +128,11 @@ async function rerankBibleRows(
   query: string,
   rows: MatchRow[],
   k: number,
+  translation = 'BSB',
 ): Promise<RetrievedItem[]> {
   const sourceIds = rows.map(r => r.source_id);
-  const { data, error } = await deps.supabase
-    .from('bible_passages')
-    .select('id, text')
-    .in('id', sourceIds);
-  if (error) throw error;
-  const textById = new Map<string, string>();
-  for (const r of (data ?? []) as Array<{ id: string; text: string }>) textById.set(r.id, r.text);
-  const documents = rows.map(r => textById.get(r.source_id) ?? '');
+  const byId = await fetchPassageText(deps.supabase as never, sourceIds, translation);
+  const documents = rows.map(r => byId.get(r.source_id)?.text ?? '');
   const scored = await rerank(query, documents, k, deps.voyage);
   return scored.map(s => toRetrievedItem({
     ...rows[s.index],

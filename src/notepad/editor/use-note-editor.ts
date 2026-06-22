@@ -8,6 +8,7 @@ import { TagMark } from '../extensions/tag-mark';
 import { StyleHighlight } from '../extensions/style-highlight';
 import { ScriptureRef } from '../extensions/scripture-ref';
 import { createBrowserVerseSearchDeps } from '../bible/verse-search-client';
+import { type BibleTranslation, DEFAULT_TRANSLATION } from '../bible/translations';
 import { STYLE_ASSETS, filterAssets } from '../styles/manifest';
 import type { Note } from '../types';
 import { parseNoteContent } from './note-editor';
@@ -21,6 +22,11 @@ interface UseNoteEditorOpts {
   // Used by Lamplight Signal Layer to enqueue embedding refresh. Errors are
   // swallowed inside the callback; this prop never rejects.
   onAfterSave?: (note: Note) => void;
+  // The active Bible translation. Captured ONCE at mount (the editor's extensions
+  // build once) and frozen onto scriptureRefs inserted via the picker — a later
+  // preference change does not re-create the editor (that would drop cursor/undo
+  // state), so already-mounted editors keep the mount-time translation.
+  translation?: BibleTranslation;
 }
 
 /**
@@ -41,6 +47,7 @@ export function useNoteEditor({
   updateNote,
   saveDebounceMs = 500,
   onAfterSave,
+  translation = DEFAULT_TRANSLATION,
 }: UseNoteEditorOpts): { editor: Editor | null } {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Keep a stable ref so the setTimeout closure always sees the latest callback
@@ -59,7 +66,7 @@ export function useNoteEditor({
       StarterKit,
       Placeholder.configure({ placeholder: 'Start writing...' }),
       BibleVerse,
-      ScriptureRef.configure({ search: createBrowserVerseSearchDeps() }),
+      ScriptureRef.configure({ search: createBrowserVerseSearchDeps(undefined, translation), translation }),
       NoteLink,
       TagMark,
       StyleHighlight.configure({ defaultSwatchId: defaultHighlightSwatchId }),

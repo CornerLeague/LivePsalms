@@ -1,5 +1,7 @@
 // Shared types for the framework-free verse-search module and its client deps.
 
+import type { BibleTranslation } from './translations';
+
 export type VerseCandidate = {
   osis: string;            // bible_passages id key, e.g. "jhn.3.16" (range -> start verse id)
   book: string;            // canonical name, e.g. "John"
@@ -7,7 +9,7 @@ export type VerseCandidate = {
   verseStart: number;
   verseEnd: number | null; // null = single verse; set = range (pericope-resolved)
   text: string;
-  translation: 'BSB';
+  translation: BibleTranslation;
   source: 'reference' | 'fts' | 'semantic';
   score: number;           // [0,1]
   label?: string;          // distinct display label for resolved passages, e.g. "John 3:1–21 · passage"

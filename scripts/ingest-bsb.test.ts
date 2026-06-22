@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { parseBsbToRows, parseBsbText } from './ingest-bsb';
 
+const SAMPLE = `The Holy Bible
+preamble line
+Verse\tText
+John 1:1\tIn the beginning was the Word.
+John 1:2\tHe was with God in the beginning.
+`;
+
 const FIXTURE = {
   // Tiny BSB fragment — Psalm 23:1-2 and Psalm 24:1.
   books: [
@@ -18,7 +25,7 @@ const FIXTURE = {
 
 describe('parseBsbToRows', () => {
   it('emits one verse row per verse', () => {
-    const { verses } = parseBsbToRows(FIXTURE as never);
+    const { verses } = parseBsbToRows(FIXTURE as never, 'BSB');
     expect(verses).toEqual([
       { id: 'psa.23.1', book: 'psa', chapter: 23, verse_start: 1, verse_end: 1, translation: 'BSB',
         text: 'The LORD is my shepherd; I shall not want.', pericope_id: 'psa.23' },
@@ -30,13 +37,23 @@ describe('parseBsbToRows', () => {
   });
 
   it('emits one pericope row per chapter, joining verses with newlines', () => {
-    const { pericopes } = parseBsbToRows(FIXTURE as never);
+    const { pericopes } = parseBsbToRows(FIXTURE as never, 'BSB');
     expect(pericopes).toEqual([
       { id: 'psa.23', book: 'psa', chapter: 23, verse_start: 1, verse_end: 2, translation: 'BSB',
         text: 'The LORD is my shepherd; I shall not want.\nHe makes me lie down in green pastures.', pericope_id: 'psa.23' },
       { id: 'psa.24', book: 'psa', chapter: 24, verse_start: 1, verse_end: 1, translation: 'BSB',
         text: 'The earth is the LORD’s, and the fullness thereof.', pericope_id: 'psa.24' },
     ]);
+  });
+});
+
+describe('parseBsbToRows translation param', () => {
+  it('stamps the given translation on verse and pericope rows', () => {
+    const corpus = parseBsbText(SAMPLE);
+    const { verses, pericopes } = parseBsbToRows(corpus, 'KJV');
+    expect(verses).toHaveLength(2);
+    expect(verses[0]).toMatchObject({ id: 'jhn.1.1', translation: 'KJV', book: 'jhn' });
+    expect(pericopes[0]).toMatchObject({ id: 'jhn.1', translation: 'KJV' });
   });
 });
 

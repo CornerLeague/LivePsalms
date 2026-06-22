@@ -13,7 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '../_shared/supabase.ts';
 import { embedQuery, type VoyageDeps } from '../_shared/voyage.ts';
 import { searchBible } from '../_shared/retrieval.ts';
-import { type BiblePassageRow } from '../_shared/bible-passage.ts';
+import { type BiblePassageRow, fetchPassageText } from '../_shared/bible-passage.ts';
 import { createAnthropicAdapter } from '../_shared/anthropic.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { retrieveNoteContext, type NoteContextDeps, type RawNoteRow } from '../_shared/note-context.ts';
@@ -76,14 +76,47 @@ async function handleGenerate(req: Request): Promise<Response> {
     local_date?: string;
     source_note_id?: string;
     related_note_id?: string;
+    translation?: string;
   };
   try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
+
+  const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
+  type Translation = typeof VALID_TRANSLATIONS[number];
+  const bodyHasValidTranslation = (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '');
 
   const supabase = serviceClient();
 
   // Identity comes from the verified JWT, never from body.user_id.
   const userId = await deriveUserId(supabase, bearerToken(req));
   if (!userId) return jsonResp({ error: 'unauthorized' }, 401);
+
+  // Translation resolution (single authoritative step):
+  // 1. If the request body carries a valid translation, use it directly.
+  // 2. Otherwise look up profiles.bible_translation for the authenticated user —
+  //    the correct source for server-side background generation (daily_devotion,
+  //    connection_card_why) where no transient client preference is threaded in.
+  // 3. Defensive fallback to 'BSB' if the profile read errors or returns nothing.
+  //    Never throw over a preference lookup — generation must always proceed.
+  let translation: Translation = bodyHasValidTranslation
+    ? (body.translation as Translation)
+    : 'BSB';
+
+  if (!bodyHasValidTranslation) {
+    // body did not supply a valid translation — consult the persisted profile pref.
+    try {
+      const { data: profilePref } = await supabase
+        .from('profiles')
+        .select('bible_translation')
+        .eq('id', userId)
+        .maybeSingle();
+      const pref = (profilePref as { bible_translation?: unknown } | null)?.bible_translation;
+      if (typeof pref === 'string' && (VALID_TRANSLATIONS as readonly string[]).includes(pref)) {
+        translation = pref as Translation;
+      }
+    } catch {
+      // Profile lookup failure is non-fatal — fall through with default 'BSB'.
+    }
+  }
 
   const { data: settings, error: sErr } = await supabase
     .from('lamplight_settings')
@@ -126,7 +159,7 @@ async function handleGenerate(req: Request): Promise<Response> {
       lifecycleDeps,
       { userId, artifactKind: 'smoke_test' },
       async () => {
-        const ctx = await buildSmokeTestContext(supabase, { userId, voyageDeps, rerankEnabled });
+        const ctx = await buildSmokeTestContext(supabase, { userId, voyageDeps, rerankEnabled, translation });
         const result = await runSmokeTestPipeline({ llm, ctx });
         return { response: result, usage: result.usage };
       },
@@ -144,7 +177,7 @@ async function handleGenerate(req: Request): Promise<Response> {
       { userId, artifactKind: 'daily_devotion' },
       async () => {
         const ctx = await buildDailyDevotionContext(supabase, {
-          userId, localDate, voyageDeps, rerankEnabled,
+          userId, localDate, voyageDeps, rerankEnabled, translation,
         });
         const result = await runDailyDevotionPipeline({ llm, supabase, ctx, userId, localDate });
         return { response: result, usage: result.usage };
@@ -201,6 +234,7 @@ function noteContextDeps(
   supabase: SupabaseClient,
   voyageDeps: VoyageDeps,
   rerankEnabled: boolean,
+  translation = 'BSB',
 ): NoteContextDeps {
   return {
     async fetchRecentNotes(userId, limit) {
@@ -214,14 +248,10 @@ function noteContextDeps(
       return (data ?? []) as RawNoteRow[];
     },
     embedQuery: (text) => embedQuery(text, voyageDeps),
-    searchBible: (queryArgs) => searchBible({ supabase, voyage: voyageDeps, rerankEnabled }, queryArgs),
+    searchBible: (queryArgs) => searchBible({ supabase, voyage: voyageDeps, rerankEnabled }, { ...queryArgs, translation }),
     async fetchPassages(sourceIds) {
-      const { data, error } = await supabase
-        .from('bible_passages')
-        .select('id, book, chapter, verse_start, verse_end, text')
-        .in('id', sourceIds);
-      if (error) throw error;
-      return (data ?? []) as BiblePassageRow[];
+      const byId = await fetchPassageText(supabase as never, sourceIds, translation);
+      return [...byId.values()] as BiblePassageRow[];
     },
   };
 }
@@ -230,9 +260,9 @@ function noteContextDeps(
 // Theme query = longest survivor's plaintext.
 function buildSmokeTestContext(
   supabase: SupabaseClient,
-  args: { userId: string; voyageDeps: VoyageDeps; rerankEnabled: boolean },
+  args: { userId: string; voyageDeps: VoyageDeps; rerankEnabled: boolean; translation?: string },
 ): Promise<SmokeTestContext | null> {
-  return retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled), {
+  return retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled, args.translation), {
     userId: args.userId,
     noteLimit: 5,
     rerankEnabled: args.rerankEnabled,
@@ -247,9 +277,9 @@ function buildSmokeTestContext(
 // the profile is never read when the user has no notes.
 async function buildDailyDevotionContext(
   supabase: SupabaseClient,
-  args: { userId: string; localDate: string; voyageDeps: VoyageDeps; rerankEnabled: boolean },
+  args: { userId: string; localDate: string; voyageDeps: VoyageDeps; rerankEnabled: boolean; translation?: string },
 ): Promise<DailyDevotionContext | null> {
-  const base = await retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled), {
+  const base = await retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled, args.translation), {
     userId: args.userId,
     noteLimit: 3,
     rerankEnabled: args.rerankEnabled,
