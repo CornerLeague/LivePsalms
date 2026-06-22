@@ -238,7 +238,7 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
             style={{
               left: 0, top: 0,
               transform: `translate(calc(${popover.screenX}px - 50%), calc(${popover.screenY}px - 100% - 14px))`,
-              background: 'rgba(255, 255, 255, 0.95)',
+              background: 'var(--graph-popover-bg)',
               border: '1px solid color-mix(in srgb, var(--warm-sand) 50%, transparent)',
               fontFamily: 'Outfit, sans-serif',
             }}

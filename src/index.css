@@ -107,6 +107,8 @@
     --notepad-sidebar-bg: rgba(240, 236, 232, 0.6); /* journal collection rail (light) */
     --notepad-aside-bg: rgba(240, 236, 232, 0.4);   /* bible / study side panel (light) */
     --study-verse-num: var(--deep-umber);           /* study verse numbers — matches text (light) */
+    --graph-popover-bg: rgba(255, 255, 255, 0.95); /* graph node popover panel (light) */
+    --highlight-panel-bg: #fff;                    /* verse highlight picker panel (light) */
     /* Elevated chrome (toolbars / sidebar headers / popovers) — one step above
        --plaster. Single source for the warm three-step elevation ramp. */
     --surface-elevated: rgba(240, 236, 232, 0.97);
@@ -180,6 +182,8 @@
     --notepad-sidebar-bg: var(--cream); /* match the Study desk (#0e0e0e) on dark */
     --notepad-aside-bg: var(--cream);   /* match the Study desk (#0e0e0e) on dark */
     --study-verse-num: #b7ada0;         /* study verse numbers — a bit darker than the text on dark */
+    --graph-popover-bg: var(--surface-elevated);   /* elevated popover over the near-black graph canvas */
+    --highlight-panel-bg: var(--surface-elevated); /* elevated highlight picker panel on dark */
     --text-muted: #14120f;
 
     /* Graph canvas palette (read by graph-view.ts via getComputedStyle) */
