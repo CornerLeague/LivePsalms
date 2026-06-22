@@ -1,2 +1,6 @@
 bsb.json
 *.cache.json
+# Operator-produced KJV/WEB corpora — converted from eBible.org VPL by convert-vpl-to-bsb-tsv.ts
+# Do NOT commit these large corpora (~4-5 MB each)
+kjv.txt
+web.txt
