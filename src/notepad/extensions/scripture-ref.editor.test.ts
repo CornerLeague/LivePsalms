@@ -87,7 +87,8 @@ describe('scriptureRef freezes active translation', () => {
   });
 });
 
-import { buildReferenceItems, buildKeywordItems, buildReferencePinItems } from './scripture-ref';
+import { buildReferenceItems, buildKeywordItems, buildReferencePinItems, scriptureRefAttrsFromCandidate } from './scripture-ref';
+import type { VerseCandidate } from '../bible/verse-search-types';
 import type { VerseSearchDeps } from '../bible/verse-search-types';
 
 function fakeDeps(): VerseSearchDeps {
@@ -128,6 +129,46 @@ describe('suggestion item builders', () => {
 
   it('buildReferencePinItems returns [] for a keyword query (renderer owns FTS)', () => {
     expect(buildReferencePinItems('love')).toEqual([]);
+  });
+});
+
+describe('scriptureRefAttrsFromCandidate — picker freeze-at-insert', () => {
+  // The picker stamps the ACTIVE translation (second arg) onto the inserted node,
+  // NOT the candidate's own .translation field. This guards the freeze-at-insert
+  // semantic: if the user changes their translation preference later, already-
+  // inserted nodes must not be retroactively rewritten.
+  //
+  // RED logic: if the helper returned `c.translation` instead of the `translation`
+  // argument, this test would fail because the candidate's translation is 'BSB'
+  // but we assert the result is 'KJV'.
+  const candidate: VerseCandidate = {
+    osis: 'jhn.3.16',
+    book: 'John',
+    chapter: 3,
+    verseStart: 16,
+    verseEnd: null,
+    text: 'For God so loved the world',
+    translation: 'BSB',  // candidate came from BSB search results
+    source: 'fts',
+    score: 0.95,
+  };
+
+  it('stamps the active translation, not the candidate translation', () => {
+    // Active translation at insert time is KJV — must win over candidate's BSB
+    const attrs = scriptureRefAttrsFromCandidate(candidate, 'KJV');
+    expect(attrs.translation).toBe('KJV');
+  });
+
+  it('preserves all other candidate fields unchanged', () => {
+    const attrs = scriptureRefAttrsFromCandidate(candidate, 'KJV');
+    expect(attrs).toMatchObject({
+      osis: 'jhn.3.16',
+      book: 'John',
+      chapter: 3,
+      verseStart: 16,
+      verseEnd: null,
+      text: 'For God so loved the world',
+    });
   });
 });
 

@@ -90,6 +90,23 @@ export function buildReferencePinItems(query: string): VerseCandidate[] {
   return route.kind === 'reference' ? [referenceCandidate(route.parsed, '')] : [];
 }
 
+// Freeze-at-insert: build the ScriptureRefAttrs to stamp onto an inserted node
+// from a picker candidate. The ACTIVE translation wins — NOT the candidate's own
+// `.translation` field (which reflects the translation the search result came from).
+// This is the core picker freeze-at-insert semantic: a preference change after
+// insertion must NOT rewrite already-inserted references.
+export function scriptureRefAttrsFromCandidate(c: VerseCandidate, translation: BibleTranslation): ScriptureRefAttrs {
+  return {
+    osis: c.osis,
+    book: c.book,
+    chapter: c.chapter,
+    verseStart: c.verseStart,
+    verseEnd: c.verseEnd,
+    translation,            // active translation wins — freeze-at-insert; NOT c.translation
+    text: c.text,
+  };
+}
+
 const PREDICTIVE_KEY = new PluginKey('scriptureRefPredictive');
 const VERSE_PICKER_KEY = new PluginKey('scriptureRefPicker');
 const LOOKUP_PICKER_KEY = new PluginKey('scriptureRefLookup');
@@ -172,15 +189,7 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
         .chain()
         .focus()
         .deleteRange(range)
-        .insertScriptureRef({
-          osis: c.osis,
-          book: c.book,
-          chapter: c.chapter,
-          verseStart: c.verseStart,
-          verseEnd: c.verseEnd,
-          translation,
-          text: c.text,
-        })
+        .insertScriptureRef(scriptureRefAttrsFromCandidate(c, translation))
         .run();
     };
 
