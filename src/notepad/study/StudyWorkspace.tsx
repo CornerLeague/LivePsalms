@@ -65,7 +65,7 @@ export function StudyWorkspace() {
         <img
           src="/logo-icon.png"
           alt="LivePsalms"
-          className="h-6 w-auto object-contain cursor-pointer"
+          className="notepad-nav-logo h-6 w-auto object-contain cursor-pointer"
           onClick={() => navigate('/')}
         />
         <StudyModeToggle />

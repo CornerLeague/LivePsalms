@@ -105,7 +105,7 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             placeholder="Filter notes..."
-            className="text-[11px] bg-transparent outline-none w-full"
+            className="text-[11px] bg-transparent outline-none w-full placeholder:text-[color:var(--silica)]"
             style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
           />
         </div>

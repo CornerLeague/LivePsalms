@@ -17,6 +17,7 @@ export function StudyReader({ book, chapter, onPassageChange }: StudyReaderProps
       translation={translation}
       onTranslationChange={setTranslation}
       onPassageChange={onPassageChange}
+      verseNumberColor="var(--study-verse-num)"
     />
   );
 }

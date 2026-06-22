@@ -243,7 +243,7 @@ export function NotepadEditor({
           className={`shrink-0 flex items-center gap-0.5 px-3${isBottomToolbar ? ' scrollbar-hide' : ''}`}
           style={{
             height: 40,
-            background: 'var(--surface-elevated)',
+            background: 'var(--notepad-bar-bg)',
             borderColor: 'var(--pale-stone)',
             borderBottom: isBottomToolbar ? 'none' : '1px solid var(--pale-stone)',
             borderTop: isBottomToolbar ? '1px solid var(--pale-stone)' : 'none',

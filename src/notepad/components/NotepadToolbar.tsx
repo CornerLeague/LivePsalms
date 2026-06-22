@@ -60,7 +60,7 @@ export function NotepadToolbar({
         className="flex items-center shrink-0 z-40"
         style={{
           height: 48,
-          background: 'var(--surface-elevated)',
+          background: 'var(--notepad-bar-bg)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--pale-stone)',
@@ -84,7 +84,7 @@ export function NotepadToolbar({
           <img
             src="/logo-icon.png"
             alt="LivePsalms"
-            className="h-6 w-auto object-contain cursor-pointer"
+            className="notepad-nav-logo h-6 w-auto object-contain cursor-pointer"
             onClick={() => navigate('/')}
           />
 

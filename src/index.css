@@ -102,6 +102,11 @@
     --chat-panel-bg: rgba(255, 255, 255, 0.45);    /* translucent chat glaze over the study desk (light) */
     --chat-on-accent: #fff;                        /* text on the gold accent — user bubble + buttons */
     --chat-badge-current: #8a6c50;                 /* "Current" thread badge label */
+    --notepad-page-bg: var(--plaster);              /* journal page / editor paper (light) */
+    --notepad-bar-bg: var(--surface-elevated);      /* journal top nav + editor toolbar (light) */
+    --notepad-sidebar-bg: rgba(240, 236, 232, 0.6); /* journal collection rail (light) */
+    --notepad-aside-bg: rgba(240, 236, 232, 0.4);   /* bible / study side panel (light) */
+    --study-verse-num: var(--deep-umber);           /* study verse numbers — matches text (light) */
     /* Elevated chrome (toolbars / sidebar headers / popovers) — one step above
        --plaster. Single source for the warm three-step elevation ramp. */
     --surface-elevated: rgba(240, 236, 232, 0.97);
@@ -170,6 +175,11 @@
     --chat-panel-bg: rgba(33, 29, 23, 0.97);       /* opaque elevated panel reads cleaner on near-black */
     --chat-on-accent: var(--app-bg);               /* near-black ink on the lifted gold */
     --chat-badge-current: var(--lamplight-accent); /* gold label on dark */
+    --notepad-page-bg: var(--cream);    /* journal dark bg = Study desk (#0e0e0e) */
+    --notepad-bar-bg: var(--cream);     /* journal nav + editor toolbar = page/Study desk (#0e0e0e) */
+    --notepad-sidebar-bg: var(--cream); /* match the Study desk (#0e0e0e) on dark */
+    --notepad-aside-bg: var(--cream);   /* match the Study desk (#0e0e0e) on dark */
+    --study-verse-num: #b7ada0;         /* study verse numbers — a bit darker than the text on dark */
     --text-muted: #14120f;
 
     /* Graph canvas palette (read by graph-view.ts via getComputedStyle) */
@@ -208,7 +218,19 @@
   * {
     @apply border-border;
   }
-  
+
+  /* Notepad nav logo: /logo-icon.png is dark artwork that vanishes on the dark
+     notepad chrome. Lift it to a light silhouette. Scoped to .dark + the notepad
+     nav only — light mode and every other logo usage stay untouched. */
+  .dark .notepad-nav-logo { filter: brightness(0) invert(1); }
+
+  /* Dark mode: highlighted text rides a light swatch wash, so the light body ink
+     (--deep-umber → #efedee) would vanish on it. Force the ink dark so the text
+     stays legible through the highlight — mirrors how it reads in light mode.
+     Covers both the editor StyleHighlight mark and Bible verse highlights. */
+  .dark span[data-style-highlight],
+  .dark .bible-verse-highlight { color: #3a3426; }
+
   html {
     scroll-behavior: smooth;
     /* framer-motion's useScroll defaults its container to document.scrollingElement
