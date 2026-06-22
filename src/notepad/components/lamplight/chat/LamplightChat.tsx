@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useChatThread, type ChatThreadMessage } from '@/notepad/bible/useChatThread';
 import { sendChatMessage, requestOpeningInsight, type InvokeFn } from '@/notepad/bible/lamplight-chat-client';
+import { useBibleTranslation } from '@/notepad/bible/useBibleTranslation';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
 import { useChatThreadList } from '@/notepad/bible/useChatThreadList';
 import { ChatMessage } from './ChatMessage';
@@ -20,6 +21,7 @@ const localId = () => `local-${++localIdSeq}`;
 
 export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatProps) {
   const thread = useChatThread(book, chapter, userId);
+  const { translation } = useBibleTranslation({ userId });
   const { notes } = useNoteCollection();
   // Resolve note citations to their titles (chips show names, never raw note ids).
   const resolveNoteTitle = useMemo(() => {
@@ -63,7 +65,7 @@ export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatPr
     insightInFlight.current = true;
     setError(null);
     setInsighting(true);
-    const res = await requestOpeningInsight(invoke, { book, chapter });
+    const res = await requestOpeningInsight(invoke, { book, chapter, translation });
     // Apply only if still mounted and still viewing the passage we requested for.
     // On a passage change the effect above resets the flight guard for the new
     // passage, so this early return must NOT touch it (the new request owns it).
@@ -86,7 +88,7 @@ export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatPr
     const userMsg: ChatThreadMessage = { id: localId(), role: 'user', content: message, citations: [] };
     thread.append([userMsg]);
     try {
-      const res = await sendChatMessage(invoke, { book, chapter, message });
+      const res = await sendChatMessage(invoke, { book, chapter, message, translation });
       if (res.ok) {
         thread.append([{ id: localId(), role: 'assistant', content: res.reply, citations: res.citations }]);
       } else {

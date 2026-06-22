@@ -82,16 +82,41 @@ async function handleGenerate(req: Request): Promise<Response> {
 
   const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
   type Translation = typeof VALID_TRANSLATIONS[number];
-  const translation: Translation =
-    (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '')
-      ? (body.translation as Translation)
-      : 'BSB';
+  const bodyHasValidTranslation = (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '');
 
   const supabase = serviceClient();
 
   // Identity comes from the verified JWT, never from body.user_id.
   const userId = await deriveUserId(supabase, bearerToken(req));
   if (!userId) return jsonResp({ error: 'unauthorized' }, 401);
+
+  // Translation resolution (single authoritative step):
+  // 1. If the request body carries a valid translation, use it directly.
+  // 2. Otherwise look up profiles.bible_translation for the authenticated user —
+  //    the correct source for server-side background generation (daily_devotion,
+  //    connection_card_why) where no transient client preference is threaded in.
+  // 3. Defensive fallback to 'BSB' if the profile read errors or returns nothing.
+  //    Never throw over a preference lookup — generation must always proceed.
+  let translation: Translation = bodyHasValidTranslation
+    ? (body.translation as Translation)
+    : 'BSB';
+
+  if (!bodyHasValidTranslation) {
+    // body did not supply a valid translation — consult the persisted profile pref.
+    try {
+      const { data: profilePref } = await supabase
+        .from('profiles')
+        .select('bible_translation')
+        .eq('id', userId)
+        .maybeSingle();
+      const pref = (profilePref as { bible_translation?: unknown } | null)?.bible_translation;
+      if (typeof pref === 'string' && (VALID_TRANSLATIONS as readonly string[]).includes(pref)) {
+        translation = pref as Translation;
+      }
+    } catch {
+      // Profile lookup failure is non-fatal — fall through with default 'BSB'.
+    }
+  }
 
   const { data: settings, error: sErr } = await supabase
     .from('lamplight_settings')

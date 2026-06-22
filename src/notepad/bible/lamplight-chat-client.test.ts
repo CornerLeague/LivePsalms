@@ -8,8 +8,8 @@ describe('sendChatMessage', () => {
       data: { ok: true, thread_id: 't1', reply: 'Grace.', citations: [{ type: 'verse', ref: 'jhn 10:11' }] },
       error: null,
     });
-    const out = await sendChatMessage(invoke, { book: 'jhn', chapter: 10, message: 'hi' });
-    expect(invoke).toHaveBeenCalledWith('lamplight-chat', { body: { book: 'jhn', chapter: 10, message: 'hi' } });
+    const out = await sendChatMessage(invoke, { book: 'jhn', chapter: 10, message: 'hi', translation: 'KJV' });
+    expect(invoke).toHaveBeenCalledWith('lamplight-chat', { body: { book: 'jhn', chapter: 10, message: 'hi', translation: 'KJV' } });
     expect(out).toEqual({ ok: true, threadId: 't1', reply: 'Grace.', citations: [{ type: 'verse', ref: 'jhn 10:11' }] });
   });
 
@@ -31,8 +31,8 @@ describe('requestOpeningInsight', () => {
     const invoke = vi.fn().mockResolvedValue({
       data: { ok: true, thread_id: 't1', reply: 'An opening thought.', citations: [] }, error: null,
     });
-    const out = await requestOpeningInsight(invoke, { book: 'jhn', chapter: 10 });
-    expect(invoke).toHaveBeenCalledWith('lamplight-chat', { body: { book: 'jhn', chapter: 10, mode: 'insight' } });
+    const out = await requestOpeningInsight(invoke, { book: 'jhn', chapter: 10, translation: 'KJV' });
+    expect(invoke).toHaveBeenCalledWith('lamplight-chat', { body: { book: 'jhn', chapter: 10, mode: 'insight', translation: 'KJV' } });
     expect(out).toEqual({ ok: true, threadId: 't1', reply: 'An opening thought.', citations: [] });
   });
 
