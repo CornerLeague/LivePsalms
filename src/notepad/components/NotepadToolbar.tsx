@@ -51,7 +51,7 @@ export function NotepadToolbar({
 
   // Shared button class
   const btnClass =
-    'flex items-center justify-center rounded hover:bg-black/5 transition-colors cursor-pointer';
+    'flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer';
 
   return (
     <>
@@ -60,7 +60,7 @@ export function NotepadToolbar({
         className="flex items-center shrink-0 z-40"
         style={{
           height: 48,
-          background: 'rgba(240, 236, 232, 0.97)',
+          background: 'var(--surface-elevated)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--pale-stone)',
@@ -94,10 +94,10 @@ export function NotepadToolbar({
           {/* Search bar button */}
           <button
             onClick={onOpenSearch}
-            className="flex items-center gap-2 flex-1 max-w-xs mx-2 px-3 py-1.5 rounded-md hover:bg-black/5 transition-colors"
+            className="flex items-center gap-2 flex-1 max-w-xs mx-2 px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             style={{
-              background: 'rgba(188, 179, 163, 0.15)',
-              border: '1px solid rgba(206, 204, 202, 0.5)',
+              background: 'color-mix(in srgb, var(--warm-sand) 15%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--pale-stone) 50%, transparent)',
             }}
           >
             <Search className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--silica)' }} />
@@ -110,7 +110,7 @@ export function NotepadToolbar({
             <span
               className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
               style={{
-                background: 'rgba(188, 179, 163, 0.3)',
+                background: 'color-mix(in srgb, var(--warm-sand) 30%, transparent)',
                 color: 'var(--silica)',
                 fontFamily: 'Outfit, sans-serif',
                 letterSpacing: '0.05em',

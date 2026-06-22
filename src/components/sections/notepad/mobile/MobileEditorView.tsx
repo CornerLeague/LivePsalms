@@ -47,7 +47,7 @@ export function MobileEditorView({
         <button
           aria-label="Account"
           onClick={onOpenAccount}
-          className="flex items-center justify-center w-9 h-9 rounded-full overflow-hidden hover:bg-black/5"
+          className="flex items-center justify-center w-9 h-9 rounded-full overflow-hidden hover:bg-black/5 dark:hover:bg-white/10"
           style={{ color: 'var(--deep-umber)' }}
         >
           {avatarUrl ? (
