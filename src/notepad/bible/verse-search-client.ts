@@ -3,11 +3,13 @@ import { supabase as defaultSupabase } from '@/lib/supabase';
 import { fetchVerseText } from '../graph/reference-parser';
 import { osisBookToCanonical, detectGrain } from './verse-search';
 import type { RawFtsRow, RawSemanticRow, PericopeRange, VerseSearchDeps } from './verse-search-types';
+import { type BibleTranslation, DEFAULT_TRANSLATION } from './translations';
 
 const FTS_LIMIT = 20;
 
 export function createBrowserVerseSearchDeps(
   client: SupabaseClient | null = defaultSupabase,
+  translation: BibleTranslation = DEFAULT_TRANSLATION,
 ): VerseSearchDeps {
   return {
     async ftsSearch(query, opts): Promise<RawFtsRow[]> {
@@ -15,7 +17,7 @@ export function createBrowserVerseSearchDeps(
       let q = client
         .from('bible_passages')
         .select('id, book, chapter, verse_start, verse_end, text')
-        .eq('translation', 'BSB')
+        .eq('translation', translation)
         // bible_passages holds BOTH verse-grain rows (id "psa.23.1", ≥2 dots) and
         // pericope-grain aggregates (id "psa.23", 1 dot). The /verse picker inserts
         // single verses, so restrict FTS to verse-grain at the DB level — LIKE treats
@@ -70,7 +72,7 @@ export function createBrowserVerseSearchDeps(
         .from('bible_passages')
         .select('chapter, verse_start, verse_end, text')
         .eq('pericope_id', pericopeId)
-        .eq('translation', 'BSB')
+        .eq('translation', translation)
         .order('verse_start', { ascending: true });
       if (opts.signal) q = q.abortSignal(opts.signal);
       const { data, error } = await q;
@@ -82,6 +84,6 @@ export function createBrowserVerseSearchDeps(
       return { book, chapter: rows[0].chapter, verseStart, verseEnd, text };
     },
 
-    fetchVerseText,
+    fetchVerseText: (ref, o) => fetchVerseText(ref, { ...o, translation }),
   };
 }
