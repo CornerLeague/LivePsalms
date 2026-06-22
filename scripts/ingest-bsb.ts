@@ -1,15 +1,16 @@
 // scripts/ingest-bsb.ts
 //
-// One-shot BSB ingest into bible_passages + lamplight_embeddings.
+// One-shot ingest of any supported Bible translation into
+// bible_passages + lamplight_embeddings (BSB only).
 // Idempotent: re-running skips rows already inserted with the same content_hash.
 //
 // Usage:
-//   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... VOYAGE_AI_KEY=... \
-//     npx tsx scripts/ingest-bsb.ts
+//   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... [VOYAGE_AI_KEY=...] \
+//     [TRANSLATION=BSB|KJV|WEB] npx tsx scripts/ingest-bsb.ts
 //
 // Source: https://bereanbible.com/bsb.txt (public domain TSV — one verse per
 // line as `<Book> <Chapter>:<Verse>\t<Text>`, preceded by a 3-line preamble).
-// Cached locally at scripts/data/bsb.txt so re-runs are offline.
+// Cached locally at scripts/data/<translation>.txt so re-runs are offline.
 
 import { createClient } from '@supabase/supabase-js';
 import { sha256 } from 'js-sha256';
@@ -17,8 +18,6 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { embedDocuments } from '../supabase/functions/_shared/voyage';
 
-const BSB_URL = 'https://bereanbible.com/bsb.txt';
-const CACHE_PATH = 'scripts/data/bsb.txt';
 const BATCH = 64;
 
 // Full book name → OSIS-style 3-letter abbreviation. 66 canonical books.
@@ -54,18 +53,23 @@ export interface BsbChapter { number: number; verses: BsbVerse[] }
 export interface BsbBook { name: string; abbrev: string; chapters: BsbChapter[] }
 export interface BsbCorpus { books: BsbBook[] }
 
+export type BibleTranslationId = 'BSB' | 'KJV' | 'WEB';
+
 export interface PassageRow {
   id: string;
   book: string;
   chapter: number;
   verse_start: number;
   verse_end: number;
-  translation: 'BSB';
+  translation: BibleTranslationId;
   text: string;
   pericope_id: string;
 }
 
-export function parseBsbToRows(corpus: BsbCorpus): { verses: PassageRow[]; pericopes: PassageRow[] } {
+export function parseBsbToRows(
+  corpus: BsbCorpus,
+  translation: BibleTranslationId,
+): { verses: PassageRow[]; pericopes: PassageRow[] } {
   const verses: PassageRow[] = [];
   const pericopes: PassageRow[] = [];
   for (const book of corpus.books) {
@@ -79,7 +83,7 @@ export function parseBsbToRows(corpus: BsbCorpus): { verses: PassageRow[]; peric
           chapter: ch.number,
           verse_start: v.number,
           verse_end: v.number,
-          translation: 'BSB',
+          translation,
           text: v.text,
           pericope_id: pericopeId,
         });
@@ -91,7 +95,7 @@ export function parseBsbToRows(corpus: BsbCorpus): { verses: PassageRow[]; peric
         chapter: ch.number,
         verse_start: ch.verses[0]?.number ?? 1,
         verse_end: ch.verses[ch.verses.length - 1]?.number ?? 1,
-        translation: 'BSB',
+        translation,
         text: verseTexts.join('\n'),
         pericope_id: pericopeId,
       });
@@ -100,16 +104,31 @@ export function parseBsbToRows(corpus: BsbCorpus): { verses: PassageRow[]; peric
   return { verses, pericopes };
 }
 
-async function loadCorpus(): Promise<BsbCorpus> {
+interface IngestConfig {
+  translation: BibleTranslationId;
+  url: string;
+  cachePath: string;
+  embed: boolean; // only BSB embeds (shared semantic index)
+}
+
+const SOURCES: Record<BibleTranslationId, IngestConfig> = {
+  BSB: { translation: 'BSB', url: 'https://bereanbible.com/bsb.txt', cachePath: 'scripts/data/bsb.txt', embed: true },
+  // KJV/WEB sources pinned in Task 3. embed:false — they reuse BSB's semantic index.
+  KJV: { translation: 'KJV', url: '', cachePath: 'scripts/data/kjv.txt', embed: false },
+  WEB: { translation: 'WEB', url: '', cachePath: 'scripts/data/web.txt', embed: false },
+};
+
+async function loadCorpus(cfg: IngestConfig): Promise<BsbCorpus> {
   let text: string;
-  if (existsSync(CACHE_PATH)) {
-    text = await readFile(CACHE_PATH, 'utf8');
+  if (existsSync(cfg.cachePath)) {
+    text = await readFile(cfg.cachePath, 'utf8');
   } else {
+    if (!cfg.url) throw new Error(`no cached corpus at ${cfg.cachePath} and no url for ${cfg.translation}`);
     await mkdir('scripts/data', { recursive: true });
-    const res = await fetch(BSB_URL);
-    if (!res.ok) throw new Error(`fetch ${BSB_URL}: ${res.status}`);
+    const res = await fetch(cfg.url);
+    if (!res.ok) throw new Error(`fetch ${cfg.url}: ${res.status}`);
     text = await res.text();
-    await writeFile(CACHE_PATH, text);
+    await writeFile(cfg.cachePath, text);
   }
   return parseBsbText(text);
 }
@@ -167,24 +186,35 @@ export function parseBsbText(raw: string): BsbCorpus {
 }
 
 async function main() {
+  const translation = (process.env.TRANSLATION ?? 'BSB') as BibleTranslationId;
+  const cfg = SOURCES[translation];
+  if (!cfg) throw new Error(`unknown TRANSLATION: ${translation}`);
+
   const url = required('SUPABASE_URL');
   const key = required('SUPABASE_SERVICE_ROLE_KEY');
-  const voyageKey = required('VOYAGE_AI_KEY');
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
-  console.log('loading BSB corpus…');
-  const corpus = await loadCorpus();
-  const { verses, pericopes } = parseBsbToRows(corpus);
+  console.log(`loading ${translation} corpus…`);
+  const corpus = await loadCorpus(cfg);
+  const { verses, pericopes } = parseBsbToRows(corpus, translation);
   const all = [...verses, ...pericopes];
   console.log(`parsed ${verses.length} verses + ${pericopes.length} pericopes = ${all.length} rows`);
 
-  // 1. Upsert bible_passages.
+  // 1. Upsert bible_passages on the composite key.
   for (let i = 0; i < all.length; i += 500) {
     const batch = all.slice(i, i + 500);
-    const { error } = await supabase.from('bible_passages').upsert(batch, { onConflict: 'id' });
+    const { error } = await supabase.from('bible_passages').upsert(batch, { onConflict: 'translation,id' });
     if (error) throw error;
   }
   console.log('bible_passages upserted');
+
+  if (!cfg.embed) {
+    console.log(`skip embeddings for ${translation} (shared semantic index = BSB only)`);
+    console.log('done');
+    return;
+  }
+
+  const voyageKey = required('VOYAGE_AI_KEY');
 
   // 2. Find rows missing an embedding.
   const { data: existing, error: exErr } = await supabase
