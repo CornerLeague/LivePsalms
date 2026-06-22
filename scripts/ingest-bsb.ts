@@ -113,8 +113,17 @@ interface IngestConfig {
 
 const SOURCES: Record<BibleTranslationId, IngestConfig> = {
   BSB: { translation: 'BSB', url: 'https://bereanbible.com/bsb.txt', cachePath: 'scripts/data/bsb.txt', embed: true },
-  // KJV/WEB sources pinned in Task 3. embed:false — they reuse BSB's semantic index.
+  // KJV: Public Domain (US). Source: https://eBible.org/Scriptures/eng-kjv_vpl.zip
+  //   (eBible.org eng-kjv distribution; UK Crown letters-patent caveat noted).
+  //   Format in zip: OSIS code + space + C:V + space + text (no tab, no full English names).
+  //   REQUIRES operator conversion before ingest — see docs/runbooks/bible-translations-ingest.md.
+  //   After running convert-vpl-to-bsb-tsv.ts the cache file scripts/data/kjv.txt is produced;
+  //   url is left empty because the raw zip cannot be consumed directly by parseBsbText.
   KJV: { translation: 'KJV', url: '', cachePath: 'scripts/data/kjv.txt', embed: false },
+  // WEB: World English Bible Protestant edition. Public Domain.
+  //   Source: https://eBible.org/Scriptures/engwebp_vpl.zip
+  //   (eBible.org engwebp distribution; "World English Bible" is a trademark of eBible.org).
+  //   Format in zip: same OSIS VPL shape as KJV — requires convert-vpl-to-bsb-tsv.ts first.
   WEB: { translation: 'WEB', url: '', cachePath: 'scripts/data/web.txt', embed: false },
 };
 
