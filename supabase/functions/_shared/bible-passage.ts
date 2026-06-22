@@ -6,6 +6,18 @@
 
 import type { RetrievedItem } from './retrieval.ts';
 
+// Minimal typing for the supabase client slice we need (avoids pulling in the
+// full @supabase/supabase-js types in a context where the JSR import is used).
+interface _SupabaseLike {
+  from(table: string): {
+    select(cols: string): {
+      eq(col: string, val: string): {
+        in(col: string, ids: string[]): PromiseLike<{ data: BiblePassageRow[] | null; error: { message: string } | null }>;
+      };
+    };
+  };
+}
+
 export interface BiblePassageRow {
   id: string;
   book: string;
@@ -50,4 +62,42 @@ export function buildPassages(
       };
     })
     .filter((x): x is BiblePassage => x !== null);
+}
+
+/**
+ * Fetch bible_passages by OSIS ids in the requested translation, with a
+ * per-id BSB fallback for any id not present in that translation.
+ *
+ * - When translation === 'BSB', a single query is issued (no fallback needed).
+ * - When translation !== 'BSB', a second query covers only the ids that came
+ *   back empty from the first (versification fallback).
+ *
+ * Returns a Map<id, BiblePassageRow> covering all supplied ids that exist in
+ * either the requested translation or BSB.
+ */
+export async function fetchPassageText(
+  supabase: _SupabaseLike,
+  ids: string[],
+  translation: string,
+): Promise<Map<string, BiblePassageRow>> {
+  const byId = new Map<string, BiblePassageRow>();
+  if (ids.length === 0) return byId;
+
+  const pull = async (t: string, need: string[]): Promise<void> => {
+    if (need.length === 0) return;
+    const { data, error } = await supabase
+      .from('bible_passages')
+      .select('id, book, chapter, verse_start, verse_end, text')
+      .eq('translation', t)
+      .in('id', need);
+    if (error) throw new Error(error.message);
+    for (const r of (data ?? []) as BiblePassageRow[]) byId.set(r.id, r);
+  };
+
+  await pull(translation, ids);
+  if (translation !== 'BSB') {
+    const missing = ids.filter((id) => !byId.has(id));
+    await pull('BSB', missing); // versification fallback
+  }
+  return byId;
 }

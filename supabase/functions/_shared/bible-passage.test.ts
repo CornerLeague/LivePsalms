@@ -1,6 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { formatVerseRef, buildPassages, type BiblePassageRow } from './bible-passage';
+import { formatVerseRef, buildPassages, fetchPassageText, type BiblePassageRow } from './bible-passage';
 import type { RetrievedItem } from './retrieval';
+
+// Fake supabase: returns KJV for jhn.3.16 only; BSB for both ids.
+function fakeSupabase() {
+  return {
+    from() {
+      return {
+        select() { return this; },
+        eq(_col: string, val: string) { (this as Record<string, unknown>)._t = val; return this; },
+        in(_col: string, ids: string[]) { (this as Record<string, unknown>)._ids = ids; return this; },
+        then(res: (v: unknown) => void) {
+          const t = (this as Record<string, string>)._t;
+          const ids = (this as Record<string, string[]>)._ids;
+          const rows = ids
+            .filter((id) => (t === 'KJV' ? id === 'jhn.3.16' : true))
+            .map((id) => ({ id, text: `${t}:${id}`, book: 'jhn', chapter: 3, verse_start: 16, verse_end: 16 }));
+          res({ data: rows, error: null });
+          return this;
+        },
+      };
+    },
+  };
+}
 
 function makeRow(over: Partial<BiblePassageRow> = {}): BiblePassageRow {
   return {
@@ -25,6 +47,14 @@ function makeRetrieved(over: Partial<RetrievedItem> = {}): RetrievedItem {
     ...over,
   };
 }
+
+describe('fetchPassageText fallback', () => {
+  it('uses the chosen translation, falling back to BSB per-id', async () => {
+    const byId = await fetchPassageText(fakeSupabase() as never, ['jhn.3.16', 'jhn.3.17'], 'KJV');
+    expect(byId.get('jhn.3.16')?.text).toBe('KJV:jhn.3.16');
+    expect(byId.get('jhn.3.17')?.text).toBe('BSB:jhn.3.17'); // fell back
+  });
+});
 
 describe('formatVerseRef', () => {
   it('formats a single-verse reference as Book C:V', () => {

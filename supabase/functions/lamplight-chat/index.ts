@@ -8,7 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '../_shared/supabase.ts';
 import { type VoyageDeps, embedQuery } from '../_shared/voyage.ts';
 import { searchBible, searchUserNotesByQuery } from '../_shared/retrieval.ts';
-import { formatVerseRef } from '../_shared/bible-passage.ts';
+import { formatVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
 import { createAnthropicAdapter } from '../_shared/anthropic.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { hasChatAccess, type LamplightTier } from '../_shared/entitlement.ts';
@@ -48,9 +48,16 @@ async function handleChat(req: Request): Promise<Response> {
   if (!anthropicKey) return jsonResp({ error: 'ANTHROPIC_API_KEY missing' }, 500);
   if (!voyageKey) return jsonResp({ error: 'VOYAGE_AI_KEY missing' }, 500);
 
-  let body: { book?: string; chapter?: number; message?: string; mode?: string };
+  let body: { book?: string; chapter?: number; message?: string; mode?: string; translation?: string };
   try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
   const mode = body.mode === 'insight' ? 'insight' : 'chat';
+
+  const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
+  type Translation = typeof VALID_TRANSLATIONS[number];
+  const translation: Translation =
+    (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '')
+      ? (body.translation as Translation)
+      : 'BSB';
   if (typeof body.book !== 'string' || typeof body.chapter !== 'number') {
     return jsonResp({ error: 'bad payload' }, 400);
   }
@@ -137,7 +144,7 @@ async function handleChat(req: Request): Promise<Response> {
         message: mode === 'insight' ? '' : message,
         retrievalQuery,
         history,
-        voyageDeps, rerankEnabled,
+        voyageDeps, rerankEnabled, translation,
       });
       const result = await runBibleChatPipeline({
         llm, ctx,
@@ -189,15 +196,20 @@ async function buildChatContext(
     message: string;          // rendered as the question (empty for insight)
     retrievalQuery: string;   // what we embed for note/cross-ref search
     history: Array<{ role: 'user' | 'assistant'; content: string }>;
-    voyageDeps: VoyageDeps; rerankEnabled: boolean;
+    voyageDeps: VoyageDeps; rerankEnabled: boolean; translation?: string;
   },
 ): Promise<BibleChatContext> {
-  // Open chapter passages.
-  const { data: chapterRows, error: cErr } = await supabase
-    .from('bible_passages')
+  const translation = args.translation ?? 'BSB';
+
+  // Open chapter passages — fetched in the chosen translation (with eq filter).
+  // The chapter browse fetch uses a LIKE pattern; we add eq('translation') then like.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chapterQuery = (supabase.from('bible_passages') as any)
     .select('id, book, chapter, verse_start, verse_end, text')
+    .eq('translation', translation)
     .like('id', `${args.book}.${args.chapter}.%`)
     .order('verse_start', { ascending: true });
+  const { data: chapterRows, error: cErr } = await chapterQuery;
   if (cErr) throw cErr;
   const verses = (chapterRows ?? []) as Array<{ book: string; chapter: number; verse_start: number; verse_end: number; text: string }>;
   const passageText = verses.map((v) => `${v.verse_start} ${v.text}`).join(' ');
@@ -222,18 +234,18 @@ async function buildChatContext(
       .filter((n) => n.plaintext.trim().length > 0);
   }
 
-  // Cross-reference passages from the whole Bible.
+  // Cross-reference passages from the whole Bible — semantic search stays BSB;
+  // text fetch uses the chosen translation with BSB fallback via fetchPassageText.
   const retrievedBible = await searchBible(
     { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
-    { query: args.retrievalQuery, k: CROSSREF_K, queryEmbedding },
+    { query: args.retrievalQuery, k: CROSSREF_K, queryEmbedding, translation },
   );
   const crossIds = retrievedBible.map((r) => r.source_id);
   let crossRefs: BibleChatContext['crossRefs'] = [];
   const crossRefSet = new Set<string>();
   if (crossIds.length) {
-    const { data: crossRows } = await supabase
-      .from('bible_passages').select('id, book, chapter, verse_start, verse_end, text').in('id', crossIds);
-    crossRefs = ((crossRows ?? []) as Array<{ book: string; chapter: number; verse_start: number; verse_end: number; text: string }>)
+    const byId = await fetchPassageText(supabase as never, crossIds, translation);
+    crossRefs = [...byId.values()]
       .map((p) => { const ref = formatVerseRef(p); crossRefSet.add(ref.toLowerCase()); return { ref, text: p.text }; });
   }
 

@@ -64,9 +64,19 @@ export function parseRefToIds(ref: string): string[] | null {
   return ids;
 }
 
+type _VerifyQueryBuilder = {
+  in(col: string, ids: string[]): {
+    order(col: string, opts: { ascending: boolean }): Promise<{
+      data: { id: string; verse_start: number; text: string }[] | null;
+      error: { message: string } | null;
+    }>;
+  };
+};
+
 interface MinimalSupabase {
   from(table: 'bible_passages'): {
     select(cols: string): {
+      eq(col: string, val: string): _VerifyQueryBuilder;
       in(col: string, ids: string[]): {
         order(col: string, opts: { ascending: boolean }): Promise<{
           data: { id: string; verse_start: number; text: string }[] | null;
@@ -81,21 +91,43 @@ interface MinimalSupabase {
  * For each ref: 'found' (with joined canonical text) when bible_passages has the
  * rows, else 'not_found'. Unparseable/unknown-book refs are silently skipped
  * (no flag). Lookups run per-ref so one bad ref can't poison the others.
+ *
+ * translation defaults to 'BSB'. When a non-BSB translation is requested and
+ * returns no rows, the lookup retries with 'BSB' (versification fallback) before
+ * marking the ref not_found.
  */
 export async function verifyVerseRefs(
   supabase: MinimalSupabase,
   refs: string[],
+  translation = 'BSB',
 ): Promise<VerseFlag[]> {
+  const queryForTranslation = async (
+    ids: string[],
+    t: string,
+  ): Promise<{ id: string; verse_start: number; text: string }[]> => {
+    const { data, error } = await supabase
+      .from('bible_passages')
+      .select('id, verse_start, text')
+      .eq('translation', t)
+      .in('id', ids)
+      .order('verse_start', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  };
+
   const flags: VerseFlag[] = [];
   for (const ref of refs) {
     const ids = parseRefToIds(ref);
     if (!ids) continue;
-    const { data, error } = await supabase
-      .from('bible_passages')
-      .select('id, verse_start, text')
-      .in('id', ids)
-      .order('verse_start', { ascending: true });
-    if (error || !data || data.length === 0) {
+
+    let data = await queryForTranslation(ids, translation);
+
+    // Versification fallback: if the chosen translation has no rows, try BSB.
+    if (data.length === 0 && translation !== 'BSB') {
+      data = await queryForTranslation(ids, 'BSB');
+    }
+
+    if (data.length === 0) {
       flags.push({ ref, status: 'not_found' });
       continue;
     }

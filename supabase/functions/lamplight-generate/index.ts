@@ -13,7 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '../_shared/supabase.ts';
 import { embedQuery, type VoyageDeps } from '../_shared/voyage.ts';
 import { searchBible } from '../_shared/retrieval.ts';
-import { type BiblePassageRow } from '../_shared/bible-passage.ts';
+import { type BiblePassageRow, fetchPassageText } from '../_shared/bible-passage.ts';
 import { createAnthropicAdapter } from '../_shared/anthropic.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { retrieveNoteContext, type NoteContextDeps, type RawNoteRow } from '../_shared/note-context.ts';
@@ -76,8 +76,16 @@ async function handleGenerate(req: Request): Promise<Response> {
     local_date?: string;
     source_note_id?: string;
     related_note_id?: string;
+    translation?: string;
   };
   try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
+
+  const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
+  type Translation = typeof VALID_TRANSLATIONS[number];
+  const translation: Translation =
+    (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '')
+      ? (body.translation as Translation)
+      : 'BSB';
 
   const supabase = serviceClient();
 
@@ -126,7 +134,7 @@ async function handleGenerate(req: Request): Promise<Response> {
       lifecycleDeps,
       { userId, artifactKind: 'smoke_test' },
       async () => {
-        const ctx = await buildSmokeTestContext(supabase, { userId, voyageDeps, rerankEnabled });
+        const ctx = await buildSmokeTestContext(supabase, { userId, voyageDeps, rerankEnabled, translation });
         const result = await runSmokeTestPipeline({ llm, ctx });
         return { response: result, usage: result.usage };
       },
@@ -144,7 +152,7 @@ async function handleGenerate(req: Request): Promise<Response> {
       { userId, artifactKind: 'daily_devotion' },
       async () => {
         const ctx = await buildDailyDevotionContext(supabase, {
-          userId, localDate, voyageDeps, rerankEnabled,
+          userId, localDate, voyageDeps, rerankEnabled, translation,
         });
         const result = await runDailyDevotionPipeline({ llm, supabase, ctx, userId, localDate });
         return { response: result, usage: result.usage };
@@ -201,6 +209,7 @@ function noteContextDeps(
   supabase: SupabaseClient,
   voyageDeps: VoyageDeps,
   rerankEnabled: boolean,
+  translation = 'BSB',
 ): NoteContextDeps {
   return {
     async fetchRecentNotes(userId, limit) {
@@ -214,14 +223,10 @@ function noteContextDeps(
       return (data ?? []) as RawNoteRow[];
     },
     embedQuery: (text) => embedQuery(text, voyageDeps),
-    searchBible: (queryArgs) => searchBible({ supabase, voyage: voyageDeps, rerankEnabled }, queryArgs),
+    searchBible: (queryArgs) => searchBible({ supabase, voyage: voyageDeps, rerankEnabled }, { ...queryArgs, translation }),
     async fetchPassages(sourceIds) {
-      const { data, error } = await supabase
-        .from('bible_passages')
-        .select('id, book, chapter, verse_start, verse_end, text')
-        .in('id', sourceIds);
-      if (error) throw error;
-      return (data ?? []) as BiblePassageRow[];
+      const byId = await fetchPassageText(supabase as never, sourceIds, translation);
+      return [...byId.values()] as BiblePassageRow[];
     },
   };
 }
@@ -230,9 +235,9 @@ function noteContextDeps(
 // Theme query = longest survivor's plaintext.
 function buildSmokeTestContext(
   supabase: SupabaseClient,
-  args: { userId: string; voyageDeps: VoyageDeps; rerankEnabled: boolean },
+  args: { userId: string; voyageDeps: VoyageDeps; rerankEnabled: boolean; translation?: string },
 ): Promise<SmokeTestContext | null> {
-  return retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled), {
+  return retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled, args.translation), {
     userId: args.userId,
     noteLimit: 5,
     rerankEnabled: args.rerankEnabled,
@@ -247,9 +252,9 @@ function buildSmokeTestContext(
 // the profile is never read when the user has no notes.
 async function buildDailyDevotionContext(
   supabase: SupabaseClient,
-  args: { userId: string; localDate: string; voyageDeps: VoyageDeps; rerankEnabled: boolean },
+  args: { userId: string; localDate: string; voyageDeps: VoyageDeps; rerankEnabled: boolean; translation?: string },
 ): Promise<DailyDevotionContext | null> {
-  const base = await retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled), {
+  const base = await retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled, args.translation), {
     userId: args.userId,
     noteLimit: 3,
     rerankEnabled: args.rerankEnabled,
