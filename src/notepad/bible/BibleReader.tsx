@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, CornerDownLeft, Search } from 'lucide-react'
 import { bookByAbbrev, type BibleBook } from './bible-books';
 import { searchBooks } from './book-search';
 import { useBiblePassages } from './useBiblePassages';
+import { type BibleTranslation, TRANSLATIONS } from './translations';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { STYLE_ASSETS, getStyleAsset } from '../styles/manifest';
 import { highlightBackgroundStyle } from '../extensions/style-highlight';
@@ -22,6 +23,10 @@ export interface VerseRef extends PassageRef {
 export interface BibleReaderProps {
   initialBook?: string;
   initialChapter?: number;
+  /** The active Bible translation (BSB | KJV | WEB). */
+  translation: BibleTranslation;
+  /** Called when the user picks a different translation from the dropdown. */
+  onTranslationChange: (t: BibleTranslation) => void;
   /** Fires whenever the displayed book/chapter changes (mount + navigation). */
   onPassageChange?: (ref: PassageRef) => void;
   /** Fires when the user taps a verse (chat focus in Phase 2). */
@@ -37,6 +42,8 @@ export interface BibleReaderProps {
 export function BibleReader({
   initialBook = 'jhn',
   initialChapter = 1,
+  translation,
+  onTranslationChange,
   onPassageChange,
   onSelectVerse,
   highlightSwatchByVerse = {},
@@ -92,7 +99,7 @@ export function BibleReader({
   };
 
   const meta = bookByAbbrev(book);
-  const { verses, loading, error } = useBiblePassages(book, chapter);
+  const { verses, loading, error } = useBiblePassages(book, chapter, translation);
 
   useEffect(() => {
     onPassageChange?.({ book, chapter });
@@ -156,6 +163,17 @@ export function BibleReader({
           <span className="text-[9px]" style={{ color: 'var(--silica)' }}>▾</span>
         </button>
         <div className="flex items-center gap-1">
+          <select
+            aria-label="Translation"
+            value={translation}
+            onChange={(e) => onTranslationChange(e.target.value as BibleTranslation)}
+            className="text-[11px] font-semibold rounded px-1 py-0.5 mr-1 outline-none"
+            style={{ color: 'var(--deep-umber)', background: 'transparent', border: '1px solid var(--pale-stone)' }}
+          >
+            {TRANSLATIONS.map((t) => (
+              <option key={t.id} value={t.id}>{t.label}</option>
+            ))}
+          </select>
           <button
             aria-label="Previous chapter"
             onClick={goPrev}

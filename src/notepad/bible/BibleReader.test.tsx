@@ -3,6 +3,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
+// jsdom doesn't implement window.matchMedia — stub it so useIsMobile doesn't throw.
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
+});
+
 const useBiblePassages = vi.fn();
 vi.mock('./useBiblePassages', () => ({ useBiblePassages: (...a: unknown[]) => useBiblePassages(...a) }));
 
@@ -23,7 +38,7 @@ afterEach(cleanup);
 
 describe('BibleReader', () => {
   it('renders the current passage heading and verses', () => {
-    render(<BibleReader initialBook="jhn" initialChapter={1} />);
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
     expect(screen.getByText('John 1')).toBeInTheDocument();
     expect(screen.getByText(/In the beginning was the Word/)).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument(); // verse number
@@ -31,7 +46,7 @@ describe('BibleReader', () => {
 
   it('advances to the next chapter and reports the passage change', () => {
     const onPassageChange = vi.fn();
-    render(<BibleReader initialBook="jhn" initialChapter={1} onPassageChange={onPassageChange} />);
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} onPassageChange={onPassageChange} />);
     fireEvent.click(screen.getByRole('button', { name: /next chapter/i }));
     expect(screen.getByText('John 2')).toBeInTheDocument();
     expect(onPassageChange).toHaveBeenLastCalledWith({ book: 'jhn', chapter: 2 });
@@ -39,7 +54,7 @@ describe('BibleReader', () => {
 
   it('disables previous at chapter 1 and reports verse selection', () => {
     const onSelectVerse = vi.fn();
-    render(<BibleReader initialBook="jhn" initialChapter={1} onSelectVerse={onSelectVerse} />);
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} onSelectVerse={onSelectVerse} />);
     expect(screen.getByRole('button', { name: /previous chapter/i })).toBeDisabled();
     fireEvent.click(screen.getByText(/In the beginning was the Word/));
     expect(onSelectVerse).toHaveBeenLastCalledWith({ book: 'jhn', chapter: 1, verse: 1 });
@@ -47,13 +62,13 @@ describe('BibleReader', () => {
 
   it('shows a loading state', () => {
     useBiblePassages.mockReturnValue({ loading: true, error: null, verses: [] });
-    render(<BibleReader initialBook="jhn" initialChapter={1} />);
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
 
   it('opens the navigator and jumps to a chosen book + chapter', () => {
     const onPassageChange = vi.fn();
-    render(<BibleReader initialBook="jhn" initialChapter={1} onPassageChange={onPassageChange} />);
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} onPassageChange={onPassageChange} />);
 
     // Open navigator via the heading button.
     fireEvent.click(screen.getByRole('button', { name: /browse books/i }));
@@ -67,7 +82,7 @@ describe('BibleReader', () => {
   });
 
   it('filters the book list as you type in the search bar', () => {
-    render(<BibleReader initialBook="jhn" initialChapter={1} />);
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /browse books/i }));
 
     const search = screen.getByLabelText(/search books or verse/i);
@@ -81,7 +96,7 @@ describe('BibleReader', () => {
 
   it('offers a "Go to" jump for a typed verse reference and follows it', () => {
     const onPassageChange = vi.fn();
-    render(<BibleReader initialBook="jhn" initialChapter={1} onPassageChange={onPassageChange} />);
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} onPassageChange={onPassageChange} />);
     fireEvent.click(screen.getByRole('button', { name: /browse books/i }));
 
     fireEvent.change(screen.getByLabelText(/search books or verse/i), {
@@ -91,5 +106,16 @@ describe('BibleReader', () => {
 
     expect(screen.getByText('Genesis 3')).toBeInTheDocument();
     expect(onPassageChange).toHaveBeenLastCalledWith({ book: 'gen', chapter: 3 });
+  });
+});
+
+describe('BibleReader translation selector', () => {
+  it('renders a translation control and reports changes', () => {
+    const onTranslationChange = vi.fn();
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={onTranslationChange} />);
+    const select = screen.getByLabelText('Translation') as HTMLSelectElement;
+    expect(select.value).toBe('BSB');
+    fireEvent.change(select, { target: { value: 'KJV' } });
+    expect(onTranslationChange).toHaveBeenCalledWith('KJV');
   });
 });
