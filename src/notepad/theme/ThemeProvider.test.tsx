@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthSessionContext } from '@/auth/context/useAuthSession';
 import { ThemeProvider } from './ThemeProvider';
@@ -39,18 +39,19 @@ function renderAt(path: string) {
   );
 }
 
-// Helper child that flips the theme to 'dark' on mount.
+// Helper child that exposes theme control via a clickable button.
 function ThemeSetter() {
   const { setTheme } = useTheme();
-  // set synchronously on first render
-  (globalThis as Record<string, unknown>).__setDark ??= () => setTheme('dark');
-  return null;
+  return (
+    <button onClick={() => setTheme('dark')}>set-dark</button>
+  );
 }
 
 describe('ThemeProvider route-gated .dark', () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.classList.remove('dark');
+    document.body.innerHTML = ''; // Clear DOM between tests
     installMatchMedia(true); // OS dark so 'system' resolves dark
   });
 
@@ -75,5 +76,13 @@ describe('ThemeProvider route-gated .dark', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     unmount();
     expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('applies .dark when theme is explicitly set to dark on a notepad route despite OS light', () => {
+    installMatchMedia(false); // OS prefers light → 'system' would resolve light
+    renderAt('/notepad/notes');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    fireEvent.click(screen.getByText('set-dark'));
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 });
