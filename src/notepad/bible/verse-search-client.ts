@@ -84,6 +84,6 @@ export function createBrowserVerseSearchDeps(
       return { book, chapter: rows[0].chapter, verseStart, verseEnd, text };
     },
 
-    fetchVerseText: (ref, o) => fetchVerseText(ref, { ...o, translation }),
+    fetchVerseText: (ref, o) => fetchVerseText(ref, { translation, ...o }),
   };
 }
