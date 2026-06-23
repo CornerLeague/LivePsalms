@@ -10,8 +10,7 @@ import { PaywallCard } from '@/notepad/components/lamplight/PaywallCard';
 import { LamplightChat } from '@/notepad/components/lamplight/chat/LamplightChat';
 import type { InvokeFn } from './lamplight-chat-client';
 import { BibleReader, type PassageRef } from './BibleReader';
-import { useBibleTranslation } from './useBibleTranslation';
-import { useBibleVerseLayout } from './useBibleVerseLayout';
+import { useBiblePrefs } from './prefs/bible-prefs-context';
 import { useBibleHighlights } from './highlights/useBibleHighlights';
 import { bookByAbbrev } from './bible-books';
 import { SplitResizeHandle } from './SplitResizeHandle';
@@ -53,8 +52,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke }: BibleStudyPaneProps
     });
   }, []);
 
-  const { translation, setTranslation } = useBibleTranslation({ userId });
-  const { verseLayout, setVerseLayout } = useBibleVerseLayout({ userId });
+  const { translation, setTranslation, verseLayout, setVerseLayout } = useBiblePrefs();
 
   const { swatchByVerse, setHighlight, removeHighlight } = useBibleHighlights(
     passage.book,

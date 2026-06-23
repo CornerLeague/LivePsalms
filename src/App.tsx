@@ -25,6 +25,7 @@ import { useRouteTransition } from '@/transitions/useRouteTransition';
 import { RouteTransitionProvider } from '@/transitions/RouteTransitionContext';
 import { LoadingOverlayContext } from '@/hooks/loading-overlay-context';
 import { ThemeProvider } from '@/notepad/theme/ThemeProvider';
+import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
 import './App.css';
 
 // ── Route-level code splitting ───────────────────────────────────────────────
@@ -205,6 +206,7 @@ function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
+      <BiblePrefsProvider>
       <RouteTransitionProvider value={routeTransitionValue}>
         <LoadingOverlayContext.Provider value={overlayPresent}>
         <div
@@ -314,6 +316,7 @@ function App() {
       <HeroLoadingOverlay active={overlay.active} onCrossfadeComplete={handleOverlayGone} />
         </LoadingOverlayContext.Provider>
     </RouteTransitionProvider>
+      </BiblePrefsProvider>
       </ThemeProvider>
     </AuthProvider>
   );

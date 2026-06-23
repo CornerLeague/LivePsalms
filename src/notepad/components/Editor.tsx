@@ -28,7 +28,7 @@ import { useNoteCollection } from '../context/useNoteCollection';
 import { useNotepadActions } from '../context/useNotepadActions';
 import { useReferenceGraph } from '../context/useReferenceGraph';
 import { useNoteEditor } from '../editor/use-note-editor';
-import { useBibleTranslation } from '../bible/useBibleTranslation';
+import { useBiblePrefs } from '../bible/prefs/bible-prefs-context';
 import { useNoteLinkPopup } from '../editor/use-note-link-popup';
 import { useVerseTooltip } from '../editor/use-verse-tooltip';
 import { useSelectionAnchor, detectDoubleTap } from '../editor/use-selection-anchor';
@@ -75,10 +75,10 @@ export function NotepadEditor({
   const openNote = collection.openNote;
   const { profile } = useAccountProfile();
 
-  // Active Bible translation (device default; profile-hydrated when signed in).
+  // Active Bible translation from the shared BiblePrefsProvider.
   // Captured at the editor's mount and frozen onto scriptureRefs inserted via the
   // picker — see the mount-time note in useNoteEditor.
-  const { translation } = useBibleTranslation();
+  const { translation } = useBiblePrefs();
 
   // The TipTap↔NotepadActions bridge for the active Note. See NoteEditor in CONTEXT.md.
   const { editor } = useNoteEditor({ activeNote, updateNote, onAfterSave, translation });
