@@ -94,7 +94,7 @@ export function NotepadToolbar({
           {/* Search bar button */}
           <button
             onClick={onOpenSearch}
-            className="flex items-center gap-2 flex-1 max-w-xs mx-2 px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            className="flex items-center gap-2 flex-1 max-w-xs mx-2 px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors focus:outline-none focus-visible:outline-none"
             style={{
               background: 'color-mix(in srgb, var(--warm-sand) 15%, transparent)',
               border: '1px solid color-mix(in srgb, var(--pale-stone) 50%, transparent)',

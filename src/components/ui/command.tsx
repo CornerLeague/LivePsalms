@@ -63,17 +63,22 @@ function CommandInput({
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
+    // Light, contained "type here" field — fixed warm-light bg + dark ink in
+    // both light and dark themes so it always reads as an active input the
+    // moment the dialog opens (the colors intentionally don't flip with theme).
     <div
       data-slot="command-input-wrapper"
-      className="flex h-9 items-center gap-2 border-b px-3"
+      className="m-2 flex h-11 items-center gap-2 rounded-md px-3"
+      style={{ background: "#ffffff", border: "1px solid #E2DDD4" }}
     >
-      <SearchIcon className="size-4 shrink-0 opacity-50" />
+      <SearchIcon className="size-4 shrink-0" style={{ color: "#8A8B90" }} />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+          "placeholder:text-[#8A8B90] flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
+        style={{ color: "#3A3426" }}
         {...props}
       />
     </div>
