@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+vi.mock('@/lib/supabase', () => ({ supabase: null }));
 vi.mock('@/notepad/bible/BibleReader', () => ({
   BibleReader: (props: { initialBook: string; initialChapter: number }) =>
     <div>reader {props.initialBook}:{props.initialChapter}</div>,
@@ -9,6 +10,7 @@ vi.mock('@/notepad/bible/BibleReader', () => ({
 vi.mock('@/auth/context/useAuthSession', () => ({
   useAuthSession: () => ({ user: null }),
 }));
+
 import { StudyReader } from './StudyReader';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
 
