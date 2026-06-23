@@ -121,5 +121,16 @@ export function useNoteEditor({
     };
   }, []);
 
+  // Bridge the live translation into editor storage so new scripture-ref inserts
+  // are stamped with the current active version (not the version frozen at mount).
+  // Writing through the extension storage object (not the editor itself) so the
+  // change applies to new inserts without rebuilding the editor.
+  useEffect(() => {
+    if (!editor) return;
+    const allStorage = editor.storage as unknown as Record<string, Record<string, unknown>>;
+    const refStorage = allStorage['scriptureRef'];
+    if (refStorage) refStorage['translation'] = translation;
+  }, [editor, translation]);
+
   return { editor };
 }

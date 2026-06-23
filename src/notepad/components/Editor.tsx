@@ -83,6 +83,7 @@ export function NotepadEditor({
   // The TipTap↔NotepadActions bridge for the active Note. See NoteEditor in CONTEXT.md.
   const { editor } = useNoteEditor({ activeNote, updateNote, onAfterSave, translation });
 
+
   const isBottomToolbar = toolbarPlacement === 'bottom';
 
   // Read-only decoration overlay state (style stickers placed over the note).
