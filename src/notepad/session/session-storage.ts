@@ -9,6 +9,7 @@ const KEY_EDITOR_TAB = 'psalms.session.editorTab';
 const KEY_STUDY_TAB = 'psalms.session.studyTab';
 const KEY_BIBLE_PASSAGE = 'psalms.bible.passage';
 const KEY_BIBLE_TRANSLATION = 'psalms.bible.translation';
+const KEY_BIBLE_VERSE_LAYOUT = 'psalms.bible.verseLayout';
 const KEY_THEME = 'psalms.session.theme';
 
 export {
@@ -17,6 +18,7 @@ export {
   KEY_EDITOR_TAB,
   KEY_STUDY_TAB,
   KEY_BIBLE_TRANSLATION,
+  KEY_BIBLE_VERSE_LAYOUT,
   KEY_THEME,
 };
 
