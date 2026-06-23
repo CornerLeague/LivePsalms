@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const { theme, resolvedTheme, setTheme } = useThemePreference({ userId });
   const { pathname } = useLocation();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const on = shouldApplyDark(pathname, resolvedTheme);
     root.classList.toggle('dark', on);
