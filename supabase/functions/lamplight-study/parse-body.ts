@@ -1,6 +1,6 @@
 // parse-body.ts — extracted so unit tests can import without the Deno serve URL.
-const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
-type Translation = (typeof VALID_TRANSLATIONS)[number];
+export const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
+export type Translation = (typeof VALID_TRANSLATIONS)[number];
 
 export type ParsedStudyBody =
   | { ok: true; book: string; chapter: number; message: string; mode: 'chat' | 'insight'; includeNotes: boolean; noteIds: string[]; translation?: Translation }

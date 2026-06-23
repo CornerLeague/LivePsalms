@@ -20,7 +20,7 @@ import { runBibleChatPipeline } from '../lamplight-chat/bible-chat-pipeline.ts';
 import { buildStudyContext } from './study-context.ts';
 import { STUDY_CHAT_PROMPT } from './prompts/study-chat.ts';
 import { STUDY_INSIGHT_PROMPT } from './prompts/study-insight.ts';
-import { parseStudyBody, type ParsedStudyBody } from './parse-body.ts';
+import { parseStudyBody, type ParsedStudyBody, VALID_TRANSLATIONS, type Translation } from './parse-body.ts';
 
 export { parseStudyBody, type ParsedStudyBody };
 
@@ -63,8 +63,6 @@ async function handleStudy(req: Request): Promise<Response> {
   const userId = await deriveUserId(supabase, bearerToken(req));
   if (!userId) return jsonResp({ error: 'unauthorized' }, 401);
 
-  const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
-  type Translation = (typeof VALID_TRANSLATIONS)[number];
   let translation: Translation = parsed.translation ?? 'BSB';
   if (!parsed.translation) {
     try {
