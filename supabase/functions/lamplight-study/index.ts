@@ -63,6 +63,20 @@ async function handleStudy(req: Request): Promise<Response> {
   const userId = await deriveUserId(supabase, bearerToken(req));
   if (!userId) return jsonResp({ error: 'unauthorized' }, 401);
 
+  const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
+  type Translation = (typeof VALID_TRANSLATIONS)[number];
+  let translation: Translation = parsed.translation ?? 'BSB';
+  if (!parsed.translation) {
+    try {
+      const { data: profilePref } = await supabase
+        .from('profiles').select('bible_translation').eq('id', userId).maybeSingle();
+      const pref = (profilePref as { bible_translation?: unknown } | null)?.bible_translation;
+      if (typeof pref === 'string' && (VALID_TRANSLATIONS as readonly string[]).includes(pref)) {
+        translation = pref as Translation;
+      }
+    } catch { /* non-fatal: fall through with BSB */ }
+  }
+
   const { data: settings, error: sErr } = await supabase
     .from('lamplight_settings').select('enabled').eq('user_id', userId).maybeSingle();
   if (sErr) return jsonResp({ error: sErr.message }, 500);
@@ -123,6 +137,7 @@ async function handleStudy(req: Request): Promise<Response> {
         includeNotes, noteIds,
         voyageDeps, rerankEnabled,
         crossRefK: CROSSREF_K, noteK: NOTE_K,
+        translation,
       });
 
       const result = await runBibleChatPipeline({

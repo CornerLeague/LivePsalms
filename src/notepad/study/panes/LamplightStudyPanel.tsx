@@ -5,6 +5,7 @@ import { useStudyChatThread } from '../useStudyChatThread';
 import { useNotesOnOffer } from '../useNotesOnOffer';
 import { sendStudyMessage, requestStudyInsight } from '../study-chat-client';
 import type { InvokeFn } from '@/notepad/bible/lamplight-chat-client';
+import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 
 const invoke: InvokeFn = (name, options) =>
   supabase!.functions.invoke(name, { body: options.body as Record<string, unknown> }) as ReturnType<InvokeFn>;
@@ -26,6 +27,7 @@ function friendlyError(reason: string): string {
 export interface LamplightStudyPanelProps { book: string; chapter: number; userId: string | null }
 
 export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPanelProps) {
+  const { translation } = useBiblePrefs();
   const thread = useStudyChatThread(book, chapter, userId);
   const notes = useNotesOnOffer();
   const [draft, setDraft] = useState('');
@@ -43,12 +45,13 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       book, chapter, message,
       includeNotes: includeIds.length > 0,
       noteIds: includeIds,
+      translation,
     });
     setSending(false);
     if (!res.ok) { setError(friendlyError(res.reason)); return; }
     thread.append([{ id: `a-${Date.now()}`, role: 'assistant', content: res.reply, citations: res.citations }]);
     notes.setOffered(res.offeredNotes);
-  }, [book, chapter, thread, notes]);
+  }, [book, chapter, translation, thread, notes]);
 
   const send = useCallback(async () => {
     const m = draft.trim();
