@@ -121,7 +121,67 @@ describe('BibleReader translation selector', () => {
 
   it('exposes the active translation attribution', () => {
     render(<BibleReader translation="KJV" onTranslationChange={() => {}} />);
-    expect(screen.getByLabelText('Translation')
-      .closest('div')!.querySelector('[title]')!.getAttribute('title')).toMatch(/public domain/i);
+    expect(screen.getByLabelText('Translation info').getAttribute('title')).toMatch(/public domain/i);
+  });
+});
+
+describe('BibleReader verse layout control', () => {
+  it('renders the layout control labelled with the current mode', () => {
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        verseLayout="inline" onVerseLayoutChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /change verse layout \(currently inline\)/i })).toBeInTheDocument();
+  });
+
+  it('cycles inline -> lines on click', () => {
+    const onVerseLayoutChange = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        verseLayout="inline" onVerseLayoutChange={onVerseLayoutChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /change verse layout/i }));
+    expect(onVerseLayoutChange).toHaveBeenCalledWith('lines');
+  });
+
+  it('cycles spaced -> inline on click', () => {
+    const onVerseLayoutChange = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        verseLayout="spaced" onVerseLayoutChange={onVerseLayoutChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /change verse layout/i }));
+    expect(onVerseLayoutChange).toHaveBeenCalledWith('inline');
+  });
+
+  it('keeps verse anchors, text, and tap selection in spaced mode', () => {
+    const onSelectVerse = vi.fn();
+    const { container } = render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        verseLayout="spaced" onVerseLayoutChange={() => {}}
+        onSelectVerse={onSelectVerse}
+      />,
+    );
+    const verse1 = container.querySelector('#bible-verse-1') as HTMLElement;
+    expect(verse1).not.toBeNull();
+    expect(verse1.textContent).toMatch(/In the beginning was the Word/);
+    fireEvent.click(screen.getByText(/In the beginning was the Word/));
+    expect(onSelectVerse).toHaveBeenLastCalledWith({ book: 'jhn', chapter: 1, verse: 1 });
+  });
+
+  it('defaults to inline (joined prose) when no layout prop is given', () => {
+    const { container } = render(
+      <BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />,
+    );
+    // Inline mode renders the verses inside a <p>; block modes use a <div>.
+    const verse1 = container.querySelector('#bible-verse-1') as HTMLElement;
+    expect(verse1.closest('p')).not.toBeNull();
   });
 });

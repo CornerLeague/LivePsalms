@@ -1,10 +1,11 @@
 // src/notepad/bible/BibleReader.tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, CornerDownLeft, Search, Info } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, CornerDownLeft, Search, Info, WrapText, List, Rows3 } from 'lucide-react';
 import { bookByAbbrev, type BibleBook } from './bible-books';
 import { searchBooks } from './book-search';
 import { useBiblePassages } from './useBiblePassages';
 import { type BibleTranslation, TRANSLATIONS, translationInfo } from './translations';
+import { type VerseLayout, nextVerseLayout, VERSE_LAYOUT_LABEL } from './bible-layout-types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { STYLE_ASSETS, getStyleAsset } from '../styles/manifest';
 import { highlightBackgroundStyle } from '../extensions/style-highlight';
@@ -40,6 +41,10 @@ export interface BibleReaderProps {
   /** Verse-number color. Defaults to the scripture-gold accent; the Study reader
       passes the body text color so the numbers read as part of the passage. */
   verseNumberColor?: string;
+  /** Current verse layout. Defaults to 'inline' (continuous prose). */
+  verseLayout?: VerseLayout;
+  /** Called when the user cycles the layout control. */
+  onVerseLayoutChange?: (layout: VerseLayout) => void;
 }
 
 export function BibleReader({
@@ -53,6 +58,8 @@ export function BibleReader({
   onSetHighlight,
   onRemoveHighlight,
   verseNumberColor = 'var(--lamplight-accent)',
+  verseLayout = 'inline',
+  onVerseLayoutChange,
 }: BibleReaderProps) {
   const [book, setBook] = useState(initialBook);
   const [chapter, setChapter] = useState(initialChapter);
@@ -152,6 +159,7 @@ export function BibleReader({
   };
 
   const label = `${meta?.name ?? book} ${chapter}`;
+  const LayoutIcon = verseLayout === 'inline' ? WrapText : verseLayout === 'lines' ? List : Rows3;
 
   return (
     <div className="flex flex-col h-full" style={{ fontFamily: 'Outfit, sans-serif' }}>
@@ -167,6 +175,14 @@ export function BibleReader({
           <span className="text-[9px]" style={{ color: 'var(--silica)' }}>▾</span>
         </button>
         <div className="flex items-center gap-1">
+          <button
+            aria-label={`Change verse layout (currently ${VERSE_LAYOUT_LABEL[verseLayout].toLowerCase()})`}
+            title={`Verse layout: ${VERSE_LAYOUT_LABEL[verseLayout]} — click to change`}
+            onClick={() => onVerseLayoutChange?.(nextVerseLayout(verseLayout))}
+            className="p-1.5 rounded hover:bg-black/5 transition-colors"
+          >
+            <LayoutIcon className="w-4 h-4" style={{ color: 'var(--deep-umber)' }} />
+          </button>
           <select
             aria-label="Translation"
             value={translation}
@@ -318,37 +334,47 @@ export function BibleReader({
             No text found for this chapter.
           </p>
         )}
-        {!loading && !error && verses.length > 0 && (
-          <p className="text-[13px] leading-[1.9]" style={{ color: 'var(--deep-umber)' }}>
-            {verses.map((v) => {
-              const swatchId = highlightSwatchByVerse[v.verse];
-              const asset = swatchId ? getStyleAsset(swatchId) : undefined;
-              const highlightStyle = asset ? highlightBackgroundStyle(asset.displayUrl) : '';
-              return (
-                <span
-                  key={v.verse}
-                  id={`bible-verse-${v.verse}`}
-                  onClick={() => selectVerse(v.verse)}
-                  className={asset ? 'cursor-pointer bible-verse-highlight' : 'cursor-pointer'}
-                  // A persisted swatch wins; otherwise show the transient tap tint.
-                  style={
-                    asset
-                      ? cssTextToStyle(highlightStyle)
-                      : {
-                          background:
-                            selectedVerse === v.verse ? 'rgba(196,154,120,0.22)' : 'transparent',
-                          borderRadius: 3,
-                          padding: '0 2px',
-                        }
-                  }
-                >
-                  <sup className="text-[9px] font-bold mr-1" style={{ color: verseNumberColor }}>{v.verse}</sup>
-                  {v.text}{' '}
-                </span>
-              );
-            })}
-          </p>
-        )}
+        {!loading && !error && verses.length > 0 && (() => {
+          const blockMode = verseLayout !== 'inline';
+          const Container = blockMode ? 'div' : 'p';
+          return (
+            <Container className="text-[13px] leading-[1.9]" style={{ color: 'var(--deep-umber)' }}>
+              {verses.map((v) => {
+                const swatchId = highlightSwatchByVerse[v.verse];
+                const asset = swatchId ? getStyleAsset(swatchId) : undefined;
+                const highlightStyle = asset ? highlightBackgroundStyle(asset.displayUrl) : '';
+                const verseSpan = (
+                  <span
+                    id={`bible-verse-${v.verse}`}
+                    onClick={() => selectVerse(v.verse)}
+                    className={asset ? 'cursor-pointer bible-verse-highlight' : 'cursor-pointer'}
+                    // A persisted swatch wins; otherwise show the transient tap tint.
+                    style={
+                      asset
+                        ? cssTextToStyle(highlightStyle)
+                        : {
+                            background:
+                              selectedVerse === v.verse ? 'rgba(196,154,120,0.22)' : 'transparent',
+                            borderRadius: 3,
+                            padding: '0 2px',
+                          }
+                    }
+                  >
+                    <sup className="text-[9px] font-bold mr-1" style={{ color: verseNumberColor }}>{v.verse}</sup>
+                    {v.text}{blockMode ? '' : ' '}
+                  </span>
+                );
+                return blockMode ? (
+                  <div key={v.verse} style={{ marginBottom: verseLayout === 'spaced' ? '0.7em' : 0 }}>
+                    {verseSpan}
+                  </div>
+                ) : (
+                  <Fragment key={v.verse}>{verseSpan}</Fragment>
+                );
+              })}
+            </Container>
+          );
+        })()}
         {highlightingEnabled && pickerVerse != null && pickerAnchor && (
           isMobile ? (
             <HighlightPill
