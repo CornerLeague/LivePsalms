@@ -11,6 +11,7 @@ const KEY_BIBLE_PASSAGE = 'psalms.bible.passage';
 const KEY_BIBLE_TRANSLATION = 'psalms.bible.translation';
 const KEY_BIBLE_VERSE_LAYOUT = 'psalms.bible.verseLayout';
 const KEY_THEME = 'psalms.session.theme';
+const KEY_MOBILE_STUDY_TAB = 'psalms.session.mobileStudyTab';
 
 export {
   KEY_LAST_NOTE,
@@ -20,6 +21,7 @@ export {
   KEY_BIBLE_TRANSLATION,
   KEY_BIBLE_VERSE_LAYOUT,
   KEY_THEME,
+  KEY_MOBILE_STUDY_TAB,
 };
 
 function readRaw(key: string): string | null {
