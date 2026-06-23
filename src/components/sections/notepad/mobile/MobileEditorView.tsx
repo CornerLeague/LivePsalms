@@ -30,7 +30,7 @@ export function MobileEditorView({
 }: MobileEditorViewProps) {
   const keyboardInset = useKeyboardInset();
   return (
-    <div className="relative flex flex-col h-full min-h-0" style={{ background: 'var(--plaster)' }}>
+    <div className="relative flex flex-col h-full min-h-0" style={{ background: 'var(--notepad-page-bg)' }}>
       <header
         className="shrink-0 flex items-center justify-between gap-1 px-3"
         style={{ height: 48, borderBottom: '1px solid var(--pale-stone)', fontFamily: 'Outfit, sans-serif' }}
@@ -40,7 +40,7 @@ export function MobileEditorView({
           onClick={onExit}
           className="flex items-center"
         >
-          <img src="/logo-icon.png" alt="LivePsalms" className="h-7 w-auto object-contain" />
+          <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
         <ThemeToggle className="w-9 h-9" />

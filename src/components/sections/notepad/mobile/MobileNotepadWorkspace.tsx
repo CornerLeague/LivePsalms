@@ -140,7 +140,7 @@ export function MobileNotepadWorkspace() {
   return (
     <div
       className="fixed inset-x-0 top-0 flex flex-col"
-      style={{ height: '100dvh', background: 'var(--plaster)' }}
+      style={{ height: '100dvh', background: 'var(--notepad-page-bg)' }}
     >
       {!model.isOnline && model.user && (
         <div
@@ -231,7 +231,7 @@ export function MobileNotepadWorkspace() {
       {scan !== null && model.user && (
         <div
           className="fixed inset-0 z-[60] flex flex-col overflow-y-auto"
-          style={{ background: 'var(--plaster)' }}
+          style={{ background: 'var(--notepad-page-bg)' }}
         >
           {scan === 'capture' ? (
             <ScanCapturePanel

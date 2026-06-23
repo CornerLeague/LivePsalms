@@ -27,7 +27,7 @@ export function MobileTabBar({ active, onSelect, lamplightHasConnections }: Mobi
       className="shrink-0 flex"
       style={{
         borderTop: '1px solid var(--pale-stone)',
-        background: 'rgba(240, 236, 232, 0.97)',
+        background: 'var(--notepad-bar-bg)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         paddingBottom: 'env(safe-area-inset-bottom)',
