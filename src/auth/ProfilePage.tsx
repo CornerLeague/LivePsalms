@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { LamplightSettingsSection } from './components/LamplightSettingsSection';
+import { BibleReadingSettingsSection } from './settings/BibleReadingSettingsSection';
 import { ApplePersonalTokensSection } from './components/ApplePersonalTokensSection';
 import { UsernameSection } from './components/UsernameSection';
 import { AdminEntryLink } from './components/AdminEntryLink';
@@ -330,6 +331,9 @@ export function ProfilePage() {
             }
           }}
         />
+
+        {/* Bible & Reading */}
+        <BibleReadingSettingsSection sectionStyle={sectionStyle} labelStyle={labelStyle} />
 
         {/* Lamplight */}
         {user && lamplightAdapter && (
