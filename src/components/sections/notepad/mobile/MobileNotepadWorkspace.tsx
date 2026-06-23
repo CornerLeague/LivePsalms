@@ -20,6 +20,7 @@ import { MobileNewNoteTypeSheet } from './MobileNewNoteTypeSheet';
 import { useMobileWorkspaceModel } from './useMobileWorkspaceModel';
 import type { NoteType } from '../../../../notepad/types';
 import { useHasConnections } from './useHasConnections';
+import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { ScanCapturePanel } from '../../../../notepad/components/ScanCapturePanel';
 import { TranscriptionReview } from '../../../../notepad/components/TranscriptionReview';
 import type { TranscriptionResult } from '../../../../notepad/scan/types';
@@ -154,6 +155,15 @@ export function MobileNotepadWorkspace() {
         >
           <WifiOff className="w-3.5 h-3.5" />
           You're offline — viewing cached notes
+        </div>
+      )}
+
+      {effectiveTab !== 'editor' && (
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{ padding: '6px 12px', borderBottom: '1px solid var(--pale-stone)' }}
+        >
+          <StudyModeToggle />
         </div>
       )}
 
