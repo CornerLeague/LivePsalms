@@ -28,7 +28,7 @@ export function LamplightMobileView({
   const [segment, setSegment] = useState<LampSegment>('today');
 
   return (
-    <div className="flex flex-col h-full min-h-0" style={{ background: 'var(--alabaster)' }}>
+    <div className="lamplight-mobile-view flex flex-col h-full min-h-0" style={{ background: 'var(--alabaster)' }}>
       <div className="shrink-0 px-4 pt-3 pb-2">
         <Segmented<LampSegment>
           options={[

@@ -109,6 +109,8 @@
     --study-verse-num: var(--deep-umber);           /* study verse numbers — matches text (light) */
     --graph-popover-bg: rgba(255, 255, 255, 0.95); /* graph node popover panel (light) */
     --highlight-panel-bg: #fff;                    /* verse highlight picker panel (light) */
+    --peek-scripture: #9a6f3a;                     /* mobile NodePeek scripture reference + verse-chip gold (light) */
+    --peek-scripture-wash: rgba(196, 154, 120, 0.15); /* verse-chip wash behind the gold (light) */
     /* Elevated chrome (toolbars / sidebar headers / popovers) — one step above
        --plaster. Single source for the warm three-step elevation ramp. */
     --surface-elevated: rgba(240, 236, 232, 0.97);
@@ -184,6 +186,8 @@
     --study-verse-num: #b7ada0;         /* study verse numbers — a bit darker than the text on dark */
     --graph-popover-bg: var(--surface-elevated);   /* elevated popover over the near-black graph canvas */
     --highlight-panel-bg: var(--surface-elevated); /* elevated highlight picker panel on dark */
+    --peek-scripture: var(--lamplight-accent);     /* lifted scripture gold on dark — matches .dark .scripture-ref-link */
+    --peek-scripture-wash: rgba(196, 181, 160, 0.15); /* dark verse-chip wash (lifted gold) */
     --text-muted: #14120f;
 
     /* Graph canvas palette (read by graph-view.ts via getComputedStyle) */
@@ -227,6 +231,13 @@
      notepad chrome. Lift it to a light silhouette. Scoped to .dark + the notepad
      nav only — light mode and every other logo usage stay untouched. */
   .dark .notepad-nav-logo { filter: brightness(0) invert(1); }
+
+  /* Mobile Lamplight tab: its surfaces (and the desktop-shared panels it embeds)
+     paint var(--alabaster) — one step warmer/lighter than the rest of the dark
+     mobile chrome. Remap --alabaster to the page bg for this subtree ONLY, in
+     dark ONLY, so the Lamplight tab matches the other mobile tabs (#0e0e0e)
+     without touching light mode or the desktop Lamplight surface. */
+  .dark .lamplight-mobile-view { --alabaster: var(--notepad-page-bg); }
 
   /* Dark mode: highlighted text rides a light swatch wash, so the light body ink
      (--deep-umber → #efedee) would vanish on it. Force the ink dark so the text
