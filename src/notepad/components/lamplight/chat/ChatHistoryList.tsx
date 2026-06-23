@@ -38,7 +38,7 @@ export function ChatHistoryList({ threads, loading, onSelect, onBack }: ChatHist
             key={t.id}
             onClick={() => onSelect(t.id)}
             className="w-full text-left p-2.5 rounded-md"
-            style={{ background: '#fff', border: '1px solid var(--pale-stone)' }}
+            style={{ background: 'var(--surface-elevated)', border: '1px solid var(--pale-stone)' }}
           >
             <div className="flex items-center justify-between gap-2">
               <span className="text-[12px] font-medium truncate" style={{ color: 'var(--deep-umber)' }}>
@@ -48,7 +48,7 @@ export function ChatHistoryList({ threads, loading, onSelect, onBack }: ChatHist
                 className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0"
                 style={{
                   background: t.archived ? 'rgba(188,179,163,0.25)' : 'rgba(196,154,120,0.18)',
-                  color: t.archived ? 'var(--silica)' : '#8a6c50',
+                  color: t.archived ? 'var(--silica)' : 'var(--chat-badge-current)',
                 }}
               >
                 {t.archived ? 'Past' : 'Current'}

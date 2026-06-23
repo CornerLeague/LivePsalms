@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { ThemeContext, type ThemeContextValue } from '../theme/theme-context';
 
 vi.mock('./panes/ApparatusRail', () => ({ ApparatusRail: () => <div>rail</div> }));
 vi.mock('./panes/StudySidePanel', () => ({ StudySidePanel: () => <div>panel</div> }));
@@ -30,15 +31,19 @@ import { StudyWorkspace } from './StudyWorkspace';
 
 afterEach(cleanup);
 
+const themeValue: ThemeContextValue = { theme: 'system', resolvedTheme: 'light', setTheme: vi.fn() };
+
 describe('StudyWorkspace', () => {
   it('renders the toggle and three panes under data-mode="study" without an update loop', () => {
     const hierarchy = new FolderHierarchy(new FakeStorageAdapter());
     const { container } = render(
-      <MemoryRouter>
-        <FolderHierarchyContext.Provider value={hierarchy}>
-          <StudyWorkspace />
-        </FolderHierarchyContext.Provider>
-      </MemoryRouter>,
+      <ThemeContext.Provider value={themeValue}>
+        <MemoryRouter>
+          <FolderHierarchyContext.Provider value={hierarchy}>
+            <StudyWorkspace />
+          </FolderHierarchyContext.Provider>
+        </MemoryRouter>
+      </ThemeContext.Provider>,
     );
     const root = container.querySelector('[data-mode="study"]');
     expect(root).toBeTruthy();
@@ -51,11 +56,13 @@ describe('StudyWorkspace', () => {
   it('collapses the context rail to a reopen strip', () => {
     const hierarchy = new FolderHierarchy(new FakeStorageAdapter());
     render(
-      <MemoryRouter>
-        <FolderHierarchyContext.Provider value={hierarchy}>
-          <StudyWorkspace />
-        </FolderHierarchyContext.Provider>
-      </MemoryRouter>,
+      <ThemeContext.Provider value={themeValue}>
+        <MemoryRouter>
+          <FolderHierarchyContext.Provider value={hierarchy}>
+            <StudyWorkspace />
+          </FolderHierarchyContext.Provider>
+        </MemoryRouter>
+      </ThemeContext.Provider>,
     );
     expect(screen.getByText('rail')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /collapse context/i }));

@@ -37,6 +37,9 @@ export interface BibleReaderProps {
   onSetHighlight?: (verse: number, swatchId: string) => void;
   /** Remove a verse highlight. */
   onRemoveHighlight?: (verse: number) => void;
+  /** Verse-number color. Defaults to the scripture-gold accent; the Study reader
+      passes the body text color so the numbers read as part of the passage. */
+  verseNumberColor?: string;
 }
 
 export function BibleReader({
@@ -49,6 +52,7 @@ export function BibleReader({
   highlightSwatchByVerse = {},
   onSetHighlight,
   onRemoveHighlight,
+  verseNumberColor = 'var(--lamplight-accent)',
 }: BibleReaderProps) {
   const [book, setBook] = useState(initialBook);
   const [chapter, setChapter] = useState(initialChapter);
@@ -325,7 +329,7 @@ export function BibleReader({
                   key={v.verse}
                   id={`bible-verse-${v.verse}`}
                   onClick={() => selectVerse(v.verse)}
-                  className="cursor-pointer"
+                  className={asset ? 'cursor-pointer bible-verse-highlight' : 'cursor-pointer'}
                   // A persisted swatch wins; otherwise show the transient tap tint.
                   style={
                     asset
@@ -338,7 +342,7 @@ export function BibleReader({
                         }
                   }
                 >
-                  <sup className="text-[9px] font-bold mr-1" style={{ color: 'var(--lamplight-accent)' }}>{v.verse}</sup>
+                  <sup className="text-[9px] font-bold mr-1" style={{ color: verseNumberColor }}>{v.verse}</sup>
                   {v.text}{' '}
                 </span>
               );

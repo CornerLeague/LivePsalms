@@ -78,6 +78,19 @@ maybeDescribe('profiles privileged-column guard (integration)', () => {
     expect(error).toBeNull();
   });
 
+  it('still allows the owner to self-update theme', async () => {
+    const { error } = await userA.client
+      .from('profiles').update({ theme: 'dark' }).eq('id', userA.userId);
+    expect(error).toBeNull();
+
+    const { data } = await serviceClient()
+      .from('profiles').select('theme').eq('id', userA.userId).single();
+    expect(data?.theme).toBe('dark');
+
+    // restore default so the row is left clean for other runs
+    await userA.client.from('profiles').update({ theme: 'system' }).eq('id', userA.userId);
+  });
+
   it('regression: a qualifying note insert still bumps note_count via the trigger', async () => {
     const svc = serviceClient();
     const before = await svc.from('profiles').select('note_count').eq('id', userA.userId).single();

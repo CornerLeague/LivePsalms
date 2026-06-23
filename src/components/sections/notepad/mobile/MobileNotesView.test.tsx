@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ThemeContext, type ThemeContextValue } from '../../../../notepad/theme/theme-context';
 
 vi.mock('../../../../notepad/components/Sidebar', () => ({
   NotepadSidebar: () => <div data-testid="sidebar" />,
@@ -8,6 +9,8 @@ vi.mock('../../../../notepad/components/Sidebar', () => ({
 import { MobileNotesView } from './MobileNotesView';
 
 afterEach(cleanup);
+
+const themeValue: ThemeContextValue = { theme: 'system', resolvedTheme: 'light', setTheme: vi.fn() };
 
 describe('<MobileNotesView />', () => {
   const props = {
@@ -20,7 +23,11 @@ describe('<MobileNotesView />', () => {
   };
 
   it('renders the sidebar and the FAB menu trigger', () => {
-    const { getByTestId, getByLabelText } = render(<MobileNotesView {...props} />);
+    const { getByTestId, getByLabelText } = render(
+      <ThemeContext.Provider value={themeValue}>
+        <MobileNotesView {...props} />
+      </ThemeContext.Provider>,
+    );
     expect(getByTestId('sidebar')).toBeTruthy();
     expect(getByLabelText('New note menu')).toBeTruthy();
   });
@@ -30,7 +37,9 @@ describe('<MobileNotesView />', () => {
     const onOpenSearch = vi.fn();
     const onNewNote = vi.fn();
     const { getByLabelText } = render(
-      <MobileNotesView {...props} onExit={onExit} onOpenSearch={onOpenSearch} onNewNote={onNewNote} />,
+      <ThemeContext.Provider value={themeValue}>
+        <MobileNotesView {...props} onExit={onExit} onOpenSearch={onOpenSearch} onNewNote={onNewNote} />
+      </ThemeContext.Provider>,
     );
     fireEvent.click(getByLabelText('Home'));
     fireEvent.click(getByLabelText('Search notes'));

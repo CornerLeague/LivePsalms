@@ -24,7 +24,7 @@ class MockContext {
   arc(...a: unknown[]) { this.rec('arc', ...a); }
   moveTo(...a: unknown[]) { this.rec('moveTo', ...a); }
   lineTo(...a: unknown[]) { this.rec('lineTo', ...a); }
-  stroke() { this.rec('stroke', this.strokeStyle); }
+  stroke() { this.rec('stroke', { strokeStyle: this.strokeStyle, globalAlpha: this.globalAlpha }); }
   fill() { this.rec('fill'); }
   fillText(...a: unknown[]) { this.rec('fillText', ...a); }
   measureText(s: string) { return { width: s.length * 6 } as unknown as TextMetrics; }
@@ -857,9 +857,12 @@ describe('GraphView — drag to orbit', () => {
 });
 
 describe('GraphView — edge depth fade', () => {
-  function alphaOf(strokeStyle: string): number {
-    const m = /rgba\([^)]*,\s*([\d.]+)\)/.exec(strokeStyle);
-    return m ? parseFloat(m[1]) : NaN;
+  function alphaOf(strokeData: { strokeStyle: string; globalAlpha: number } | string): number {
+    if (typeof strokeData === 'string') {
+      const m = /rgba\([^)]*,\s*([\d.]+)\)/.exec(strokeData);
+      return m ? parseFloat(m[1]) : NaN;
+    }
+    return strokeData.globalAlpha;
   }
 
   it('draws an edge between back-facing nodes fainter than one between front-facing nodes', () => {
@@ -882,7 +885,7 @@ describe('GraphView — edge depth fade', () => {
     pin('ba', -40, 0, -200); pin('bb', 40, 0, -200);
     view.settle();
 
-    const strokes = canvas.ctx.calls.filter((c) => c.method === 'stroke').map((c) => String(c.args[0]));
+    const strokes = canvas.ctx.calls.filter((c) => c.method === 'stroke').map((c) => c.args[0]);
     expect(strokes.length).toBe(2);
     expect(alphaOf(strokes[0])).toBeGreaterThan(alphaOf(strokes[1])); // front brighter than back
   });

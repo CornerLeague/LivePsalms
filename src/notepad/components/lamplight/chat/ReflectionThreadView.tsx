@@ -12,7 +12,7 @@ export function ReflectionThreadView({ threadId, onBack }: ReflectionThreadViewP
   const { messages, loading, error } = useThreadMessages(threadId);
 
   return (
-    <div className="flex flex-col h-full" style={{ fontFamily: 'Outfit, sans-serif', background: 'rgba(255,255,255,0.45)' }}>
+    <div className="flex flex-col h-full" style={{ fontFamily: 'Outfit, sans-serif', background: 'var(--chat-panel-bg)' }}>
       <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ borderBottom: '1px solid var(--pale-stone)' }}>
         <button
           aria-label="Back to history"
@@ -27,7 +27,7 @@ export function ReflectionThreadView({ threadId, onBack }: ReflectionThreadViewP
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {loading && <p className="text-[11px]" style={{ color: 'var(--silica)' }}>Loading reflection…</p>}
-        {error && !loading && <p className="text-[11px]" style={{ color: '#b45454' }}>{error}</p>}
+        {error && !loading && <p className="text-[11px]" style={{ color: 'var(--error-rose, #b45454)' }}>{error}</p>}
         {!loading && !error && messages.map((m) => (
           <ChatMessage key={m.id} role={m.role} content={m.content} citations={m.citations} />
         ))}

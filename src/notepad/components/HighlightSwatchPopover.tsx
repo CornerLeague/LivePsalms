@@ -83,7 +83,7 @@ export function HighlightSwatchPopover({
         left: anchor.left,
         zIndex: 60,
         width: 200,
-        background: '#fff',
+        background: 'var(--highlight-panel-bg)',
         border: '1px solid var(--pale-stone)',
         borderRadius: 9,
         boxShadow: '0 8px 22px rgba(0,0,0,.16)',

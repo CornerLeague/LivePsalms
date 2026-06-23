@@ -47,7 +47,7 @@ export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lampl
       style={{
         flex: expanded ? '1 1 0%' : graphOpen ? '0 0 35%' : '0 0 0px',
         borderColor: graphOpen ? 'var(--pale-stone)' : 'transparent',
-        background: 'rgba(240, 236, 232, 0.4)',
+        background: 'var(--notepad-aside-bg)',
         opacity: graphOpen ? 1 : 0,
         transition: 'flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
       }}
