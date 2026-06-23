@@ -22,10 +22,12 @@ interface UseNoteEditorOpts {
   // Used by Lamplight Signal Layer to enqueue embedding refresh. Errors are
   // swallowed inside the callback; this prop never rejects.
   onAfterSave?: (note: Note) => void;
-  // The active Bible translation. Captured ONCE at mount (the editor's extensions
-  // build once) and frozen onto scriptureRefs inserted via the picker — a later
-  // preference change does not re-create the editor (that would drop cursor/undo
-  // state), so already-mounted editors keep the mount-time translation.
+  // The active Bible translation, sourced live from the shared BiblePrefsProvider.
+  // The editor is built once (a preference change does NOT re-create it — that
+  // would drop cursor/undo state), so the live value is bridged into the
+  // ScriptureRef extension's storage by the useEffect below; new picker inserts
+  // read it from storage, applying a mid-session version change without rewriting
+  // already-inserted refs.
   translation?: BibleTranslation;
 }
 
