@@ -11,6 +11,8 @@ import { NotepadAuthControls } from '@/notepad/components/NotepadAuthControls';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 import { useEnsureStudyFolder } from './useEnsureStudyFolder';
 import './study-theme.css';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileStudyWorkspace } from './mobile/MobileStudyWorkspace';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
 
@@ -27,7 +29,7 @@ const railBtnStyle: React.CSSProperties = {
   borderRadius: 6,
 };
 
-export function StudyWorkspace() {
+export function DesktopStudyWorkspace() {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
   const navigate = useNavigate();
@@ -176,4 +178,9 @@ export function StudyWorkspace() {
       </div>
     </div>
   );
+}
+
+export function StudyWorkspace() {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileStudyWorkspace /> : <DesktopStudyWorkspace />;
 }

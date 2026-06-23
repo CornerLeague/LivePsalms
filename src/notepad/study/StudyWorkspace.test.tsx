@@ -23,13 +23,20 @@ vi.mock('./panes/StudyReader', async () => {
 });
 vi.mock('@/auth/context/useAuthSession', () => ({ useAuthSession: () => ({ user: { id: 'u1' }, loading: false }) }));
 
+const isMobile = { value: false };
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => isMobile.value }));
+vi.mock('./mobile/MobileStudyWorkspace', () => ({ MobileStudyWorkspace: () => <div>mobile-study</div> }));
+
 import { MemoryRouter } from 'react-router-dom';
 import { FolderHierarchyContext } from '../context/useFolderHierarchy';
 import { FolderHierarchy } from '../collection/folder-hierarchy';
 import { FakeStorageAdapter } from '../collection/fake-storage-adapter';
 import { StudyWorkspace } from './StudyWorkspace';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  isMobile.value = false;
+});
 
 const themeValue: ThemeContextValue = { theme: 'system', resolvedTheme: 'light', setTheme: vi.fn() };
 
@@ -68,5 +75,17 @@ describe('StudyWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /collapse context/i }));
     expect(screen.queryByText('rail')).toBeNull();
     expect(screen.getByRole('button', { name: /expand context/i })).toBeInTheDocument();
+  });
+
+  it('renders the mobile workspace below the breakpoint', () => {
+    isMobile.value = true;
+    render(
+      <ThemeContext.Provider value={themeValue}>
+        <MemoryRouter>
+          <StudyWorkspace />
+        </MemoryRouter>
+      </ThemeContext.Provider>,
+    );
+    expect(screen.getByText('mobile-study')).toBeInTheDocument();
   });
 });
