@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { runDailyDevotionPipeline, type DailyDevotionContext } from './daily-devotion-pipeline';
-import type { LLMAdapter, GenerateOutput } from '../_shared/anthropic';
+import { describe, it, expect, vi } from 'vitest';
+import { runDailyDevotionPipeline, runDailyDevotionStreaming, type DailyDevotionContext } from './daily-devotion-pipeline';
+import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/anthropic';
 import type { DailyDevotion } from '../_shared/artifacts';
 
 function makeCtx(overrides: Partial<DailyDevotionContext> = {}): DailyDevotionContext {
@@ -334,5 +334,181 @@ describe('runDailyDevotionPipeline', () => {
       });
     }
     expect(inserts).toHaveLength(0);
+  });
+});
+
+describe('runDailyDevotionStreaming', () => {
+  // A fixture that satisfies the streaming length gate:
+  //   opening 80–280 chars, reflection 400–900 chars, prompt 1–200 chars.
+  // cleanArtifact.opening is 69 chars (fails the 80-char floor), so we extend it.
+  const streamArtifact: DailyDevotion = {
+    ...cleanArtifact,
+    opening: 'A quiet greeting, and an arresting thread from your notes: the lamp is lit and the day is yours.',
+  };
+
+  // Build a streaming LLM adapter that fires onField for each of the five
+  // daily-devotion fields in order, then returns the full parsed artifact.
+  function makeStreamAdapter(artifact: DailyDevotion): LLMAdapter {
+    return {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        return { parsed: artifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      },
+      async generateStream<U>(
+        _: GenerateStreamInput,
+        handlers: StreamHandlers,
+      ): Promise<GenerateOutput<U>> {
+        // Replay fields in schema-declared order
+        handlers.onField?.('opening', artifact.opening);
+        handlers.onField?.('scripture', artifact.scripture);
+        handlers.onField?.('reflection', artifact.reflection);
+        handlers.onField?.('prompt', artifact.prompt);
+        handlers.onField?.('note_citations', artifact.note_citations);
+        return { parsed: artifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      },
+    };
+  }
+
+  it('happy path: onPiece fires for each field in order, result persists', async () => {
+    const { supabase, inserts } = makeSupabaseMock();
+    const onStage = vi.fn();
+    const onPiece = vi.fn();
+    const onRefining = vi.fn();
+
+    const result = await runDailyDevotionStreaming(
+      {
+        llm: makeStreamAdapter(streamArtifact),
+        supabase,
+        ctx: makeCtx(),
+        userId: 'user-1',
+        localDate: '2026-05-27',
+      },
+      { onStage, onPiece, onRefining },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.artifact_id).toBe('artifact-1');
+      expect(result.attempts).toBe(1);
+      expect(result.cached).toBe(false);
+      expect(result.artifact.scripture.ref).toBe('Psalm 23:4');
+    }
+
+    // onPiece should have fired once per field, in order
+    expect(onPiece).toHaveBeenCalledTimes(5);
+    const calls = onPiece.mock.calls;
+    expect(calls[0][0]).toBe('opening');
+    expect(calls[1][0]).toBe('scripture');
+    expect(calls[2][0]).toBe('reflection');
+    expect(calls[3][0]).toBe('prompt');
+    expect(calls[4][0]).toBe('note_citations');
+
+    // onStage composing was fired
+    expect(onStage).toHaveBeenCalledWith('composing');
+
+    // onRefining was NOT fired on a clean first-attempt
+    expect(onRefining).not.toHaveBeenCalled();
+
+    // artifact was persisted
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).toMatchObject({
+      user_id: 'user-1',
+      type: 'daily_devotion',
+      period_key: '2026-05-27',
+    });
+  });
+
+  it('idempotency: returns cached artifact when one already exists, no stream call', async () => {
+    const { supabase, inserts } = makeSupabaseMock({ existing: cleanArtifact });
+    let streamCalls = 0;
+    const llm: LLMAdapter = {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        return { parsed: cleanArtifact as unknown as U, modelUsed: 'm', promptTokens: 0, completionTokens: 0 };
+      },
+      async generateStream<U>(): Promise<GenerateOutput<U>> {
+        streamCalls++;
+        return { parsed: cleanArtifact as unknown as U, modelUsed: 'm', promptTokens: 0, completionTokens: 0 };
+      },
+    };
+    const result = await runDailyDevotionStreaming(
+      { llm, supabase, ctx: makeCtx(), userId: 'user-1', localDate: '2026-05-27' },
+      { onStage: vi.fn(), onPiece: vi.fn(), onRefining: vi.fn() },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.cached).toBe(true);
+      expect(result.artifact_id).toBe('cached-id');
+    }
+    expect(streamCalls).toBe(0);
+    expect(inserts).toHaveLength(0);
+  });
+
+  it('no_notes: ctx null → ok:false reason:no_notes, no stream call', async () => {
+    const { supabase } = makeSupabaseMock();
+    let streamCalls = 0;
+    const llm: LLMAdapter = {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        return { parsed: cleanArtifact as unknown as U, modelUsed: 'm', promptTokens: 0, completionTokens: 0 };
+      },
+      async generateStream<U>(): Promise<GenerateOutput<U>> {
+        streamCalls++;
+        return { parsed: cleanArtifact as unknown as U, modelUsed: 'm', promptTokens: 0, completionTokens: 0 };
+      },
+    };
+    const result = await runDailyDevotionStreaming(
+      { llm, supabase, ctx: null, userId: 'user-1', localDate: '2026-05-27' },
+      { onStage: vi.fn(), onPiece: vi.fn(), onRefining: vi.fn() },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('no_notes');
+      expect(result.attempts).toBe(0);
+    }
+    expect(streamCalls).toBe(0);
+  });
+
+  it('length-gate: opening too short → perFieldValidate suppresses, refining fires, retry succeeds', async () => {
+    // Short opening that fails the 80-char minimum
+    const shortOpening = 'Too short.';
+    const shortArtifact: DailyDevotion = { ...cleanArtifact, opening: shortOpening };
+
+    const { supabase, inserts } = makeSupabaseMock();
+    const onRefining = vi.fn();
+    const onPiece = vi.fn();
+
+    // Stream adapter: first stream emits short opening (gate will suppress it),
+    // then generate (buffered retry) returns cleanArtifact
+    const llm: LLMAdapter = {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        return { parsed: cleanArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 5, completionTokens: 10 };
+      },
+      async generateStream<U>(
+        _: GenerateStreamInput,
+        handlers: StreamHandlers,
+      ): Promise<GenerateOutput<U>> {
+        // Emit the short opening — gate should suppress it
+        handlers.onField?.('opening', shortArtifact.opening);
+        // Remaining fields would not be emitted in a real abort, but the gate
+        // check happens per-field; we just emit the full artifact as parsed
+        return { parsed: shortArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 5, completionTokens: 10 };
+      },
+    };
+
+    const result = await runDailyDevotionStreaming(
+      { llm, supabase, ctx: makeCtx(), userId: 'user-1', localDate: '2026-05-27' },
+      { onStage: vi.fn(), onPiece, onRefining },
+    );
+
+    // onPiece should NOT have been called for the short opening (suppressed)
+    expect(onPiece.mock.calls.every((c: [string, unknown]) => c[0] !== 'opening')).toBe(true);
+
+    // onRefining fires because perFieldFailed was set
+    expect(onRefining).toHaveBeenCalledTimes(1);
+
+    // Retry with buffered generate(cleanArtifact) passes — result is ok
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.attempts).toBe(2);
+    }
+    expect(inserts).toHaveLength(1);
   });
 });

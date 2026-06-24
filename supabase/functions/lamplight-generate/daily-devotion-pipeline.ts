@@ -20,6 +20,7 @@ import {
   type ContentRuleViolation,
 } from '../_shared/validators.ts';
 import { generateWithRetry } from '../_shared/generate-with-retry.ts';
+import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { DAILY_DEVOTION_PROMPT } from './prompts/daily-devotion.ts';
 import type { UsageCore } from '../_shared/usage.ts';
 
@@ -62,13 +63,64 @@ export type DailyDevotionPipelineResult =
       usage: UsageCore | null;
     };
 
-export async function runDailyDevotionPipeline(args: {
-  llm: LLMAdapter;
+// ── Shared types ──────────────────────────────────────────────────────────────
+
+type DailyViolations = { citation: CitationViolation[]; content: ContentRuleViolation[] };
+
+// ── Shared generate config ────────────────────────────────────────────────────
+// Both buffered and streaming entries use identical validate / formatStricter /
+// tool / model / maxTokens. Factor them here so the two entries stay in sync.
+
+function makeDailyDevotionValidate(ctx: DailyDevotionContext) {
+  return async (parsed: DailyDevotion): Promise<{ ok: boolean; violations: DailyViolations }> => {
+    const citation = validateDailyDevotionCitations(parsed, {
+      allowedNoteIds: ctx.allowedNoteIds,
+      allowedVerseRefs: ctx.allowedVerseRefs,
+    });
+    const content = await applyContentRules(flattenDailyDevotionText(parsed), {
+      banned: BANNED_PHRASES,
+      contested: CONTESTED_PASSAGES,
+      growth: GROWTH_BANNED_PHRASES,
+    });
+    const nameViolations = applyNameRules({ artifact: parsed, firstName: ctx.firstName });
+    return {
+      ok: citation.ok && content.ok && nameViolations.length === 0,
+      violations: { citation: citation.violations, content: [...content.violations, ...nameViolations] },
+    };
+  };
+}
+
+function formatStricterSuffix(violations: DailyViolations): string {
+  const parts: string[] = [];
+  if (violations.citation.length > 0) {
+    parts.push(
+      'On retry: every section MUST cite only refs supplied in the user prompt; note_citations MUST reference only the supplied note ids.',
+    );
+  }
+  parts.push(...formatContentFamilyStricter(violations.content));
+  if (violations.content.some(v => v.family === 'name')) {
+    parts.push(
+      'On retry: use the supplied first name at most twice total across the artifact, never invent or fabricate a salutation, and never combine the name with a Scripture pronouncement.',
+    );
+  }
+  return parts.join(' ');
+}
+
+// ── Shared pre-generation logic ───────────────────────────────────────────────
+// Returns the cached result if an artifact already exists for (userId, localDate),
+// or { notCached: true } to signal the caller should proceed with generation.
+
+type PreCheckResult =
+  | { notCached: true; promptVersion: string }
+  | ({ ok: true } & Extract<DailyDevotionPipelineResult, { ok: true }>)
+  | ({ ok: false } & Extract<DailyDevotionPipelineResult, { ok: false }>);
+
+async function devotionPreCheck(args: {
   supabase: SupabaseClient;
-  ctx: DailyDevotionContext | null;
   userId: string;
   localDate: string;
-}): Promise<DailyDevotionPipelineResult> {
+  ctx: DailyDevotionContext | null;
+}): Promise<PreCheckResult> {
   const promptVersion = DAILY_DEVOTION_PROMPT.promptVersion;
 
   // Idempotency: short-circuit if (user, type, period_key) already exists.
@@ -95,36 +147,23 @@ export async function runDailyDevotionPipeline(args: {
   if (!args.ctx) {
     return { ok: false, reason: 'no_notes', prompt_version: promptVersion, attempts: 0, usage: null };
   }
-  const ctx = args.ctx;
 
-  const outcome = await generateWithRetry<DailyDevotion, DailyViolations>({
-    llm: args.llm,
-    model: 'sonnet',
-    maxTokens: 2048,
-    artifactSystem: DAILY_DEVOTION_PROMPT.system,
-    systemTokens: { local_date: ctx.localDate },
-    messages: DAILY_DEVOTION_PROMPT.buildMessages(ctx),
-    // `as const` on the nested schema produces literal types narrower than
-    // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
-    tool: DAILY_DEVOTION_PROMPT.tool as unknown as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: async (parsed) => {
-      const citation = validateDailyDevotionCitations(parsed, {
-        allowedNoteIds: ctx.allowedNoteIds,
-        allowedVerseRefs: ctx.allowedVerseRefs,
-      });
-      const content = await applyContentRules(flattenDailyDevotionText(parsed), {
-        banned: BANNED_PHRASES,
-        contested: CONTESTED_PASSAGES,
-        growth: GROWTH_BANNED_PHRASES,
-      });
-      const nameViolations = applyNameRules({ artifact: parsed, firstName: ctx.firstName });
-      return {
-        ok: citation.ok && content.ok && nameViolations.length === 0,
-        violations: { citation: citation.violations, content: [...content.violations, ...nameViolations] },
-      };
-    },
-    formatStricter: formatStricterSuffix,
-  });
+  return { notCached: true, promptVersion };
+}
+
+// ── Shared post-generation logic ──────────────────────────────────────────────
+// Handles the validators_failed branch, persists a clean outcome, and resolves
+// INSERT race conditions — identical between buffered and streaming entries.
+
+async function devotionPostGeneration(args: {
+  supabase: SupabaseClient;
+  userId: string;
+  localDate: string;
+  ctx: DailyDevotionContext; // guaranteed non-null: pre-check guards it
+  promptVersion: string;
+  outcome: Awaited<ReturnType<typeof generateWithRetry<DailyDevotion, DailyViolations>>>;
+}): Promise<DailyDevotionPipelineResult> {
+  const { outcome, ctx, promptVersion } = args;
 
   if (!outcome.ok) {
     return {
@@ -201,20 +240,121 @@ export async function runDailyDevotionPipeline(args: {
   };
 }
 
-type DailyViolations = { citation: CitationViolation[]; content: ContentRuleViolation[] };
+// ── Per-field length gate for the streaming entry ────────────────────────────
+// Character lengths are taken verbatim from the tool schema (daily-devotion.ts):
+//   opening  80–280, reflection 400–900, prompt 1–200.
+// `scripture` and `note_citations` are not length-gated here (structural
+// validation happens in the cross-field `validate` step after streaming).
+//
+// Design call #2: when a length violation occurs, `formatStricterSuffix` has no
+// 'length' family to render, so the stricter prompt carries no length-specific
+// instruction. We return an empty-but-non-null `{citation:[], content:[]}` so
+// the failure registers and a plain stricter retry runs. This avoids widening
+// the shared ContentRuleViolation.family union (out of scope). In practice,
+// Claude corrects length on a second attempt because the tool schema's
+// minLength/maxLength constraints remain in the prompt.
 
-function formatStricterSuffix(violations: DailyViolations): string {
-  const parts: string[] = [];
-  if (violations.citation.length > 0) {
-    parts.push(
-      'On retry: every section MUST cite only refs supplied in the user prompt; note_citations MUST reference only the supplied note ids.',
-    );
+function devotionFieldGate(field: string, value: unknown): DailyViolations | null {
+  if (typeof value !== 'string') return null;
+  const len = value.length;
+  if (field === 'opening' && (len < 80 || len > 280)) {
+    return { citation: [], content: [] };
   }
-  parts.push(...formatContentFamilyStricter(violations.content));
-  if (violations.content.some(v => v.family === 'name')) {
-    parts.push(
-      'On retry: use the supplied first name at most twice total across the artifact, never invent or fabricate a salutation, and never combine the name with a Scripture pronouncement.',
-    );
+  if (field === 'reflection' && (len < 400 || len > 900)) {
+    return { citation: [], content: [] };
   }
-  return parts.join(' ');
+  if (field === 'prompt' && (len < 1 || len > 200)) {
+    return { citation: [], content: [] };
+  }
+  return null;
+}
+
+// ── Buffered entry (unchanged semantics, now calls shared helpers) ─────────────
+
+export async function runDailyDevotionPipeline(args: {
+  llm: LLMAdapter;
+  supabase: SupabaseClient;
+  ctx: DailyDevotionContext | null;
+  userId: string;
+  localDate: string;
+}): Promise<DailyDevotionPipelineResult> {
+  const pre = await devotionPreCheck(args);
+  if (!('notCached' in pre)) return pre;
+  const { promptVersion } = pre;
+
+  const ctx = args.ctx!; // notCached implies ctx is non-null (pre-check guards it)
+
+  const outcome = await generateWithRetry<DailyDevotion, DailyViolations>({
+    llm: args.llm,
+    model: 'sonnet',
+    maxTokens: 2048,
+    artifactSystem: DAILY_DEVOTION_PROMPT.system,
+    systemTokens: { local_date: ctx.localDate },
+    messages: DAILY_DEVOTION_PROMPT.buildMessages(ctx),
+    // `as const` on the nested schema produces literal types narrower than
+    // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
+    tool: DAILY_DEVOTION_PROMPT.tool as unknown as Parameters<LLMAdapter['generate']>[0]['tool'],
+    validate: makeDailyDevotionValidate(ctx),
+    formatStricter: formatStricterSuffix,
+  });
+
+  return devotionPostGeneration({ supabase: args.supabase, userId: args.userId, localDate: args.localDate, ctx, promptVersion, outcome });
+}
+
+// ── Streaming entry ───────────────────────────────────────────────────────────
+// Uses generateStreamingWithRetry for attempt-1; the same validate/persist/race
+// tail is identical to the buffered entry via devotionPostGeneration.
+
+export interface DailyDevotionStreamHandlers {
+  onStage: (stage: 'composing') => void;
+  onPiece: (field: string, value: unknown) => void;
+  onRefining: () => void;
+}
+
+export async function runDailyDevotionStreaming(
+  args: {
+    llm: LLMAdapter;
+    supabase: SupabaseClient;
+    ctx: DailyDevotionContext | null;
+    userId: string;
+    localDate: string;
+  },
+  handlers: DailyDevotionStreamHandlers,
+): Promise<DailyDevotionPipelineResult> {
+  const pre = await devotionPreCheck(args);
+  if (!('notCached' in pre)) return pre;
+  const { promptVersion } = pre;
+
+  const ctx = args.ctx!; // notCached implies ctx is non-null
+
+  const outcome = await generateStreamingWithRetry<DailyDevotion, DailyViolations>({
+    llm: args.llm,
+    model: 'sonnet',
+    maxTokens: 2048,
+    artifactSystem: DAILY_DEVOTION_PROMPT.system,
+    systemTokens: { local_date: ctx.localDate },
+    messages: DAILY_DEVOTION_PROMPT.buildMessages(ctx),
+    tool: DAILY_DEVOTION_PROMPT.tool as unknown as Parameters<LLMAdapter['generate']>[0]['tool'],
+    validate: makeDailyDevotionValidate(ctx),
+    formatStricter: formatStrickerSuffixWithLengthNote,
+    textFields: [],
+    perFieldValidate: devotionFieldGate,
+    onStage: handlers.onStage,
+    onPiece: handlers.onPiece,
+    onRefining: handlers.onRefining,
+  });
+
+  return devotionPostGeneration({ supabase: args.supabase, userId: args.userId, localDate: args.localDate, ctx, promptVersion, outcome });
+}
+
+// Stricter suffix for the streaming entry: same as the buffered entry, plus a
+// length reminder when the outcome was triggered by an empty-but-non-null gate
+// (citation:[] content:[] signals a length failure with no actionable family).
+function formatStrickerSuffixWithLengthNote(violations: DailyViolations): string {
+  const base = formatStricterSuffix(violations);
+  if (violations.citation.length === 0 && violations.content.length === 0) {
+    const lengthReminder = 'On retry: ensure opening is 80–280 characters, reflection 400–900 characters, and prompt 1–200 characters.';
+    return base ? `${base} ${lengthReminder}` : lengthReminder;
+  }
+  return base;
 }
