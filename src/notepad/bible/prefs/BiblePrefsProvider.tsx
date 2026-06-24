@@ -5,22 +5,27 @@ import { useBibleVerseLayout } from '../useBibleVerseLayout';
 import { BiblePrefsContext } from './bible-prefs-context';
 
 /**
- * Single source of truth for Bible version + verse layout. Mirrors ThemeProvider:
- * calls each preference hook ONCE with the signed-in userId, so every consumer
- * (reader toolbar, Profile settings, notepad Scripture refs, Lamplight) reads and
- * writes the same persisted value. localStorage is the instant device default;
- * profiles.bible_translation / profiles.bible_verse_layout are the durable,
- * cross-device source of truth (handled inside the hooks).
+ * Single source of truth for Bible version + verse layout. Calls each hook ONCE
+ * with the signed-in userId. localStorage is the authoritative per-device value;
+ * the profile row is the global value — seeded once on a fresh device and written
+ * only by Profile Settings → Save.
  */
 export function BiblePrefsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
-  const { translation, setTranslation } = useBibleTranslation({ userId });
-  const { verseLayout, setVerseLayout } = useBibleVerseLayout({ userId });
+  const { translation, setLocalTranslation } = useBibleTranslation({ userId });
+  const { verseLayout, setLocalVerseLayout } = useBibleVerseLayout({ userId });
 
+  // Transitional: the context still exposes setTranslation/setVerseLayout until the
+  // interface migrates in the next task. They alias the local setters (no DB write).
   const value = useMemo(
-    () => ({ translation, setTranslation, verseLayout, setVerseLayout }),
-    [translation, setTranslation, verseLayout, setVerseLayout],
+    () => ({
+      translation,
+      setTranslation: setLocalTranslation,
+      verseLayout,
+      setVerseLayout: setLocalVerseLayout,
+    }),
+    [translation, setLocalTranslation, verseLayout, setLocalVerseLayout],
   );
 
   return <BiblePrefsContext.Provider value={value}>{children}</BiblePrefsContext.Provider>;

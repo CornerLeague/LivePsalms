@@ -2,29 +2,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-// ---------------------------------------------------------------------------
-// Supabase mock — must be set up with vi.hoisted so variables are available
-// when vi.mock factory is hoisted to the top of the file.
-// ---------------------------------------------------------------------------
 const { mockFrom, mockSelect, mockSelectEq, mockMaybeSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
   const mockMaybeSingle = vi.fn();
   const mockSelectEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
   const mockSelect = vi.fn(() => ({ eq: mockSelectEq }));
-
   const mockUpdateEq = vi.fn(() => Promise.resolve({ error: null }));
   const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
-
-  const mockFrom = vi.fn(() => ({
-    select: mockSelect,
-    update: mockUpdate,
-  }));
-
+  const mockFrom = vi.fn(() => ({ select: mockSelect, update: mockUpdate }));
   return { mockFrom, mockSelect, mockSelectEq, mockMaybeSingle, mockUpdate, mockUpdateEq };
 });
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: { from: mockFrom },
-}));
+vi.mock('@/lib/supabase', () => ({ supabase: { from: mockFrom } }));
 
 import { useBibleTranslation } from './useBibleTranslation';
 
@@ -32,7 +20,7 @@ describe('useBibleTranslation', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
-    // Re-wire after clearAllMocks so chains still return correct shapes
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
     mockSelectEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockSelect.mockReturnValue({ eq: mockSelectEq });
     mockUpdateEq.mockResolvedValue({ error: null });
@@ -40,19 +28,9 @@ describe('useBibleTranslation', () => {
     mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
   });
 
-  // -------------------------------------------------------------------------
-  // Anon tests (no userId) — must stay green with the new signature
-  // -------------------------------------------------------------------------
   it('defaults to BSB', () => {
     const { result } = renderHook(() => useBibleTranslation());
     expect(result.current.translation).toBe('BSB');
-  });
-
-  it('persists a new selection across remounts', () => {
-    const first = renderHook(() => useBibleTranslation());
-    act(() => first.result.current.setTranslation('KJV'));
-    const second = renderHook(() => useBibleTranslation());
-    expect(second.result.current.translation).toBe('KJV');
   });
 
   it('ignores a corrupt stored value', () => {
@@ -61,65 +39,78 @@ describe('useBibleTranslation', () => {
     expect(result.current.translation).toBe('BSB');
   });
 
-  // -------------------------------------------------------------------------
-  // Signed-in tests — userId triggers supabase hydration and writes
-  // -------------------------------------------------------------------------
-  it('hydrates translation from profile when userId is provided', async () => {
+  it('seeds from the profile when the device has no stored value', async () => {
     mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'KJV' }, error: null });
-
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
-
-    // Initial state is BSB (localStorage default)
-    expect(result.current.translation).toBe('BSB');
-
-    // After async hydration, state should reflect the profile value
+    expect(result.current.translation).toBe('BSB'); // instant default
     await waitFor(() => expect(result.current.translation).toBe('KJV'));
-
-    // Verify the correct supabase chain was called
-    expect(mockFrom).toHaveBeenCalledWith('profiles');
+    expect(localStorage.getItem('psalms.bible.translation')).toBe('KJV');
     expect(mockSelect).toHaveBeenCalledWith('bible_translation');
     expect(mockSelectEq).toHaveBeenCalledWith('id', 'user-123');
-    expect(mockMaybeSingle).toHaveBeenCalled();
   });
 
-  it('does not hydrate when remote value is not a valid translation', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'NIV' }, error: null });
-
+  it('does NOT override a value already stored on this device (reload-bug regression)', async () => {
+    localStorage.setItem('psalms.bible.translation', 'KJV');
+    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'WEB' }, error: null });
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
-
-    // Wait a tick to ensure the effect has run
     await act(async () => { await Promise.resolve(); });
+    expect(result.current.translation).toBe('KJV');
+    expect(mockSelect).not.toHaveBeenCalled(); // seed skipped entirely
+  });
 
-    // Should remain the localStorage default (BSB), not the invalid remote value
+  it('does not seed when the remote value is invalid', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'NIV' }, error: null });
+    const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
+    await act(async () => { await Promise.resolve(); });
     expect(result.current.translation).toBe('BSB');
   });
 
-  it('writes to profiles when setTranslation is called with a userId', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'BSB' }, error: null });
-
+  it('setLocalTranslation writes state + localStorage but never the DB', () => {
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
+    act(() => result.current.setLocalTranslation('WEB'));
+    expect(result.current.translation).toBe('WEB');
+    expect(localStorage.getItem('psalms.bible.translation')).toBe('WEB');
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
 
-    // Wait for hydration
+  it('saveGlobalTranslation awaits the DB write and returns ok on success', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'BSB' }, error: null });
+    const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
     await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
-
-    // Clear mocks to isolate the write test
     vi.clearAllMocks();
     mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
     mockUpdate.mockReturnValue({ eq: mockUpdateEq });
     mockUpdateEq.mockResolvedValue({ error: null });
 
-    act(() => result.current.setTranslation('WEB'));
+    let res: { ok: boolean; error?: string } | undefined;
+    await act(async () => { res = await result.current.saveGlobalTranslation('WEB'); });
 
+    expect(res).toEqual({ ok: true });
     expect(result.current.translation).toBe('WEB');
-    expect(mockFrom).toHaveBeenCalledWith('profiles');
+    expect(localStorage.getItem('psalms.bible.translation')).toBe('WEB');
     expect(mockUpdate).toHaveBeenCalledWith({ bible_translation: 'WEB' });
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'user-123');
   });
 
-  it('does not write to supabase when no userId', () => {
-    const { result } = renderHook(() => useBibleTranslation());
-    act(() => result.current.setTranslation('KJV'));
+  it('saveGlobalTranslation returns the error when the DB write fails', async () => {
+    const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
+    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
+    mockUpdateEq.mockResolvedValue({ error: { message: 'boom' } });
 
+    let res: { ok: boolean; error?: string } | undefined;
+    await act(async () => { res = await result.current.saveGlobalTranslation('KJV'); });
+
+    expect(res).toEqual({ ok: false, error: 'boom' });
+    expect(result.current.translation).toBe('KJV'); // optimistic local update still applied
+  });
+
+  it('saveGlobalTranslation is a no-op DB write when signed out', async () => {
+    const { result } = renderHook(() => useBibleTranslation());
+    let res: { ok: boolean; error?: string } | undefined;
+    await act(async () => { res = await result.current.saveGlobalTranslation('KJV'); });
+    expect(res).toEqual({ ok: true });
+    expect(result.current.translation).toBe('KJV');
+    expect(localStorage.getItem('psalms.bible.translation')).toBe('KJV');
     expect(mockFrom).not.toHaveBeenCalled();
   });
 });
