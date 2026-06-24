@@ -15,18 +15,28 @@ export function BibleReadingSettingsSection({
   const [draftTranslation, setDraftTranslation] = useState<BibleTranslation>(translation);
   const [draftLayout, setDraftLayout] = useState<VerseLayout>(verseLayout);
   const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   useEffect(() => { setDraftTranslation(translation); }, [translation]);
   useEffect(() => { setDraftLayout(verseLayout); }, [verseLayout]);
 
+  // saveGlobalPrefs updates the context optimistically — the local setState lands
+  // before the DB write resolves and is never rolled back on failure. So after a
+  // failed save draft === context and `dirty` alone is false. Track the failure so
+  // Save stays enabled for a retry; a successful save clears it.
   const dirty = draftTranslation !== translation || draftLayout !== verseLayout;
 
   async function handleSave() {
     setSaving(true);
     const result = await saveGlobalPrefs({ translation: draftTranslation, verseLayout: draftLayout });
     setSaving(false);
-    if (result.ok) toast.success('Bible settings saved');
-    else toast.error(result.error ?? 'Could not save Bible settings');
+    if (result.ok) {
+      setSaveFailed(false);
+      toast.success('Bible settings saved');
+    } else {
+      setSaveFailed(true);
+      toast.error(result.error ?? 'Could not save Bible settings');
+    }
   }
 
   return (
@@ -82,7 +92,7 @@ export function BibleReadingSettingsSection({
       <button
         type="button"
         aria-label="Save Bible settings"
-        disabled={!dirty || saving}
+        disabled={saving || (!dirty && !saveFailed)}
         onClick={handleSave}
         className="mt-4 text-xs rounded px-3 py-1 disabled:opacity-40"
         style={{

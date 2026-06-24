@@ -13,15 +13,18 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 const saveSpy = vi.fn();
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-// Stateful harness: saveGlobalPrefs updates context like the real provider, so the
-// draft re-syncs and Save re-disables after a successful save.
+// Stateful harness mirroring the real provider: saveGlobalPrefs applies the
+// optimistic context update UNCONDITIONALLY (the hooks' setState lands before the
+// DB write resolves and is not rolled back on failure). This is what makes the
+// draft re-sync to context even on a failed save — the case the P1 fix guards.
 function Harness({ saveResult = { ok: true } as { ok: boolean; error?: string } }) {
   const [translation, setT] = useState<BibleTranslation>('BSB');
   const [verseLayout, setL] = useState<VerseLayout>('inline');
   const saveGlobalPrefs = useCallback(
     async (p: { translation: BibleTranslation; verseLayout: VerseLayout }) => {
       saveSpy(p);
-      if (saveResult.ok) { setT(p.translation); setL(p.verseLayout); }
+      setT(p.translation);
+      setL(p.verseLayout);
       return saveResult;
     },
     [saveResult],
@@ -58,11 +61,17 @@ describe('BibleReadingSettingsSection', () => {
     expect(screen.getByRole('button', { name: /save bible settings/i })).toBeDisabled();
   });
 
-  it('toasts the error and leaves the form editable when the save fails', async () => {
+  it('toasts the error and leaves Save enabled for a retry when the save fails', async () => {
     render(<Harness saveResult={{ ok: false, error: 'Network down' }} />);
     fireEvent.change(screen.getByLabelText('Bible version'), { target: { value: 'WEB' } });
-    fireEvent.click(screen.getByRole('button', { name: /save bible settings/i }));
+    const save = screen.getByRole('button', { name: /save bible settings/i });
+    fireEvent.click(save);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Network down'));
-    expect(screen.getByRole('button', { name: /save bible settings/i })).toBeEnabled();
+    // Even though the optimistic update made draft === context (dirty === false),
+    // Save stays enabled so the user can retry without re-editing.
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(2));
+    expect(saveSpy).toHaveBeenLastCalledWith({ translation: 'WEB', verseLayout: 'inline' });
   });
 });
