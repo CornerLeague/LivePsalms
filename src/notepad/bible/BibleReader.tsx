@@ -11,6 +11,8 @@ import { STYLE_ASSETS, getStyleAsset } from '../styles/manifest';
 import { highlightBackgroundStyle } from '../extensions/style-highlight';
 import { HighlightSwatchPopover } from '../components/HighlightSwatchPopover';
 import { HighlightPill } from '../components/HighlightPill';
+import { toast } from 'sonner';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export interface PassageRef {
   book: string;
@@ -186,7 +188,11 @@ export function BibleReader({
           <select
             aria-label="Translation"
             value={translation}
-            onChange={(e) => onTranslationChange(e.target.value as BibleTranslation)}
+            onChange={(e) => {
+              const next = e.target.value as BibleTranslation;
+              onTranslationChange(next);
+              toast(`Switched to ${translationInfo(next).label} on this device. To use it everywhere, set it in Profile → Bible & Reading.`);
+            }}
             className="text-[11px] font-semibold rounded px-1 py-0.5 mr-1 outline-none"
             style={{ color: 'var(--deep-umber)', background: 'transparent', border: '1px solid var(--pale-stone)' }}
           >
@@ -194,9 +200,17 @@ export function BibleReader({
               <option key={t.id} value={t.id}>{t.label}</option>
             ))}
           </select>
-          <span title={translationInfo(translation).attribution} aria-label="Translation info">
-            <Info className="w-3 h-3" style={{ color: 'var(--silica)' }} />
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span aria-label="Translation info" tabIndex={0} className="inline-flex cursor-help">
+                <Info className="w-3 h-3" style={{ color: 'var(--silica)' }} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[16rem]">
+              <p>Changing the version here applies to this device only. To set it everywhere, update Profile → Bible &amp; Reading.</p>
+              <p className="mt-1 opacity-70">{translationInfo(translation).attribution}</p>
+            </TooltipContent>
+          </Tooltip>
           <button
             aria-label="Previous chapter"
             onClick={goPrev}

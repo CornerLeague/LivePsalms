@@ -18,13 +18,27 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
+// jsdom doesn't implement ResizeObserver — stub it for Radix Tooltip.
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+Object.defineProperty(window, 'ResizeObserver', {
+  writable: true,
+  value: ResizeObserverMock,
+});
+
 const useBiblePassages = vi.fn();
 vi.mock('./useBiblePassages', () => ({ useBiblePassages: (...a: unknown[]) => useBiblePassages(...a) }));
+vi.mock('sonner', () => ({ toast: vi.fn() }));
 
 import { BibleReader } from './BibleReader';
+import { toast } from 'sonner';
 
 beforeEach(() => {
   useBiblePassages.mockReset();
+  vi.mocked(toast).mockClear();
   useBiblePassages.mockReturnValue({
     loading: false,
     error: null,
@@ -107,6 +121,19 @@ describe('BibleReader', () => {
     expect(screen.getByText('Genesis 3')).toBeInTheDocument();
     expect(onPassageChange).toHaveBeenLastCalledWith({ book: 'gen', chapter: 3 });
   });
+
+  it('fires a device-only toast nudge when the version is changed in the reader', () => {
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Translation'), { target: { value: 'KJV' } });
+    expect(toast).toHaveBeenCalledWith(expect.stringContaining('on this device'));
+    expect(toast).toHaveBeenCalledWith(expect.stringContaining('KJV'));
+  });
+
+  it('shows a device-only tooltip on the translation info affordance', async () => {
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
+    fireEvent.focus(screen.getByLabelText('Translation info'));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/applies to this device only/i);
+  });
 });
 
 describe('BibleReader translation selector', () => {
@@ -119,9 +146,11 @@ describe('BibleReader translation selector', () => {
     expect(onTranslationChange).toHaveBeenCalledWith('KJV');
   });
 
-  it('exposes the active translation attribution', () => {
+  it('exposes the active translation attribution', async () => {
     render(<BibleReader translation="KJV" onTranslationChange={() => {}} />);
-    expect(screen.getByLabelText('Translation info').getAttribute('title')).toMatch(/public domain/i);
+    fireEvent.focus(screen.getByLabelText('Translation info'));
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent(/public domain/i);
   });
 });
 
