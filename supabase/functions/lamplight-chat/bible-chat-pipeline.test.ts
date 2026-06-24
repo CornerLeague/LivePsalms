@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runBibleChatPipeline, type BibleChatContext } from './bible-chat-pipeline.ts';
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import { runBibleChatPipeline, runBibleChatStreaming, type BibleChatContext } from './bible-chat-pipeline.ts';
+import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/anthropic.ts';
 import { BIBLE_INSIGHT_PROMPT } from './prompts/bible-insight.ts';
 
 const baseCtx: BibleChatContext = {
@@ -86,5 +86,122 @@ describe('runBibleChatPipeline', () => {
     };
     await runBibleChatPipeline({ llm, ctx, model: 'opus' });
     expect(generate).toHaveBeenCalledWith(expect.objectContaining({ model: 'opus' }));
+  });
+});
+
+describe('runBibleChatStreaming', () => {
+  const fullReply = 'The shepherd lays down his life for the sheep — a complete act of sacrifice.';
+  const citations = [{ type: 'verse' as const, ref: 'jhn 10:11' }];
+
+  // Build a streaming LLM adapter that fires onText deltas for the reply field,
+  // then fires onField for citations, and returns the full parsed result.
+  function makeStreamAdapter(): LLMAdapter {
+    return {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        return {
+          parsed: { reply: fullReply, citations } as unknown as U,
+          modelUsed: 'claude-sonnet-4-6',
+          promptTokens: 10,
+          completionTokens: 20,
+        };
+      },
+      async generateStream<U>(
+        _: GenerateStreamInput,
+        handlers: StreamHandlers,
+      ): Promise<GenerateOutput<U>> {
+        // Replay reply as several text deltas
+        handlers.onText?.('reply', 'The shepherd lays down ');
+        handlers.onText?.('reply', 'his life for the sheep ');
+        handlers.onText?.('reply', '— a complete act of sacrifice.');
+        // Fire the full reply field (text field: onField also fires at end)
+        handlers.onField?.('reply', fullReply);
+        // Fire citations field
+        handlers.onField?.('citations', citations);
+        return {
+          parsed: { reply: fullReply, citations } as unknown as U,
+          modelUsed: 'claude-sonnet-4-6',
+          promptTokens: 10,
+          completionTokens: 20,
+        };
+      },
+    };
+  }
+
+  it('happy path: onText deltas concatenate to full reply, onPiece fires for citations, result ok', async () => {
+    const onStage = vi.fn();
+    const onText = vi.fn();
+    const onPiece = vi.fn();
+    const onRefining = vi.fn();
+
+    const result = await runBibleChatStreaming(
+      { llm: makeStreamAdapter(), ctx: baseCtx },
+      { onStage, onText, onPiece, onRefining },
+    );
+
+    // (a) concatenated onText deltas equal the full reply
+    const textDeltas = onText.mock.calls
+      .filter((c: [string, string]) => c[0] === 'reply')
+      .map((c: [string, string]) => c[1]);
+    expect(textDeltas.join('')).toBe(fullReply);
+
+    // (b) onPiece fired for citations
+    const citationCall = onPiece.mock.calls.find((c: [string, unknown]) => c[0] === 'citations');
+    expect(citationCall).toBeDefined();
+    expect(citationCall![1]).toEqual(citations);
+
+    // (c) result is ok with the reply + citations
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.reply).toBe(fullReply);
+      expect(result.citations).toEqual(citations);
+      expect(result.usage?.status).toBe('ok');
+      expect(result.attempts).toBe(1);
+    }
+
+    // onStage('composing') fired before any text/piece
+    expect(onStage).toHaveBeenCalledWith('composing');
+    expect(onStage.mock.invocationCallOrder[0]).toBeLessThan(onText.mock.invocationCallOrder[0]);
+
+    // onRefining was NOT fired on a clean first attempt
+    expect(onRefining).not.toHaveBeenCalled();
+  });
+
+  it('fails after retry when citations never validate', async () => {
+    const badCitations = [{ type: 'verse' as const, ref: 'gen 1:1' }]; // not in allowedVerseRefs
+    const llm: LLMAdapter = {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        return {
+          parsed: { reply: 'A reply.', citations: badCitations } as unknown as U,
+          modelUsed: 'claude-sonnet-4-6',
+          promptTokens: 10,
+          completionTokens: 20,
+        };
+      },
+      async generateStream<U>(
+        _: GenerateStreamInput,
+        handlers: StreamHandlers,
+      ): Promise<GenerateOutput<U>> {
+        handlers.onText?.('reply', 'A reply.');
+        handlers.onField?.('reply', 'A reply.');
+        handlers.onField?.('citations', badCitations);
+        return {
+          parsed: { reply: 'A reply.', citations: badCitations } as unknown as U,
+          modelUsed: 'claude-sonnet-4-6',
+          promptTokens: 10,
+          completionTokens: 20,
+        };
+      },
+    };
+
+    const result = await runBibleChatStreaming(
+      { llm, ctx: baseCtx },
+      { onStage: vi.fn(), onText: vi.fn(), onPiece: vi.fn(), onRefining: vi.fn() },
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('validators_failed');
+      expect(result.attempts).toBe(2);
+    }
   });
 });

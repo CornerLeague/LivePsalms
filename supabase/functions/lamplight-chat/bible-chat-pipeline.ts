@@ -13,6 +13,7 @@ import {
   type ContentRuleViolation,
 } from '../_shared/validators.ts';
 import { generateWithRetry } from '../_shared/generate-with-retry.ts';
+import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { BIBLE_CHAT_PROMPT } from './prompts/bible-chat.ts';
 import type { UsageCore } from '../_shared/usage.ts';
 
@@ -52,45 +53,38 @@ export type BibleChatPipelineResult =
 
 type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViolation[] };
 
-export async function runBibleChatPipeline(args: {
-  llm: LLMAdapter;
-  ctx: BibleChatContext;
-  prompt?: ChatPromptModule;
-  model?: LLMModel;
-}): Promise<BibleChatPipelineResult> {
-  const prompt: ChatPromptModule = args.prompt ?? BIBLE_CHAT_PROMPT;
-  const promptVersion = prompt.promptVersion;
-  const ctx = args.ctx;
+// ── Shared generate config ────────────────────────────────────────────────────
+// Both buffered and streaming entries use identical validate / formatStricter.
+// Factor them here so the two entries stay in sync.
 
-  const outcome = await generateWithRetry<ChatReply, ChatViolations>({
-    llm: args.llm,
-    model: args.model ?? 'sonnet',
-    maxTokens: 1024,
-    artifactSystem: prompt.system,
-    messages: prompt.buildMessages(ctx),
-    // `as const` on the nested schema produces literal types narrower than
-    // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
-    tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: async (parsed) => {
-      const citation = validateChatReplyCitations(parsed, {
-        allowedNoteIds: ctx.allowedNoteIds,
-        allowedVerseRefs: ctx.allowedVerseRefs,
-      });
-      const content = await applyContentRules(parsed.reply ?? '', {
-        banned: BANNED_PHRASES,
-        contested: CONTESTED_PASSAGES,
-        growth: GROWTH_BANNED_PHRASES,
-      });
-      return { ok: citation.ok && content.ok, violations: { citation: citation.violations, content: content.violations } };
-    },
-    formatStricter: (v) => {
-      const parts: string[] = [];
-      if (v.citation.length > 0) parts.push('On retry: cite only the supplied verse refs and note ids, or return an empty citations array.');
-      parts.push(...formatContentFamilyStricter(v.content));
-      return parts.join(' ');
-    },
-  });
+function makeBibleChatValidate(ctx: BibleChatContext) {
+  return async (parsed: ChatReply): Promise<{ ok: boolean; violations: ChatViolations }> => {
+    const citation = validateChatReplyCitations(parsed, {
+      allowedNoteIds: ctx.allowedNoteIds,
+      allowedVerseRefs: ctx.allowedVerseRefs,
+    });
+    const content = await applyContentRules(parsed.reply ?? '', {
+      banned: BANNED_PHRASES,
+      contested: CONTESTED_PASSAGES,
+      growth: GROWTH_BANNED_PHRASES,
+    });
+    return { ok: citation.ok && content.ok, violations: { citation: citation.violations, content: content.violations } };
+  };
+}
 
+function formatBibleChatStricter(v: ChatViolations): string {
+  const parts: string[] = [];
+  if (v.citation.length > 0) parts.push('On retry: cite only the supplied verse refs and note ids, or return an empty citations array.');
+  parts.push(...formatContentFamilyStricter(v.content));
+  return parts.join(' ');
+}
+
+// ── Shared post-outcome → BibleChatPipelineResult mapping ────────────────────
+
+function bibleChatResult(
+  outcome: Awaited<ReturnType<typeof generateWithRetry<ChatReply, ChatViolations>>>,
+  promptVersion: string,
+): BibleChatPipelineResult {
   if (!outcome.ok) {
     return {
       ok: false,
@@ -110,4 +104,76 @@ export async function runBibleChatPipeline(args: {
     attempts: outcome.attempts,
     usage: { model: outcome.modelUsed, tokens_in: outcome.promptTokens, tokens_out: outcome.completionTokens, status: 'ok' },
   };
+}
+
+// ── Buffered entry (unchanged semantics, now calls shared helpers) ─────────────
+
+export async function runBibleChatPipeline(args: {
+  llm: LLMAdapter;
+  ctx: BibleChatContext;
+  prompt?: ChatPromptModule;
+  model?: LLMModel;
+}): Promise<BibleChatPipelineResult> {
+  const prompt: ChatPromptModule = args.prompt ?? BIBLE_CHAT_PROMPT;
+  const promptVersion = prompt.promptVersion;
+  const ctx = args.ctx;
+
+  const outcome = await generateWithRetry<ChatReply, ChatViolations>({
+    llm: args.llm,
+    model: args.model ?? 'sonnet',
+    maxTokens: 1024,
+    artifactSystem: prompt.system,
+    messages: prompt.buildMessages(ctx),
+    // `as const` on the nested schema produces literal types narrower than
+    // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
+    tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
+    validate: makeBibleChatValidate(ctx),
+    formatStricter: formatBibleChatStricter,
+  });
+
+  return bibleChatResult(outcome, promptVersion);
+}
+
+// ── Streaming entry ───────────────────────────────────────────────────────────
+// Uses generateStreamingWithRetry for attempt-1; the same validate/outcome-mapping
+// tail is identical to the buffered entry via bibleChatResult.
+
+export interface BibleChatStreamHandlers {
+  onStage: (stage: 'composing') => void;
+  onText: (field: string, delta: string) => void;
+  onPiece: (field: string, value: unknown) => void;
+  onRefining: () => void;
+}
+
+export async function runBibleChatStreaming(
+  args: {
+    llm: LLMAdapter;
+    ctx: BibleChatContext;
+    prompt?: ChatPromptModule;
+    model?: LLMModel;
+  },
+  handlers: BibleChatStreamHandlers,
+): Promise<BibleChatPipelineResult> {
+  const prompt: ChatPromptModule = args.prompt ?? BIBLE_CHAT_PROMPT;
+  const promptVersion = prompt.promptVersion;
+  const ctx = args.ctx;
+
+  const outcome = await generateStreamingWithRetry<ChatReply, ChatViolations>({
+    llm: args.llm,
+    model: args.model ?? 'sonnet',
+    maxTokens: 1024,
+    artifactSystem: prompt.system,
+    messages: prompt.buildMessages(ctx),
+    tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
+    validate: makeBibleChatValidate(ctx),
+    formatStricter: formatBibleChatStricter,
+    textFields: ['reply'],
+    // No perFieldValidate — chat has no per-field length rule
+    onStage: handlers.onStage,
+    onText: handlers.onText,
+    onPiece: handlers.onPiece,
+    onRefining: handlers.onRefining,
+  });
+
+  return bibleChatResult(outcome, promptVersion);
 }
