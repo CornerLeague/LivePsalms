@@ -12,10 +12,6 @@ export interface BiblePrefsContextValue {
   saveGlobalPrefs: (
     p: { translation: BibleTranslation; verseLayout: VerseLayout },
   ) => Promise<{ ok: boolean; error?: string }>;
-  /** @deprecated transitional alias for setLocalTranslation; removed in the cleanup task. */
-  setTranslation: (t: BibleTranslation) => void;
-  /** @deprecated transitional alias for setLocalVerseLayout; removed in the cleanup task. */
-  setVerseLayout: (l: VerseLayout) => void;
 }
 
 export const BiblePrefsContext = createContext<BiblePrefsContextValue | null>(null);

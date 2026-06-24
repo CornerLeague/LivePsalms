@@ -40,9 +40,6 @@ export function BiblePrefsProvider({ children }: { children: ReactNode }) {
       setLocalTranslation,
       setLocalVerseLayout,
       saveGlobalPrefs,
-      // @deprecated aliases — removed in the cleanup task.
-      setTranslation: setLocalTranslation,
-      setVerseLayout: setLocalVerseLayout,
     }),
     [translation, verseLayout, setLocalTranslation, setLocalVerseLayout, saveGlobalPrefs],
   );

@@ -14,7 +14,13 @@ vi.mock('../useStudyChatThread', () => ({
 }));
 vi.mock('@/lib/supabase', () => ({ supabase: { functions: { invoke: vi.fn() } } }));
 vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({
-  useBiblePrefs: () => ({ translation: 'BSB', setTranslation: vi.fn(), verseLayout: 'inline', setVerseLayout: vi.fn() }),
+  useBiblePrefs: () => ({
+    translation: 'BSB',
+    verseLayout: 'inline',
+    setLocalTranslation: vi.fn(),
+    setLocalVerseLayout: vi.fn(),
+    saveGlobalPrefs: vi.fn(async () => ({ ok: true })),
+  }),
 }));
 
 import { LamplightStudyPanel } from './LamplightStudyPanel';

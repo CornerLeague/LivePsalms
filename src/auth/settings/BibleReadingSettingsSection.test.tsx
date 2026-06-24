@@ -32,8 +32,6 @@ function Harness({ saveResult = { ok: true } as { ok: boolean; error?: string } 
     setLocalTranslation: setT,
     setLocalVerseLayout: setL,
     saveGlobalPrefs,
-    setTranslation: setT,
-    setVerseLayout: setL,
   };
   return (
     <BiblePrefsContext.Provider value={value}>
