@@ -67,6 +67,30 @@ describe('SelectionAnchorController — desktop swatch', () => {
     c.onSelectionUpdate(2, 8);
     expect(c.getSnapshot().pillAnchor).toBeNull();
   });
+
+  it('keeps the swatch closed while a pointer drag is in progress, then opens it on release', () => {
+    // Opening (and auto-focusing) the swatch mid-drag pulls focus out of the
+    // editor and truncates the selection the user is still dragging — so while
+    // the pointer is down the swatch must stay closed.
+    const c = new SelectionAnchorController(makeDeps({ isBottomToolbar: false }));
+    c.setPointerDown(true);
+    c.onSelectionUpdate(2, 5); // selection growing under the dragging cursor
+    expect(c.getSnapshot().swatchAnchor).toBeNull();
+    c.onSelectionUpdate(2, 8); // still dragging
+    expect(c.getSnapshot().swatchAnchor).toBeNull();
+
+    // Release: the settled selection opens the swatch, keyboard-ready (pointer).
+    c.setPointerDown(false);
+    expect(c.getSnapshot().swatchAnchor).toEqual({ top: 226, left: 30, autoFocus: true });
+  });
+
+  it('does not open a swatch on pointer release when the selection is collapsed', () => {
+    const c = new SelectionAnchorController(makeDeps({ isBottomToolbar: false }));
+    c.setPointerDown(true);
+    c.onSelectionUpdate(5, 5); // a plain click — caret only, no range
+    c.setPointerDown(false);
+    expect(c.getSnapshot().swatchAnchor).toBeNull();
+  });
 });
 
 describe('SelectionAnchorController — mobile pill', () => {
