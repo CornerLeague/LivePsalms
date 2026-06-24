@@ -9,15 +9,15 @@ export interface StudyReaderProps {
 }
 
 export function StudyReader({ book, chapter, onPassageChange }: StudyReaderProps) {
-  const { translation, setTranslation, verseLayout, setVerseLayout } = useBiblePrefs();
+  const { translation, setLocalTranslation, verseLayout, setLocalVerseLayout } = useBiblePrefs();
   return (
     <BibleReader
       initialBook={book}
       initialChapter={chapter}
       translation={translation}
-      onTranslationChange={setTranslation}
+      onTranslationChange={setLocalTranslation}
       verseLayout={verseLayout}
-      onVerseLayoutChange={setVerseLayout}
+      onVerseLayoutChange={setLocalVerseLayout}
       onPassageChange={onPassageChange}
       verseNumberColor="var(--study-verse-num)"
     />
