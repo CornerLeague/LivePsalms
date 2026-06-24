@@ -46,12 +46,14 @@ export async function generateStreamingWithRetry<TParsed, TViolations>(
   };
 
   let perFieldFailed: TViolations | null = null;
+  let emittedAnything = false;
 
   cfg.onStage?.('composing');
 
   const stream = await cfg.llm.generateStream<TParsed>(input, {
     onText: (f, d) => {
       if (perFieldFailed) return;
+      emittedAnything = true;
       cfg.onText?.(f, d);
     },
     onField: (f, v) => {
@@ -62,6 +64,7 @@ export async function generateStreamingWithRetry<TParsed, TViolations>(
         perFieldFailed = gate;
         return; // suppress field; will retry
       }
+      emittedAnything = true;
       cfg.onPiece?.(f, v);
     },
   });
@@ -82,10 +85,10 @@ export async function generateStreamingWithRetry<TParsed, TViolations>(
     };
   }
 
-  // Fire the "refining" beat whenever a retry is required — regardless of
-  // whether anything was emitted. Test 3 requires this: a per-field suppression
-  // forces a retry even though emittedAnything is false.
-  cfg.onRefining?.();
+  // Gentle "refining" beat before the retry — only when something was already on
+  // screen (emittedAnything) or a per-field gate suppressed a field (perFieldFailed,
+  // which itself forces the retry). Keeps a blank screen from flashing "Refining…".
+  if (emittedAnything || perFieldFailed) cfg.onRefining?.();
 
   // Non-streaming stricter retry (mirrors generate-with-retry attempt 2).
   const stricterSystem = composeSystem({
