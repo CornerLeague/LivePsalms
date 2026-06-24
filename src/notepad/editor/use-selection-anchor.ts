@@ -210,6 +210,12 @@ export class SelectionAnchorController extends Observable<SelectionAnchorState> 
     }
     // Mid-drag: hold the swatch closed. setPointerDown(false) re-runs this once
     // the pointer is released, opening it for the final range.
+    // Do NOT reset swatchDismissed/dismissedRange here (unlike the collapsed
+    // branch above): the dismiss check below runs against the FINAL range at
+    // release, so a dismissed swatch correctly stays dismissed when the drag
+    // ends on the same range and reappears only when it ends on a different
+    // one. Resetting here would make a dismissed swatch pop back the instant a
+    // drag starts.
     if (this.pointerDown) {
       this.swatchRaw = null;
       this.emit();

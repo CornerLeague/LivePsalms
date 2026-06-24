@@ -91,6 +91,36 @@ describe('SelectionAnchorController — desktop swatch', () => {
     c.setPointerDown(false);
     expect(c.getSnapshot().swatchAnchor).toBeNull();
   });
+
+  it('re-opens a dismissed swatch when a drag ends on a DIFFERENT range', () => {
+    const c = new SelectionAnchorController(makeDeps({ isBottomToolbar: false }));
+    c.onSelectionUpdate(2, 8);
+    c.dismiss(); // dismiss the (2,8) swatch
+    expect(c.getSnapshot().swatchAnchor).toBeNull();
+
+    // Drag to a new range and release. The final range differs from the
+    // dismissed one, so the swatch clears its dismissed state and re-opens.
+    c.setPointerDown(true);
+    c.onSelectionUpdate(2, 9); // mid-drag — stays closed
+    expect(c.getSnapshot().swatchAnchor).toBeNull();
+    c.setPointerDown(false);
+    expect(c.getSnapshot().swatchAnchor).toEqual({ top: 226, left: 30, autoFocus: true });
+  });
+
+  it('keeps a dismissed swatch dismissed when a drag ends on the SAME range', () => {
+    // Guards the mid-drag block against a stray swatchDismissed reset: starting
+    // a drag must not resurrect a swatch the user dismissed for this range.
+    const c = new SelectionAnchorController(makeDeps({ isBottomToolbar: false }));
+    c.onSelectionUpdate(2, 8);
+    c.dismiss();
+    expect(c.getSnapshot().swatchAnchor).toBeNull();
+
+    c.setPointerDown(true);
+    c.onSelectionUpdate(2, 9); // wander mid-drag…
+    c.onSelectionUpdate(2, 8); // …and settle back on the dismissed range
+    c.setPointerDown(false);
+    expect(c.getSnapshot().swatchAnchor).toBeNull();
+  });
 });
 
 describe('SelectionAnchorController — mobile pill', () => {
