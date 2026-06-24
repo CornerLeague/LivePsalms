@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { loadEnum, saveEnum, KEY_BIBLE_VERSE_LAYOUT } from '../session/session-storage';
-import { type VerseLayout, DEFAULT_VERSE_LAYOUT, VERSE_LAYOUTS, isVerseLayout } from './bible-layout-types';
+import { type VerseLayout, DEFAULT_VERSE_LAYOUT, VERSE_LAYOUTS } from './bible-layout-types';
 import { supabase } from '@/lib/supabase';
 
 export interface UseBibleVerseLayoutResult {
   verseLayout: VerseLayout;
-  setVerseLayout: (layout: VerseLayout) => void;
+  setLocalVerseLayout: (l: VerseLayout) => void;
+  saveGlobalVerseLayout: (l: VerseLayout) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function useBibleVerseLayout(
@@ -15,29 +16,25 @@ export function useBibleVerseLayout(
     loadEnum<VerseLayout>(KEY_BIBLE_VERSE_LAYOUT, VERSE_LAYOUTS, DEFAULT_VERSE_LAYOUT),
   );
 
-  // Hydrate from the profile when signed in (localStorage is the instant default).
-  useEffect(() => {
-    let cancelled = false;
-    if (!userId || !supabase) return;
-    (async () => {
-      const { data } = await supabase
-        .from('profiles').select('bible_verse_layout').eq('id', userId).maybeSingle();
-      const remote = data?.bible_verse_layout;
-      if (!cancelled && isVerseLayout(remote)) {
-        setState(remote);
-        saveEnum(KEY_BIBLE_VERSE_LAYOUT, remote);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [userId]);
+  // Device-local store only. Seeding the global value from the profile is owned by
+  // BiblePrefsProvider so it can read all prefs in one query — this hook never reads.
 
-  const setVerseLayout = useCallback((layout: VerseLayout) => {
-    setState(layout);
-    saveEnum(KEY_BIBLE_VERSE_LAYOUT, layout);
-    if (userId && supabase) {
-      void supabase.from('profiles').update({ bible_verse_layout: layout }).eq('id', userId);
-    }
-  }, [userId]);
+  const setLocalVerseLayout = useCallback((l: VerseLayout) => {
+    setState(l);
+    saveEnum(KEY_BIBLE_VERSE_LAYOUT, l);
+  }, []);
 
-  return { verseLayout, setVerseLayout };
+  const saveGlobalVerseLayout = useCallback(
+    async (l: VerseLayout): Promise<{ ok: boolean; error?: string }> => {
+      setState(l);
+      saveEnum(KEY_BIBLE_VERSE_LAYOUT, l);
+      if (!userId || !supabase) return { ok: true };
+      const { error } = await supabase
+        .from('profiles').update({ bible_verse_layout: l }).eq('id', userId);
+      return error ? { ok: false, error: error.message } : { ok: true };
+    },
+    [userId],
+  );
+
+  return { verseLayout, setLocalVerseLayout, saveGlobalVerseLayout };
 }

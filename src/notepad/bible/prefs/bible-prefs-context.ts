@@ -4,9 +4,14 @@ import type { VerseLayout } from '../bible-layout-types';
 
 export interface BiblePrefsContextValue {
   translation: BibleTranslation;
-  setTranslation: (t: BibleTranslation) => void;
   verseLayout: VerseLayout;
-  setVerseLayout: (l: VerseLayout) => void;
+  /** Pillar / any in-reader control: localStorage only, no DB. */
+  setLocalTranslation: (t: BibleTranslation) => void;
+  setLocalVerseLayout: (l: VerseLayout) => void;
+  /** Profile Settings → Save: awaited DB (both columns) + localStorage + state. */
+  saveGlobalPrefs: (
+    p: { translation: BibleTranslation; verseLayout: VerseLayout },
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export const BiblePrefsContext = createContext<BiblePrefsContextValue | null>(null);

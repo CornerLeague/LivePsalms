@@ -52,7 +52,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke }: BibleStudyPaneProps
     });
   }, []);
 
-  const { translation, setTranslation, verseLayout, setVerseLayout } = useBiblePrefs();
+  const { translation, setLocalTranslation, verseLayout, setLocalVerseLayout } = useBiblePrefs();
 
   const { swatchByVerse, setHighlight, removeHighlight } = useBibleHighlights(
     passage.book,
@@ -124,9 +124,9 @@ export function BibleStudyPane({ lamplightAdapter, invoke }: BibleStudyPaneProps
             initialBook={passage.book}
             initialChapter={passage.chapter}
             translation={translation}
-            onTranslationChange={setTranslation}
+            onTranslationChange={setLocalTranslation}
             verseLayout={verseLayout}
-            onVerseLayoutChange={setVerseLayout}
+            onVerseLayoutChange={setLocalVerseLayout}
             onPassageChange={handlePassageChange}
             highlightSwatchByVerse={swatchByVerse}
             onSetHighlight={setHighlight}
