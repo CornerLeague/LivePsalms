@@ -402,8 +402,9 @@ describe('runDailyDevotionStreaming', () => {
     expect(calls[3][0]).toBe('prompt');
     expect(calls[4][0]).toBe('note_citations');
 
-    // onStage composing was fired
+    // onStage composing was fired BEFORE the first onPiece (contract: stage fires before any field)
     expect(onStage).toHaveBeenCalledWith('composing');
+    expect(onStage.mock.invocationCallOrder[0]).toBeLessThan(onPiece.mock.invocationCallOrder[0]);
 
     // onRefining was NOT fired on a clean first-attempt
     expect(onRefining).not.toHaveBeenCalled();
@@ -475,8 +476,10 @@ describe('runDailyDevotionStreaming', () => {
     const onRefining = vi.fn();
     const onPiece = vi.fn();
 
-    // Stream adapter: first stream emits short opening (gate will suppress it),
-    // then generate (buffered retry) returns cleanArtifact
+    // Stream adapter: emit the non-gated fields first (they fire onPiece),
+    // then emit the short opening last (gate suppresses it, triggering retry).
+    // This confirms suppression-not-silence: onPiece IS called for other fields,
+    // but NOT for 'opening' which the length gate rejects.
     const llm: LLMAdapter = {
       async generate<U>(): Promise<GenerateOutput<U>> {
         return { parsed: cleanArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 5, completionTokens: 10 };
@@ -485,10 +488,13 @@ describe('runDailyDevotionStreaming', () => {
         _: GenerateStreamInput,
         handlers: StreamHandlers,
       ): Promise<GenerateOutput<U>> {
-        // Emit the short opening — gate should suppress it
+        // Emit the fields that pass the gate first — these will fire onPiece
+        handlers.onField?.('scripture', shortArtifact.scripture);
+        handlers.onField?.('reflection', shortArtifact.reflection);
+        handlers.onField?.('prompt', shortArtifact.prompt);
+        handlers.onField?.('note_citations', shortArtifact.note_citations);
+        // Emit the short opening last — gate suppresses it (no onPiece for 'opening')
         handlers.onField?.('opening', shortArtifact.opening);
-        // Remaining fields would not be emitted in a real abort, but the gate
-        // check happens per-field; we just emit the full artifact as parsed
         return { parsed: shortArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 5, completionTokens: 10 };
       },
     };
@@ -498,8 +504,15 @@ describe('runDailyDevotionStreaming', () => {
       { onStage: vi.fn(), onPiece, onRefining },
     );
 
-    // onPiece should NOT have been called for the short opening (suppressed)
-    expect(onPiece.mock.calls.every((c: [string, unknown]) => c[0] !== 'opening')).toBe(true);
+    // Suppression-not-silence: onPiece was called for the non-opening fields (not vacuously empty),
+    // confirming the gate suppressed 'opening' specifically rather than silencing all output.
+    const piecedFields = onPiece.mock.calls.map((c: [string, unknown]) => c[0]);
+    expect(piecedFields).toContain('scripture');
+    expect(piecedFields).toContain('reflection');
+    expect(piecedFields).toContain('prompt');
+    expect(piecedFields).toContain('note_citations');
+    // And 'opening' was never emitted (suppressed by the length gate)
+    expect(piecedFields).not.toContain('opening');
 
     // onRefining fires because perFieldFailed was set
     expect(onRefining).toHaveBeenCalledTimes(1);
@@ -508,6 +521,8 @@ describe('runDailyDevotionStreaming', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.attempts).toBe(2);
+      // The persisted artifact came from the clean retry, not the short one
+      expect(result.artifact.opening).toBe(cleanArtifact.opening);
     }
     expect(inserts).toHaveLength(1);
   });

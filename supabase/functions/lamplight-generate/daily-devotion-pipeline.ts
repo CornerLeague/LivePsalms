@@ -246,25 +246,29 @@ async function devotionPostGeneration(args: {
 // `scripture` and `note_citations` are not length-gated here (structural
 // validation happens in the cross-field `validate` step after streaming).
 //
-// Design call #2: when a length violation occurs, `formatStricterSuffix` has no
-// 'length' family to render, so the stricter prompt carries no length-specific
-// instruction. We return an empty-but-non-null `{citation:[], content:[]}` so
-// the failure registers and a plain stricter retry runs. This avoids widening
-// the shared ContentRuleViolation.family union (out of scope). In practice,
-// Claude corrects length on a second attempt because the tool schema's
-// minLength/maxLength constraints remain in the prompt.
+// Design call #2: when a length violation occurs, `formatStrickerSuffixWithLengthNote`
+// detects it via reference identity against LENGTH_GATE_VIOLATION (a module-level
+// sentinel). This is an explicit first-class signal rather than inferring the
+// length case by the absence of other violations. The sentinel object is returned
+// from `devotionFieldGate` for any out-of-range field. This avoids widening the
+// shared ContentRuleViolation.family union (out of scope) while keeping the
+// gate's return type as DailyViolations | null. In practice, Claude corrects
+// length on a second attempt because the tool schema's minLength/maxLength
+// constraints remain in the prompt, supplemented by the explicit length reminder.
+
+const LENGTH_GATE_VIOLATION: DailyViolations = { citation: [], content: [] };
 
 function devotionFieldGate(field: string, value: unknown): DailyViolations | null {
   if (typeof value !== 'string') return null;
   const len = value.length;
   if (field === 'opening' && (len < 80 || len > 280)) {
-    return { citation: [], content: [] };
+    return LENGTH_GATE_VIOLATION;
   }
   if (field === 'reflection' && (len < 400 || len > 900)) {
-    return { citation: [], content: [] };
+    return LENGTH_GATE_VIOLATION;
   }
   if (field === 'prompt' && (len < 1 || len > 200)) {
-    return { citation: [], content: [] };
+    return LENGTH_GATE_VIOLATION;
   }
   return null;
 }
@@ -348,11 +352,12 @@ export async function runDailyDevotionStreaming(
 }
 
 // Stricter suffix for the streaming entry: same as the buffered entry, plus a
-// length reminder when the outcome was triggered by an empty-but-non-null gate
-// (citation:[] content:[] signals a length failure with no actionable family).
+// length reminder when the outcome was triggered by the per-field length gate.
+// Detected by reference identity against LENGTH_GATE_VIOLATION — an explicit
+// first-class signal, not "absence of other violations".
 function formatStrickerSuffixWithLengthNote(violations: DailyViolations): string {
   const base = formatStricterSuffix(violations);
-  if (violations.citation.length === 0 && violations.content.length === 0) {
+  if (violations === LENGTH_GATE_VIOLATION) {
     const lengthReminder = 'On retry: ensure opening is 80–280 characters, reflection 400–900 characters, and prompt 1–200 characters.';
     return base ? `${base} ${lengthReminder}` : lengthReminder;
   }
