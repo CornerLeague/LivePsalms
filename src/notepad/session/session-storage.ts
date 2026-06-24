@@ -64,6 +64,11 @@ export function saveEnum(key: string, value: string): void {
   writeRaw(key, value);
 }
 
+/** True iff this key has any stored value — distinguishes "set" from "absent → default". */
+export function hasStored(key: string): boolean {
+  return readRaw(key) != null;
+}
+
 export interface StoredPassage {
   book: string;
   chapter: number;

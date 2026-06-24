@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, beforeEach } from 'vitest';
 import {
   loadLastNoteId,
   saveLastNoteId,
@@ -7,6 +7,8 @@ import {
   saveEnum,
   loadBiblePassage,
   saveBiblePassage,
+  hasStored,
+  KEY_BIBLE_TRANSLATION,
 } from './session-storage';
 
 afterEach(() => {
@@ -46,5 +48,18 @@ describe('session-storage', () => {
     expect(loadBiblePassage()).toBeNull();
     localStorage.setItem('psalms.bible.passage', '{"book":"psa"}'); // missing chapter
     expect(loadBiblePassage()).toBeNull();
+  });
+});
+
+describe('hasStored', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('returns false when the key was never written', () => {
+    expect(hasStored(KEY_BIBLE_TRANSLATION)).toBe(false);
+  });
+
+  it('returns true once a value has been stored', () => {
+    saveEnum(KEY_BIBLE_TRANSLATION, 'KJV');
+    expect(hasStored(KEY_BIBLE_TRANSLATION)).toBe(true);
   });
 });
