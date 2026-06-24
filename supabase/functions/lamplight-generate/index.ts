@@ -27,6 +27,7 @@ import {
   runDailyDevotionPipeline,
   type DailyDevotionContext,
 } from './daily-devotion-pipeline.ts';
+import { streamDailyDevotion } from './daily-devotion-stream.ts';
 import {
   runConnectionWhyPipeline,
   type ConnectionWhyContext,
@@ -77,6 +78,7 @@ async function handleGenerate(req: Request): Promise<Response> {
     source_note_id?: string;
     related_note_id?: string;
     translation?: string;
+    stream?: boolean;
   };
   try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
 
@@ -172,6 +174,35 @@ async function handleGenerate(req: Request): Promise<Response> {
       return jsonResp({ error: 'bad local_date' }, 400);
     }
     const localDate = body.local_date;
+
+    // Streaming branch: when the request asks for SSE, drive the streaming
+    // pipeline and forward its beats as Server-Sent Events. The buffered JSON
+    // path below stays byte-for-byte unchanged. Opt-in + quota are re-gated
+    // inside the module (JSON 403 / 429) before any SSE is emitted.
+    const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || body.stream === true;
+    if (wantsStream) {
+      return streamDailyDevotion(
+        {
+          cors,
+          supabase,
+          isOptedIn: async (uid) => {
+            const { data } = await supabase
+              .from('lamplight_settings')
+              .select('enabled')
+              .eq('user_id', uid)
+              .maybeSingle();
+            return Boolean(data?.enabled);
+          },
+          checkQuota: lifecycleDeps.checkQuota,
+          recordUsage: lifecycleDeps.recordUsage,
+          llm,
+          buildContext: () =>
+            buildDailyDevotionContext(supabase, { userId, localDate, voyageDeps, rerankEnabled, translation }),
+        },
+        { userId, localDate },
+      );
+    }
+
     const { status, response } = await runGeneration(
       lifecycleDeps,
       { userId, artifactKind: 'daily_devotion' },
