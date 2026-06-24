@@ -36,7 +36,7 @@ Applies to **both** the Bible version and the verse-layout preference. The Setti
 
 The hooks must distinguish "localStorage was actually set" from "absent → using the BSB / `inline` default" (today `loadEnum` collapses both to the default).
 
-- Add a small helper, e.g. `hasStored(key: string): boolean` returning `safeGet(key) != null` (reuse the existing safe-getter the module already uses for `loadEnum`). Keys unchanged: `KEY_BIBLE_TRANSLATION` (`psalms.bible.translation`), `KEY_BIBLE_VERSE_LAYOUT` (`psalms.bible.verseLayout`).
+- Add a small helper `hasStored(key: string): boolean` returning `readRaw(key) != null` (reuse the existing module-private safe-getter `readRaw` that `loadEnum` already uses; export `hasStored` alongside `loadEnum`/`saveEnum`). Keys unchanged: `KEY_BIBLE_TRANSLATION` (`psalms.bible.translation`), `KEY_BIBLE_VERSE_LAYOUT` (`psalms.bible.verseLayout`).
 
 ### 2. `useBibleTranslation.ts` / `useBibleVerseLayout.ts` — two write paths + seed-only hydration
 
@@ -89,8 +89,16 @@ interface BiblePrefsContextValue {
 
 ### 6. Wiring
 
-- `BibleStudyPane.tsx` (~line 127) and `StudyReader.tsx` (~line 18): `onTranslationChange={setLocalTranslation}` (and any layout handler → `setLocalVerseLayout`).
+- `BibleStudyPane.tsx` (destructure ~line 55; props ~lines 127/129) and `StudyReader.tsx` (destructure ~line 12; props ~lines 18/20): update both the `useBiblePrefs()` destructuring (the old `setTranslation`/`setVerseLayout` no longer exist) **and** the JSX → `onTranslationChange={setLocalTranslation}`, `onVerseLayoutChange={setLocalVerseLayout}`. (`onVerseLayoutChange` is the reader's layout-cycle prop, optional in `BibleReader`.)
 - No DB migration — `profiles.bible_translation` (037/038) and `profiles.bible_verse_layout` (040) already exist.
+
+### 7. Touched files & test updates (interface rename surface)
+
+Renaming the context setters (`setTranslation`/`setVerseLayout` → `setLocalTranslation`/`setLocalVerseLayout` + new `saveGlobalPrefs`) ripples to every consumer and its tests. Full surface:
+
+- **Production:** `session-storage.ts` (add `hasStored`); `bible-prefs-context.ts` (new interface); `BiblePrefsProvider.tsx` (compose the new value — and update its docstring, which currently asserts the DB is the "durable, cross-device source of truth"; under the new model localStorage wins and the DB is the global-on-Save / seed-only value); `useBibleTranslation.ts` + `useBibleVerseLayout.ts`; `BibleReadingSettingsSection.tsx`; `BibleReader.tsx`; `BibleStudyPane.tsx`; `StudyReader.tsx`.
+- **Tests to update:** `useBibleTranslation.test.ts` + `useBibleVerseLayout.test.ts` (setter now local-only; global writer is separate); `BibleReadingSettingsSection.test.tsx` (old "calls setTranslation on change" tests are replaced by the draft + Save tests); `BiblePrefsProvider.test.tsx` (buttons calling the old setters → new interface); `LamplightStudyPanel.test.tsx` (the `useBiblePrefs` mock object's shape); `single-instance.test.ts` (grep guard — update only if the hook/setter symbol names it matches change).
+- **Read-only consumers — verified unaffected:** `LamplightStudyPanel.tsx`, `LamplightChat.tsx`, `Editor.tsx` read `translation`/`verseLayout` only and never call the setters.
 
 ## Data Flow Summary
 
