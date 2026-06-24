@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { loadEnum, saveEnum, hasValidStored, KEY_BIBLE_TRANSLATION } from '../session/session-storage';
-import { type BibleTranslation, DEFAULT_TRANSLATION, TRANSLATIONS, isBibleTranslation } from './translations';
+import { useCallback, useState } from 'react';
+import { loadEnum, saveEnum, KEY_BIBLE_TRANSLATION } from '../session/session-storage';
+import { type BibleTranslation, DEFAULT_TRANSLATION, TRANSLATIONS } from './translations';
 import { supabase } from '@/lib/supabase';
 
 const ALLOWED = TRANSLATIONS.map((t) => t.id) as readonly BibleTranslation[];
@@ -18,23 +18,8 @@ export function useBibleTranslation(
     loadEnum<BibleTranslation>(KEY_BIBLE_TRANSLATION, ALLOWED, DEFAULT_TRANSLATION),
   );
 
-  // Seed from the profile ONLY when this device has no stored value yet. A device
-  // that already has a local pick keeps it — local wins on reload (the bug fix).
-  useEffect(() => {
-    let cancelled = false;
-    if (!userId || !supabase) return;
-    if (hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED)) return;
-    (async () => {
-      const { data } = await supabase
-        .from('profiles').select('bible_translation').eq('id', userId).maybeSingle();
-      const remote = data?.bible_translation;
-      if (!cancelled && isBibleTranslation(remote)) {
-        setState(remote);
-        saveEnum(KEY_BIBLE_TRANSLATION, remote);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [userId]);
+  // Device-local store only. Seeding the global value from the profile is owned by
+  // BiblePrefsProvider so it can read all prefs in one query — this hook never reads.
 
   const setLocalTranslation = useCallback((t: BibleTranslation) => {
     setState(t);

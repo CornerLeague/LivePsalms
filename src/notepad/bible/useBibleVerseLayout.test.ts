@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 const { mockFrom, mockSelect, mockSelectEq, mockMaybeSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
   const mockMaybeSingle = vi.fn();
@@ -39,39 +39,12 @@ describe('useBibleVerseLayout', () => {
     expect(result.current.verseLayout).toBe('inline');
   });
 
-  it('seeds from the profile when the device has no stored value', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { bible_verse_layout: 'lines' }, error: null });
-    const { result } = renderHook(() => useBibleVerseLayout({ userId: 'user-123' }));
-    expect(result.current.verseLayout).toBe('inline');
-    await waitFor(() => expect(result.current.verseLayout).toBe('lines'));
-    expect(localStorage.getItem('psalms.bible.verseLayout')).toBe('lines');
-    expect(mockSelect).toHaveBeenCalledWith('bible_verse_layout');
-  });
-
-  it('does NOT override a value already stored on this device (reload-bug regression)', async () => {
-    localStorage.setItem('psalms.bible.verseLayout', 'spaced');
-    mockMaybeSingle.mockResolvedValue({ data: { bible_verse_layout: 'lines' }, error: null });
+  it('never reads the profile on mount — seeding lives in BiblePrefsProvider', async () => {
     const { result } = renderHook(() => useBibleVerseLayout({ userId: 'user-123' }));
     await act(async () => { await Promise.resolve(); });
-    expect(result.current.verseLayout).toBe('spaced');
+    expect(result.current.verseLayout).toBe('inline');
     expect(mockSelect).not.toHaveBeenCalled();
-  });
-
-  it('does not seed when the remote value is invalid', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { bible_verse_layout: 'paragraph' }, error: null });
-    const { result } = renderHook(() => useBibleVerseLayout({ userId: 'user-123' }));
-    await act(async () => { await Promise.resolve(); });
-    expect(result.current.verseLayout).toBe('inline');
-  });
-
-  it('seeds from the profile when the stored layout is corrupt (heals localStorage)', async () => {
-    localStorage.setItem('psalms.bible.verseLayout', 'blocks');
-    mockMaybeSingle.mockResolvedValue({ data: { bible_verse_layout: 'spaced' }, error: null });
-    const { result } = renderHook(() => useBibleVerseLayout({ userId: 'user-123' }));
-    expect(result.current.verseLayout).toBe('inline'); // corrupt ignored, falls back to default
-    await waitFor(() => expect(result.current.verseLayout).toBe('spaced'));
-    expect(localStorage.getItem('psalms.bible.verseLayout')).toBe('spaced');
-    expect(mockSelect).toHaveBeenCalledWith('bible_verse_layout'); // seed ran
+    expect(mockMaybeSingle).not.toHaveBeenCalled();
   });
 
   it('setLocalVerseLayout writes state + localStorage but never the DB', () => {
@@ -83,13 +56,7 @@ describe('useBibleVerseLayout', () => {
   });
 
   it('saveGlobalVerseLayout awaits the DB write and returns ok on success', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { bible_verse_layout: 'inline' }, error: null });
     const { result } = renderHook(() => useBibleVerseLayout({ userId: 'user-123' }));
-    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
-    vi.clearAllMocks();
-    mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
-    mockUpdate.mockReturnValue({ eq: mockUpdateEq });
-    mockUpdateEq.mockResolvedValue({ error: null });
 
     let res: { ok: boolean; error?: string } | undefined;
     await act(async () => { res = await result.current.saveGlobalVerseLayout('spaced'); });
@@ -102,7 +69,6 @@ describe('useBibleVerseLayout', () => {
 
   it('saveGlobalVerseLayout returns the error when the DB write fails', async () => {
     const { result } = renderHook(() => useBibleVerseLayout({ userId: 'user-123' }));
-    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
     mockUpdateEq.mockResolvedValue({ error: { message: 'boom' } });
 
     let res: { ok: boolean; error?: string } | undefined;

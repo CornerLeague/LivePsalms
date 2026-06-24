@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 const { mockFrom, mockSelect, mockSelectEq, mockMaybeSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
   const mockMaybeSingle = vi.fn();
@@ -39,40 +39,12 @@ describe('useBibleTranslation', () => {
     expect(result.current.translation).toBe('BSB');
   });
 
-  it('seeds from the profile when the device has no stored value', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'KJV' }, error: null });
-    const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
-    expect(result.current.translation).toBe('BSB'); // instant default
-    await waitFor(() => expect(result.current.translation).toBe('KJV'));
-    expect(localStorage.getItem('psalms.bible.translation')).toBe('KJV');
-    expect(mockSelect).toHaveBeenCalledWith('bible_translation');
-    expect(mockSelectEq).toHaveBeenCalledWith('id', 'user-123');
-  });
-
-  it('does NOT override a value already stored on this device (reload-bug regression)', async () => {
-    localStorage.setItem('psalms.bible.translation', 'KJV');
-    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'WEB' }, error: null });
-    const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
-    await act(async () => { await Promise.resolve(); });
-    expect(result.current.translation).toBe('KJV');
-    expect(mockSelect).not.toHaveBeenCalled(); // seed skipped entirely
-  });
-
-  it('does not seed when the remote value is invalid', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'NIV' }, error: null });
+  it('never reads the profile on mount — seeding lives in BiblePrefsProvider', async () => {
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
     await act(async () => { await Promise.resolve(); });
     expect(result.current.translation).toBe('BSB');
-  });
-
-  it('seeds from the profile when the stored translation is corrupt (heals localStorage)', async () => {
-    localStorage.setItem('psalms.bible.translation', 'NIV');
-    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'KJV' }, error: null });
-    const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
-    expect(result.current.translation).toBe('BSB'); // corrupt ignored, falls back to default
-    await waitFor(() => expect(result.current.translation).toBe('KJV'));
-    expect(localStorage.getItem('psalms.bible.translation')).toBe('KJV');
-    expect(mockSelect).toHaveBeenCalledWith('bible_translation'); // seed ran
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(mockMaybeSingle).not.toHaveBeenCalled();
   });
 
   it('setLocalTranslation writes state + localStorage but never the DB', () => {
@@ -84,13 +56,7 @@ describe('useBibleTranslation', () => {
   });
 
   it('saveGlobalTranslation awaits the DB write and returns ok on success', async () => {
-    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'BSB' }, error: null });
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
-    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
-    vi.clearAllMocks();
-    mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
-    mockUpdate.mockReturnValue({ eq: mockUpdateEq });
-    mockUpdateEq.mockResolvedValue({ error: null });
 
     let res: { ok: boolean; error?: string } | undefined;
     await act(async () => { res = await result.current.saveGlobalTranslation('WEB'); });
@@ -104,7 +70,6 @@ describe('useBibleTranslation', () => {
 
   it('saveGlobalTranslation returns the error when the DB write fails', async () => {
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
-    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
     mockUpdateEq.mockResolvedValue({ error: { message: 'boom' } });
 
     let res: { ok: boolean; error?: string } | undefined;

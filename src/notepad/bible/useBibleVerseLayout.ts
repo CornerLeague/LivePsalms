@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { loadEnum, saveEnum, hasValidStored, KEY_BIBLE_VERSE_LAYOUT } from '../session/session-storage';
-import { type VerseLayout, DEFAULT_VERSE_LAYOUT, VERSE_LAYOUTS, isVerseLayout } from './bible-layout-types';
+import { useCallback, useState } from 'react';
+import { loadEnum, saveEnum, KEY_BIBLE_VERSE_LAYOUT } from '../session/session-storage';
+import { type VerseLayout, DEFAULT_VERSE_LAYOUT, VERSE_LAYOUTS } from './bible-layout-types';
 import { supabase } from '@/lib/supabase';
 
 export interface UseBibleVerseLayoutResult {
@@ -16,22 +16,8 @@ export function useBibleVerseLayout(
     loadEnum<VerseLayout>(KEY_BIBLE_VERSE_LAYOUT, VERSE_LAYOUTS, DEFAULT_VERSE_LAYOUT),
   );
 
-  // Seed from the profile ONLY when this device has no stored value yet.
-  useEffect(() => {
-    let cancelled = false;
-    if (!userId || !supabase) return;
-    if (hasValidStored(KEY_BIBLE_VERSE_LAYOUT, VERSE_LAYOUTS)) return;
-    (async () => {
-      const { data } = await supabase
-        .from('profiles').select('bible_verse_layout').eq('id', userId).maybeSingle();
-      const remote = data?.bible_verse_layout;
-      if (!cancelled && isVerseLayout(remote)) {
-        setState(remote);
-        saveEnum(KEY_BIBLE_VERSE_LAYOUT, remote);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [userId]);
+  // Device-local store only. Seeding the global value from the profile is owned by
+  // BiblePrefsProvider so it can read all prefs in one query — this hook never reads.
 
   const setLocalVerseLayout = useCallback((l: VerseLayout) => {
     setState(l);
