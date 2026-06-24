@@ -105,6 +105,26 @@ describe('BiblePrefsProvider', () => {
     expect(mockSelect).toHaveBeenCalledTimes(1);
   });
 
+  it('a local pick made while the profile read is in flight wins over the seed', async () => {
+    let resolveRead!: (v: { data: unknown; error: null }) => void;
+    const pending = new Promise<{ data: unknown; error: null }>((r) => { resolveRead = r; });
+    mockMaybeSingle.mockReturnValue(pending);
+
+    render(<BiblePrefsProvider><Probe /></BiblePrefsProvider>);
+    // Read is still in flight; the user picks KJV in the reader.
+    fireEvent.click(screen.getByText('set-local-kjv'));
+    expect(screen.getByTestId('t').textContent).toBe('KJV');
+
+    // The now-stale read resolves with a different remote translation.
+    resolveRead({ data: { bible_translation: 'WEB', bible_verse_layout: 'lines' }, error: null });
+
+    // The untouched pref still seeds...
+    await waitFor(() => expect(screen.getByTestId('l').textContent).toBe('lines'));
+    // ...but the in-flight local pick must NOT be clobbered.
+    expect(screen.getByTestId('t').textContent).toBe('KJV');
+    expect(localStorage.getItem('psalms.bible.translation')).toBe('KJV');
+  });
+
   it('ignores invalid remote values', async () => {
     mockMaybeSingle.mockResolvedValue({
       data: { bible_translation: 'NIV', bible_verse_layout: 'paragraph' },

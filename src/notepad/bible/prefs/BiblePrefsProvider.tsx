@@ -41,10 +41,19 @@ export function BiblePrefsProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .maybeSingle();
       if (cancelled || !data) return;
-      if (needsTranslation && isBibleTranslation(data.bible_translation)) {
+      // Re-check after the await — the user may have made a local pick in the
+      // reader while the query was in flight. Local always wins, so never seed
+      // over a value that is now validly stored on this device.
+      if (
+        !hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED_TRANSLATIONS) &&
+        isBibleTranslation(data.bible_translation)
+      ) {
         setLocalTranslation(data.bible_translation);
       }
-      if (needsLayout && isVerseLayout(data.bible_verse_layout)) {
+      if (
+        !hasValidStored(KEY_BIBLE_VERSE_LAYOUT, VERSE_LAYOUTS) &&
+        isVerseLayout(data.bible_verse_layout)
+      ) {
         setLocalVerseLayout(data.bible_verse_layout);
       }
     })();
