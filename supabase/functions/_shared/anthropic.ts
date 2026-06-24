@@ -144,6 +144,10 @@ export function createAnthropicAdapter(deps: AnthropicDeps): LLMAdapter {
           let evt: Record<string, unknown>;
           try { evt = JSON.parse(json); } catch { continue; }
           const type = evt.type as string;
+          if (type === 'error') {
+            const e = evt.error as { message?: string; type?: string } | undefined;
+            throw new Error(`anthropic stream error: ${e?.type ?? 'unknown'}: ${e?.message ?? JSON.stringify(evt)}`);
+          }
           if (type === 'message_start') {
             const msg = evt.message as { model?: string; usage?: { input_tokens?: number } };
             modelUsed = msg?.model ?? modelUsed;

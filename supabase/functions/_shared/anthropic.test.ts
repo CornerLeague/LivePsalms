@@ -235,6 +235,22 @@ function sseStreamResponse(lines: string[]): Response {
 }
 
 describe('createAnthropicAdapter.generateStream', () => {
+  it('throws when the stream emits a mid-stream error event', async () => {
+    const lines = [
+      'event: message_start\ndata: {"type":"message_start","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":5,"output_tokens":0}}}\n\n',
+      'event: error\ndata: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}\n\n',
+    ];
+    const fetchMock = vi.fn(async () => sseStreamResponse(lines));
+    const adapter = createAnthropicAdapter({ apiKey: 'k', fetch: fetchMock as unknown as typeof fetch });
+    await expect(
+      adapter.generateStream(
+        { model: 'sonnet', system: 's', messages: [{ role: 'user', content: 'hi' }],
+          tool: { name: 'emit_artifact', description: 'd', input_schema: { type: 'object' } } },
+        {},
+      )
+    ).rejects.toThrow(/anthropic stream error/i);
+  });
+
   it('streams tool-JSON field events and resolves the parsed object + usage', async () => {
     const lines = [
       'event: message_start\ndata: {"type":"message_start","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":11,"output_tokens":0}}}\n\n',
