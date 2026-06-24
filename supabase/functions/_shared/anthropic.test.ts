@@ -225,3 +225,42 @@ describe('anthropic multimodal', () => {
     ]);
   });
 });
+
+function sseStreamResponse(lines: string[]): Response {
+  const enc = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(c) { for (const l of lines) c.enqueue(enc.encode(l)); c.close(); },
+  });
+  return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+}
+
+describe('createAnthropicAdapter.generateStream', () => {
+  it('streams tool-JSON field events and resolves the parsed object + usage', async () => {
+    const lines = [
+      'event: message_start\ndata: {"type":"message_start","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":11,"output_tokens":0}}}\n\n',
+      'event: content_block_start\ndata: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","name":"emit_chat_reply","input":{}}}\n\n',
+      'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"reply\\":\\"He"}}\n\n',
+      'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"llo\\",\\"citations\\":[]}"}}\n\n',
+      'event: message_delta\ndata: {"type":"message_delta","delta":{},"usage":{"output_tokens":7}}\n\n',
+      'event: message_stop\ndata: {"type":"message_stop"}\n\n',
+    ];
+    const fetchMock = vi.fn(async () => sseStreamResponse(lines));
+    const adapter = createAnthropicAdapter({ apiKey: 'k', fetch: fetchMock as unknown as typeof fetch });
+    const texts: string[] = [];
+    const fields: Array<{ field: string; value: unknown }> = [];
+    const out = await adapter.generateStream<{ reply: string; citations: unknown[] }>(
+      { model: 'sonnet', system: 's', messages: [{ role: 'user', content: 'hi' }],
+        tool: { name: 'emit_chat_reply', description: 'd', input_schema: { type: 'object' } },
+        textFields: ['reply'] },
+      { onText: (_f, d) => texts.push(d), onField: (f, v) => fields.push({ field: f, value: v }) },
+    );
+    expect(texts.join('')).toBe('Hello');
+    expect(fields).toContainEqual({ field: 'citations', value: [] });
+    expect(out.parsed).toEqual({ reply: 'Hello', citations: [] });
+    expect(out.promptTokens).toBe(11);
+    expect(out.completionTokens).toBe(7);
+    // request body sets stream:true
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.stream).toBe(true);
+  });
+});
