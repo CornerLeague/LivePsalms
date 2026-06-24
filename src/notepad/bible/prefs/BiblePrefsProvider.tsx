@@ -1,5 +1,7 @@
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import { useAuthSession } from '@/auth/context/useAuthSession';
+import type { BibleTranslation } from '../translations';
+import type { VerseLayout } from '../bible-layout-types';
 import { useBibleTranslation } from '../useBibleTranslation';
 import { useBibleVerseLayout } from '../useBibleVerseLayout';
 import { BiblePrefsContext } from './bible-prefs-context';
@@ -13,19 +15,36 @@ import { BiblePrefsContext } from './bible-prefs-context';
 export function BiblePrefsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
-  const { translation, setLocalTranslation } = useBibleTranslation({ userId });
-  const { verseLayout, setLocalVerseLayout } = useBibleVerseLayout({ userId });
+  const { translation, setLocalTranslation, saveGlobalTranslation } = useBibleTranslation({ userId });
+  const { verseLayout, setLocalVerseLayout, saveGlobalVerseLayout } = useBibleVerseLayout({ userId });
 
-  // Transitional: the context still exposes setTranslation/setVerseLayout until the
-  // interface migrates in the next task. They alias the local setters (no DB write).
+  const saveGlobalPrefs = useCallback(
+    async (
+      p: { translation: BibleTranslation; verseLayout: VerseLayout },
+    ): Promise<{ ok: boolean; error?: string }> => {
+      const [tRes, lRes] = await Promise.all([
+        saveGlobalTranslation(p.translation),
+        saveGlobalVerseLayout(p.verseLayout),
+      ]);
+      if (!tRes.ok) return tRes;
+      if (!lRes.ok) return lRes;
+      return { ok: true };
+    },
+    [saveGlobalTranslation, saveGlobalVerseLayout],
+  );
+
   const value = useMemo(
     () => ({
       translation,
-      setTranslation: setLocalTranslation,
       verseLayout,
+      setLocalTranslation,
+      setLocalVerseLayout,
+      saveGlobalPrefs,
+      // @deprecated aliases — removed in the cleanup task.
+      setTranslation: setLocalTranslation,
       setVerseLayout: setLocalVerseLayout,
     }),
-    [translation, setLocalTranslation, verseLayout, setLocalVerseLayout],
+    [translation, verseLayout, setLocalTranslation, setLocalVerseLayout, saveGlobalPrefs],
   );
 
   return <BiblePrefsContext.Provider value={value}>{children}</BiblePrefsContext.Provider>;
