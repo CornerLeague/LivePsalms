@@ -65,6 +65,16 @@ describe('useBibleTranslation', () => {
     expect(result.current.translation).toBe('BSB');
   });
 
+  it('seeds from the profile when the stored translation is corrupt (heals localStorage)', async () => {
+    localStorage.setItem('psalms.bible.translation', 'NIV');
+    mockMaybeSingle.mockResolvedValue({ data: { bible_translation: 'KJV' }, error: null });
+    const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
+    expect(result.current.translation).toBe('BSB'); // corrupt ignored, falls back to default
+    await waitFor(() => expect(result.current.translation).toBe('KJV'));
+    expect(localStorage.getItem('psalms.bible.translation')).toBe('KJV');
+    expect(mockSelect).toHaveBeenCalledWith('bible_translation'); // seed ran
+  });
+
   it('setLocalTranslation writes state + localStorage but never the DB', () => {
     const { result } = renderHook(() => useBibleTranslation({ userId: 'user-123' }));
     act(() => result.current.setLocalTranslation('WEB'));

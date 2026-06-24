@@ -7,7 +7,7 @@ import {
   saveEnum,
   loadBiblePassage,
   saveBiblePassage,
-  hasStored,
+  hasValidStored,
   KEY_BIBLE_TRANSLATION,
 } from './session-storage';
 
@@ -51,15 +51,22 @@ describe('session-storage', () => {
   });
 });
 
-describe('hasStored', () => {
+describe('hasValidStored', () => {
+  const ALLOWED = ['BSB', 'KJV', 'WEB'] as const;
+
   beforeEach(() => localStorage.clear());
 
   it('returns false when the key was never written', () => {
-    expect(hasStored(KEY_BIBLE_TRANSLATION)).toBe(false);
+    expect(hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED)).toBe(false);
   });
 
-  it('returns true once a value has been stored', () => {
+  it('returns true once a valid value has been stored', () => {
     saveEnum(KEY_BIBLE_TRANSLATION, 'KJV');
-    expect(hasStored(KEY_BIBLE_TRANSLATION)).toBe(true);
+    expect(hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED)).toBe(true);
+  });
+
+  it('returns false when the stored value is not in the allow-list (corrupt/legacy)', () => {
+    saveEnum(KEY_BIBLE_TRANSLATION, 'NIV');
+    expect(hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED)).toBe(false);
   });
 });

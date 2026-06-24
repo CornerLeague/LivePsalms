@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { loadEnum, saveEnum, hasStored, KEY_BIBLE_TRANSLATION } from '../session/session-storage';
+import { loadEnum, saveEnum, hasValidStored, KEY_BIBLE_TRANSLATION } from '../session/session-storage';
 import { type BibleTranslation, DEFAULT_TRANSLATION, TRANSLATIONS, isBibleTranslation } from './translations';
 import { supabase } from '@/lib/supabase';
 
@@ -23,7 +23,7 @@ export function useBibleTranslation(
   useEffect(() => {
     let cancelled = false;
     if (!userId || !supabase) return;
-    if (hasStored(KEY_BIBLE_TRANSLATION)) return;
+    if (hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED)) return;
     (async () => {
       const { data } = await supabase
         .from('profiles').select('bible_translation').eq('id', userId).maybeSingle();

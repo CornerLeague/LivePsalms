@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { loadEnum, saveEnum, hasStored, KEY_BIBLE_VERSE_LAYOUT } from '../session/session-storage';
+import { loadEnum, saveEnum, hasValidStored, KEY_BIBLE_VERSE_LAYOUT } from '../session/session-storage';
 import { type VerseLayout, DEFAULT_VERSE_LAYOUT, VERSE_LAYOUTS, isVerseLayout } from './bible-layout-types';
 import { supabase } from '@/lib/supabase';
 
@@ -20,7 +20,7 @@ export function useBibleVerseLayout(
   useEffect(() => {
     let cancelled = false;
     if (!userId || !supabase) return;
-    if (hasStored(KEY_BIBLE_VERSE_LAYOUT)) return;
+    if (hasValidStored(KEY_BIBLE_VERSE_LAYOUT, VERSE_LAYOUTS)) return;
     (async () => {
       const { data } = await supabase
         .from('profiles').select('bible_verse_layout').eq('id', userId).maybeSingle();

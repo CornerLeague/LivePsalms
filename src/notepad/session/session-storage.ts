@@ -64,9 +64,14 @@ export function saveEnum(key: string, value: string): void {
   writeRaw(key, value);
 }
 
-/** True iff this key has any stored value — distinguishes "set" from "absent → default". */
-export function hasStored(key: string): boolean {
-  return readRaw(key) != null;
+/**
+ * True iff this key holds a value that is a member of `allowed` — a VALID stored
+ * pick, not merely any string. A corrupt/legacy value (present but not in the
+ * allow-list) returns false so the caller treats it as absent and can re-seed.
+ */
+export function hasValidStored(key: string, allowed: readonly string[]): boolean {
+  const raw = readRaw(key);
+  return raw != null && allowed.includes(raw);
 }
 
 export interface StoredPassage {

@@ -64,6 +64,16 @@ describe('useBibleVerseLayout', () => {
     expect(result.current.verseLayout).toBe('inline');
   });
 
+  it('seeds from the profile when the stored layout is corrupt (heals localStorage)', async () => {
+    localStorage.setItem('psalms.bible.verseLayout', 'blocks');
+    mockMaybeSingle.mockResolvedValue({ data: { bible_verse_layout: 'spaced' }, error: null });
+    const { result } = renderHook(() => useBibleVerseLayout({ userId: 'user-123' }));
+    expect(result.current.verseLayout).toBe('inline'); // corrupt ignored, falls back to default
+    await waitFor(() => expect(result.current.verseLayout).toBe('spaced'));
+    expect(localStorage.getItem('psalms.bible.verseLayout')).toBe('spaced');
+    expect(mockSelect).toHaveBeenCalledWith('bible_verse_layout'); // seed ran
+  });
+
   it('setLocalVerseLayout writes state + localStorage but never the DB', () => {
     const { result } = renderHook(() => useBibleVerseLayout({ userId: 'user-123' }));
     act(() => result.current.setLocalVerseLayout('spaced'));
