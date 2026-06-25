@@ -55,4 +55,20 @@ describe('ChatMessage', () => {
     expect(screen.getByText('Note')).toBeInTheDocument();
     expect(screen.queryByText(/b35ae0bc/)).not.toBeInTheDocument();
   });
+
+  // --- streaming affordance ---
+
+  it('shows stage narration "Reading your recent notes…" when streaming + empty content + stage=notes', () => {
+    render(<ChatMessage role="assistant" content="" citations={[]} streaming stage="notes" />);
+    expect(screen.getByText('Reading your recent notes…')).toBeInTheDocument();
+  });
+
+  it('appends an in-progress caret when streaming + non-empty content', () => {
+    render(<ChatMessage role="assistant" content="The shepherd" citations={[]} streaming stage={null} />);
+    expect(screen.getByText('The shepherd')).toBeInTheDocument();
+    // caret span is aria-hidden; query by its text content directly
+    const caret = document.querySelector('[aria-hidden="true"]');
+    expect(caret).not.toBeNull();
+    expect(caret?.textContent).toContain('▍');
+  });
 });
