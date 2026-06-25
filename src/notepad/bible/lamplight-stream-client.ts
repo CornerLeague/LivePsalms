@@ -49,6 +49,21 @@ export function makeStreamInvoke(client: SupabaseClient): StreamInvoke {
       body: JSON.stringify({ ...(body as Record<string, unknown>), stream: true }),
     });
 
+    // A non-OK response is never an SSE stream in this design: the edge fns emit
+    // `text/event-stream` only at HTTP 200, and surface gate failures (403/402/429)
+    // and server errors (500) as non-OK JSON *before* any stream. Throw so the
+    // caller fast-paths to its buffered fallback instead of reading a non-SSE body
+    // to EOF, finding zero `data:` frames, and falling back anyway (which doubles
+    // latency before the user sees an error) — and so a 500 is distinguishable from
+    // a deliberate gate response in logs. The content-type guard keeps the door open
+    // for a future path that streams an error beat at a non-200 status (parse it).
+    if (!res.ok) {
+      const contentType = res.headers?.get('content-type') ?? '';
+      if (!contentType.includes('text/event-stream')) {
+        throw new Error(`lamplight stream ${name} failed: ${res.status} ${res.statusText}`);
+      }
+    }
+
     if (!res.body) return;
 
     // Parse SSE the same way the Anthropic adapter does (see

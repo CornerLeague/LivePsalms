@@ -84,4 +84,48 @@ describe('makeStreamInvoke', () => {
 
     expect(received).toEqual([{ t: 'text', field: 'reply', delta: 'Hi' }]);
   });
+
+  it('throws on a non-OK, non-SSE response so the caller fast-paths its buffered fallback', async () => {
+    // A real HTTP 500 from the edge fn: non-OK with a JSON (not SSE) body. The old
+    // code read this as a stream, found zero `data:` frames, and resolved silently —
+    // indistinguishable from the intended JSON-gate 403/429 no-event path.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: new Headers({ 'content-type': 'application/json' }),
+      body: new ReadableStream<Uint8Array>({
+        start(ctrl) {
+          ctrl.enqueue(new TextEncoder().encode('{"error":"boom"}'));
+          ctrl.close();
+        },
+      }),
+    } as unknown as Response);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const onEvent = vi.fn();
+    const invoke = makeStreamInvoke(fakeClient);
+    await expect(invoke('lamplight-chat', {}, { onEvent })).rejects.toThrow(/500/);
+    expect(onEvent).not.toHaveBeenCalled();
+  });
+
+  it('still parses a non-OK response that IS an event-stream (content-type guard)', async () => {
+    // Defends the content-type guard: if a future edge path streams an error beat at
+    // a non-200 status, parse it rather than throwing it away.
+    const frames: SseEvent[] = [{ t: 'error', reason: 'validators_failed' }];
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: new Headers({ 'content-type': 'text/event-stream' }),
+      body: streamFromFrames(frames),
+    } as unknown as Response);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const received: SseEvent[] = [];
+    const invoke = makeStreamInvoke(fakeClient);
+    await invoke('lamplight-chat', {}, { onEvent: (ev) => received.push(ev) });
+
+    expect(received).toEqual(frames);
+  });
 });
