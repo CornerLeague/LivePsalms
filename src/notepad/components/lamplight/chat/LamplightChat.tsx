@@ -1,7 +1,9 @@
 // src/notepad/components/lamplight/chat/LamplightChat.tsx
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useChatThread, type ChatThreadMessage } from '@/notepad/bible/useChatThread';
-import { sendChatMessage, requestOpeningInsight, type InvokeFn } from '@/notepad/bible/lamplight-chat-client';
+import { sendChatMessage, requestOpeningInsight, type InvokeFn, type ChatCitation } from '@/notepad/bible/lamplight-chat-client';
+import { createSentenceChunker } from '@/notepad/bible/sentence-chunker';
+import type { StreamInvoke } from '@/notepad/bible/lamplight-stream-client';
 import { useBibleTranslation } from '@/notepad/bible/useBibleTranslation';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
 import { useChatThreadList } from '@/notepad/bible/useChatThreadList';
@@ -14,12 +16,15 @@ export interface LamplightChatProps {
   chapter: number;
   userId: string;
   invoke: InvokeFn;
+  /** Optional SSE transport. When provided, send() streams the reply live;
+   *  when undefined (or a stream fails) the buffered invoke path is used. */
+  streamInvoke?: StreamInvoke;
 }
 
 let localIdSeq = 0;
 const localId = () => `local-${++localIdSeq}`;
 
-export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatProps) {
+export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: LamplightChatProps) {
   const thread = useChatThread(book, chapter, userId);
   const { translation } = useBibleTranslation({ userId });
   const { notes } = useNoteCollection();
@@ -40,19 +45,28 @@ export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatPr
   const livePassageKey = useRef(passageKey);
   livePassageKey.current = passageKey;
   const mounted = useRef(true);
+  // Controller for an in-flight streaming send(), so navigating chapters (or
+  // unmounting) cancels the open SSE request.
+  const streamAbort = useRef<AbortController | null>(null);
 
   // Track real unmount so an in-flight reflection isn't applied after teardown.
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+      streamAbort.current?.abort();
+    };
   }, []);
 
   // Clear any stale "reflecting…" indicator / error when the passage changes, and
   // release the in-flight guard so the new passage can request its own reflection.
+  // Also abort any in-flight streaming send so chapter navigation cancels it.
   useEffect(() => {
     setInsighting(false);
     setError(null);
     insightInFlight.current = false;
+    streamAbort.current?.abort();
+    streamAbort.current = null;
   }, [passageKey]);
 
   // Reset to the live conversation whenever the passage changes, so navigating
@@ -79,20 +93,113 @@ export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatPr
     setInsighting(false);
   };
 
+  // Buffered send: a single round-trip that appends the assistant turn on resolve.
+  // Used directly when no streamInvoke is provided, and as the fallback when a
+  // stream throws or ends with no terminal event (e.g. a JSON gate error the SSE
+  // transport silently swallows). `forPassage` pins the request so a late resolve
+  // after navigating chapters is discarded.
+  const bufferedSend = async (message: string, forPassage: string) => {
+    const res = await sendChatMessage(invoke, { book, chapter, message, translation });
+    if (!mounted.current || livePassageKey.current !== forPassage) return;
+    if (res.ok) {
+      thread.append([{ id: localId(), role: 'assistant', content: res.reply, citations: res.citations }]);
+    } else {
+      setError(res.reason);
+    }
+  };
+
+  // Streaming send: append a placeholder assistant bubble and drive it live from
+  // SSE events. Falls back to bufferedSend on throw or when no terminal
+  // (done/error) event is seen.
+  const streamSend = async (message: string, forPassage: string, stream: StreamInvoke) => {
+    thread.append([{ id: localId(), role: 'assistant', content: '', citations: [], streaming: true }]);
+    const controller = new AbortController();
+    streamAbort.current = controller;
+    const chunker = createSentenceChunker();
+    let content = '';
+    let terminal = false;
+    // Only apply patches while still mounted, still on the same passage, and not
+    // aborted — mirrors the reflection guards so a stale stream can't write.
+    const alive = () => mounted.current && livePassageKey.current === forPassage && !controller.signal.aborted;
+
+    const onEvent = (ev: Parameters<Parameters<StreamInvoke>[2]['onEvent']>[0]) => {
+      if (!alive()) return;
+      switch (ev.t) {
+        case 'stage':
+          thread.updateLast({ stage: ev.stage });
+          break;
+        case 'text': {
+          if (ev.field !== 'reply') break;
+          for (const chunk of chunker.push(ev.delta)) {
+            content += chunk;
+            thread.updateLast({ content, stage: null });
+          }
+          break;
+        }
+        case 'piece':
+          if (ev.field === 'citations') thread.updateLast({ citations: ev.value as ChatCitation[] });
+          break;
+        case 'refining':
+          thread.updateLast({ stage: 'composing' });
+          break;
+        case 'done': {
+          terminal = true;
+          const tail = chunker.flush();
+          if (tail) content += tail;
+          const payload = (ev.payload ?? {}) as { reply?: string; citations?: ChatCitation[] };
+          thread.updateLast({
+            streaming: false,
+            content: typeof payload.reply === 'string' ? payload.reply : content,
+            citations: payload.citations ?? [],
+          });
+          break;
+        }
+        case 'error':
+          terminal = true;
+          thread.updateLast({ streaming: false });
+          setError(ev.reason);
+          break;
+      }
+    };
+
+    try {
+      await stream('lamplight-chat', { book, chapter, message, translation }, { onEvent, signal: controller.signal });
+    } catch {
+      // Transport threw (network / parse). Drop the streaming placeholder and
+      // recover via the buffered path so the error maps to a real reason.
+      if (alive()) {
+        thread.updateLast({ streaming: false });
+        await bufferedSend(message, forPassage);
+      }
+      return;
+    } finally {
+      // Release only our own controller; the passageKey effect may have already
+      // aborted + replaced it for a newer send.
+      if (streamAbort.current === controller) streamAbort.current = null;
+    }
+    if (!alive()) return;
+    if (!terminal) {
+      // No done/error seen — the transport resolved with no SSE frames, which is
+      // how a JSON gate response (403/402/429) arrives. Recover via buffered send.
+      thread.updateLast({ streaming: false });
+      await bufferedSend(message, forPassage);
+    }
+  };
+
   const send = async () => {
     const message = draft.trim();
     if (!message || sending) return;
     setDraft('');
     setError(null);
     setSending(true);
+    const forPassage = passageKey;
     const userMsg: ChatThreadMessage = { id: localId(), role: 'user', content: message, citations: [] };
     thread.append([userMsg]);
     try {
-      const res = await sendChatMessage(invoke, { book, chapter, message, translation });
-      if (res.ok) {
-        thread.append([{ id: localId(), role: 'assistant', content: res.reply, citations: res.citations }]);
+      if (streamInvoke) {
+        await streamSend(message, forPassage, streamInvoke);
       } else {
-        setError(res.reason);
+        await bufferedSend(message, forPassage);
       }
     } finally {
       setSending(false);
@@ -153,7 +260,7 @@ export function LamplightChat({ book, chapter, userId, invoke }: LamplightChatPr
           </div>
         )}
         {thread.messages.map((m) => (
-          <ChatMessage key={m.id} role={m.role} content={m.content} citations={m.citations} resolveNoteTitle={resolveNoteTitle} />
+          <ChatMessage key={m.id} role={m.role} content={m.content} citations={m.citations} resolveNoteTitle={resolveNoteTitle} streaming={m.streaming} stage={m.stage} />
         ))}
         {(sending || insighting) && <p className="text-[11px] italic" style={{ color: 'var(--silica)' }}>Lamplight is reflecting…</p>}
         {error && (

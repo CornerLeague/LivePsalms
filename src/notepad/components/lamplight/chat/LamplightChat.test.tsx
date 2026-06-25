@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // src/notepad/components/lamplight/chat/LamplightChat.test.tsx
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { useState } from 'react';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 
 const useChatThread = vi.fn();
@@ -46,8 +47,27 @@ beforeEach(() => {
 
 function setup(threadOverrides = {}) {
   useChatThread.mockReturnValue({
-    messages: [], loading: false, error: null, append: vi.fn(), reload: vi.fn(), archiveAndReset: vi.fn(), ...threadOverrides,
+    messages: [], loading: false, error: null, append: vi.fn(), updateLast: vi.fn(), reload: vi.fn(), archiveAndReset: vi.fn(), ...threadOverrides,
   });
+}
+
+// A fake StreamInvoke whose `onEvent` is driven by a script of SseEvents. It
+// captures the AbortSignal so abort tests can assert it. By default it resolves
+// after replaying the script synchronously; pass { neverResolve:true } to hang.
+import type { SseEvent } from '@/notepad/bible/lamplight-stream-client';
+function makeFakeStream(opts: {
+  script?: SseEvent[];
+  neverResolve?: boolean;
+  onCall?: (info: { body: unknown; signal?: AbortSignal }) => void;
+} = {}) {
+  const calls: { body: unknown; signal?: AbortSignal }[] = [];
+  const fn = vi.fn(async (_name: string, body: unknown, handlers: { onEvent: (ev: SseEvent) => void; signal?: AbortSignal }) => {
+    calls.push({ body, signal: handlers.signal });
+    opts.onCall?.({ body, signal: handlers.signal });
+    for (const ev of opts.script ?? []) handlers.onEvent(ev);
+    if (opts.neverResolve) return new Promise<void>(() => {});
+  });
+  return Object.assign(fn, { calls });
 }
 
 describe('LamplightChat', () => {
@@ -191,6 +211,102 @@ describe('LamplightChat reflection', () => {
     render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /new reflection/i }));
     await waitFor(() => expect(archiveAndReset).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('LamplightChat streaming', () => {
+  // A live-mutating useChatThread mock: append() and updateLast() actually mutate a
+  // local messages array and force a re-render, so streamed patches are observable
+  // in the DOM the way the real hook would render them.
+  function setupLive() {
+    let messages: { id: string; role: string; content: string; citations: unknown[]; streaming?: boolean; stage?: unknown }[] = [];
+    let rerender: (() => void) | null = null;
+    const append = vi.fn((msgs: typeof messages) => { messages = [...messages, ...msgs]; rerender?.(); });
+    const updateLast = vi.fn((patch: Record<string, unknown>) => {
+      if (messages.length === 0) return;
+      messages = [...messages.slice(0, -1), { ...messages[messages.length - 1], ...patch }];
+      rerender?.();
+    });
+    useChatThread.mockImplementation(() => {
+      const [, setN] = useState(0);
+      rerender = () => setN((n: number) => n + 1);
+      return { messages, loading: false, error: null, append, updateLast, reload: vi.fn(), archiveAndReset: vi.fn() };
+    });
+    return { append, updateLast, getMessages: () => messages };
+  }
+
+  it('streams the assistant reply into a growing bubble and ends with the full reply + citations', async () => {
+    const { updateLast } = setupLive();
+    const stream = makeFakeStream({
+      script: [
+        { t: 'stage', stage: 'notes' },
+        { t: 'text', field: 'reply', delta: 'Grace ' },
+        { t: 'text', field: 'reply', delta: 'and peace. ' },
+        { t: 'piece', field: 'citations', value: [{ type: 'verse', ref: 'jhn 10:11' }] },
+        { t: 'done', payload: { ok: true, thread_id: 't1', reply: 'Grace and peace.', citations: [{ type: 'verse', ref: 'jhn 10:11' }] } },
+      ],
+    });
+    render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={vi.fn()} streamInvoke={stream} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ask about this passage/i), { target: { value: 'what is this about?' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(stream).toHaveBeenCalledWith(
+      'lamplight-chat',
+      { book: 'jhn', chapter: 10, message: 'what is this about?', translation: 'BSB' },
+      expect.objectContaining({ onEvent: expect.any(Function), signal: expect.any(AbortSignal) }),
+    ));
+    // Buffered path must NOT be used when streaming.
+    expect(sendChatMessage).not.toHaveBeenCalled();
+    // Final patch carries the full reply + citations + streaming:false.
+    await waitFor(() => expect(updateLast).toHaveBeenCalledWith(
+      expect.objectContaining({ streaming: false, content: 'Grace and peace.', citations: [{ type: 'verse', ref: 'jhn 10:11' }] }),
+    ));
+    await waitFor(() => expect(screen.getByText('Grace and peace.')).toBeInTheDocument());
+  });
+
+  it('aborts the in-flight stream when the passage changes', async () => {
+    setupLive();
+    let captured: AbortSignal | undefined;
+    const stream = makeFakeStream({ neverResolve: true, onCall: ({ signal }) => { captured = signal; } });
+    const { rerender } = render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={vi.fn()} streamInvoke={stream} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ask about this passage/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(captured).toBeDefined());
+    expect(captured!.aborted).toBe(false);
+
+    // Navigate to a different passage — the passageKey effect must abort the stream.
+    rerender(<LamplightChat book="rev" chapter={1} userId="u1" invoke={vi.fn()} streamInvoke={stream} />);
+    await waitFor(() => expect(captured!.aborted).toBe(true));
+  });
+
+  it('falls back to the buffered sendChatMessage when the stream ends with no terminal event', async () => {
+    setupLive();
+    // Simulates a JSON gate error swallowed by the transport: resolves, emits nothing.
+    const stream = makeFakeStream({ script: [] });
+    sendChatMessage.mockResolvedValue({ ok: true, threadId: 't1', reply: 'Buffered reply.', citations: [] });
+    const invoke = vi.fn();
+    render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={invoke} streamInvoke={stream} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ask about this passage/i), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalledWith(invoke, { book: 'jhn', chapter: 10, message: 'hi', translation: 'BSB' }));
+    await waitFor(() => expect(screen.getByText('Buffered reply.')).toBeInTheDocument());
+  });
+
+  it('falls back to the buffered path when the stream throws', async () => {
+    setupLive();
+    const stream = vi.fn(async () => { throw new Error('boom'); });
+    sendChatMessage.mockResolvedValue({ ok: true, threadId: 't1', reply: 'Recovered reply.', citations: [] });
+    render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={vi.fn()} streamInvoke={stream} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ask about this passage/i), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(sendChatMessage).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Recovered reply.')).toBeInTheDocument());
   });
 });
 

@@ -9,6 +9,7 @@ import { SupabaseLamplightAdapter } from '../../../../notepad/storage/supabase-l
 import type { LamplightAdapter } from '../../../../notepad/storage/lamplight-adapter';
 import type { Note, NoteType } from '../../../../notepad/types';
 import type { InvokeFn } from '@/notepad/bible/lamplight-chat-client';
+import { makeStreamInvoke, type StreamInvoke } from '@/notepad/bible/lamplight-stream-client';
 import { supabase } from '@/lib/supabase';
 
 export interface MobileWorkspaceModel {
@@ -23,6 +24,8 @@ export interface MobileWorkspaceModel {
   onAfterSave: (note: Note) => void;
   loadNeighborNotes: (ids: string[]) => Promise<Note[]>;
   invoke: InvokeFn;
+  /** Live SSE transport for Lamplight chat; undefined when Supabase isn't configured. */
+  streamInvoke?: StreamInvoke;
 }
 
 export function useMobileWorkspaceModel(): MobileWorkspaceModel {
@@ -62,6 +65,14 @@ export function useMobileWorkspaceModel(): MobileWorkspaceModel {
     [],
   );
 
+  // Bind the streaming transport only when Supabase is configured (a null client
+  // would build a transport that sends `Bearer undefined`). Memoized so it isn't
+  // rebuilt every render.
+  const streamInvoke = useMemo<StreamInvoke | undefined>(
+    () => (supabase ? makeStreamInvoke(supabase) : undefined),
+    [],
+  );
+
   return {
     user: user ? { id: user.id } : null,
     notes,
@@ -74,5 +85,6 @@ export function useMobileWorkspaceModel(): MobileWorkspaceModel {
     onAfterSave,
     loadNeighborNotes,
     invoke,
+    streamInvoke,
   };
 }

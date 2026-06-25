@@ -208,6 +208,7 @@ export function MobileNotepadWorkspace() {
         onOpenNote={handleOpenNote}
         lamplightAdapter={model.lamplightAdapter}
         invoke={model.invoke}
+        streamInvoke={model.streamInvoke}
       />
 
       <MobileAuthModal open={authOpen} onClose={() => setAuthOpen(false)} />

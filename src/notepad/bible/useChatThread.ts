@@ -8,6 +8,10 @@ export interface ChatThreadMessage {
   role: 'user' | 'assistant';
   content: string;
   citations: ChatCitation[];
+  /** True while the assistant reply is still streaming in (live SSE send). */
+  streaming?: boolean;
+  /** Pipeline stage currently in progress; only meaningful while streaming. */
+  stage?: 'notes' | 'scripture' | 'composing' | null;
 }
 
 export interface UseChatThreadResult {
