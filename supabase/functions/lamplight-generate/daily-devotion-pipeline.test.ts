@@ -418,6 +418,36 @@ describe('runDailyDevotionStreaming', () => {
     });
   });
 
+  it('threads the abort signal from runner args into generateStream input', async () => {
+    const { supabase } = makeSupabaseMock();
+    let capturedSignal: AbortSignal | undefined;
+    const controller = new AbortController();
+    const llm: LLMAdapter = {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        return { parsed: streamArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      },
+      async generateStream<U>(
+        input: GenerateStreamInput,
+        handlers: StreamHandlers,
+      ): Promise<GenerateOutput<U>> {
+        capturedSignal = input.signal;
+        handlers.onField?.('opening', streamArtifact.opening);
+        handlers.onField?.('scripture', streamArtifact.scripture);
+        handlers.onField?.('reflection', streamArtifact.reflection);
+        handlers.onField?.('prompt', streamArtifact.prompt);
+        handlers.onField?.('note_citations', streamArtifact.note_citations);
+        return { parsed: streamArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      },
+    };
+
+    await runDailyDevotionStreaming(
+      { llm, supabase, ctx: makeCtx(), userId: 'user-1', localDate: '2026-05-27', signal: controller.signal },
+      { onStage: vi.fn(), onPiece: vi.fn(), onRefining: vi.fn() },
+    );
+
+    expect(capturedSignal).toBe(controller.signal);
+  });
+
   it('idempotency: returns cached artifact when one already exists, no stream call', async () => {
     const { supabase, inserts } = makeSupabaseMock({ existing: cleanArtifact });
     let streamCalls = 0;

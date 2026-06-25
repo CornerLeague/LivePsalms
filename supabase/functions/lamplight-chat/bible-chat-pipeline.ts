@@ -151,6 +151,7 @@ export async function runBibleChatStreaming(
     ctx: BibleChatContext;
     prompt?: ChatPromptModule;
     model?: LLMModel;
+    signal?: AbortSignal;
   },
   handlers: BibleChatStreamHandlers,
 ): Promise<BibleChatPipelineResult> {
@@ -169,6 +170,7 @@ export async function runBibleChatStreaming(
     formatStricter: formatBibleChatStricter,
     textFields: ['reply'],
     // No perFieldValidate — chat has no per-field length rule
+    signal: args.signal,
     onStage: handlers.onStage,
     onText: handlers.onText,
     onPiece: handlers.onPiece,

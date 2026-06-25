@@ -322,6 +322,7 @@ export async function runDailyDevotionStreaming(
     ctx: DailyDevotionContext | null;
     userId: string;
     localDate: string;
+    signal?: AbortSignal;
   },
   handlers: DailyDevotionStreamHandlers,
 ): Promise<DailyDevotionPipelineResult> {
@@ -343,6 +344,7 @@ export async function runDailyDevotionStreaming(
     formatStricter: formatStrickerSuffixWithLengthNote,
     textFields: [],
     perFieldValidate: devotionFieldGate,
+    signal: args.signal,
     onStage: handlers.onStage,
     onPiece: handlers.onPiece,
     onRefining: handlers.onRefining,

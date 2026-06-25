@@ -73,24 +73,114 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
   // chapters never strands the user in a previous chapter's history view.
   useEffect(() => { setView({ kind: 'live' }); }, [passageKey]);
 
-  // User-triggered reflection (replaces the old auto-fire on an empty thread).
-  const requestReflection = async () => {
-    if (insightInFlight.current) return;
-    insightInFlight.current = true;
-    setError(null);
-    setInsighting(true);
+  // Buffered reflection: one round-trip that appends the assistant turn on
+  // resolve. Used directly when no streamInvoke is provided, and as the fallback
+  // when a reflection stream throws or ends with no terminal event. `forPassage`
+  // pins the request so a late resolve after navigating chapters is discarded.
+  const bufferedReflection = async (forPassage: string) => {
     const res = await requestOpeningInsight(invoke, { book, chapter, translation });
-    // Apply only if still mounted and still viewing the passage we requested for.
-    // On a passage change the effect above resets the flight guard for the new
-    // passage, so this early return must NOT touch it (the new request owns it).
-    if (!mounted.current || livePassageKey.current !== passageKey) return;
-    insightInFlight.current = false;
+    if (!mounted.current || livePassageKey.current !== forPassage) return;
     if (res.ok) {
       thread.append([{ id: localId(), role: 'assistant', content: res.reply, citations: res.citations }]);
     } else {
       setError(res.reason);
     }
-    setInsighting(false);
+  };
+
+  // Streaming reflection: mirrors streamSend() exactly (insight mode). Appends a
+  // placeholder assistant bubble and drives it live from SSE events; falls back
+  // to bufferedReflection on throw or when no terminal (done/error) event is seen.
+  const streamReflection = async (forPassage: string, stream: StreamInvoke) => {
+    thread.append([{ id: localId(), role: 'assistant', content: '', citations: [], streaming: true }]);
+    const controller = new AbortController();
+    streamAbort.current = controller;
+    const chunker = createSentenceChunker();
+    let content = '';
+    let terminal = false;
+    const alive = () => mounted.current && livePassageKey.current === forPassage && !controller.signal.aborted;
+
+    const onEvent = (ev: Parameters<Parameters<StreamInvoke>[2]['onEvent']>[0]) => {
+      if (!alive()) return;
+      switch (ev.t) {
+        case 'stage':
+          thread.updateLast({ stage: ev.stage });
+          break;
+        case 'text': {
+          if (ev.field !== 'reply') break;
+          for (const chunk of chunker.push(ev.delta)) {
+            content += chunk;
+            thread.updateLast({ content, stage: null });
+          }
+          break;
+        }
+        case 'piece':
+          if (ev.field === 'citations' && Array.isArray(ev.value)) thread.updateLast({ citations: ev.value as ChatCitation[] });
+          break;
+        case 'refining':
+          thread.updateLast({ stage: 'composing' });
+          break;
+        case 'done': {
+          terminal = true;
+          const tail = chunker.flush();
+          if (tail) content += tail;
+          const payload = (ev.payload ?? {}) as { reply?: string; citations?: ChatCitation[] };
+          thread.updateLast({
+            streaming: false,
+            content: typeof payload.reply === 'string' ? payload.reply : content,
+            citations: payload.citations ?? [],
+          });
+          break;
+        }
+        case 'error':
+          terminal = true;
+          thread.updateLast({ streaming: false });
+          setError(ev.reason);
+          break;
+      }
+    };
+
+    try {
+      await stream('lamplight-chat', { book, chapter, mode: 'insight', translation }, { onEvent, signal: controller.signal });
+    } catch {
+      if (alive()) {
+        thread.updateLast({ streaming: false });
+        await bufferedReflection(forPassage);
+      }
+      return;
+    } finally {
+      if (streamAbort.current === controller) streamAbort.current = null;
+    }
+    if (!alive()) return;
+    if (!terminal) {
+      thread.updateLast({ streaming: false });
+      await bufferedReflection(forPassage);
+    }
+  };
+
+  // User-triggered reflection (replaces the old auto-fire on an empty thread).
+  // Streams the opening insight when a streamInvoke transport is provided,
+  // matching send(); falls back to the buffered insight path otherwise.
+  const requestReflection = async () => {
+    if (insightInFlight.current) return;
+    insightInFlight.current = true;
+    setError(null);
+    setInsighting(true);
+    const forPassage = passageKey;
+    try {
+      if (streamInvoke) {
+        await streamReflection(forPassage, streamInvoke);
+      } else {
+        await bufferedReflection(forPassage);
+      }
+    } finally {
+      // Release the in-flight guard only if we're still on the passage we
+      // requested for — on a passage change the effect resets it for the new
+      // passage, which must own it (mirrors the original early-return guard).
+      if (mounted.current && livePassageKey.current === forPassage) {
+        insightInFlight.current = false;
+        setInsighting(false);
+      }
+    }
   };
 
   // Buffered send: a single round-trip that appends the assistant turn on resolve.
@@ -137,7 +227,7 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
           break;
         }
         case 'piece':
-          if (ev.field === 'citations') thread.updateLast({ citations: ev.value as ChatCitation[] });
+          if (ev.field === 'citations' && Array.isArray(ev.value)) thread.updateLast({ citations: ev.value as ChatCitation[] });
           break;
         case 'refining':
           thread.updateLast({ stage: 'composing' });

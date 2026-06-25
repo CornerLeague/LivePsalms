@@ -53,7 +53,7 @@ async function checkQuotaOrError(
 
 export async function streamBibleChat(
   deps: BibleChatStreamDeps,
-  args: { userId: string; mode: 'chat' | 'insight'; message: string; threadTitle: string },
+  args: { userId: string; mode: 'chat' | 'insight'; message: string; threadTitle: string; signal?: AbortSignal },
 ): Promise<Response> {
   // 1. Opt-in gate → JSON 403, no stream.
   if (!(await deps.isOptedIn(args.userId))) {
@@ -93,7 +93,7 @@ export async function streamBibleChat(
       const ctx = await deps.buildContext({ history });
 
       const result = await runBibleChatStreaming(
-        { llm: deps.llm, ctx, prompt: deps.prompt },
+        { llm: deps.llm, ctx, prompt: deps.prompt, signal: args.signal },
         {
           onStage: (s) => void emit({ t: 'stage', stage: s }),
           onText: (field, delta) => void emit({ t: 'text', field, delta }),

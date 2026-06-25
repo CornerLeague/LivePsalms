@@ -44,7 +44,7 @@ async function checkQuotaOrError(
 
 export async function streamDailyDevotion(
   deps: DailyDevotionStreamDeps,
-  args: { userId: string; localDate: string },
+  args: { userId: string; localDate: string; signal?: AbortSignal },
 ): Promise<Response> {
   // 1. Opt-in gate → JSON 403, no stream.
   if (!(await deps.isOptedIn(args.userId))) {
@@ -66,7 +66,7 @@ export async function streamDailyDevotion(
       const ctx = await deps.buildContext();
 
       const result = await runDailyDevotionStreaming(
-        { llm: deps.llm, supabase: deps.supabase, ctx, userId: args.userId, localDate: args.localDate },
+        { llm: deps.llm, supabase: deps.supabase, ctx, userId: args.userId, localDate: args.localDate, signal: args.signal },
         {
           onStage: (s) => void emit({ t: 'stage', stage: s }),
           onPiece: (field, value) => void emit({ t: 'piece', field, value }),

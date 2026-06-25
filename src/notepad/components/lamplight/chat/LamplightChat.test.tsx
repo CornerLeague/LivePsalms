@@ -265,6 +265,29 @@ describe('LamplightChat streaming', () => {
     await waitFor(() => expect(screen.getByText('Grace and peace.')).toBeInTheDocument());
   });
 
+  it('ignores a malformed (non-array) citations piece without corrupting the bubble', async () => {
+    const { updateLast } = setupLive();
+    const stream = makeFakeStream({
+      script: [
+        { t: 'text', field: 'reply', delta: 'Grace and peace.' },
+        // Malformed server frame: value is NOT an array. The guard must skip it.
+        { t: 'piece', field: 'citations', value: { not: 'an array' } as unknown as [] },
+        { t: 'done', payload: { ok: true, thread_id: 't1', reply: 'Grace and peace.', citations: [] } },
+      ],
+    });
+    render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={vi.fn()} streamInvoke={stream} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ask about this passage/i), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByText('Grace and peace.')).toBeInTheDocument());
+    // The non-array value was never applied as citations (guard skipped the patch).
+    const citationPatches = updateLast.mock.calls
+      .map((c: [Record<string, unknown>]) => c[0])
+      .filter((p) => 'citations' in p);
+    for (const p of citationPatches) expect(Array.isArray(p.citations)).toBe(true);
+  });
+
   it('aborts the in-flight stream when the passage changes', async () => {
     setupLive();
     let captured: AbortSignal | undefined;
@@ -307,6 +330,81 @@ describe('LamplightChat streaming', () => {
 
     await waitFor(() => expect(sendChatMessage).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Recovered reply.')).toBeInTheDocument());
+  });
+});
+
+describe('LamplightChat reflection streaming', () => {
+  // Reuse the live-mutating thread mock so streamed reflection patches render.
+  function setupLive() {
+    let messages: { id: string; role: string; content: string; citations: unknown[]; streaming?: boolean; stage?: unknown }[] = [];
+    let rerender: (() => void) | null = null;
+    const append = vi.fn((msgs: typeof messages) => { messages = [...messages, ...msgs]; rerender?.(); });
+    const updateLast = vi.fn((patch: Record<string, unknown>) => {
+      if (messages.length === 0) return;
+      messages = [...messages.slice(0, -1), { ...messages[messages.length - 1], ...patch }];
+      rerender?.();
+    });
+    useChatThread.mockImplementation(() => {
+      const [, setN] = useState(0);
+      rerender = () => setN((n: number) => n + 1);
+      return { messages, loading: false, error: null, append, updateLast, reload: vi.fn(), archiveAndReset: vi.fn() };
+    });
+    return { append, updateLast, getMessages: () => messages };
+  }
+
+  it('streams the reflection into a growing bubble in insight mode and finalizes with the full reply + citations', async () => {
+    const { updateLast } = setupLive();
+    const stream = makeFakeStream({
+      script: [
+        { t: 'stage', stage: 'notes' },
+        { t: 'text', field: 'reply', delta: 'A quiet ' },
+        { t: 'text', field: 'reply', delta: 'opening thought. ' },
+        { t: 'piece', field: 'citations', value: [{ type: 'verse', ref: 'jhn 10:11' }] },
+        { t: 'done', payload: { ok: true, thread_id: 't1', reply: 'A quiet opening thought.', citations: [{ type: 'verse', ref: 'jhn 10:11' }] } },
+      ],
+    });
+    render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={vi.fn()} streamInvoke={stream} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /reflect on this passage/i }));
+
+    // Reflection routes through the SAME streaming transport, in insight mode.
+    await waitFor(() => expect(stream).toHaveBeenCalledWith(
+      'lamplight-chat',
+      { book: 'jhn', chapter: 10, mode: 'insight', translation: 'BSB' },
+      expect.objectContaining({ onEvent: expect.any(Function), signal: expect.any(AbortSignal) }),
+    ));
+    // Buffered insight path must NOT be used when streaming.
+    expect(requestOpeningInsight).not.toHaveBeenCalled();
+    // Final patch carries the full reply + citations + streaming:false.
+    await waitFor(() => expect(updateLast).toHaveBeenCalledWith(
+      expect.objectContaining({ streaming: false, content: 'A quiet opening thought.', citations: [{ type: 'verse', ref: 'jhn 10:11' }] }),
+    ));
+    await waitFor(() => expect(screen.getByText('A quiet opening thought.')).toBeInTheDocument());
+  });
+
+  it('falls back to the buffered requestOpeningInsight when the reflection stream ends with no terminal event', async () => {
+    setupLive();
+    const stream = makeFakeStream({ script: [] }); // resolves, emits nothing (JSON gate swallowed)
+    requestOpeningInsight.mockResolvedValue({ ok: true, threadId: 't1', reply: 'Buffered reflection.', citations: [] });
+    const invoke = vi.fn();
+    render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={invoke} streamInvoke={stream} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /reflect on this passage/i }));
+
+    await waitFor(() => expect(requestOpeningInsight).toHaveBeenCalledWith(invoke, { book: 'jhn', chapter: 10, translation: 'BSB' }));
+    await waitFor(() => expect(screen.getByText('Buffered reflection.')).toBeInTheDocument());
+  });
+
+  it('falls back to the buffered requestOpeningInsight when the reflection stream throws', async () => {
+    setupLive();
+    const stream = vi.fn(async () => { throw new Error('boom'); });
+    requestOpeningInsight.mockResolvedValue({ ok: true, threadId: 't1', reply: 'Recovered reflection.', citations: [] });
+    render(<LamplightChat book="jhn" chapter={10} userId="u1" invoke={vi.fn()} streamInvoke={stream} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /reflect on this passage/i }));
+
+    await waitFor(() => expect(requestOpeningInsight).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Recovered reflection.')).toBeInTheDocument());
   });
 });
 

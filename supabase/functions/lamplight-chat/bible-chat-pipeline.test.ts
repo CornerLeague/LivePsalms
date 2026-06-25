@@ -166,6 +166,33 @@ describe('runBibleChatStreaming', () => {
     expect(onRefining).not.toHaveBeenCalled();
   });
 
+  it('threads the abort signal from runner args into generateStream input', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const controller = new AbortController();
+    const llm: LLMAdapter = {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        return { parsed: { reply: fullReply, citations } as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      },
+      async generateStream<U>(
+        input: GenerateStreamInput,
+        handlers: StreamHandlers,
+      ): Promise<GenerateOutput<U>> {
+        capturedSignal = input.signal;
+        handlers.onText?.('reply', fullReply);
+        handlers.onField?.('reply', fullReply);
+        handlers.onField?.('citations', citations);
+        return { parsed: { reply: fullReply, citations } as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      },
+    };
+
+    await runBibleChatStreaming(
+      { llm, ctx: baseCtx, signal: controller.signal },
+      { onStage: vi.fn(), onText: vi.fn(), onPiece: vi.fn(), onRefining: vi.fn() },
+    );
+
+    expect(capturedSignal).toBe(controller.signal);
+  });
+
   it('fails after retry when citations never validate', async () => {
     const badCitations = [{ type: 'verse' as const, ref: 'gen 1:1' }]; // not in allowedVerseRefs
     const llm: LLMAdapter = {

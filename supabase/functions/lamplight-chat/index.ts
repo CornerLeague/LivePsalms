@@ -158,7 +158,7 @@ async function handleChat(req: Request): Promise<Response> {
       prompt: mode === 'insight' ? BIBLE_INSIGHT_PROMPT : undefined,
     });
     return await streamBibleChat(buildStreamDeps(), {
-      userId, mode, message, threadTitle: message || `Study of ${book} ${chapter}`,
+      userId, mode, message, threadTitle: message || `Study of ${book} ${chapter}`, signal: req.signal,
     });
   }
 

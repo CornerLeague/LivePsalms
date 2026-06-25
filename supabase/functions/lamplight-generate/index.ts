@@ -199,7 +199,7 @@ async function handleGenerate(req: Request): Promise<Response> {
           buildContext: () =>
             buildDailyDevotionContext(supabase, { userId, localDate, voyageDeps, rerankEnabled, translation }),
         },
-        { userId, localDate },
+        { userId, localDate, signal: req.signal },
       );
     }
 
