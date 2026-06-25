@@ -28,45 +28,28 @@ describe('useTodaysLamp', () => {
     expect(generateSpy).not.toHaveBeenCalled();
   });
 
-  it('generates when no existing artifact, transitions through loading to ready', async () => {
+  it('generates when no existing artifact, transitions through retrieving to ready', async () => {
     const adapter = new FakeLamplightAdapter();
     adapter.__queueGenerateResult({ ok: true, artifact: devotion, cached: false });
     const { result } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', loadingStepIntervalMs: 10 }),
+      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27' }),
     );
-    expect(result.current.state.phase).toBe('loading');
+    // Initial state is retrieving (notes stage)
+    expect(result.current.state.phase).toBe('retrieving');
+    if (result.current.state.phase === 'retrieving') {
+      expect(result.current.state.stage).toBe('notes');
+    }
     await waitFor(() => expect(result.current.state.phase).toBe('ready'));
     if (result.current.state.phase === 'ready') {
       expect(result.current.state.artifact).toEqual(devotion);
     }
   });
 
-  it('advances loadingStep on the configured interval', async () => {
-    vi.useFakeTimers();
-    const adapter = new FakeLamplightAdapter();
-    adapter.generateDailyDevotion = (() => new Promise(() => {})) as typeof adapter.generateDailyDevotion;
-    const { result } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', loadingStepIntervalMs: 1000 }),
-    );
-    if (result.current.state.phase !== 'loading') throw new Error('expected loading');
-    expect(result.current.state.loadingStep).toBe(0);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-    if (result.current.state.phase !== 'loading') throw new Error('expected loading');
-    expect(result.current.state.loadingStep).toBe(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-    if (result.current.state.phase !== 'loading') throw new Error('expected loading');
-    expect(result.current.state.loadingStep).toBe(2);
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
-    if (result.current.state.phase !== 'loading') throw new Error('expected loading');
-    expect(result.current.state.loadingStep).toBe(2);
-    vi.useRealTimers();
-  });
-
   it('transitions to error state with reason on failure', async () => {
     const adapter = new FakeLamplightAdapter();
     adapter.__queueGenerateResult({ ok: false, reason: 'validators_failed' });
     const { result } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', loadingStepIntervalMs: 10 }),
+      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27' }),
     );
     await waitFor(() => expect(result.current.state.phase).toBe('error'));
     if (result.current.state.phase === 'error') {
@@ -82,7 +65,7 @@ describe('useTodaysLamp', () => {
 
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { unmount } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', loadingStepIntervalMs: 10 }),
+      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27' }),
     );
     unmount();
     resolveGenerate?.({ ok: false, reason: 'network' });
@@ -101,7 +84,7 @@ describe('useTodaysLamp', () => {
     const generateSpy = vi.spyOn(adapter, 'generateDailyDevotion');
     const { result, rerender } = renderHook(
       (props: { localDate: string }) =>
-        useTodaysLamp({ adapter, userId: 'user-1', localDate: props.localDate, loadingStepIntervalMs: 10 }),
+        useTodaysLamp({ adapter, userId: 'user-1', localDate: props.localDate }),
       { initialProps: { localDate: '2026-05-27' } },
     );
     await waitFor(() => expect(result.current.state.phase).toBe('ready'));
@@ -116,7 +99,7 @@ describe('useTodaysLamp', () => {
     adapter.__queueGenerateResult({ ok: false, reason: 'network' });
     adapter.__queueGenerateResult({ ok: true, artifact: devotion, cached: false });
     const { result } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', loadingStepIntervalMs: 10 }),
+      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27' }),
     );
     await waitFor(() => expect(result.current.state.phase).toBe('error'));
     act(() => { result.current.retry(); });
@@ -128,7 +111,7 @@ describe('useTodaysLamp', () => {
     adapter.__seedDailyDevotion('user-1', '2026-05-27', devotion);
     const generateSpy = vi.spyOn(adapter, 'generateDailyDevotion');
     const { result } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', autoGenerate: false, loadingStepIntervalMs: 10 }),
+      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', autoGenerate: false }),
     );
     await waitFor(() => expect(result.current.state.phase).toBe('ready'));
     expect(generateSpy).not.toHaveBeenCalled();
@@ -138,7 +121,7 @@ describe('useTodaysLamp', () => {
     const adapter = new FakeLamplightAdapter();
     const generateSpy = vi.spyOn(adapter, 'generateDailyDevotion');
     const { result } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', autoGenerate: false, loadingStepIntervalMs: 10 }),
+      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', autoGenerate: false }),
     );
     await waitFor(() => expect(result.current.state.phase).toBe('idle'));
     expect(generateSpy).not.toHaveBeenCalled();
@@ -149,7 +132,7 @@ describe('useTodaysLamp', () => {
     adapter.__queueGenerateResult({ ok: true, artifact: devotion, cached: false });
     const generateSpy = vi.spyOn(adapter, 'generateDailyDevotion');
     const { result } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', autoGenerate: false, loadingStepIntervalMs: 10 }),
+      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', autoGenerate: false }),
     );
     await waitFor(() => expect(result.current.state.phase).toBe('idle'));
     act(() => { result.current.start(); });
@@ -162,7 +145,7 @@ describe('useTodaysLamp', () => {
     adapter.__queueGenerateResult({ ok: false, reason: 'network' });
     adapter.__queueGenerateResult({ ok: true, artifact: devotion, cached: false });
     const { result } = renderHook(() =>
-      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', autoGenerate: false, loadingStepIntervalMs: 10 }),
+      useTodaysLamp({ adapter, userId: 'user-1', localDate: '2026-05-27', autoGenerate: false }),
     );
     await waitFor(() => expect(result.current.state.phase).toBe('idle'));
     act(() => { result.current.start(); });
@@ -177,7 +160,7 @@ describe('useTodaysLamp', () => {
     const generateSpy = vi.spyOn(adapter, 'generateDailyDevotion');
     const { result, rerender } = renderHook(
       (props: { localDate: string }) =>
-        useTodaysLamp({ adapter, userId: 'user-1', localDate: props.localDate, autoGenerate: false, loadingStepIntervalMs: 10 }),
+        useTodaysLamp({ adapter, userId: 'user-1', localDate: props.localDate, autoGenerate: false }),
       { initialProps: { localDate: '2026-05-27' } },
     );
     await waitFor(() => expect(result.current.state.phase).toBe('idle'));

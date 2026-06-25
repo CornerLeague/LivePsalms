@@ -29,9 +29,6 @@ export interface TodaysLampInputs {
   userId: string;
   localDate: string;
   autoGenerate: boolean;
-  /** Accepted but ignored — kept optional so useTodaysLamp.ts compiles without
-   *  a D3 rewrite; D3 will remove this field once it rewires the hook. */
-  loadingStepIntervalMs?: number;
 }
 
 const INITIAL: TodaysLampState = { phase: 'retrieving', stage: 'notes' };

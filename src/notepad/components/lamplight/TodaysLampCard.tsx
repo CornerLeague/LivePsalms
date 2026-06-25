@@ -18,9 +18,10 @@ export function TodaysLampCard({
 }: TodaysLampCardProps) {
   const { state, start, retry } = useTodaysLamp({ adapter, userId, localDate, autoGenerate });
 
-  if (state.phase === 'idle')                                        return <TodaysLampIntro firstName={firstName} onStart={start} />;
-  if (state.phase === 'retrieving' || state.phase === 'generating' || state.phase === 'refining') return <TodaysLampLoading step={0} firstName={firstName} />;
-  if (state.phase === 'error')                                       return <TodaysLampError reason={state.reason} firstName={firstName} onRetry={retry} />;
+  if (state.phase === 'idle')        return <TodaysLampIntro firstName={firstName} onStart={start} />;
+  if (state.phase === 'retrieving') return <TodaysLampLoading stage={state.stage} firstName={firstName} />;
+  if (state.phase === 'generating' || state.phase === 'refining') return <TodaysLampLoading stage="composing" firstName={firstName} />;
+  if (state.phase === 'error')      return <TodaysLampError reason={state.reason} firstName={firstName} onRetry={retry} />;
   if (state.phase !== 'ready')                                       return null;
 
   return (
