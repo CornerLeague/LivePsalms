@@ -48,6 +48,13 @@ export type DailyDevotionGenerateResult =
   | { ok: true; artifact: DailyDevotion; cached: boolean }
   | { ok: false; reason: 'no_notes' | 'validators_failed' | 'network' };
 
+export type DailyDevotionStreamEvent =
+  | { kind: 'stage'; stage: 'notes' | 'scripture' | 'composing' }
+  | { kind: 'piece'; field: keyof DailyDevotion; value: unknown }
+  | { kind: 'refining' }
+  | { kind: 'done'; artifact: DailyDevotion; cached: boolean }
+  | { kind: 'error'; reason: 'no_notes' | 'validators_failed' | 'network' };
+
 export interface ConnectionNeighbor {
   relatedNoteId: string;
   similarity: number;
@@ -85,6 +92,14 @@ export interface LamplightAdapter {
   getDailyDevotion(userId: string, periodKey: string): Promise<DailyDevotion | null>;
   /** Invokes lamplight-generate Edge Function with kind='daily_devotion'. */
   generateDailyDevotion(userId: string, localDate: string): Promise<DailyDevotionGenerateResult>;
+  /** Streams daily devotion SSE events. On transport failure emits {kind:'error',reason:'network'}.
+   *  Callers (D2 controller) own the fallback to generateDailyDevotion on error/no-terminal-event. */
+  streamDailyDevotion?(
+    userId: string,
+    localDate: string,
+    onEvent: (ev: DailyDevotionStreamEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void>;
   /** Returns neighboring notes with similarity scores using the `match_my_note_neighbors` RPC.
    *  `minSimilarity` overrides the RPC default (0.78); pass a lower value while testing. */
   getConnectionNeighbors(
