@@ -167,6 +167,6 @@ describe('streamDailyDevotion', () => {
     expect(res.status).toBe(429);
     expect(res.headers.get('content-type')).not.toBe('text/event-stream');
     const json = await res.json();
-    expect(json).toEqual({ error: 'tier_cap' });
+    expect(json).toEqual({ error: 'quota_exceeded', reason: 'tier_cap' });
   });
 });

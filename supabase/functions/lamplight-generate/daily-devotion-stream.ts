@@ -38,7 +38,7 @@ async function checkQuotaOrError(
   cors: Record<string, string>,
 ): Promise<Response | null> {
   const quota = await checkQuota(userId);
-  if (!quota.ok) return jsonResponse(cors, { error: quota.reason }, 429);
+  if (!quota.ok) return jsonResponse(cors, { error: 'quota_exceeded', reason: quota.reason }, 429);
   return null;
 }
 
