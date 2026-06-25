@@ -123,6 +123,10 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
     return { search: null, translation: DEFAULT_TRANSLATION };
   },
 
+  addStorage() {
+    return { translation: this.options.translation as BibleTranslation };
+  },
+
   addAttributes() {
     return {
       osis: { default: null, parseHTML: (el) => el.getAttribute('data-osis'), renderHTML: (a) => ({ 'data-osis': a.osis }) },
@@ -169,10 +173,12 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
 
   addProseMirrorPlugins() {
     const search = this.options.search;
-    // Freeze the active translation at the editor's mount; the picker stamps THIS
-    // onto every inserted node so changing the preference later never rewrites
+    // Read the active translation live from storage (updated by the editor host
+    // via a useEffect bridge), falling back to the mount-time option. This lets
+    // a mid-session version change apply to new inserts without rewriting
     // already-inserted references.
-    const translation = this.options.translation;
+    const storage = this.storage as { translation: BibleTranslation };
+    const activeTranslation = (): BibleTranslation => storage.translation ?? this.options.translation;
 
     // Predictive (B) resolves each typed reference via fetchVerseText. Hold the
     // controller so a new keystroke aborts the prior in-flight request instead
@@ -189,7 +195,7 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
         .chain()
         .focus()
         .deleteRange(range)
-        .insertScriptureRef(scriptureRefAttrsFromCandidate(c, translation))
+        .insertScriptureRef(scriptureRefAttrsFromCandidate(c, activeTranslation()))
         .run();
     };
 
@@ -231,7 +237,7 @@ export const ScriptureRef = Node.create<ScriptureRefOptions>({
     // book autocompletes the text; selecting a resolved verse inserts a node —
     // both via applyVerseSelection.
     const verseCommand = ({ editor, range, props }: { editor: Editor; range: { from: number; to: number }; props: BookOrVerseItem }) =>
-      applyVerseSelection(editor, range, props);
+      applyVerseSelection(editor, range, props, activeTranslation());
 
     const picker: SuggestionOptions<BookOrVerseItem, BookOrVerseItem> = {
       editor: this.editor,

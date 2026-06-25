@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { loadEnum, saveEnum, KEY_BIBLE_TRANSLATION } from '../session/session-storage';
-import { type BibleTranslation, DEFAULT_TRANSLATION, TRANSLATIONS, isBibleTranslation } from './translations';
+import { type BibleTranslation, DEFAULT_TRANSLATION, TRANSLATIONS } from './translations';
 import { supabase } from '@/lib/supabase';
 
 const ALLOWED = TRANSLATIONS.map((t) => t.id) as readonly BibleTranslation[];
 
 export interface UseBibleTranslationResult {
   translation: BibleTranslation;
-  setTranslation: (t: BibleTranslation) => void;
+  setLocalTranslation: (t: BibleTranslation) => void;
+  saveGlobalTranslation: (t: BibleTranslation) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function useBibleTranslation(
@@ -17,29 +18,25 @@ export function useBibleTranslation(
     loadEnum<BibleTranslation>(KEY_BIBLE_TRANSLATION, ALLOWED, DEFAULT_TRANSLATION),
   );
 
-  // Hydrate from the profile when signed in (localStorage is the instant default).
-  useEffect(() => {
-    let cancelled = false;
-    if (!userId || !supabase) return;
-    (async () => {
-      const { data } = await supabase
-        .from('profiles').select('bible_translation').eq('id', userId).maybeSingle();
-      const remote = data?.bible_translation;
-      if (!cancelled && isBibleTranslation(remote)) {
-        setState(remote);
-        saveEnum(KEY_BIBLE_TRANSLATION, remote);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [userId]);
+  // Device-local store only. Seeding the global value from the profile is owned by
+  // BiblePrefsProvider so it can read all prefs in one query — this hook never reads.
 
-  const setTranslation = useCallback((t: BibleTranslation) => {
+  const setLocalTranslation = useCallback((t: BibleTranslation) => {
     setState(t);
     saveEnum(KEY_BIBLE_TRANSLATION, t);
-    if (userId && supabase) {
-      void supabase.from('profiles').update({ bible_translation: t }).eq('id', userId);
-    }
-  }, [userId]);
+  }, []);
 
-  return { translation, setTranslation };
+  const saveGlobalTranslation = useCallback(
+    async (t: BibleTranslation): Promise<{ ok: boolean; error?: string }> => {
+      setState(t);
+      saveEnum(KEY_BIBLE_TRANSLATION, t);
+      if (!userId || !supabase) return { ok: true };
+      const { error } = await supabase
+        .from('profiles').update({ bible_translation: t }).eq('id', userId);
+      return error ? { ok: false, error: error.message } : { ok: true };
+    },
+    [userId],
+  );
+
+  return { translation, setLocalTranslation, saveGlobalTranslation };
 }

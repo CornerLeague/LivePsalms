@@ -28,7 +28,7 @@ import { useNoteCollection } from '../context/useNoteCollection';
 import { useNotepadActions } from '../context/useNotepadActions';
 import { useReferenceGraph } from '../context/useReferenceGraph';
 import { useNoteEditor } from '../editor/use-note-editor';
-import { useBibleTranslation } from '../bible/useBibleTranslation';
+import { useBiblePrefs } from '../bible/prefs/bible-prefs-context';
 import { useNoteLinkPopup } from '../editor/use-note-link-popup';
 import { useVerseTooltip } from '../editor/use-verse-tooltip';
 import { useSelectionAnchor, detectDoubleTap } from '../editor/use-selection-anchor';
@@ -75,13 +75,14 @@ export function NotepadEditor({
   const openNote = collection.openNote;
   const { profile } = useAccountProfile();
 
-  // Active Bible translation (device default; profile-hydrated when signed in).
+  // Active Bible translation from the shared BiblePrefsProvider.
   // Captured at the editor's mount and frozen onto scriptureRefs inserted via the
   // picker — see the mount-time note in useNoteEditor.
-  const { translation } = useBibleTranslation();
+  const { translation } = useBiblePrefs();
 
   // The TipTap↔NotepadActions bridge for the active Note. See NoteEditor in CONTEXT.md.
   const { editor } = useNoteEditor({ activeNote, updateNote, onAfterSave, translation });
+
 
   const isBottomToolbar = toolbarPlacement === 'bottom';
 
@@ -243,7 +244,7 @@ export function NotepadEditor({
           className={`shrink-0 flex items-center gap-0.5 px-3${isBottomToolbar ? ' scrollbar-hide' : ''}`}
           style={{
             height: 40,
-            background: 'rgba(240, 236, 232, 0.97)',
+            background: 'var(--notepad-bar-bg)',
             borderColor: 'var(--pale-stone)',
             borderBottom: isBottomToolbar ? 'none' : '1px solid var(--pale-stone)',
             borderTop: isBottomToolbar ? '1px solid var(--pale-stone)' : 'none',
@@ -297,7 +298,7 @@ export function NotepadEditor({
                     <button
                       key={level}
                       onClick={() => { editor.chain().focus().toggleHeading({ level }).run(); setHeadingOpen(false); }}
-                      className="flex items-center w-full px-3 py-1.5 text-[12px] hover:bg-black/5 transition-colors"
+                      className="flex items-center w-full px-3 py-1.5 text-[12px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                       style={{
                         color: editor.isActive('heading', { level }) ? 'var(--charred)' : 'var(--deep-umber)',
                         fontWeight: editor.isActive('heading', { level }) ? 600 : 400,
@@ -309,7 +310,7 @@ export function NotepadEditor({
                   ))}
                   <button
                     onClick={() => { editor.chain().focus().setParagraph().run(); setHeadingOpen(false); }}
-                    className="flex items-center w-full px-3 py-1.5 text-[12px] hover:bg-black/5 transition-colors"
+                    className="flex items-center w-full px-3 py-1.5 text-[12px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                     style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
                   >
                     Paragraph
@@ -326,7 +327,7 @@ export function NotepadEditor({
                       position: 'fixed',
                       bottom: headingCoords.bottom,
                       left: headingCoords.left,
-                      background: 'rgba(240, 236, 232, 0.97)',
+                      background: 'var(--surface-elevated)',
                       border: '1px solid var(--pale-stone)',
                       minWidth: 100,
                       zIndex: 60,
@@ -342,7 +343,7 @@ export function NotepadEditor({
                 <div
                   data-testid="heading-menu"
                   className="absolute top-full mt-1 left-0 rounded-md shadow-lg z-50 py-1"
-                  style={{ background: 'rgba(240, 236, 232, 0.97)', border: '1px solid var(--pale-stone)', minWidth: 100 }}
+                  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--pale-stone)', minWidth: 100 }}
                 >
                   {menuItems}
                 </div>
@@ -520,7 +521,7 @@ export function NotepadEditor({
                   style={{
                     fontFamily: "'Outfit', sans-serif",
                     fontSize: '0.78rem',
-                    background: 'rgba(188, 179, 163, 0.2)',
+                    background: 'color-mix(in srgb, var(--warm-sand) 20%, transparent)',
                     color: 'var(--deep-umber)',
                     borderRadius: '4px',
                     padding: '2px 8px',
@@ -618,7 +619,7 @@ export function NotepadEditor({
             top: verseTooltip.y,
             zIndex: 9999,
             maxWidth: '340px',
-            background: 'rgba(240, 236, 232, 0.97)',
+            background: 'var(--surface-elevated)',
             border: '1px solid var(--pale-stone)',
             borderRadius: '10px',
             padding: '0.85rem 1rem',
@@ -670,7 +671,7 @@ export function NotepadEditor({
             top: noteLinkPopup.y,
             zIndex: 9999,
             width: '260px',
-            background: 'rgba(240, 236, 232, 0.97)',
+            background: 'var(--surface-elevated)',
             border: '1px solid var(--pale-stone)',
             borderRadius: '10px',
             padding: '0.5rem',
@@ -738,7 +739,7 @@ export function NotepadEditor({
                   }}
                   onMouseEnter={(e) =>
                     ((e.currentTarget as HTMLButtonElement).style.background =
-                      'rgba(188, 179, 163, 0.25)')
+                      'color-mix(in srgb, var(--warm-sand) 25%, transparent)')
                   }
                   onMouseLeave={(e) =>
                     ((e.currentTarget as HTMLButtonElement).style.background =
@@ -824,18 +825,18 @@ function ToolbarButton({ active, disabled, onClick, title, children, mobile, dat
         height: 28,
         flexShrink: mobile ? 0 : undefined,
         cursor: disabled ? 'default' : 'pointer',
-        background: active ? 'rgba(188, 179, 163, 0.35)' : 'transparent',
+        background: active ? 'color-mix(in srgb, var(--warm-sand) 35%, transparent)' : 'transparent',
         color: disabled ? 'var(--pale-stone)' : active ? 'var(--charred)' : 'var(--deep-umber)',
         border: 'none',
         opacity: disabled ? 0.4 : 1,
       }}
       onMouseEnter={(e) => {
         if (!active && !disabled)
-          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(188, 179, 163, 0.2)';
+          (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--warm-sand) 20%, transparent)';
       }}
       onMouseLeave={(e) => {
         if (!active && !disabled)
-          (e.currentTarget as HTMLButtonElement).style.background = active ? 'rgba(188, 179, 163, 0.35)' : 'transparent';
+          (e.currentTarget as HTMLButtonElement).style.background = active ? 'color-mix(in srgb, var(--warm-sand) 35%, transparent)' : 'transparent';
       }}
     >
       {children}

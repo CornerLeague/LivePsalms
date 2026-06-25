@@ -215,3 +215,49 @@
   .transcription-review__text { flex: 1; min-width: 0; }
   .transcription-review__image img { max-height: 60vh; }
 }
+
+/* Dark theme — paper surfaces lift to near-black; gold FABs become lamplight-
+   accent; semantic rose/teal are lightened for contrast on dark backgrounds. */
+.dark .scan-capture__choices button:first-child,
+.dark .scan-capture__camera-actions button:first-child {
+  background: var(--lamplight-accent);
+  border-color: var(--lamplight-accent);
+  color: var(--app-bg);
+}
+
+.dark .scan-capture__camera video {
+  background: var(--app-bg);
+}
+
+.dark .transcription-review__image img {
+  background: var(--surface-elevated);
+}
+
+.dark .transcription-review__text .ProseMirror {
+  background: var(--surface-elevated);
+}
+
+.dark .transcription-review__low-conf {
+  color: #f1a3a3;
+  background: rgba(241, 163, 163, 0.1);
+}
+
+.dark .transcription-review__verse-flags .is-found {
+  background: rgba(127, 200, 182, 0.15);
+  color: #7fc8b6;
+}
+.dark .transcription-review__verse-flags .is-missing {
+  background: rgba(241, 163, 163, 0.15);
+  color: #f1a3a3;
+}
+
+.dark .transcription-review__actions button:first-child {
+  background: var(--lamplight-accent);
+  border-color: var(--lamplight-accent);
+  color: var(--app-bg);
+}
+
+.dark .transcription-review .uncertain-word {
+  background: rgba(241, 163, 163, 0.18);
+  border-bottom-color: rgba(241, 163, 163, 0.65);
+}

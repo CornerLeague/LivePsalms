@@ -45,9 +45,9 @@ export function ChatMessage({ role, content, citations, resolveNoteTitle, stream
         style={{
           fontFamily: 'Outfit, sans-serif',
           borderRadius: isUser ? '11px 11px 3px 11px' : '11px 11px 11px 3px',
-          background: isUser ? '#C49A78' : '#fff',
-          color: isUser ? '#fff' : '#4a4136',
-          border: isUser ? 'none' : '1px solid #ece2d4',
+          background: isUser ? 'var(--lamplight-accent)' : 'var(--surface-elevated)',
+          color: isUser ? 'var(--chat-on-accent)' : 'var(--deep-umber)',
+          border: isUser ? 'none' : '1px solid var(--pale-stone)',
         }}
       >
         {showNarration ? (

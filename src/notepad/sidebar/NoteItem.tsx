@@ -70,7 +70,7 @@ export function NoteItem({
           <div
             className="flex items-center gap-1.5 px-1 py-1.5 rounded cursor-pointer transition-colors group"
             style={{
-              background: isActive ? 'rgba(188, 179, 163, 0.3)' : 'transparent',
+              background: isActive ? 'color-mix(in srgb, var(--warm-sand) 30%, transparent)' : 'transparent',
               fontFamily: 'Outfit, sans-serif',
             }}
             onClick={() => { if (!menuAction.wasJustOpen()) onOpen(note.id); }}
@@ -81,7 +81,7 @@ export function NoteItem({
             <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <span
-                  className="shrink-0 cursor-pointer rounded hover:bg-black/10 transition-all"
+                  className="shrink-0 cursor-pointer rounded hover:bg-black/10 dark:hover:bg-white/15 transition-all"
                   style={{
                     opacity: hovering || menuOpen || isMobile ? 1 : 0,
                     transition: 'opacity 0.15s',

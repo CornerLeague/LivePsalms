@@ -11,7 +11,7 @@ import { LamplightChat } from '@/notepad/components/lamplight/chat/LamplightChat
 import type { InvokeFn } from './lamplight-chat-client';
 import type { StreamInvoke } from './lamplight-stream-client';
 import { BibleReader, type PassageRef } from './BibleReader';
-import { useBibleTranslation } from './useBibleTranslation';
+import { useBiblePrefs } from './prefs/bible-prefs-context';
 import { useBibleHighlights } from './highlights/useBibleHighlights';
 import { bookByAbbrev } from './bible-books';
 import { SplitResizeHandle } from './SplitResizeHandle';
@@ -54,7 +54,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: Bible
     });
   }, []);
 
-  const { translation, setTranslation } = useBibleTranslation({ userId });
+  const { translation, setLocalTranslation, verseLayout, setLocalVerseLayout } = useBiblePrefs();
 
   const { swatchByVerse, setHighlight, removeHighlight } = useBibleHighlights(
     passage.book,
@@ -126,7 +126,9 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: Bible
             initialBook={passage.book}
             initialChapter={passage.chapter}
             translation={translation}
-            onTranslationChange={setTranslation}
+            onTranslationChange={setLocalTranslation}
+            verseLayout={verseLayout}
+            onVerseLayoutChange={setLocalVerseLayout}
             onPassageChange={handlePassageChange}
             highlightSwatchByVerse={swatchByVerse}
             onSetHighlight={setHighlight}

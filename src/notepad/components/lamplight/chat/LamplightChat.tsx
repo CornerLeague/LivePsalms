@@ -26,7 +26,7 @@ const localId = () => `local-${++localIdSeq}`;
 
 export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: LamplightChatProps) {
   const thread = useChatThread(book, chapter, userId);
-  const { translation } = useBibleTranslation({ userId });
+  const { translation } = useBiblePrefs();
   const { notes } = useNoteCollection();
   // Resolve note citations to their titles (chips show names, never raw note ids).
   const resolveNoteTitle = useMemo(() => {
@@ -315,7 +315,7 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ background: 'rgba(255,255,255,0.45)', fontFamily: 'Outfit, sans-serif' }}>
+    <div className="flex flex-col h-full" style={{ background: 'var(--chat-panel-bg)', fontFamily: 'Outfit, sans-serif' }}>
       <div className="flex justify-end gap-2 px-3 pt-2 shrink-0">
         <button
           onClick={() => { history.reload(); setView({ kind: 'list' }); }}
@@ -340,7 +340,7 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
               onClick={() => void requestReflection()}
               disabled={insighting}
               className="text-[12px] tracking-wider px-4 py-2 rounded-full disabled:opacity-40"
-              style={{ background: '#C49A78', color: '#fff', fontFamily: 'Outfit, sans-serif' }}
+              style={{ background: 'var(--lamplight-accent)', color: 'var(--chat-on-accent)', fontFamily: 'Outfit, sans-serif' }}
             >
               Reflect on this passage
             </button>
@@ -354,7 +354,7 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
         ))}
         {(sending || insighting) && <p className="text-[11px] italic" style={{ color: 'var(--silica)' }}>Lamplight is reflecting…</p>}
         {error && (
-          <p className="text-[11px]" style={{ color: '#b45454' }}>
+          <p className="text-[11px]" style={{ color: 'var(--error-rose, #b45454)' }}>
             Couldn't reach Lamplight ({error}). Try again.
           </p>
         )}
@@ -366,14 +366,14 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
           placeholder="Ask about this passage…"
           className="flex-1 text-[12px] px-3 py-1.5 rounded-full"
-          style={{ background: '#fff', border: '1px solid var(--pale-stone)', color: 'var(--deep-umber)' }}
+          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--pale-stone)', color: 'var(--deep-umber)' }}
         />
         <button
           aria-label="Send"
           onClick={() => void send()}
           disabled={sending || !draft.trim()}
           className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-40"
-          style={{ background: '#C49A78', color: '#fff' }}
+          style={{ background: 'var(--lamplight-accent)', color: 'var(--chat-on-accent)' }}
         >
           ↑
         </button>

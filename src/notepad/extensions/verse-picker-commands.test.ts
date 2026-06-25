@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { Editor } from '@tiptap/core';
 import { applyVerseSelection } from './verse-picker-commands';
 import type { VerseCandidate } from '../bible/verse-search-types';
@@ -27,7 +27,7 @@ const candidate: VerseCandidate = {
 describe('applyVerseSelection', () => {
   it('book item autocompletes the range text to "/verse <Book> " (trailing space)', () => {
     const { editor, calls } = makeEditorStub();
-    applyVerseSelection(editor, { from: 1, to: 9 }, { kind: 'book', book: 'Romans' });
+    applyVerseSelection(editor, { from: 1, to: 9 }, { kind: 'book', book: 'Romans' }, 'BSB');
     const insert = calls.find((c) => c.method === 'insertContentAt');
     expect(insert).toBeDefined();
     expect(insert!.args[0]).toEqual({ from: 1, to: 9 });
@@ -36,14 +36,22 @@ describe('applyVerseSelection', () => {
     expect(calls.some((c) => c.method === 'insertScriptureRef')).toBe(false);
   });
 
-  it('verse item deletes the range and inserts a scriptureRef node', () => {
+  it('verse item deletes the range and inserts a scriptureRef node stamped with the given translation', () => {
     const { editor, calls } = makeEditorStub();
-    applyVerseSelection(editor, { from: 1, to: 13 }, { kind: 'verse', candidate });
+    applyVerseSelection(editor, { from: 1, to: 13 }, { kind: 'verse', candidate }, 'WEB');
     expect(calls.some((c) => c.method === 'deleteRange')).toBe(true);
     const insert = calls.find((c) => c.method === 'insertScriptureRef');
     expect(insert).toBeDefined();
-    expect(insert!.args[0]).toMatchObject({ osis: 'rom.8.28', book: 'Romans', chapter: 8, verseStart: 28, verseEnd: null, translation: 'BSB' });
+    expect(insert!.args[0]).toMatchObject({ osis: 'rom.8.28', book: 'Romans', chapter: 8, verseStart: 28, verseEnd: null, translation: 'WEB' });
     // It must NOT autocomplete text for a verse selection.
     expect(calls.some((c) => c.method === 'insertContentAt')).toBe(false);
+  });
+
+  it('stamps the ACTIVE translation (not hardcoded BSB) on a verse insert', () => {
+    const { editor, calls } = makeEditorStub();
+    applyVerseSelection(editor, { from: 1, to: 13 }, { kind: 'verse', candidate }, 'KJV');
+    const insert = calls.find((c) => c.method === 'insertScriptureRef');
+    expect(insert).toBeDefined();
+    expect(insert!.args[0]).toMatchObject({ osis: 'rom.8.28', translation: 'KJV' });
   });
 });

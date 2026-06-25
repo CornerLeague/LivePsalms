@@ -2,6 +2,7 @@
 import { Search, User } from 'lucide-react';
 import { NotepadSidebar } from '../../../../notepad/components/Sidebar';
 import { MobileFabMenu } from './MobileFabMenu';
+import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 
 export interface MobileNotesViewProps {
   onExit: () => void;
@@ -29,7 +30,7 @@ export function MobileNotesView({
   avatarUrl,
 }: MobileNotesViewProps) {
   return (
-    <div className="relative flex flex-col h-full min-h-0" style={{ background: 'var(--plaster)' }}>
+    <div className="relative flex flex-col h-full min-h-0" style={{ background: 'var(--notepad-page-bg)' }}>
       <header
         className="shrink-0 flex items-center justify-between px-3"
         style={{ height: 48, borderBottom: '1px solid var(--pale-stone)', fontFamily: 'Outfit, sans-serif' }}
@@ -39,21 +40,22 @@ export function MobileNotesView({
           onClick={onExit}
           className="flex items-center"
         >
-          <img src="/logo-icon.png" alt="LivePsalms" className="h-7 w-auto object-contain" />
+          <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
           <button
             aria-label="Search notes"
             onClick={onOpenSearch}
-            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5"
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
             style={{ color: 'var(--deep-umber)' }}
           >
             <Search size={18} />
           </button>
+          <ThemeToggle className="w-9 h-9" />
           <button
             aria-label="Account"
             onClick={onOpenAccount}
-            className="flex items-center justify-center w-9 h-9 rounded-full overflow-hidden hover:bg-black/5"
+            className="flex items-center justify-center w-9 h-9 rounded-full overflow-hidden hover:bg-black/5 dark:hover:bg-white/10"
             style={{ color: 'var(--deep-umber)' }}
           >
             {avatarUrl ? (

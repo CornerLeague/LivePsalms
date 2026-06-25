@@ -38,6 +38,7 @@ export async function buildStudyContext(
     includeNotes: boolean; noteIds?: string[];
     voyageDeps: VoyageDeps; rerankEnabled: boolean;
     crossRefK: number; noteK: number;
+    translation: string;
   },
 ): Promise<{ ctx: BibleChatContext; offered: OfferedNote[] }> {
   // Open chapter text.
@@ -45,6 +46,7 @@ export async function buildStudyContext(
     .from('bible_passages')
     .select('book, chapter, verse_start, verse_end, text')
     .like('id', `${args.book}.${args.chapter}.%`)
+    .eq('translation', args.translation)
     .order('verse_start', { ascending: true });
   if (cErr) throw cErr;
   const verses = (chapterRows ?? []) as Array<{ book: string; chapter: number; verse_start: number; verse_end: number; text: string }>;
@@ -82,7 +84,8 @@ export async function buildStudyContext(
   for (const x of xrefs) {
     const id = `${x.to_book}.${x.to_chapter}.${x.to_verse_start}`;
     const { data: tgt } = await supabase
-      .from('bible_passages').select('book, chapter, verse_start, verse_end, text').eq('id', id).maybeSingle();
+      .from('bible_passages').select('book, chapter, verse_start, verse_end, text')
+      .eq('id', id).eq('translation', args.translation).maybeSingle();
     if (tgt) {
       const ref = formatVerseRef(tgt as { book: string; chapter: number; verse_start: number; verse_end: number });
       crossRefSet.add(ref.toLowerCase());

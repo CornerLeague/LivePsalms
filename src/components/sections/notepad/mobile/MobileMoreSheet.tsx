@@ -66,7 +66,7 @@ export function MobileMoreSheet({ open, onClose, onOpenNote, lamplightAdapter, i
       <div
         className="relative rounded-t-2xl flex flex-col"
         style={{
-          background: 'var(--plaster)',
+          background: 'var(--notepad-page-bg)',
           maxHeight: '80vh',
           paddingBottom: 'env(safe-area-inset-bottom)',
           boxShadow: '0 -8px 28px rgba(0,0,0,0.18)',

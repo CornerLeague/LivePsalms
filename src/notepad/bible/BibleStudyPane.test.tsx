@@ -9,7 +9,9 @@ const useLamplightEntitlement = vi.fn();
 vi.mock('@/auth/context/useAuthSession', () => ({ useAuthSession: () => useAuthSession() }));
 vi.mock('@/notepad/hooks/useLamplightSettings', () => ({ useLamplightSettings: () => useLamplightSettings() }));
 vi.mock('@/notepad/hooks/useLamplightEntitlement', () => ({ useLamplightEntitlement: () => useLamplightEntitlement() }));
-vi.mock('./BibleReader', () => ({ BibleReader: (p: { onPassageChange?: (r: unknown) => void }) => {
+const { readerProps } = vi.hoisted(() => ({ readerProps: { current: null as Record<string, unknown> | null } }));
+vi.mock('./BibleReader', () => ({ BibleReader: (p: { onPassageChange?: (r: unknown) => void } & Record<string, unknown>) => {
+  readerProps.current = p;
   // emit a passage on mount so the chat has a book/chapter
   p.onPassageChange?.({ book: 'jhn', chapter: 10 });
   return <div data-testid="bible-reader">reader</div>;
@@ -80,6 +82,12 @@ describe('BibleStudyPane', () => {
     expect(button).not.toBeDisabled();
     fireEvent.click(button);
     expect(screen.getByTestId('signin')).toBeInTheDocument();
+  });
+
+  it('passes the verse-layout preference and change handler down to the reader', () => {
+    render(<BibleStudyPane lamplightAdapter={adapter} invoke={vi.fn()} />);
+    expect(readerProps.current?.verseLayout).toBe('inline');
+    expect(typeof readerProps.current?.onVerseLayoutChange).toBe('function');
   });
 
   it('shows a resize handle between reader and chat only when chat is open', async () => {

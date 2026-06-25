@@ -45,7 +45,7 @@ export function HighlightPill({ assets, anchor, onPick, onRemove, onClose }: Pro
         display: 'flex',
         alignItems: 'center',
         gap: 5,
-        background: '#fff',
+        background: 'var(--highlight-panel-bg)',
         border: '1px solid var(--pale-stone)',
         borderRadius: 9,
         boxShadow: '0 8px 22px rgba(0,0,0,.16)',

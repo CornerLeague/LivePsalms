@@ -10,11 +10,14 @@ export interface NodePeekProps {
   onPeekNote: (id: string) => void;
 }
 
+// Mirror desktop GraphPane's NODE_COLORS — CSS vars that flip to the lifted
+// dark palette (see --graph-node-* in index.css) instead of frozen light hex.
 const TYPE_COLORS: Record<string, string> = {
-  scripture: '#C49A78',
-  sermon: '#7A9BAE',
-  devotion: '#6B8B7A',
-  theme: '#D4A0A0',
+  scripture: 'var(--graph-node-scripture)',
+  sermon: 'var(--graph-node-sermon)',
+  devotion: 'var(--graph-node-devotion)',
+  theme: 'var(--graph-node-theme)',
+  general: 'var(--graph-node-general)',
 };
 
 export function NodePeek({ data, onBack, onOpenInEditor, onFocus, onPeekNote }: NodePeekProps) {
@@ -39,10 +42,10 @@ export function NodePeek({ data, onBack, onOpenInEditor, onFocus, onPeekNote }: 
           <>
             <h2 className="text-[18px] font-bold mb-2">{data.title}</h2>
             <div className="flex flex-wrap gap-2 mb-3">
-              <Chip color={TYPE_COLORS[data.noteType] ?? '#999'}>{data.noteType}</Chip>
-              <Chip color="#9a8f7f">{data.connectionCount} connections</Chip>
+              <Chip color={TYPE_COLORS[data.noteType] ?? 'var(--graph-node-general)'}>{data.noteType}</Chip>
+              <Chip color="var(--silica)">{data.connectionCount} connections</Chip>
             </div>
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'rgba(62,50,40,0.85)' }}>
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'rgba(var(--deep-umber-rgb), 0.85)' }}>
               {data.preview || 'This note is empty.'}
             </p>
             {data.linkedVerses.length > 0 && (
@@ -55,7 +58,7 @@ export function NodePeek({ data, onBack, onOpenInEditor, onFocus, onPeekNote }: 
                     <span
                       key={v.id}
                       className="text-[11px] px-2 py-1 rounded"
-                      style={{ background: 'rgba(196,154,120,0.15)', color: '#9a6f3a' }}
+                      style={{ background: 'var(--peek-scripture-wash)', color: 'var(--peek-scripture)' }}
                     >
                       {v.label}
                     </span>
@@ -66,11 +69,11 @@ export function NodePeek({ data, onBack, onOpenInEditor, onFocus, onPeekNote }: 
           </>
         ) : (
           <>
-            <h2 className="text-[18px] font-bold mb-1" style={{ color: '#9a6f3a' }}>{data.reference}</h2>
+            <h2 className="text-[18px] font-bold mb-1" style={{ color: 'var(--peek-scripture)' }}>{data.reference}</h2>
             <div className="text-[10px] tracking-[0.08em] mb-3" style={{ color: 'var(--silica)' }}>
               {data.translation}
             </div>
-            <p className="text-[14px] italic leading-relaxed mb-5" style={{ color: 'rgba(62,50,40,0.9)' }}>
+            <p className="text-[14px] italic leading-relaxed mb-5" style={{ color: 'rgba(var(--deep-umber-rgb), 0.9)' }}>
               {data.text || 'Verse text unavailable.'}
             </p>
             <div className="text-[10px] tracking-[0.1em] uppercase mb-2" style={{ color: 'var(--silica)' }}>
@@ -88,7 +91,7 @@ export function NodePeek({ data, onBack, onOpenInEditor, onFocus, onPeekNote }: 
                     className="flex items-center gap-2 py-2 text-left"
                     style={{ borderTop: '1px solid var(--pale-stone)' }}
                   >
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: TYPE_COLORS[n.type] ?? '#999' }} />
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: TYPE_COLORS[n.type] ?? 'var(--graph-node-general)' }} />
                     <span className="text-[13px]">{n.title}</span>
                   </button>
                 ))}
@@ -99,7 +102,7 @@ export function NodePeek({ data, onBack, onOpenInEditor, onFocus, onPeekNote }: 
       </div>
 
       {/* Footer */}
-      <div className="shrink-0 px-4 py-3 flex gap-2" style={{ borderTop: '1px solid rgba(206,204,202,0.5)' }}>
+      <div className="shrink-0 px-4 py-3 flex gap-2" style={{ borderTop: '1px solid color-mix(in srgb, var(--pale-stone) 50%, transparent)' }}>
         <button
           type="button"
           onClick={() => onFocus(data.id)}

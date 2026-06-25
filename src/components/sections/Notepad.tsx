@@ -92,7 +92,7 @@ function DesktopNotepadWorkspace() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ top: 0, background: 'var(--plaster)' }}>
+    <div className="fixed inset-0 flex flex-col" style={{ top: 0, background: 'var(--notepad-page-bg)' }}>
       <NotepadToolbar
         graphOpen={graphOpen}
         onToggleGraph={() => setGraphOpen(!graphOpen)}
@@ -121,7 +121,7 @@ function DesktopNotepadWorkspace() {
           style={{
             width: sidebarOpen ? 220 : 48,
             borderColor: 'var(--pale-stone)',
-            background: 'rgba(240, 236, 232, 0.6)',
+            background: 'var(--notepad-sidebar-bg)',
             transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >

@@ -47,7 +47,14 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn("overflow-hidden p-0", className)}
+        className={cn(
+          "overflow-hidden p-0",
+          // Vertically center the close (X) button on the search-field row
+          // (field = 8px top margin + 44px tall → center at 30px) and tint it to
+          // the field's muted gray so it stays visible on the white input.
+          "[&_[data-slot=dialog-close]]:top-[22px] [&_[data-slot=dialog-close]]:text-[#8A8B90]",
+          className,
+        )}
         showCloseButton={showCloseButton}
       >
         <Command className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
@@ -63,17 +70,22 @@ function CommandInput({
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
+    // Light, contained "type here" field — fixed warm-light bg + dark ink in
+    // both light and dark themes so it always reads as an active input the
+    // moment the dialog opens (the colors intentionally don't flip with theme).
     <div
       data-slot="command-input-wrapper"
-      className="flex h-9 items-center gap-2 border-b px-3"
+      className="m-2 flex h-11 items-center gap-2 rounded-md px-3"
+      style={{ background: "#ffffff", border: "1px solid #E2DDD4" }}
     >
-      <SearchIcon className="size-4 shrink-0 opacity-50" />
+      <SearchIcon className="size-4 shrink-0" style={{ color: "#8A8B90" }} />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+          "placeholder:text-[#8A8B90] flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
+        style={{ color: "#3A3426" }}
         {...props}
       />
     </div>

@@ -358,7 +358,7 @@ export function DecorationItem({
               className={liveAngle.snapped ? 'decoration-snap-pulse' : undefined}
               style={{
                 position: 'absolute', top: -58, left: 'calc(50% + 26px)',
-                background: '#fff', border: '1px solid var(--pale-stone)', borderRadius: 4,
+                background: 'var(--surface-elevated)', border: '1px solid var(--pale-stone)', borderRadius: 4,
                 padding: '1px 5px', fontSize: 11, color: 'var(--charred)',
                 fontFamily: 'Outfit, sans-serif', pointerEvents: 'none', whiteSpace: 'nowrap',
               }}
@@ -369,7 +369,7 @@ export function DecorationItem({
           {!mobile && (
             <div style={{
               position: 'absolute', top: -34, left: 0, display: 'flex', gap: 4,
-              background: '#fff', border: '1px solid var(--pale-stone)', borderRadius: 6,
+              background: 'var(--surface-elevated)', border: '1px solid var(--pale-stone)', borderRadius: 6,
               padding: '2px 4px', boxShadow: '0 2px 8px rgba(0,0,0,.14)', pointerEvents: 'auto',
             }}>
               <button aria-label="Rotate decoration counterclockwise 15 degrees" onClick={() => onChange({ ...d, rotation: rotationDeg(d.rotation - 15) })} style={barBtn}>↺</button>
@@ -397,7 +397,7 @@ function handleStyle(
 ): React.CSSProperties {
   const base: React.CSSProperties = {
     position: 'absolute', width: 12, height: 12, borderRadius: '50%',
-    background: '#fff', border: '2px solid var(--deep-umber)', cursor,
+    background: 'var(--plaster)', border: '2px solid var(--deep-umber)', cursor,
   };
   if (kind === 'bottom-right') return { ...base, bottom: top, right };
   return { ...base, top, left: right };
@@ -419,7 +419,7 @@ function cornerHitArea(corner: ResizeCorner): React.CSSProperties {
 }
 
 const visualDot: React.CSSProperties = {
-  width: 24, height: 24, borderRadius: '50%', background: '#fff',
+  width: 24, height: 24, borderRadius: '50%', background: 'var(--plaster)',
   border: '2px solid var(--deep-umber)', boxShadow: '0 1px 3px rgba(0,0,0,.18)',
 };
 

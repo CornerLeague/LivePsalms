@@ -34,3 +34,26 @@ describe('requestStudyInsight', () => {
     expect(out).toEqual({ ok: false, reason: 'skipped' });
   });
 });
+
+function captureInvoke() {
+  const bodies: unknown[] = [];
+  const invoke = vi.fn(async (_fn: string, opts: { body: unknown }) => {
+    bodies.push(opts.body);
+    return { data: { ok: true, thread_id: 't', reply: 'r', citations: [], offered_notes: [] }, error: null };
+  });
+  return { invoke: invoke as Parameters<typeof sendStudyMessage>[0], bodies };
+}
+
+describe('study-chat-client passes translation', () => {
+  it('sendStudyMessage forwards the active translation in the body', async () => {
+    const { invoke, bodies } = captureInvoke();
+    await sendStudyMessage(invoke, { book: 'jhn', chapter: 3, message: 'hi', translation: 'KJV' });
+    expect(bodies[0]).toMatchObject({ book: 'jhn', chapter: 3, message: 'hi', translation: 'KJV' });
+  });
+
+  it('requestStudyInsight forwards the active translation in the body', async () => {
+    const { invoke, bodies } = captureInvoke();
+    await requestStudyInsight(invoke, { book: 'jhn', chapter: 3, translation: 'WEB' });
+    expect(bodies[0]).toMatchObject({ book: 'jhn', chapter: 3, mode: 'insight', translation: 'WEB' });
+  });
+});
