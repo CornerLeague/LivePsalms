@@ -133,4 +133,35 @@ describe('useChatThread', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(eqSurface).toHaveBeenCalledWith('surface', 'chat');
   });
+
+  it('updateLast shallow-merges patch onto last message only', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    const { result } = renderHook(() => useChatThread('jhn', 10, 'u1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const msgA = { id: 'm1', role: 'user' as const, content: 'hello', citations: [] };
+    const msgB = { id: 'm2', role: 'assistant' as const, content: 'original', citations: [] };
+
+    act(() => { result.current.append([msgA, msgB]); });
+    const firstRef = result.current.messages[0];
+
+    act(() => { result.current.updateLast({ content: 'patched' }); });
+
+    expect(result.current.messages).toHaveLength(2);
+    expect(result.current.messages[1].content).toBe('patched');
+    // First message is referentially unchanged
+    expect(result.current.messages[0]).toBe(firstRef);
+    // First message content is untouched
+    expect(result.current.messages[0].content).toBe('hello');
+  });
+
+  it('updateLast is a no-op when messages is empty', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    const { result } = renderHook(() => useChatThread('jhn', 10, 'u1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Should not throw and messages should remain []
+    act(() => { result.current.updateLast({ content: 'ignored' }); });
+    expect(result.current.messages).toHaveLength(0);
+  });
 });
