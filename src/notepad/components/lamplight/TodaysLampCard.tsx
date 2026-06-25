@@ -4,6 +4,7 @@ import type { DailyDevotion } from '../../storage/lamplight-artifacts';
 import { TodaysLampLoading } from './TodaysLampLoading';
 import { TodaysLampError } from './TodaysLampError';
 import { TodaysLampIntro } from './TodaysLampIntro';
+import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 
 export interface TodaysLampCardProps {
   adapter: LamplightAdapter;
@@ -17,10 +18,30 @@ export function TodaysLampCard({
   adapter, userId, localDate, firstName, autoGenerate = true,
 }: TodaysLampCardProps) {
   const { state, start, retry } = useTodaysLamp({ adapter, userId, localDate, autoGenerate });
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   if (state.phase === 'idle')        return <TodaysLampIntro firstName={firstName} onStart={start} />;
   if (state.phase === 'retrieving') return <TodaysLampLoading stage={state.stage} firstName={firstName} />;
-  if (state.phase === 'generating' || state.phase === 'refining') return <TodaysLampLoading stage="composing" firstName={firstName} />;
+  if (state.phase === 'generating' || state.phase === 'refining') {
+    return (
+      <>
+        {state.phase === 'refining' && (
+          <p
+            className="text-[11px] text-center mb-2"
+            style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}
+          >
+            Lamplight is refining this…
+          </p>
+        )}
+        <Devotion
+          artifact={state.pieces}
+          localDate={localDate}
+          partial
+          prefersReducedMotion={prefersReducedMotion}
+        />
+      </>
+    );
+  }
   if (state.phase === 'error')      return <TodaysLampError reason={state.reason} firstName={firstName} onRetry={retry} />;
   if (state.phase !== 'ready')                                       return null;
 
@@ -32,11 +53,26 @@ export function TodaysLampCard({
   );
 }
 
-function Devotion(props: {
-  artifact: DailyDevotion;
+export function Devotion(props: {
+  artifact: Partial<DailyDevotion>;
   localDate: string;
+  partial?: boolean;
+  prefersReducedMotion?: boolean;
 }) {
-  const { artifact, localDate } = props;
+  const { artifact, localDate, partial, prefersReducedMotion } = props;
+
+  function maybeWrap(content: React.ReactNode) {
+    if (!partial) return content;
+    return (
+      <div
+        data-testid="lamp-piece-reveal"
+        className={prefersReducedMotion ? undefined : 'animate-fade-in'}
+      >
+        {content}
+      </div>
+    );
+  }
+
   return (
     <div
       className="px-6 py-6 max-w-[640px] mx-auto"
@@ -50,60 +86,70 @@ function Devotion(props: {
         <span>Today · {formatLocalDate(localDate)}</span>
       </div>
 
-      <p
-        className="mb-6 text-sm leading-relaxed"
-        style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
-      >
-        {artifact.opening}
-      </p>
-
-      <div
-        className="border-t border-b py-4 mb-6"
-        style={{ borderColor: 'var(--pale-stone)' }}
-      >
-        <div
-          className="text-[11px] mb-2 uppercase tracking-wider"
-          style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}
-        >
-          {artifact.scripture.ref}
-        </div>
+      {artifact.opening != null && maybeWrap(
         <p
-          className="text-lg italic leading-relaxed"
-          style={{ color: 'var(--deep-umber)', fontFamily: 'Cormorant Garamond, serif' }}
+          className="mb-6 text-sm leading-relaxed"
+          style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
         >
-          {artifact.scripture.text}
+          {artifact.opening}
         </p>
-      </div>
+      )}
 
-      <p
-        className="mb-6 text-sm leading-relaxed"
-        style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
-      >
-        {artifact.reflection}
-      </p>
+      {artifact.scripture != null && maybeWrap(
+        <div
+          className="border-t border-b py-4 mb-6"
+          style={{ borderColor: 'var(--pale-stone)' }}
+        >
+          <div
+            className="text-[11px] mb-2 uppercase tracking-wider"
+            style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}
+          >
+            {artifact.scripture.ref}
+          </div>
+          <p
+            className="text-lg italic leading-relaxed"
+            style={{ color: 'var(--deep-umber)', fontFamily: 'Cormorant Garamond, serif' }}
+          >
+            {artifact.scripture.text}
+          </p>
+        </div>
+      )}
 
-      <p
-        className="mb-6 text-sm italic pl-4 border-l-2 leading-relaxed"
-        style={{
-          color: 'var(--deep-umber)',
-          fontFamily: 'Outfit, sans-serif',
-          borderColor: 'var(--pale-stone)',
-        }}
-      >
-        {artifact.prompt}
-      </p>
+      {artifact.reflection != null && maybeWrap(
+        <p
+          className="mb-6 text-sm leading-relaxed"
+          style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
+        >
+          {artifact.reflection}
+        </p>
+      )}
 
-      <div
-        className="border-t pt-4 mb-4 text-[11px]"
-        style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif', borderColor: 'var(--pale-stone)' }}
-      >
-        <div className="mb-1">Drawing from your notes about:</div>
-        <ul className="list-disc list-inside space-y-0.5">
-          {artifact.note_citations.map((c, i) => (
-            <li key={`${c.note_id}-${i}`}>{c.reason}</li>
-          ))}
-        </ul>
-      </div>
+      {artifact.prompt != null && maybeWrap(
+        <p
+          className="mb-6 text-sm italic pl-4 border-l-2 leading-relaxed"
+          style={{
+            color: 'var(--deep-umber)',
+            fontFamily: 'Outfit, sans-serif',
+            borderColor: 'var(--pale-stone)',
+          }}
+        >
+          {artifact.prompt}
+        </p>
+      )}
+
+      {artifact.note_citations != null && maybeWrap(
+        <div
+          className="border-t pt-4 mb-4 text-[11px]"
+          style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif', borderColor: 'var(--pale-stone)' }}
+        >
+          <div className="mb-1">Drawing from your notes about:</div>
+          <ul className="list-disc list-inside space-y-0.5">
+            {artifact.note_citations.map((c, i) => (
+              <li key={`${c.note_id}-${i}`}>{c.reason}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
