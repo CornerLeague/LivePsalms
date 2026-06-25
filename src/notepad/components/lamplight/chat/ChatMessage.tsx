@@ -64,7 +64,8 @@ export function ChatMessage({ role, content, citations, resolveNoteTitle, stream
             {showCaret && (
               <span
                 aria-hidden="true"
-                className="inline-block motion-safe:animate-[blink_1s_step-end_infinite]"
+                data-testid="streaming-caret"
+                className="inline-block motion-safe:animate-caret-blink"
               >
                 {' '}▍
               </span>

@@ -66,9 +66,12 @@ describe('ChatMessage', () => {
   it('appends an in-progress caret when streaming + non-empty content', () => {
     render(<ChatMessage role="assistant" content="The shepherd" citations={[]} streaming stage={null} />);
     expect(screen.getByText('The shepherd')).toBeInTheDocument();
-    // caret span is aria-hidden; query by its text content directly
-    const caret = document.querySelector('[aria-hidden="true"]');
-    expect(caret).not.toBeNull();
-    expect(caret?.textContent).toContain('▍');
+    const caret = screen.getByTestId('streaming-caret');
+    expect(caret.textContent).toContain('▍');
+  });
+
+  it('renders neither narration nor caret and does not crash when streaming + empty content + stage=null', () => {
+    render(<ChatMessage role="assistant" content="" citations={[]} streaming stage={null} />);
+    expect(screen.queryByText('Reading your recent notes…')).not.toBeInTheDocument();
   });
 });
