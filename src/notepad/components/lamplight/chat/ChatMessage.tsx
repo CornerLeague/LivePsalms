@@ -14,11 +14,11 @@ export interface ChatMessageProps {
   stage?: 'notes' | 'scripture' | 'composing' | null;
 }
 
-/** Maps the streaming pipeline stage to the same narration strings used in TodaysLampLoading. */
+/** Maps the streaming pipeline stage to narration shown in chat message bubbles. */
 const STAGE_NARRATION: Record<'notes' | 'scripture' | 'composing', string> = {
   notes: 'Reading your recent notes…',
   scripture: 'Searching Scripture…',
-  composing: "Today's Lamp is on its way…",
+  composing: 'Lamplight is composing a reply…',
 };
 
 /**
