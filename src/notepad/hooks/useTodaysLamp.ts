@@ -14,7 +14,6 @@ export interface UseTodaysLampArgs {
   localDate: string;
   /** When false, a cache miss enters `idle` instead of generating until start() is called. Default true. */
   autoGenerate?: boolean;
-  loadingStepIntervalMs?: number;
 }
 
 export interface UseTodaysLampResult {
@@ -24,12 +23,13 @@ export interface UseTodaysLampResult {
 }
 
 export function useTodaysLamp(args: UseTodaysLampArgs): UseTodaysLampResult {
-  const { adapter, userId, localDate, autoGenerate = true, loadingStepIntervalMs = 2500 } = args;
+  const { adapter, userId, localDate, autoGenerate = true } = args;
 
   const controller = useMemo(() => {
     const deps: TodaysLampDeps = {
       getExisting: (uid, date) => adapter.getDailyDevotion(uid, date),
-      generate: (uid, date) => adapter.generateDailyDevotion(uid, date),
+      generate:    (uid, date) => adapter.generateDailyDevotion(uid, date),
+      stream:      adapter.streamDailyDevotion?.bind(adapter),
     };
     return new TodaysLampController(deps);
   }, [adapter]);
@@ -37,8 +37,8 @@ export function useTodaysLamp(args: UseTodaysLampArgs): UseTodaysLampResult {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 
   useEffect(() => {
-    controller.setInputs({ userId, localDate, autoGenerate, loadingStepIntervalMs });
-  }, [controller, userId, localDate, autoGenerate, loadingStepIntervalMs]);
+    controller.setInputs({ userId, localDate, autoGenerate });
+  }, [controller, userId, localDate, autoGenerate]);
 
   useEffect(() => () => controller.dispose(), [controller]);
 

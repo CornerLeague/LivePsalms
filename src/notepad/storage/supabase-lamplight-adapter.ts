@@ -7,6 +7,7 @@ import type {
   LamplightTier,
   LamplightEntitlementSource,
   DailyDevotionGenerateResult,
+  DailyDevotionStreamEvent,
   ConnectionNeighbor,
   ConnectionWhyResult,
   ConnectionCardThresholds,
@@ -16,6 +17,8 @@ import type {
   AdminUsageRow,
 } from './lamplight-adapter';
 import type { DailyDevotion } from './lamplight-artifacts';
+import { makeStreamInvoke } from '../bible/lamplight-stream-client';
+import type { StreamInvoke } from '../bible/lamplight-stream-client';
 
 // Tables with a `user_id` column — deletable via `eq('user_id', userId)`.
 const LAMPLIGHT_USER_ID_TABLES = [
@@ -35,9 +38,17 @@ const LAMPLIGHT_CONNECTIONS_TABLE = 'lamplight_connections';
 
 export class SupabaseLamplightAdapter implements LamplightAdapter {
   #client: SupabaseClient;
+  // Lazily-built StreamInvoke; the optional 2nd arg lets tests inject a fake
+  // without touching makeStreamInvoke (which calls fetch + import.meta.env).
+  #streamInvokeFactory: (client: SupabaseClient) => StreamInvoke;
 
-  constructor(client: SupabaseClient) {
+  constructor(client: SupabaseClient, streamInvoke?: StreamInvoke) {
     this.#client = client;
+    if (streamInvoke) {
+      this.#streamInvokeFactory = () => streamInvoke;
+    } else {
+      this.#streamInvokeFactory = makeStreamInvoke;
+    }
   }
 
   async getSettings(userId: string): Promise<LamplightSettings | null> {
@@ -133,6 +144,69 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
       return { ok: false, reason: 'network' };
     } catch {
       return { ok: false, reason: 'network' };
+    }
+  }
+
+  async streamDailyDevotion(
+    userId: string,
+    localDate: string,
+    onEvent: (ev: DailyDevotionStreamEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const invoke = this.#streamInvokeFactory(this.#client);
+    try {
+      await invoke(
+        'lamplight-generate',
+        { kind: 'daily_devotion', user_id: userId, local_date: localDate },
+        {
+          signal,
+          onEvent(ev) {
+            switch (ev.t) {
+              case 'stage':
+                onEvent({ kind: 'stage', stage: ev.stage });
+                break;
+              case 'piece':
+                onEvent({ kind: 'piece', field: ev.field as keyof DailyDevotion, value: ev.value });
+                break;
+              case 'refining':
+                onEvent({ kind: 'refining' });
+                break;
+              case 'done': {
+                const payload = ev.payload as Record<string, unknown> | null;
+                if (payload && typeof payload === 'object' && 'artifact' in payload) {
+                  onEvent({
+                    kind: 'done',
+                    artifact: payload.artifact as DailyDevotion,
+                    cached: !!payload.cached,
+                  });
+                } else {
+                  onEvent({ kind: 'error', reason: 'network' });
+                }
+                break;
+              }
+              case 'error': {
+                const r = ev.reason;
+                onEvent({
+                  kind: 'error',
+                  reason:
+                    r === 'no_notes' || r === 'validators_failed' ? r : 'network',
+                });
+                break;
+              }
+              // 'text' and 'replace' are intentionally ignored:
+              // daily-devotion has no text deltas, and replace is not in the
+              // DailyDevotionStreamEvent union. Flag: 'replace' ignored (see D1 report).
+              case 'text':
+              case 'replace':
+                break;
+            }
+          },
+        },
+      );
+    } catch {
+      // Transport failure (network error, abort, etc.) — emit a single network
+      // error event. The D2 controller owns the buffered-fallback decision.
+      onEvent({ kind: 'error', reason: 'network' });
     }
   }
 

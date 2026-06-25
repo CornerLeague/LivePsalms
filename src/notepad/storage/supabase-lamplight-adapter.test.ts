@@ -267,6 +267,8 @@ describe('SupabaseLamplightAdapter.getConnectionCardThresholds', () => {
 });
 
 import type { DailyDevotion } from './lamplight-artifacts';
+import type { SseEvent, StreamInvoke } from '../bible/lamplight-stream-client';
+import type { DailyDevotionStreamEvent } from './lamplight-adapter';
 
 describe('SupabaseLamplightAdapter.getDailyDevotion', () => {
   it('returns the body field from the matching row', async () => {
@@ -566,6 +568,134 @@ describe('SupabaseLamplightAdapter.generateConnectionWhy', () => {
       ok: false,
       reason: 'network',
     });
+  });
+});
+
+// ── streamDailyDevotion ─────────────────────────────────────────────────────
+
+/**
+ * Build a fake StreamInvoke that replays a scripted list of SseEvents, then
+ * resolves. The test injects this via the optional 2nd constructor arg so
+ * makeStreamInvoke (and thus import.meta.env / fetch) is never called.
+ */
+function makeFakeStreamInvoke(events: SseEvent[], throwErr?: Error): StreamInvoke {
+  return async (_name, _body, handlers) => {
+    if (throwErr) throw throwErr;
+    for (const ev of events) {
+      handlers.onEvent(ev);
+    }
+  };
+}
+
+describe('SupabaseLamplightAdapter.streamDailyDevotion', () => {
+  const baseClient = {} as unknown as SupabaseClient;
+
+  const devotion: DailyDevotion = {
+    opening: 'The Lord is my shepherd',
+    scripture: { ref: 'Psalm 23:1', text: 'The LORD is my shepherd; I shall not want.' },
+    reflection: 'Rest in His provision.',
+    prompt: 'Where do you need rest today?',
+    note_citations: [{ note_id: 'note-42', reason: 'rest imagery' }],
+  };
+
+  it('happy path: maps all SSE events in order, ending with done', async () => {
+    const events: SseEvent[] = [
+      { t: 'stage', stage: 'notes' },
+      { t: 'stage', stage: 'scripture' },
+      { t: 'stage', stage: 'composing' },
+      { t: 'piece', field: 'opening', value: devotion.opening },
+      { t: 'piece', field: 'scripture', value: devotion.scripture },
+      { t: 'piece', field: 'reflection', value: devotion.reflection },
+      { t: 'piece', field: 'prompt', value: devotion.prompt },
+      { t: 'piece', field: 'note_citations', value: devotion.note_citations },
+      { t: 'done', payload: { ok: true, artifact: devotion, cached: false, model_used: 'x' } },
+    ];
+
+    const received: DailyDevotionStreamEvent[] = [];
+    const adapter = new SupabaseLamplightAdapter(baseClient, makeFakeStreamInvoke(events));
+    await adapter.streamDailyDevotion!('user-1', '2026-06-24', (ev) => received.push(ev));
+
+    expect(received).toEqual([
+      { kind: 'stage', stage: 'notes' },
+      { kind: 'stage', stage: 'scripture' },
+      { kind: 'stage', stage: 'composing' },
+      { kind: 'piece', field: 'opening', value: devotion.opening },
+      { kind: 'piece', field: 'scripture', value: devotion.scripture },
+      { kind: 'piece', field: 'reflection', value: devotion.reflection },
+      { kind: 'piece', field: 'prompt', value: devotion.prompt },
+      { kind: 'piece', field: 'note_citations', value: devotion.note_citations },
+      { kind: 'done', artifact: devotion, cached: false },
+    ]);
+  });
+
+  it('transport throw: emits exactly one {kind:error,reason:network}', async () => {
+    const received: DailyDevotionStreamEvent[] = [];
+    const adapter = new SupabaseLamplightAdapter(
+      baseClient,
+      makeFakeStreamInvoke([], new Error('connection refused')),
+    );
+    await adapter.streamDailyDevotion!('user-1', '2026-06-24', (ev) => received.push(ev));
+
+    expect(received).toEqual([{ kind: 'error', reason: 'network' }]);
+  });
+
+  it('SSE error with reason no_notes maps to {kind:error,reason:no_notes}', async () => {
+    const events: SseEvent[] = [{ t: 'error', reason: 'no_notes' }];
+    const received: DailyDevotionStreamEvent[] = [];
+    const adapter = new SupabaseLamplightAdapter(baseClient, makeFakeStreamInvoke(events));
+    await adapter.streamDailyDevotion!('user-1', '2026-06-24', (ev) => received.push(ev));
+
+    expect(received).toEqual([{ kind: 'error', reason: 'no_notes' }]);
+  });
+
+  it('SSE error with reason validators_failed maps to {kind:error,reason:validators_failed}', async () => {
+    const events: SseEvent[] = [{ t: 'error', reason: 'validators_failed' }];
+    const received: DailyDevotionStreamEvent[] = [];
+    const adapter = new SupabaseLamplightAdapter(baseClient, makeFakeStreamInvoke(events));
+    await adapter.streamDailyDevotion!('user-1', '2026-06-24', (ev) => received.push(ev));
+
+    expect(received).toEqual([{ kind: 'error', reason: 'validators_failed' }]);
+  });
+
+  it('SSE error with unknown reason maps to {kind:error,reason:network}', async () => {
+    const events: SseEvent[] = [{ t: 'error', reason: 'unexpected_server_blowup' }];
+    const received: DailyDevotionStreamEvent[] = [];
+    const adapter = new SupabaseLamplightAdapter(baseClient, makeFakeStreamInvoke(events));
+    await adapter.streamDailyDevotion!('user-1', '2026-06-24', (ev) => received.push(ev));
+
+    expect(received).toEqual([{ kind: 'error', reason: 'network' }]);
+  });
+
+  it('ignores text and replace SSE events (no output events for them)', async () => {
+    const events: SseEvent[] = [
+      { t: 'stage', stage: 'composing' },
+      { t: 'text', field: 'opening', delta: 'ignored delta' },
+      { t: 'replace', payload: { some: 'data' } },
+      { t: 'piece', field: 'opening', value: 'Hello' },
+      { t: 'refining' },
+      { t: 'done', payload: { ok: true, artifact: devotion, cached: true } },
+    ];
+    const received: DailyDevotionStreamEvent[] = [];
+    const adapter = new SupabaseLamplightAdapter(baseClient, makeFakeStreamInvoke(events));
+    await adapter.streamDailyDevotion!('user-1', '2026-06-24', (ev) => received.push(ev));
+
+    expect(received).toEqual([
+      { kind: 'stage', stage: 'composing' },
+      { kind: 'piece', field: 'opening', value: 'Hello' },
+      { kind: 'refining' },
+      { kind: 'done', artifact: devotion, cached: true },
+    ]);
+  });
+
+  it('done payload missing artifact maps to {kind:error,reason:network}', async () => {
+    const events: SseEvent[] = [
+      { t: 'done', payload: { ok: false, reason: 'something_weird' } },
+    ];
+    const received: DailyDevotionStreamEvent[] = [];
+    const adapter = new SupabaseLamplightAdapter(baseClient, makeFakeStreamInvoke(events));
+    await adapter.streamDailyDevotion!('user-1', '2026-06-24', (ev) => received.push(ev));
+
+    expect(received).toEqual([{ kind: 'error', reason: 'network' }]);
   });
 });
 

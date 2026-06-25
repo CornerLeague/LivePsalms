@@ -8,7 +8,18 @@ export interface ChatMessageProps {
   citations: ChatCitation[];
   /** Resolve a note citation's id to its title. Returns undefined if the note is unknown (e.g. deleted). */
   resolveNoteTitle?: (id: string) => string | undefined;
+  /** True while the assistant reply is still streaming in. */
+  streaming?: boolean;
+  /** Pipeline stage currently in progress; only meaningful when streaming=true. */
+  stage?: 'notes' | 'scripture' | 'composing' | null;
 }
+
+/** Maps the streaming pipeline stage to narration shown in chat message bubbles. */
+const STAGE_NARRATION: Record<'notes' | 'scripture' | 'composing', string> = {
+  notes: 'Reading your recent notes…',
+  scripture: 'Searching Scripture…',
+  composing: 'Lamplight is composing a reply…',
+};
 
 /**
  * "jhn 10:11" → "John 10:11"; a note citation resolves to its title (never the
@@ -23,8 +34,10 @@ function humanizeRef(c: ChatCitation, resolveNoteTitle?: (id: string) => string 
   return resolveNoteTitle?.(c.ref) ?? 'Note';
 }
 
-export function ChatMessage({ role, content, citations, resolveNoteTitle }: ChatMessageProps) {
+export function ChatMessage({ role, content, citations, resolveNoteTitle, streaming, stage }: ChatMessageProps) {
   const isUser = role === 'user';
+  const showNarration = !isUser && streaming && !content && stage != null;
+  const showCaret = !isUser && streaming && !!content;
   return (
     <div className={isUser ? 'flex justify-end' : 'flex justify-start'}>
       <div
@@ -37,7 +50,28 @@ export function ChatMessage({ role, content, citations, resolveNoteTitle }: Chat
           border: isUser ? 'none' : '1px solid var(--pale-stone)',
         }}
       >
-        <span>{content}</span>
+        {showNarration ? (
+          <span
+            style={{ opacity: 0.6, fontStyle: 'italic' }}
+            role="status"
+            aria-live="polite"
+          >
+            {STAGE_NARRATION[stage]}
+          </span>
+        ) : (
+          <span>
+            {content}
+            {showCaret && (
+              <span
+                aria-hidden="true"
+                data-testid="streaming-caret"
+                className="inline-block motion-safe:animate-caret-blink"
+              >
+                {' '}▍
+              </span>
+            )}
+          </span>
+        )}
         {!isUser && citations.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {citations.map((c, i) => (
