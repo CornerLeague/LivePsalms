@@ -32,13 +32,20 @@ Populates `bible_interlinear` and `bible_strongs`. Run after migration 041 is ap
    ```
 5. Spot-check: `select * from bible_interlinear where verse_id = 'jhn.3.16' order by position;`
 
-## Known reconciliation risk
+## Strong's-number reconciliation (RESOLVED — lookup-time normalization)
 STEPBible dStrong numbers don't match the OpenScriptures `bible_strongs` keys verbatim:
 - **Zero-padding:** STEP pads to 4 digits (`G0025`, `H0430`); OpenScriptures keys are
   unpadded (`G25`, `H430`). This hits MANY common words (e.g. John 3:16 "loved" = `G0025`).
 - **Disambiguation suffixes / wrappers:** STEP adds suffixes (`H1234a`, `G2424G`), curly
-  braces (`{H7225G}`), and prefix slashes (`H9003/...`) the base dictionary lacks.
+  braces (`{H7225G}`), and prefix slashes (`H9003/{H7225G}`) the base dictionary lacks.
+- **Greek compounds:** STEP joins them with ` + ` (`G1473 + G2532`).
 
-Unmatched numbers degrade to "Definition unavailable" in the UI (acceptable for MVP, but
-note the zero-padding makes this common, not rare). A future pass should normalize the
-dStrong (strip wrappers, drop trailing letter suffixes, un-pad) at lookup or ingest time.
+This is now handled at **lookup-time** by `src/notepad/study/lexicon/normalizeStrongs.ts`,
+called inside `useStrongsEntry` (query + cache key) and the panel badge. It strips
+wrappers, picks the braced Hebrew root / primary Greek token, drops a single trailing
+letter, and un-pads zeros. **The raw `bible_interlinear` data is stored verbatim and needs
+NO transformation at ingest — do not normalize during ingest.** STEP prefix codes (`H9xxx`)
+have no OpenScriptures entry and correctly remain "Definition unavailable."
+
+Acceptance after ingest: John 3:16 "loved" (`G0025` → `G25`) shows a real definition, and a
+Hebrew root (e.g. Gen 1:1 `{H7225G}` → `H7225`) resolves too.
