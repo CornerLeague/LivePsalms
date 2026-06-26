@@ -12,7 +12,7 @@ In the Notepad **Study** section, add a dropdown/disclosure to the **Context** t
 
 Established by exploration on 2026-06-25:
 
-- **Study area** lives in `src/notepad/study/`. Entry point `StudyWorkspace.tsx` branches into desktop (three columns: `ApparatusRail` left / `StudyReader` center / `StudySidePanel` right) and `mobile/MobileStudyWorkspace.tsx` (bottom tabs `reader` / `study` / `context`).
+- **Study area** lives in `src/notepad/study/`. Entry point `StudyWorkspace.tsx` renders a three-column desktop layout: left `<aside>` = `ApparatusRail` (the Context panel), center `<main>` = `StudyReader`, right `<aside>` = `StudySidePanel` (Notes/Chat). **There is no separate mobile study workspace** — study mode is this single component; narrow-viewport rendering is whatever the responsive flex produces (a pre-existing concern, out of scope here).
 - **The "Context" tab is `ApparatusRail`** (`src/notepad/study/panes/ApparatusRail.tsx`), signature `ApparatusRail({ book, chapter })`. It renders **book-level** apparatus (author, date, region, genre, summary) plus a cross-references section. It uses **inline styles + CSS variables** (`--deep-umber`, `--silica`, `--lamplight-accent`, …), **not Tailwind**, and currently has no disclosure/accordion.
 - **Bible text** is rendered by `BibleReader` (`src/notepad/bible/BibleReader.tsx`) via the thin `StudyReader` wrapper. Verse model: `interface ReaderVerse { verse: number; text: string }` (`useBiblePassages.ts`). Verse refs: `interface VerseRef extends PassageRef { verse: number }` = `{ book, chapter, verse }`.
 - **Verse selection in study mode is tap-only and transient.** `BibleReader` holds `const [selectedVerse, setSelectedVerse] = useState<number|null>(null)` locally. `StudyReader` does **not** pass `onSelectVerse`, so the selected verse never leaves the reader and the Context tab cannot see it. `BibleReader` already supports an `onSelectVerse?.({book,chapter,verse})` callback prop — it's simply not wired in study mode.
@@ -37,7 +37,7 @@ Rejected alternative: a `lexicon` edge function cloning `verse-search` — more 
 
 ### State plumbing — lift `selectedVerse` to `StudyWorkspace` (chosen)
 
-`passage = { book, chapter }` already lives in `StudyWorkspace` / `MobileStudyWorkspace` and is prop-drilled. Add a sibling `selectedVerse: number | null`:
+`passage = { book, chapter }` already lives in `StudyWorkspace` and is prop-drilled. Add a sibling `selectedVerse: number | null`:
 
 - Pass `onSelectVerse={(ref) => setSelectedVerse(ref.verse)}` down through `StudyReader → BibleReader` (wiring the existing, currently-unused callback).
 - Pass `selectedVerse` (plus `book`/`chapter`) into `ApparatusRail`.
@@ -121,9 +121,9 @@ Lives under `src/notepad/study/` (e.g. `study/lexicon/OriginalLanguagePanel.tsx`
 4. `OriginalLanguagePanel` calls `useVerseLexicon(verseId)` and renders the word rows.
 5. Expanding a word calls `useStrongsEntry(strongs)` for the full definition.
 
-### Mobile behavior
+### Mobile / narrow viewports
 
-State is lifted to `MobileStudyWorkspace`, so a verse tapped in the **reader** tab persists and appears when the user opens the **context** tab. The MVP does **not** auto-switch tabs on selection (avoids hijacking the reader). A small "Hebrew & Greek ready" hint is a possible later addition, not part of the MVP.
+Study mode is a single responsive component (no separate mobile workspace or tabs). Because `selectedVerse` lives in `StudyWorkspace`, the center reader and the left Context rail share it directly with no extra plumbing. Reworking the three-column study layout for small phones is a pre-existing concern and is **out of scope** for this feature.
 
 ## Testing
 
@@ -157,7 +157,7 @@ Follow existing vitest conventions; a collapsible-panel test precedent exists at
 - `src/notepad/study/lexicon/useVerseLexicon.ts`, `useStrongsEntry.ts` (+ tests)
 
 **Modified:**
-- `src/notepad/study/StudyWorkspace.tsx`, `mobile/MobileStudyWorkspace.tsx` — lift `selectedVerse`.
-- `src/notepad/study/panes/StudyReader.tsx` — pass `onSelectVerse` through.
+- `src/notepad/study/StudyWorkspace.tsx` — lift `selectedVerse`; reset on passage change; pass down.
+- `src/notepad/study/panes/StudyReader.tsx` — accept + forward `onSelectVerse` to `BibleReader` (the `onSelectVerse?` prop already exists on `BibleReader`, currently unwired in study mode).
 - `src/notepad/study/panes/ApparatusRail.tsx` — accept `selectedVerse`, render `OriginalLanguagePanel` at top.
-- `src/notepad/bible/translations.ts` (or a sibling) — lexicon source attribution.
+- Lexicon source attribution lives in the new `OriginalLanguagePanel` (self-contained constant), so `translations.ts` is left untouched.
