@@ -1,14 +1,15 @@
 // src/notepad/study/panes/StudyReader.tsx
-import { BibleReader } from '@/notepad/bible/BibleReader';
+import { BibleReader, type VerseRef } from '@/notepad/bible/BibleReader';
 import { useBibleTranslation } from '@/notepad/bible/useBibleTranslation';
 
 export interface StudyReaderProps {
   book: string;
   chapter: number;
   onPassageChange: (ref: { book: string; chapter: number }) => void;
+  onSelectVerse?: (ref: VerseRef) => void;
 }
 
-export function StudyReader({ book, chapter, onPassageChange }: StudyReaderProps) {
+export function StudyReader({ book, chapter, onPassageChange, onSelectVerse }: StudyReaderProps) {
   const { translation, setTranslation } = useBibleTranslation();
   return (
     <BibleReader
@@ -17,6 +18,7 @@ export function StudyReader({ book, chapter, onPassageChange }: StudyReaderProps
       translation={translation}
       onTranslationChange={setTranslation}
       onPassageChange={onPassageChange}
+      onSelectVerse={onSelectVerse}
     />
   );
 }
