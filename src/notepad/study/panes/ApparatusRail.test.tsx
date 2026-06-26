@@ -4,6 +4,12 @@ import { render, screen } from '@testing-library/react';
 
 const useApparatus = vi.fn();
 vi.mock('../useApparatus', () => ({ useApparatus: (b: string, c: number) => useApparatus(b, c) }));
+
+const panelProps = vi.fn();
+vi.mock('../lexicon/OriginalLanguagePanel', () => ({
+  OriginalLanguagePanel: (props: { verseId: string | null; reference: string | null }) => { panelProps(props); return null; },
+}));
+
 import { ApparatusRail } from './ApparatusRail';
 
 describe('ApparatusRail', () => {
@@ -22,5 +28,31 @@ describe('ApparatusRail', () => {
     useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
     const { container } = render(<ApparatusRail book="xyz" chapter={1} />);
     expect(container.textContent).not.toContain('undefined');
+  });
+});
+
+describe('ApparatusRail original-language panel', () => {
+  it('passes the selected verse to OriginalLanguagePanel as an OSIS verseId + reference', () => {
+    panelProps.mockReset();
+    useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
+    render(<ApparatusRail book="jhn" chapter={3} selectedVerse={16} />);
+    expect(panelProps).toHaveBeenCalledWith({ verseId: 'jhn.3.16', reference: 'John 3:16' });
+  });
+
+  it('passes null verseId when no verse is selected', () => {
+    panelProps.mockReset();
+    useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
+    render(<ApparatusRail book="jhn" chapter={3} selectedVerse={null} />);
+    expect(panelProps).toHaveBeenCalledWith({ verseId: null, reference: null });
+  });
+
+  it('still renders the book apparatus alongside the panel', () => {
+    panelProps.mockReset();
+    useApparatus.mockReturnValue({
+      book: { full_name: 'John', author: 'John', author_note: '', date_label: '', region: '', cultural_context: '', genre: '', summary: 'The Word.' },
+      crossRefs: [], loading: false, error: null,
+    });
+    render(<ApparatusRail book="jhn" chapter={3} selectedVerse={null} />);
+    expect(screen.getByRole('heading', { level: 2, name: 'John' })).toBeTruthy();
   });
 });
