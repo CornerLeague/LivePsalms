@@ -22,6 +22,22 @@ describe('toStrongsRows', () => {
     ]);
   });
 
+  it('reads Greek transliteration from `translit` (OpenScriptures Greek uses translit, not xlit, and has no pron)', () => {
+    const rows = toStrongsRows(
+      { G976: { lemma: 'βίβλος', translit: 'bíblos', strongs_def: 'a writing, i.e. a book', kjv_def: 'book' } },
+      'greek',
+    );
+    expect(rows[0]).toEqual({
+      strongs: 'G976',
+      lemma: 'βίβλος',
+      transliteration: 'bíblos',
+      pronunciation: '',
+      short_def: 'a writing, i.e. a book',
+      full_def: 'a writing, i.e. a book — book',
+      language: 'greek',
+    });
+  });
+
   it('tolerates missing fields with empty-string defaults', () => {
     const rows = toStrongsRows({ G25: { lemma: 'ἀγαπάω' } }, 'greek');
     expect(rows[0]).toEqual({

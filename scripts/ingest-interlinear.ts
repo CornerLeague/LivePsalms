@@ -71,28 +71,58 @@ export function toInterlinearRows(records: StepRecord[], language: LexiconLangua
   });
 }
 
-// Column order in the STEPBible TAHOT/TAGNT data rows. CONFIRM against the
-// downloaded file before the real ingest and adjust if the source revises its
-// layout — extractTahotRecords drops any line whose first cell is not a valid
-// ref, so header/license lines are skipped automatically.
-const COL = { ref: 0, original: 1, transliteration: 2, gloss: 3, strongs: 4, morph: 5 } as const;
+// The two STEPBible corpora are laid out DIFFERENTLY, so parsing is language-aware
+// (confirmed against the real files — see docs/runbooks/bible-lexicon-ingest.md).
+//
+// TAHOT (Hebrew/Aramaic OT): one field per tab column.
+const TAHOT_COL = { ref: 0, original: 1, transliteration: 2, gloss: 3, strongs: 4, morph: 5 } as const;
 
-export function extractTahotRecords(raw: string): StepRecord[] {
+function parseTahotRow(cols: string[]): StepRecord {
+  return {
+    ref: (cols[TAHOT_COL.ref] ?? '').trim(),
+    original: cols[TAHOT_COL.original] ?? '',
+    transliteration: cols[TAHOT_COL.transliteration] ?? '',
+    gloss: cols[TAHOT_COL.gloss] ?? '',
+    strongs: cols[TAHOT_COL.strongs] ?? '',
+    morph: cols[TAHOT_COL.morph] ?? '',
+  };
+}
+
+// TAGNT (Greek NT): col[1] fuses the Greek word and its transliteration as
+// "Βίβλος (Biblos)"; col[2] is the English gloss; col[3] fuses Strong's number
+// and morphology as "G0976=N-NSF", with compound words joined by " + " (e.g.
+// "G1473=P-1NS + G2532=CONJ"). We split each so strongs/morph stay clean.
+const TAGNT_COL = { ref: 0, word: 1, gloss: 2, strongMorph: 3 } as const;
+const TAGNT_WORD_RE = /^(.*?)\s*\(([^()]*)\)\s*$/; // "Greek (translit)" -> [greek, translit]
+
+function parseTagntRow(cols: string[]): StepRecord {
+  const wordCell = (cols[TAGNT_COL.word] ?? '').trim();
+  const m = TAGNT_WORD_RE.exec(wordCell);
+  const units = (cols[TAGNT_COL.strongMorph] ?? '')
+    .split(' + ')
+    .map((u) => u.trim())
+    .filter(Boolean);
+  return {
+    ref: (cols[TAGNT_COL.ref] ?? '').trim(),
+    original: (m ? m[1] : wordCell).trim(),
+    transliteration: (m ? m[2] : '').trim(),
+    gloss: cols[TAGNT_COL.gloss] ?? '',
+    strongs: units.map((u) => u.split('=')[0].trim()).join(' + '),
+    morph: units.map((u) => u.slice(u.indexOf('=') + 1).trim()).join(' + '),
+  };
+}
+
+// Drops any line whose first cell is not a valid ref, so header/license/blank
+// lines are skipped automatically regardless of corpus.
+export function extractStepRecords(raw: string, language: LexiconLanguage): StepRecord[] {
   const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+  const parseRow = language === 'greek' ? parseTagntRow : parseTahotRow;
   const records: StepRecord[] = [];
   for (const line of text.split(/\r?\n/)) {
     if (!line) continue;
     const cols = line.split('\t');
-    const refCell = (cols[COL.ref] ?? '').trim();
-    if (!STEP_REF_RE.test(refCell)) continue; // header / license / blank
-    records.push({
-      ref: refCell,
-      original: cols[COL.original] ?? '',
-      transliteration: cols[COL.transliteration] ?? '',
-      gloss: cols[COL.gloss] ?? '',
-      strongs: cols[COL.strongs] ?? '',
-      morph: cols[COL.morph] ?? '',
-    });
+    if (!STEP_REF_RE.test((cols[0] ?? '').trim())) continue; // header / license / blank
+    records.push(parseRow(cols));
   }
   return records;
 }
@@ -111,7 +141,7 @@ async function main() {
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
   const raw = await readFile(file, 'utf8');
-  const records = extractTahotRecords(raw);
+  const records = extractStepRecords(raw, language);
   const rows = toInterlinearRows(records, language);
   console.log(`parsed ${rows.length} ${language} interlinear rows from ${file}`);
 

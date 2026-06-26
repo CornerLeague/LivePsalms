@@ -19,6 +19,9 @@ export type LexiconLanguage = 'hebrew' | 'aramaic' | 'greek';
 export interface OsStrongsEntry {
   lemma?: string;
   xlit?: string;
+  // OpenScriptures' Greek dictionary names the transliteration field `translit`
+  // (the Hebrew one uses `xlit`) and omits `pron` entirely.
+  translit?: string;
   pron?: string;
   strongs_def?: string;
   kjv_def?: string;
@@ -41,7 +44,7 @@ export function toStrongsRows(dict: Record<string, OsStrongsEntry>, language: Le
     return {
       strongs,
       lemma: e.lemma ?? '',
-      transliteration: e.xlit ?? '',
+      transliteration: e.xlit ?? e.translit ?? '',
       pronunciation: e.pron ?? '',
       short_def: shortDef,
       full_def: fullDef,

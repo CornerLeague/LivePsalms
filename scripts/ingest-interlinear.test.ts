@@ -1,6 +1,6 @@
 // scripts/ingest-interlinear.test.ts
 import { describe, it, expect } from 'vitest';
-import { stepRefToVerse, toInterlinearRows, extractTahotRecords } from './ingest-interlinear';
+import { stepRefToVerse, toInterlinearRows, extractStepRecords } from './ingest-interlinear';
 
 describe('stepRefToVerse', () => {
   it('maps a STEPBible ref to a lowercase-OSIS verse id + position', () => {
@@ -32,8 +32,8 @@ describe('toInterlinearRows', () => {
   });
 });
 
-describe('extractTahotRecords', () => {
-  // Tab-separated data rows begin with a ref token; license/header lines do not.
+describe('extractStepRecords — TAHOT (Hebrew/Aramaic OT)', () => {
+  // TAHOT data rows are one-field-per-column; license/header lines do not lead with a ref.
   const SAMPLE =
     'TAHOT - Translators Amalgamated Hebrew OT - License: CC BY 4.0\n' +
     '#Ref\tHebrew\tTransliteration\tTranslation\tdStrong\tGrammar\n' +
@@ -41,8 +41,29 @@ describe('extractTahotRecords', () => {
     'Gen.1.1#02=L\tבָּרָא\tbara\tcreated\tH1254\tHVqp3ms\n';
 
   it('keeps ref-led data rows and drops header/license lines', () => {
-    const records = extractTahotRecords(SAMPLE);
+    const records = extractStepRecords(SAMPLE, 'hebrew');
     expect(records).toHaveLength(2);
     expect(records[0]).toEqual({ ref: 'Gen.1.1#01=L', original: 'בְּרֵאשִׁית', transliteration: 'bereshit', gloss: 'In the beginning', strongs: 'H7225', morph: 'HR/Ncfsa' });
+  });
+});
+
+describe('extractStepRecords — TAGNT (Greek NT)', () => {
+  // TAGNT packs columns differently from TAHOT: col[1] fuses "Greek (translit)" and
+  // col[3] fuses "dStrong=Grammar" (compounds joined by " + "). col[2] is the gloss.
+  const GREEK_SAMPLE =
+    'TAGNT Mat-Jhn - Translators Amalgamated Greek NT - STEPBible.org CC BY 4.0\n' +
+    '#Ref\tGreek\tEnglish\tdStrong=Grammar\tDictionary\tEditions\n' +
+    'Mat.1.1#01=NKO\tΒίβλος (Biblos)\t[The] book\tG0976=N-NSF\tβίβλος=book\tNA28+TR\n' +
+    'Mat.1.1#02=NKO\tκἀγὼ (kagō)\tand I\tG1473=P-1NS + G2532=CONJ\tκαί=and\tNA28\n';
+
+  it('splits the fused Greek/translit and Strong/morph columns and drops header lines', () => {
+    const records = extractStepRecords(GREEK_SAMPLE, 'greek');
+    expect(records).toHaveLength(2);
+    expect(records[0]).toEqual({ ref: 'Mat.1.1#01=NKO', original: 'Βίβλος', transliteration: 'Biblos', gloss: '[The] book', strongs: 'G0976', morph: 'N-NSF' });
+  });
+
+  it('preserves compound (" + ") Strong/morph pairs without polluting the morph field', () => {
+    const records = extractStepRecords(GREEK_SAMPLE, 'greek');
+    expect(records[1]).toEqual({ ref: 'Mat.1.1#02=NKO', original: 'κἀγὼ', transliteration: 'kagō', gloss: 'and I', strongs: 'G1473 + G2532', morph: 'P-1NS + CONJ' });
   });
 });
