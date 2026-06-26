@@ -43,7 +43,11 @@ const OSIS_BOOKS = new Set(BIBLE_BOOKS.map((b) => b.abbrev));
 // Matches a STEPBible reference token at the start of a cell: Book.Chapter.Verse
 // with an optional #NN word-position suffix. Trailing "=L"/mapping markers are
 // ignored. Book code is 2-3 chars (may lead with a digit, e.g. "1Ki").
-const STEP_REF_RE = /^([1-9A-Za-z]{2,3})\.(\d+)\.(\d+)(?:#(\d+))?/;
+// Where Hebrew/English versification diverges, STEP inserts the alternate reference
+// between the verse and the #NN word index — "(32.1)" in TAHOT, "[17.15]" / "{19.41}"
+// in TAGNT. The leading Book.Chapter.Verse is the English numbering the reader uses;
+// we skip the bracketed alternate so the #NN word index is still captured.
+const STEP_REF_RE = /^([1-9A-Za-z]{2,3})\.(\d+)\.(\d+)(?:[([{]\d+\.\d+[)\]}])?(?:#(\d+))?/;
 
 export function stepRefToVerse(ref: string): { verseId: string; position: number } {
   const m = STEP_REF_RE.exec(ref.trim());
@@ -55,8 +59,18 @@ export function stepRefToVerse(ref: string): { verseId: string; position: number
 }
 
 export function toInterlinearRows(records: StepRecord[], language: LexiconLanguage): InterlinearRow[] {
+  // STEP word indices (#NN) restart within each Hebrew sub-verse. Where English
+  // versification collapses several Hebrew verses into one (e.g. a Psalm
+  // superscription folded into verse 0) those indices repeat, so keying position on
+  // #NN would emit duplicate (verse_id, position) rows and break the upsert's primary
+  // key. Number positions by appearance order per verse_id instead: unique by
+  // construction, deterministic (idempotent re-runs), and identical to #NN for the
+  // ~99.98% of verses with no versification divergence.
+  const seq = new Map<string, number>();
   return records.map((r) => {
-    const { verseId, position } = stepRefToVerse(r.ref);
+    const { verseId } = stepRefToVerse(r.ref);
+    const position = (seq.get(verseId) ?? 0) + 1;
+    seq.set(verseId, position);
     const strongs = r.strongs.trim();
     return {
       verse_id: verseId,

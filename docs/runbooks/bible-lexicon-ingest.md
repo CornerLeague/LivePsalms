@@ -22,6 +22,19 @@ Populates `bible_interlinear` and `bible_strongs`. Run after migration 041 is ap
    fuses "Greek (translit)" in col[1] and "dStrong=Grammar" in col[3] (compounds joined
    by " + "), split by `parseTagntRow`. If STEPBible ever revises the layout, adjust those
    and re-run `npx vitest run scripts/ingest-interlinear.test.ts`.
+
+   **Versification + position (resolved 2026-06-26).** Where Hebrew/English numbering
+   diverges, STEP inserts the alternate reference between the verse and the `#NN` word
+   index — `(32.1)` in TAHOT, `[17.15]`/`{19.41}` in TAGNT (e.g. `Gen.31.55(32.1)#04`,
+   `Psa.51.0(51.1)#01`). The leading `Book.Ch.Vs` is the **English** numbering the reader
+   uses; `STEP_REF_RE` now skips the bracketed alternate so `#NN` is still read. But `#NN`
+   is unsafe as the primary key: the bracket previously hid it (every word collapsed to
+   `position 1`), and English versification folds several Hebrew sub-verses into one verse
+   (a Psalm superscription → verse 0), restarting `#NN` and colliding. So
+   `toInterlinearRows` numbers `position` by **appearance order per `verse_id`** — unique
+   by construction, idempotent, and identical to `#NN` for the ~99.98% of verses with no
+   divergence. This was the `ON CONFLICT … cannot affect row a second time` (Postgres
+   `21000`) crash; covered by `ingest-interlinear.test.ts`.
 3. Download `strongs-hebrew-dictionary.json` + `strongs-greek-dictionary.json` to `scripts/data/`.
 4. Load (service-role env required):
    ```
