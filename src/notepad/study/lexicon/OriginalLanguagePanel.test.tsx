@@ -47,6 +47,18 @@ describe('OriginalLanguagePanel', () => {
     expect(screen.getByText(/a deity; God/)).toBeTruthy();
   });
 
+  it('shows the canonical Strong\'s key in the badge and looks it up canonically', () => {
+    useVerseLexicon.mockReturnValue({
+      words: [{ position: 1, original: 'ἠγάπησεν', transliteration: 'ēgapēsen', strongs: 'G0025', morph: 'V-AAI-3S', gloss: 'loved' }],
+      language: 'greek', loading: false, error: null,
+    });
+    render(<OriginalLanguagePanel verseId="jhn.3.16" reference="John 3:16" />);
+    expect(screen.getByText('G25')).toBeTruthy();
+    expect(screen.queryByText('G0025')).toBeNull();
+    fireEvent.click(screen.getByText('ἠγάπησεν'));
+    expect(useStrongsEntry).toHaveBeenCalledWith('G25');
+  });
+
   it('shows a graceful message when the verse has no lexicon data', () => {
     useVerseLexicon.mockReturnValue({ words: [], language: null, loading: false, error: null });
     render(<OriginalLanguagePanel verseId="gen.1.1" reference="Genesis 1:1" />);

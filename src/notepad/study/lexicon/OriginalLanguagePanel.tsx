@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useVerseLexicon, type InterlinearWord, type LexiconLanguage } from './useVerseLexicon';
 import { useStrongsEntry } from './useStrongsEntry';
+import { normalizeStrongs } from './normalizeStrongs';
 
 const LANGUAGE_LABEL: Record<LexiconLanguage, string> = {
   hebrew: 'Hebrew',
@@ -65,6 +66,9 @@ export function OriginalLanguagePanel({ verseId, reference }: OriginalLanguagePa
 
 function WordRow({ word, rtl }: { word: InterlinearWord; rtl: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  // Resolve the raw STEP dStrong to its canonical OpenScriptures key once, so the
+  // badge and the definition lookup agree (e.g. "G0025" -> "G25").
+  const strongs = word.strongs ? normalizeStrongs(word.strongs) || null : null;
   return (
     <li style={{ borderRadius: 8, background: 'var(--cream, #F4F1EA)', padding: '6px 8px' }}>
       <button
@@ -76,12 +80,12 @@ function WordRow({ word, rtl }: { word: InterlinearWord; rtl: boolean }) {
         <span dir={rtl ? 'rtl' : 'ltr'} style={{ fontSize: 18, color: 'var(--deep-umber)' }}>{word.original}</span>
         <span style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--silica)' }}>{word.transliteration}</span>
         <span style={{ fontSize: 11, color: 'var(--deep-umber)' }}>{word.gloss}</span>
-        {word.strongs && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--lamplight-accent)', fontWeight: 600 }}>{word.strongs}</span>}
+        {strongs && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--lamplight-accent)', fontWeight: 600 }}>{strongs}</span>}
       </button>
       {expanded && (
         <div style={{ marginTop: 6 }}>
           {word.morph && <div style={{ fontSize: 11, color: 'var(--silica)' }}>{word.morph}</div>}
-          {word.strongs && <StrongsDefinition strongs={word.strongs} />}
+          {strongs && <StrongsDefinition strongs={strongs} />}
         </div>
       )}
     </li>

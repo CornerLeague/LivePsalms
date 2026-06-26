@@ -66,4 +66,28 @@ describe('useStrongsEntry', () => {
     await waitFor(() => expect(second.result.current.entry?.strongs).toBe('G2316'));
     expect(from.mock.calls.length).toBe(callsAfterFirst);
   });
+
+  it('queries bible_strongs by the normalized key for a raw STEP value', async () => {
+    maybeSingle.mockImplementation(() => Promise.resolve({
+      data: { strongs: 'G25', lemma: 'ἀγαπάω', transliteration: 'agapao', pronunciation: 'ag-ap-ah-o', short_def: 'to love', full_def: 'to love (in a social or moral sense)', language: 'greek' },
+      error: null,
+    }));
+    const { result } = renderHook(() => useStrongsEntry('G0025')); // John 3:16 "loved"
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(eq).toHaveBeenCalledWith('strongs', 'G25');
+    expect(result.current.entry?.strongs).toBe('G25');
+  });
+
+  it('shares one cache entry across raw and canonical forms of the same number', async () => {
+    maybeSingle.mockImplementation(() => Promise.resolve({
+      data: { strongs: 'H430', lemma: 'אֱלֹהִים', transliteration: 'elohim', pronunciation: 'el-o-heem', short_def: 'God', full_def: 'gods, God', language: 'hebrew' },
+      error: null,
+    }));
+    const first = renderHook(() => useStrongsEntry('H0430')); // padded
+    await waitFor(() => expect(first.result.current.entry?.strongs).toBe('H430'));
+    const callsAfterFirst = from.mock.calls.length;
+    const second = renderHook(() => useStrongsEntry('H430')); // already canonical
+    await waitFor(() => expect(second.result.current.entry?.strongs).toBe('H430'));
+    expect(from.mock.calls.length).toBe(callsAfterFirst);
+  });
 });

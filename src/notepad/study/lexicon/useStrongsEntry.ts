@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { normalizeStrongs } from './normalizeStrongs';
 import type { LexiconLanguage } from './useVerseLexicon';
 
 export interface StrongsEntry {
@@ -32,18 +33,25 @@ interface StrongsRow {
 // enough no matter how many verses/words reference it this session.
 const cache = new Map<string, StrongsEntry>();
 
-/** Lazily fetch one Strong's dictionary entry; null clears without querying. */
+/**
+ * Lazily fetch one Strong's dictionary entry; null clears without querying.
+ * The raw STEPBible value is normalized to the OpenScriptures key before lookup
+ * (see normalizeStrongs), so padded/suffixed/wrapped numbers still resolve. The
+ * cache is keyed by the normalized value, so raw and canonical forms of the same
+ * number share one entry.
+ */
 export function useStrongsEntry(strongs: string | null): UseStrongsEntryResult {
-  const [entry, setEntry] = useState<StrongsEntry | null>(strongs ? cache.get(strongs) ?? null : null);
+  const key = strongs == null ? null : normalizeStrongs(strongs) || null;
+  const [entry, setEntry] = useState<StrongsEntry | null>(key ? cache.get(key) ?? null : null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (strongs == null) {
+    if (key == null) {
       setEntry(null); setLoading(false); setError(null);
       return;
     }
-    const cached = cache.get(strongs);
+    const cached = cache.get(key);
     if (cached) {
       setEntry(cached); setLoading(false); setError(null);
       return;
@@ -61,7 +69,7 @@ export function useStrongsEntry(strongs: string | null): UseStrongsEntryResult {
       const { data, error: qErr } = await supabase
         .from('bible_strongs')
         .select('strongs, lemma, transliteration, pronunciation, short_def, full_def, language')
-        .eq('strongs', strongs)
+        .eq('strongs', key)
         .maybeSingle();
       if (cancelled) return;
       if (qErr) {
@@ -77,7 +85,7 @@ export function useStrongsEntry(strongs: string | null): UseStrongsEntryResult {
           fullDef: r.full_def,
           language: r.language,
         };
-        cache.set(strongs, mapped);
+        cache.set(key, mapped);
         setEntry(mapped);
       } else {
         setEntry(null);
@@ -86,7 +94,7 @@ export function useStrongsEntry(strongs: string | null): UseStrongsEntryResult {
     })();
 
     return () => { cancelled = true; };
-  }, [strongs]);
+  }, [key]);
 
   return { entry, loading, error };
 }
