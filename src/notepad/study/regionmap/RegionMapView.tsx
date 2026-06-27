@@ -25,6 +25,7 @@ const expandBtn: React.CSSProperties = {
 export function RegionMapView({ map, activeTab, onTabChange, onExpand, trailing, variant = 'inline' }: RegionMapViewProps) {
   const image = map[activeTab];
   const fullscreen = variant === 'fullscreen';
+  const comingSoon = !!image.comingSoon;
 
   function onTabKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
@@ -62,23 +63,38 @@ export function RegionMapView({ map, activeTab, onTabChange, onExpand, trailing,
       </div>
 
       <div style={{ flex: fullscreen ? 1 : 'none', minHeight: 0 }}>
-        <ZoomableMap
-          image={image}
-          height={fullscreen ? '100%' : 210}
-          overlayTopRight={!fullscreen && onExpand ? (
-            <button type="button" aria-label="Expand map to fullscreen" onClick={onExpand} style={expandBtn}>
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          ) : undefined}
-        />
-      </div>
-
-      <div style={{ padding: fullscreen ? '10px 14px' : '8px 10px', background: fullscreen ? 'rgba(0,0,0,.55)' : 'transparent' }}>
-        <div style={{ fontSize: 11, fontStyle: 'italic', lineHeight: 1.5, color: fullscreen ? '#f4efe4' : '#5a4f3c' }}>{image.caption}</div>
-        {!fullscreen && (
-          <div style={{ fontSize: 9, color: '#a89f90', marginTop: 4 }}>{image.attribution} · {image.license}</div>
+        {comingSoon ? (
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 16,
+              height: fullscreen ? '100%' : 210,
+              background: fullscreen ? 'rgba(255,255,255,.06)' : 'var(--pale-stone)',
+              fontSize: 12, fontStyle: 'italic', color: fullscreen ? '#e8e0d2' : 'var(--silica)',
+            }}
+          >
+            Maps for today is coming soon.
+          </div>
+        ) : (
+          <ZoomableMap
+            image={image}
+            height={fullscreen ? '100%' : 210}
+            overlayTopRight={!fullscreen && onExpand ? (
+              <button type="button" aria-label="Expand map to fullscreen" onClick={onExpand} style={expandBtn}>
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+            ) : undefined}
+          />
         )}
       </div>
+
+      {!comingSoon && (
+        <div style={{ padding: fullscreen ? '10px 14px' : '8px 10px', background: fullscreen ? 'rgba(0,0,0,.55)' : 'transparent' }}>
+          <div style={{ fontSize: 11, fontStyle: 'italic', lineHeight: 1.5, color: fullscreen ? '#f4efe4' : '#5a4f3c' }}>{image.caption}</div>
+          {!fullscreen && (
+            <div style={{ fontSize: 9, color: '#a89f90', marginTop: 4 }}>{image.attribution} · {image.license}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

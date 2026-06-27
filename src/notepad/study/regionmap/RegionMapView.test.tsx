@@ -26,6 +26,18 @@ function Harness() {
   return <RegionMapView map={map} activeTab={tab} onTabChange={setTab} />;
 }
 
+const comingSoonMap: RegionMap = {
+  key: 'judea-roman',
+  label: 'Roman Judea & Galilee',
+  then: { src: '/maps/judea-roman/then.jpg', alt: 'Roman Judea, first century', caption: 'Roman Judea and Galilee in the first century AD.', attribution: 'Smith 1915', license: 'Public Domain' },
+  now: { src: '/maps/judea-roman/now.jpg', alt: 'Modern Israel reference map', caption: 'The same region today.', attribution: 'not yet sourced', license: 'Pending human review', comingSoon: true },
+};
+
+function ComingSoonHarness() {
+  const [tab, setTab] = useState<MapTab>('then');
+  return <RegionMapView map={comingSoonMap} activeTab={tab} onTabChange={setTab} />;
+}
+
 describe('RegionMapView', () => {
   it('swaps the image and caption when the Today tab is selected', () => {
     render(<Harness />);
@@ -55,5 +67,18 @@ describe('RegionMapView', () => {
     expect(screen.getByRole('tab', { name: 'Today' }).getAttribute('aria-selected')).toBe('true');
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Today' }), { key: 'ArrowLeft' });
     expect(screen.getByRole('tab', { name: 'Biblical times' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('shows a "coming soon" message on the Today tab (no image) and restores the Biblical-times map on switch back', () => {
+    render(<ComingSoonHarness />);
+    expect(screen.getByAltText('Roman Judea, first century')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Today' }));
+    expect(screen.getByText(/coming soon/i)).toBeTruthy();
+    expect(screen.queryByAltText('Modern Israel reference map')).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Biblical times' }));
+    expect(screen.getByAltText('Roman Judea, first century')).toBeTruthy();
+    expect(screen.queryByText(/coming soon/i)).toBeNull();
   });
 });

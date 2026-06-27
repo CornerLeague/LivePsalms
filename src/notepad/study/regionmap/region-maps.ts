@@ -15,6 +15,7 @@ export interface MapImage {
   caption: string;      // factual, non-interpretive
   attribution: string;  // real, verifiable source
   license: string;      // e.g. 'Public Domain', 'CC BY-SA 4.0'
+  comingSoon?: boolean;  // true → image not sourced yet; UI shows a "coming soon" placeholder instead
 }
 
 export interface RegionMap {
@@ -46,6 +47,7 @@ export const REGION_MAPS: Record<RegionMapKey, RegionMap> = {
       caption: 'The same region today — the southern Levant.',
       attribution: 'Modern reference map — not yet sourced (see public/maps/ATTRIBUTION.md).',
       license: 'Pending human review',
+      comingSoon: true,
     },
   },
   'judea-roman': {
@@ -66,6 +68,7 @@ export const REGION_MAPS: Record<RegionMapKey, RegionMap> = {
       caption: 'The same region today.',
       attribution: 'Modern reference map — not yet sourced (see public/maps/ATTRIBUTION.md).',
       license: 'Pending human review',
+      comingSoon: true,
     },
   },
 };
