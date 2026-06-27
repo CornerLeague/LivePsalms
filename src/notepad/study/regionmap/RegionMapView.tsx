@@ -72,7 +72,7 @@ export function RegionMapView({ map, activeTab, onTabChange, onExpand, trailing,
               fontSize: 12, fontStyle: 'italic', color: fullscreen ? '#e8e0d2' : 'var(--silica)',
             }}
           >
-            Maps for today is coming soon.
+            Maps for today are coming soon.
           </div>
         ) : (
           <ZoomableMap
