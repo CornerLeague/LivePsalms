@@ -77,7 +77,7 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
         {tagFilter && (
           <div
             className="flex items-center justify-between px-2 py-1 rounded mb-2"
-            style={{ background: 'rgba(188, 179, 163, 0.2)', border: '1px solid var(--pale-stone)' }}
+            style={{ background: 'color-mix(in srgb, var(--warm-sand) 20%, transparent)', border: '1px solid var(--pale-stone)' }}
           >
             <span className="text-[11px]" style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}>
               {formatTag(tagFilter)}
@@ -96,8 +96,8 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
         <div
           className="flex items-center gap-2 px-2.5 py-1.5 rounded-md mb-4"
           style={{
-            background: 'rgba(188, 179, 163, 0.15)',
-            border: '1px solid rgba(206, 204, 202, 0.5)',
+            background: 'color-mix(in srgb, var(--warm-sand) 15%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--pale-stone) 50%, transparent)',
           }}
         >
           <Search className="w-3 h-3 shrink-0" style={{ color: 'var(--silica)' }} />
@@ -105,7 +105,7 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             placeholder="Filter notes..."
-            className="text-[11px] bg-transparent outline-none w-full"
+            className="text-[11px] bg-transparent outline-none w-full placeholder:text-[color:var(--silica)]"
             style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
           />
         </div>
@@ -122,7 +122,7 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
             return (
               <div key={type} className="mb-1">
                 <button
-                  className="flex items-center gap-1.5 w-full px-1 py-1 rounded hover:bg-black/5 transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 w-full px-1 py-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                   onClick={() => treeView.toggle(`type:${type}`, true)}
                 >
                   {isExpanded ? (
@@ -189,7 +189,7 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
         {/* + New Folder button */}
         <button
           onClick={() => setShowNewFolder(true)}
-          className="flex items-center gap-1.5 mt-4 px-2 py-1.5 rounded hover:bg-black/5 transition-colors w-full"
+          className="flex items-center gap-1.5 mt-4 px-2 py-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors w-full"
           style={{ fontFamily: 'Outfit, sans-serif' }}
         >
           <FolderPlus className="w-3.5 h-3.5" style={{ color: 'var(--silica)' }} />
@@ -202,9 +202,9 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
 
         {/* Tags section */}
         {view.allTags.length > 0 && (
-          <div className="mt-6 pt-4" style={{ borderTop: '1px solid rgba(206, 204, 202, 0.5)' }}>
+          <div className="mt-6 pt-4" style={{ borderTop: '1px solid color-mix(in srgb, var(--pale-stone) 50%, transparent)' }}>
             <button
-              className="flex items-center gap-1 w-full cursor-pointer hover:bg-black/5 rounded px-1 py-0.5 transition-colors"
+              className="flex items-center gap-1 w-full cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 rounded px-1 py-0.5 transition-colors"
               onClick={() => treeView.toggle('tags', false)}
             >
               {tagsExpanded ? (
@@ -229,9 +229,9 @@ function NotepadSidebarInner({ hideCollectionHeader = false, onOpenNote }: Notep
                   return (
                     <div
                       key={tag}
-                      className="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-black/5 transition-colors"
+                      className="flex items-center justify-between px-2 py-1 rounded cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                       style={{
-                        background: isActive ? 'rgba(188, 179, 163, 0.3)' : 'transparent',
+                        background: isActive ? 'color-mix(in srgb, var(--warm-sand) 30%, transparent)' : 'transparent',
                         fontFamily: 'Outfit, sans-serif',
                       }}
                       onClick={() => setTagFilter(isActive ? null : tag)}

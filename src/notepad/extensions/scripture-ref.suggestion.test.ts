@@ -174,7 +174,7 @@ describe('/verse book picker', () => {
     // the documented select action directly against that range.
     const to = editor.state.selection.from;
     const from = to - '/verse rom'.length;
-    applyVerseSelection(editor, { from, to }, { kind: 'book', book: 'Romans' });
+    applyVerseSelection(editor, { from, to }, { kind: 'book', book: 'Romans' }, 'BSB');
     expect(editor.getText()).toContain('/verse Romans ');
     // Still a /verse trigger → picker stays active (now in the hint state).
     expect(suggestionState(editor, PICKER)?.active).toBe(true);

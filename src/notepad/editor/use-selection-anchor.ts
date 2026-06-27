@@ -122,6 +122,13 @@ export class SelectionAnchorController extends Observable<SelectionAnchorState> 
   // Input modality, fed by the hook's window listeners. Pointer opens make the
   // swatch keyboard-ready immediately; keyboard opens leave focus in the editor.
   private lastInteraction: 'pointer' | 'keyboard' = 'pointer';
+  // True between pointerdown and pointerup — i.e. while a drag-select is still
+  // in progress. The swatch must NOT open mid-drag: opening it auto-focuses a
+  // swatch button (see HighlightSwatchPopover), which pulls focus out of the
+  // contenteditable and aborts the browser's in-progress text selection — the
+  // user's drag "stops immediately and only selects a little area". So we hold
+  // the swatch closed until the pointer is released and the range has settled.
+  private pointerDown = false;
 
   constructor(deps: SelectionAnchorDeps) {
     super({ pillAnchor: null, swatchAnchor: null });
@@ -130,6 +137,19 @@ export class SelectionAnchorController extends Observable<SelectionAnchorState> 
 
   setLastInteraction = (modality: 'pointer' | 'keyboard'): void => {
     this.lastInteraction = modality;
+  };
+
+  /**
+   * Track the pointer button between down and up. On release, re-evaluate the
+   * desktop swatch for the settled selection: now that the drag is over, opening
+   * (and auto-focusing) it is safe and is exactly what the user expects.
+   */
+  setPointerDown = (down: boolean): void => {
+    if (this.pointerDown === down) return;
+    this.pointerDown = down;
+    if (!down && !this.deps.isBottomToolbar && this.currentRange) {
+      this.updateSwatch(this.currentRange.from, this.currentRange.to);
+    }
   };
 
   /** Recompute the public snapshot from internal fields; no-op if unchanged. */
@@ -178,12 +198,26 @@ export class SelectionAnchorController extends Observable<SelectionAnchorState> 
     }, PILL_SETTLE_MS);
   }
 
-  // Desktop: unchanged auto-open behavior.
+  // Desktop: auto-open on a settled selection. Suppressed mid-drag (see
+  // pointerDown) so the auto-focus can't interrupt the in-progress selection.
   private updateSwatch(from: number, to: number): void {
     if (from === to) {
       this.swatchRaw = null;
       this.swatchDismissed = false;
       this.dismissedRange = null;
+      this.emit();
+      return;
+    }
+    // Mid-drag: hold the swatch closed. setPointerDown(false) re-runs this once
+    // the pointer is released, opening it for the final range.
+    // Do NOT reset swatchDismissed/dismissedRange here (unlike the collapsed
+    // branch above): the dismiss check below runs against the FINAL range at
+    // release, so a dismissed swatch correctly stays dismissed when the drag
+    // ends on the same range and reappears only when it ends on a different
+    // one. Resetting here would make a dismissed swatch pop back the instant a
+    // drag starts.
+    if (this.pointerDown) {
+      this.swatchRaw = null;
       this.emit();
       return;
     }
@@ -270,12 +304,23 @@ export function useSelectionAnchor({
   // this signal, so it lives here rather than in the view shell.
   useEffect(() => {
     if (!controller) return;
-    const onPointer = () => controller.setLastInteraction('pointer');
+    const onPointerDown = () => {
+      controller.setLastInteraction('pointer');
+      controller.setPointerDown(true);
+    };
+    // pointerup may land outside the editor (drag released over the gutter), and
+    // pointercancel covers gesture interruptions — both end the drag, so listen
+    // on the window in the capture phase to catch them wherever they fire.
+    const onPointerUp = () => controller.setPointerDown(false);
     const onKey = () => controller.setLastInteraction('keyboard');
-    window.addEventListener('pointerdown', onPointer, true);
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('pointerup', onPointerUp, true);
+    window.addEventListener('pointercancel', onPointerUp, true);
     window.addEventListener('keydown', onKey, true);
     return () => {
-      window.removeEventListener('pointerdown', onPointer, true);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointerup', onPointerUp, true);
+      window.removeEventListener('pointercancel', onPointerUp, true);
       window.removeEventListener('keydown', onKey, true);
     };
   }, [controller]);

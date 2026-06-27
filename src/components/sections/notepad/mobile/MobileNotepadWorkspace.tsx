@@ -20,6 +20,7 @@ import { MobileNewNoteTypeSheet } from './MobileNewNoteTypeSheet';
 import { useMobileWorkspaceModel } from './useMobileWorkspaceModel';
 import type { NoteType } from '../../../../notepad/types';
 import { useHasConnections } from './useHasConnections';
+import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { ScanCapturePanel } from '../../../../notepad/components/ScanCapturePanel';
 import { TranscriptionReview } from '../../../../notepad/components/TranscriptionReview';
 import type { TranscriptionResult } from '../../../../notepad/scan/types';
@@ -140,7 +141,7 @@ export function MobileNotepadWorkspace() {
   return (
     <div
       className="fixed inset-x-0 top-0 flex flex-col"
-      style={{ height: '100dvh', background: 'var(--plaster)' }}
+      style={{ height: '100dvh', background: 'var(--notepad-page-bg)' }}
     >
       {!model.isOnline && model.user && (
         <div
@@ -154,6 +155,15 @@ export function MobileNotepadWorkspace() {
         >
           <WifiOff className="w-3.5 h-3.5" />
           You're offline — viewing cached notes
+        </div>
+      )}
+
+      {effectiveTab !== 'editor' && (
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{ padding: '6px 12px', borderBottom: '1px solid var(--pale-stone)' }}
+        >
+          <StudyModeToggle />
         </div>
       )}
 
@@ -208,6 +218,7 @@ export function MobileNotepadWorkspace() {
         onOpenNote={handleOpenNote}
         lamplightAdapter={model.lamplightAdapter}
         invoke={model.invoke}
+        streamInvoke={model.streamInvoke}
       />
 
       <MobileAuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
@@ -231,7 +242,7 @@ export function MobileNotepadWorkspace() {
       {scan !== null && model.user && (
         <div
           className="fixed inset-0 z-[60] flex flex-col overflow-y-auto"
-          style={{ background: 'var(--plaster)' }}
+          style={{ background: 'var(--notepad-page-bg)' }}
         >
           {scan === 'capture' ? (
             <ScanCapturePanel

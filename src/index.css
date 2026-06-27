@@ -98,7 +98,32 @@
     --silica: #8A8B90;
     --alabaster: #F5F0E8;
     --lamplight-accent: #C49A78; /* scripture gold; overridden to indigo under [data-mode="study"] */
-    
+    --error-rose: #b45454;       /* semantic error/warning; lifted in dark */
+    --chat-panel-bg: rgba(255, 255, 255, 0.45);    /* translucent chat glaze over the study desk (light) */
+    --chat-on-accent: #fff;                        /* text on the gold accent — user bubble + buttons */
+    --chat-badge-current: #8a6c50;                 /* "Current" thread badge label */
+    --notepad-page-bg: var(--plaster);              /* journal page / editor paper (light) */
+    --notepad-bar-bg: var(--surface-elevated);      /* journal top nav + editor toolbar (light) */
+    --notepad-sidebar-bg: rgba(240, 236, 232, 0.6); /* journal collection rail (light) */
+    --notepad-aside-bg: rgba(240, 236, 232, 0.4);   /* bible / study side panel (light) */
+    --study-verse-num: var(--deep-umber);           /* study verse numbers — matches text (light) */
+    --graph-popover-bg: rgba(255, 255, 255, 0.95); /* graph node popover panel (light) */
+    --highlight-panel-bg: #fff;                    /* verse highlight picker panel (light) */
+    --peek-scripture: #9a6f3a;                     /* mobile NodePeek scripture reference + verse-chip gold (light) */
+    --peek-scripture-wash: rgba(196, 154, 120, 0.15); /* verse-chip wash behind the gold (light) */
+    /* Elevated chrome (toolbars / sidebar headers / popovers) — one step above
+       --plaster. Single source for the warm three-step elevation ramp. */
+    --surface-elevated: rgba(240, 236, 232, 0.97);
+
+    /* Graph canvas palette (read by graph-view.ts via getComputedStyle) */
+    --graph-node-scripture: #C49A78;
+    --graph-node-sermon: #7A9BAE;
+    --graph-node-devotion: #6B8B7A;
+    --graph-node-theme: #D4A0A0;
+    --graph-node-general: #9E9484;
+    --graph-edge: rgba(168, 160, 145, 1);
+    --graph-label: rgba(62, 50, 40, 1);
+
     --background: 40 20% 92%;
     --foreground: 30 10% 15%;
     --card: 40 20% 92%;
@@ -130,10 +155,97 @@
 }
 
 @layer base {
+  /* Dark theme — applied to <html> only while a notepad workspace route is
+     mounted (see ThemeProvider, Approach C). Values derived from the notepad
+     landing hero: warm near-black bg, warm off-white ink, taupe-gold accent.
+     Three-step warm elevation ramp: --app-bg #0a0a0a → --plaster #16130f →
+     --surface-elevated ~#211d17. Starter values; tuned during Tier 4 visual QA. */
+  .dark {
+    /* PSALMS brand vars (inline-applied across the notepad) */
+    --app-bg: #0a0a0a;
+    --app-bg-rgb: 10, 10, 10;
+    --plaster: #16130f;
+    --surface-elevated: rgba(33, 29, 23, 0.97);
+    --deep-umber: #efedee;            /* body ink inverts to warm off-white */
+    --deep-umber-rgb: 239, 237, 238;  /* keep in sync so rgba(var(--deep-umber-rgb),…) flips */
+    --charred: #f4f0e8;               /* headings/titles */
+    --silica: #8d8478;                /* muted text/icons */
+    --pale-stone: rgba(255, 255, 255, 0.10); /* hairlines */
+    --warm-sand: #c4b5a0;             /* active/hover, blockquote rule */
+    --alabaster: #14120f;             /* lamplight empty bg */
+    --cream: #0e0e0e;                 /* Study desk bg (var(--cream,#F4F1EA) fallback) */
+    --lamplight-accent: #c4b5a0;      /* scripture gold (study overrides to indigo) */
+    --error-rose: #f1a3a3;            /* lifted rose for dark bg contrast */
+    --chat-panel-bg: rgba(33, 29, 23, 0.97);       /* opaque elevated panel reads cleaner on near-black */
+    --chat-on-accent: var(--app-bg);               /* near-black ink on the lifted gold */
+    --chat-badge-current: var(--lamplight-accent); /* gold label on dark */
+    --notepad-page-bg: var(--cream);    /* journal dark bg = Study desk (#0e0e0e) */
+    --notepad-bar-bg: var(--cream);     /* journal nav + editor toolbar = page/Study desk (#0e0e0e) */
+    --notepad-sidebar-bg: var(--cream); /* match the Study desk (#0e0e0e) on dark */
+    --notepad-aside-bg: var(--cream);   /* match the Study desk (#0e0e0e) on dark */
+    --study-verse-num: #b7ada0;         /* study verse numbers — a bit darker than the text on dark */
+    --graph-popover-bg: var(--surface-elevated);   /* elevated popover over the near-black graph canvas */
+    --highlight-panel-bg: var(--surface-elevated); /* elevated highlight picker panel on dark */
+    --peek-scripture: var(--lamplight-accent);     /* lifted scripture gold on dark — matches .dark .scripture-ref-link */
+    --peek-scripture-wash: rgba(196, 181, 160, 0.15); /* dark verse-chip wash (lifted gold) */
+    --text-muted: #14120f;
+
+    /* Graph canvas palette (read by graph-view.ts via getComputedStyle) */
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(140, 132, 120, 0.85);
+    --graph-label: rgba(239, 237, 238, 0.9);
+
+    /* shadcn HSL set — warm-tinted dark so portaled dialogs/inputs/toasts match */
+    --background: 30 8% 5%;
+    --foreground: 40 12% 93%;
+    --card: 34 18% 7%;
+    --card-foreground: 40 12% 93%;
+    --popover: 33 18% 11%;
+    --popover-foreground: 40 12% 93%;
+    --primary: 40 12% 93%;
+    --primary-foreground: 30 8% 7%;
+    --secondary: 33 12% 16%;
+    --secondary-foreground: 40 12% 93%;
+    --muted: 33 10% 14%;
+    --muted-foreground: 35 8% 60%;
+    --accent: 33 14% 18%;
+    --accent-foreground: 40 12% 93%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 36 8% 18%;
+    --input: 36 8% 18%;
+    --ring: 36 22% 64%;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
-  
+
+  /* Notepad nav logo: /logo-icon.png is dark artwork that vanishes on the dark
+     notepad chrome. Lift it to a light silhouette. Scoped to .dark + the notepad
+     nav only — light mode and every other logo usage stay untouched. */
+  .dark .notepad-nav-logo { filter: brightness(0) invert(1); }
+
+  /* Mobile Lamplight tab: its surfaces (and the desktop-shared panels it embeds)
+     paint var(--alabaster) — one step warmer/lighter than the rest of the dark
+     mobile chrome. Remap --alabaster to the page bg for this subtree ONLY, in
+     dark ONLY, so the Lamplight tab matches the other mobile tabs (#0e0e0e)
+     without touching light mode or the desktop Lamplight surface. */
+  .dark .lamplight-mobile-view { --alabaster: var(--notepad-page-bg); }
+
+  /* Dark mode: highlighted text rides a light swatch wash, so the light body ink
+     (--deep-umber → #efedee) would vanish on it. Force the ink dark so the text
+     stays legible through the highlight — mirrors how it reads in light mode.
+     Covers both the editor StyleHighlight mark and Bible verse highlights. */
+  .dark span[data-style-highlight],
+  .dark .bible-verse-highlight { color: #3a3426; }
+
   html {
     scroll-behavior: smooth;
     /* framer-motion's useScroll defaults its container to document.scrollingElement

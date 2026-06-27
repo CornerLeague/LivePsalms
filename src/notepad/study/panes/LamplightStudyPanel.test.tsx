@@ -13,6 +13,15 @@ vi.mock('../useStudyChatThread', () => ({
   useStudyChatThread: () => ({ messages: [], loading: false, error: null, append: vi.fn(), reload: vi.fn(), archiveAndReset: vi.fn() }),
 }));
 vi.mock('@/lib/supabase', () => ({ supabase: { functions: { invoke: vi.fn() } } }));
+vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({
+  useBiblePrefs: () => ({
+    translation: 'BSB',
+    verseLayout: 'inline',
+    setLocalTranslation: vi.fn(),
+    setLocalVerseLayout: vi.fn(),
+    saveGlobalPrefs: vi.fn(async () => ({ ok: true })),
+  }),
+}));
 
 import { LamplightStudyPanel } from './LamplightStudyPanel';
 

@@ -102,7 +102,7 @@ export function FolderItem(props: FolderItemProps) {
           <div>
             {/* Folder header */}
             <div
-              className="flex items-center gap-1.5 w-full px-1 py-1 rounded hover:bg-black/5 transition-colors"
+              className="flex items-center gap-1.5 w-full px-1 py-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               onMouseEnter={() => setHovering(true)}
               onMouseLeave={() => setHovering(false)}
             >
@@ -125,7 +125,7 @@ export function FolderItem(props: FolderItemProps) {
                   <span
                     role="button"
                     aria-label="Folder options"
-                    className="shrink-0 cursor-pointer rounded hover:bg-black/10 transition-all"
+                    className="shrink-0 cursor-pointer rounded hover:bg-black/10 dark:hover:bg-white/15 transition-all"
                     style={{
                       opacity: hovering || menuOpen || isMobile ? 1 : 0,
                       transition: 'opacity 0.15s',

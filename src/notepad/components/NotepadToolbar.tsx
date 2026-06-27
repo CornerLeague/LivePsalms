@@ -19,6 +19,7 @@ import type { NoteType } from '../types';
 import { UploadModal } from './UploadModal';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { NotepadAuthControls } from './NotepadAuthControls';
+import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -50,7 +51,7 @@ export function NotepadToolbar({
 
   // Shared button class
   const btnClass =
-    'flex items-center justify-center rounded hover:bg-black/5 transition-colors cursor-pointer';
+    'flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer';
 
   return (
     <>
@@ -59,7 +60,7 @@ export function NotepadToolbar({
         className="flex items-center shrink-0 z-40"
         style={{
           height: 48,
-          background: 'rgba(240, 236, 232, 0.97)',
+          background: 'var(--notepad-bar-bg)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--pale-stone)',
@@ -83,7 +84,7 @@ export function NotepadToolbar({
           <img
             src="/logo-icon.png"
             alt="LivePsalms"
-            className="h-6 w-auto object-contain cursor-pointer"
+            className="notepad-nav-logo h-6 w-auto object-contain cursor-pointer"
             onClick={() => navigate('/')}
           />
 
@@ -93,10 +94,10 @@ export function NotepadToolbar({
           {/* Search bar button */}
           <button
             onClick={onOpenSearch}
-            className="flex items-center gap-2 flex-1 max-w-xs mx-2 px-3 py-1.5 rounded-md hover:bg-black/5 transition-colors"
+            className="flex items-center gap-2 flex-1 max-w-xs mx-2 px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors focus:outline-none focus-visible:outline-none"
             style={{
-              background: 'rgba(188, 179, 163, 0.15)',
-              border: '1px solid rgba(206, 204, 202, 0.5)',
+              background: 'color-mix(in srgb, var(--warm-sand) 15%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--pale-stone) 50%, transparent)',
             }}
           >
             <Search className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--silica)' }} />
@@ -109,7 +110,7 @@ export function NotepadToolbar({
             <span
               className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
               style={{
-                background: 'rgba(188, 179, 163, 0.3)',
+                background: 'color-mix(in srgb, var(--warm-sand) 30%, transparent)',
                 color: 'var(--silica)',
                 fontFamily: 'Outfit, sans-serif',
                 letterSpacing: '0.05em',
@@ -121,6 +122,9 @@ export function NotepadToolbar({
 
           {/* Spacer */}
           <div className="flex-1" />
+
+          {/* Theme toggle */}
+          <ThemeToggle className="w-8 h-8" />
 
           {/* NEW NOTE dropdown */}
           <DropdownMenu>

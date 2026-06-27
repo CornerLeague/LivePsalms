@@ -14,11 +14,11 @@ import type { GraphNode } from '@/notepad/graph/types';
 import { emitOnboardingEvent } from '@/notepad/onboarding/onboarding-events';
 
 const NODE_COLORS: Record<string, string> = {
-  scripture: '#C49A78',
-  sermon: '#7A9BAE',
-  devotion: '#6B8B7A',
-  theme: '#D4A0A0',
-  general: '#9E9484',
+  scripture: 'var(--graph-node-scripture)',
+  sermon: 'var(--graph-node-sermon)',
+  devotion: 'var(--graph-node-devotion)',
+  theme: 'var(--graph-node-theme)',
+  general: 'var(--graph-node-general)',
 };
 
 const NODE_ICONS: Record<string, typeof BookOpen> = {
@@ -138,11 +138,11 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
           ? // A definite height is required so the flex-1 canvas container below
             // resolves to a real size — the sheet parent is height-indefinite, so
             // `h-full` alone would collapse the canvas to 0 and draw nothing.
-            { background: 'rgba(240, 236, 232, 0.4)', minHeight: '60vh' }
+            { background: 'color-mix(in srgb, var(--plaster) 40%, transparent)', minHeight: '60vh' }
           : {
               flex: expanded ? '1 1 0%' : graphOpen ? '0 0 35%' : '0 0 0px',
               borderColor: graphOpen ? 'var(--pale-stone)' : 'transparent',
-              background: 'rgba(240, 236, 232, 0.4)',
+              background: 'color-mix(in srgb, var(--plaster) 40%, transparent)',
               opacity: graphOpen ? 1 : 0,
               transition: 'flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
             }
@@ -152,15 +152,15 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-md overflow-hidden" style={{ border: '1px solid var(--pale-stone)' }}>
             <button onClick={() => setGraphMode('global')} className="px-3 py-1.5 text-[10px] font-medium tracking-wider"
-              style={{ background: graphMode === 'global' ? 'rgba(188, 179, 163, 0.35)' : 'transparent', color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}>
+              style={{ background: graphMode === 'global' ? 'color-mix(in srgb, var(--warm-sand) 35%, transparent)' : 'transparent', color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}>
               Global
             </button>
             <button onClick={() => setGraphMode('local')} className="px-3 py-1.5 text-[10px] font-medium tracking-wider"
-              style={{ background: graphMode === 'local' ? 'rgba(188, 179, 163, 0.35)' : 'transparent', color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}>
+              style={{ background: graphMode === 'local' ? 'color-mix(in srgb, var(--warm-sand) 35%, transparent)' : 'transparent', color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}>
               Local
             </button>
           </div>
-          <button onClick={() => setSettingsOpen(!settingsOpen)} className="p-1.5 rounded hover:bg-black/5 transition-colors" title="Graph settings">
+          <button onClick={() => setSettingsOpen(!settingsOpen)} className="p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors" title="Graph settings">
             <Settings2 className="w-3.5 h-3.5" style={{ color: 'var(--silica)' }} />
           </button>
         </div>
@@ -200,7 +200,7 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
             <SettingRow label="Repel Force" min={100} max={2000} step={50} value={settings.repelForce}
               onChange={(v) => setSettings((s) => ({ ...s, repelForce: v }))} format={(v) => String(v)} />
             <button onClick={() => setSettings(DEFAULT_SETTINGS)}
-              className="text-[10px] font-medium tracking-wider px-2 py-1 rounded hover:bg-black/5 transition-colors"
+              className="text-[10px] font-medium tracking-wider px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>
               Reset Defaults
             </button>
@@ -238,21 +238,21 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
             style={{
               left: 0, top: 0,
               transform: `translate(calc(${popover.screenX}px - 50%), calc(${popover.screenY}px - 100% - 14px))`,
-              background: 'rgba(255, 255, 255, 0.95)',
-              border: '1px solid rgba(188, 179, 163, 0.5)',
+              background: 'var(--graph-popover-bg)',
+              border: '1px solid color-mix(in srgb, var(--warm-sand) 50%, transparent)',
               fontFamily: 'Outfit, sans-serif',
             }}
           >
-            <div className="text-[12px] font-bold mb-1" style={{ color: 'rgba(62, 50, 40, 1)' }}>{popover.title}</div>
-            <div className="text-[11px]" style={{ color: 'rgba(62, 50, 40, 0.8)' }}>{popover.text}</div>
-            <div className="text-[9px] mt-1" style={{ color: 'rgba(62, 50, 40, 0.5)' }}>{popover.translation}</div>
+            <div className="text-[12px] font-bold mb-1" style={{ color: 'rgba(var(--deep-umber-rgb), 1)' }}>{popover.title}</div>
+            <div className="text-[11px]" style={{ color: 'rgba(var(--deep-umber-rgb), 0.8)' }}>{popover.text}</div>
+            <div className="text-[9px] mt-1" style={{ color: 'rgba(var(--deep-umber-rgb), 0.5)' }}>{popover.translation}</div>
           </div>
         )}
       </div>
 
       {!embedded && (
-        <div className="p-4 shrink-0" style={{ borderTop: '1px solid rgba(206, 204, 202, 0.5)' }}>
-          <button onClick={onToggleExpand} className="flex items-center gap-2 w-full justify-center py-2 rounded-md hover:bg-black/5 transition-colors">
+        <div className="p-4 shrink-0" style={{ borderTop: '1px solid color-mix(in srgb, var(--pale-stone) 50%, transparent)' }}>
+          <button onClick={onToggleExpand} className="flex items-center gap-2 w-full justify-center py-2 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
             {expanded
               ? <Minimize2 className="w-3.5 h-3.5" style={{ color: 'var(--deep-umber)' }} />
               : <Maximize2 className="w-3.5 h-3.5" style={{ color: 'var(--deep-umber)' }} />}
@@ -278,7 +278,7 @@ function SettingRow(props: {
       <label className="text-[10px] font-medium tracking-wider w-24 shrink-0"
         style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>{props.label}</label>
       <input type="range" min={props.min} max={props.max} step={props.step} value={props.value}
-        onChange={(e) => props.onChange(Number(e.target.value))} className="flex-1 h-1 accent-[#C49A78]" />
+        onChange={(e) => props.onChange(Number(e.target.value))} className="flex-1 h-1 accent-[color:var(--graph-node-scripture)]" />
       <span className="text-[10px] w-10 text-right" style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>
         {props.format(props.value)}
       </span>

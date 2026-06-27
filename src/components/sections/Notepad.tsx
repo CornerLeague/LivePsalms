@@ -20,6 +20,7 @@ import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-a
 import { useLamplightSettings } from '@/notepad/hooks/useLamplightSettings';
 import { useLamplightEmbeddingTrigger } from '@/notepad/hooks/useLamplightEmbeddingTrigger';
 import { supabase } from '@/lib/supabase';
+import { makeStreamInvoke } from '@/notepad/bible/lamplight-stream-client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileNotepadWorkspace } from './notepad/mobile/MobileNotepadWorkspace';
 import { loadEnum, saveEnum, KEY_EDITOR_TAB } from '@/notepad/session/session-storage';
@@ -42,6 +43,12 @@ function DesktopNotepadWorkspace() {
   const { user, adapter } = useAuthSession();
   const lamplightAdapter = useMemo(
     () => (supabase ? new SupabaseLamplightAdapter(supabase) : null),
+    []
+  );
+  // Live SSE transport for Lamplight chat. Bound only when Supabase is configured
+  // (a null client would send `Bearer undefined`); memoized so it isn't rebuilt.
+  const streamInvoke = useMemo(
+    () => (supabase ? makeStreamInvoke(supabase) : undefined),
     []
   );
 
@@ -85,7 +92,7 @@ function DesktopNotepadWorkspace() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ top: 0, background: 'var(--plaster)' }}>
+    <div className="fixed inset-0 flex flex-col" style={{ top: 0, background: 'var(--notepad-page-bg)' }}>
       <NotepadToolbar
         graphOpen={graphOpen}
         onToggleGraph={() => setGraphOpen(!graphOpen)}
@@ -114,7 +121,7 @@ function DesktopNotepadWorkspace() {
           style={{
             width: sidebarOpen ? 220 : 48,
             borderColor: 'var(--pale-stone)',
-            background: 'rgba(240, 236, 232, 0.6)',
+            background: 'var(--notepad-sidebar-bg)',
             transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
@@ -277,6 +284,7 @@ function DesktopNotepadWorkspace() {
           invoke={(name, options) =>
             supabase!.functions.invoke(name, { body: options.body as Record<string, unknown> })
           }
+          streamInvoke={streamInvoke}
         />
       </div>
 

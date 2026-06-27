@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import { TodaysLampCard, formatLocalDate } from './TodaysLampCard';
+import { TodaysLampCard, Devotion, formatLocalDate } from './TodaysLampCard';
 import { FakeLamplightAdapter } from '../../storage/fake-lamplight-adapter';
 import type { DailyDevotion } from '../../storage/lamplight-artifacts';
 
@@ -88,5 +88,69 @@ describe('TodaysLampCard (manual start)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Show Me Today's Lamp/i }));
     await waitFor(() => expect(screen.getByText(/though I walk/i)).toBeInTheDocument());
     expect(generateSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Devotion (partial rendering)', () => {
+  it('opening-only partial: renders opening but no scripture or reflection', () => {
+    render(
+      <Devotion
+        artifact={{ opening: 'A quiet greeting' }}
+        localDate="2026-05-27"
+        partial
+        prefersReducedMotion={false}
+      />,
+    );
+    expect(screen.getByText(/A quiet greeting/)).toBeInTheDocument();
+    expect(screen.queryByText(/Psalm 23:4/)).toBeNull();
+    expect(screen.queryByText(/Even though I walk/)).toBeNull();
+    expect(screen.queryByText(/This passage may speak/)).toBeNull();
+  });
+
+  it('full partial: renders all blocks when all fields are present', () => {
+    render(
+      <Devotion
+        artifact={devotion}
+        localDate="2026-05-27"
+        partial
+        prefersReducedMotion={false}
+      />,
+    );
+    expect(screen.getByText(/A quiet greeting/)).toBeInTheDocument();
+    expect(screen.getByText(/Psalm 23:4/)).toBeInTheDocument();
+    expect(screen.getByText(/Even though I walk/)).toBeInTheDocument();
+    expect(screen.getByText(/This passage may speak/)).toBeInTheDocument();
+    expect(screen.getByText(/What part of this verse/)).toBeInTheDocument();
+    expect(screen.getByText(/recurring rest/)).toBeInTheDocument();
+    expect(screen.getByText(/evening anxiety/)).toBeInTheDocument();
+  });
+
+  it('reduced-motion gate: no animate-fade-in when prefersReducedMotion=true, class present when false', () => {
+    const { unmount } = render(
+      <Devotion
+        artifact={{ opening: 'A quiet greeting' }}
+        localDate="2026-05-27"
+        partial
+        prefersReducedMotion={true}
+      />,
+    );
+    const revealEls = screen.getAllByTestId('lamp-piece-reveal');
+    for (const el of revealEls) {
+      expect(el).not.toHaveClass('animate-fade-in');
+    }
+    unmount();
+
+    render(
+      <Devotion
+        artifact={{ opening: 'A quiet greeting' }}
+        localDate="2026-05-27"
+        partial
+        prefersReducedMotion={false}
+      />,
+    );
+    const revealElsMotion = screen.getAllByTestId('lamp-piece-reveal');
+    for (const el of revealElsMotion) {
+      expect(el).toHaveClass('animate-fade-in');
+    }
   });
 });

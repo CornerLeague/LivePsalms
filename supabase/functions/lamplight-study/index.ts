@@ -20,7 +20,7 @@ import { runBibleChatPipeline } from '../lamplight-chat/bible-chat-pipeline.ts';
 import { buildStudyContext } from './study-context.ts';
 import { STUDY_CHAT_PROMPT } from './prompts/study-chat.ts';
 import { STUDY_INSIGHT_PROMPT } from './prompts/study-insight.ts';
-import { parseStudyBody, type ParsedStudyBody } from './parse-body.ts';
+import { parseStudyBody, type ParsedStudyBody, VALID_TRANSLATIONS, type Translation } from './parse-body.ts';
 
 export { parseStudyBody, type ParsedStudyBody };
 
@@ -62,6 +62,18 @@ async function handleStudy(req: Request): Promise<Response> {
 
   const userId = await deriveUserId(supabase, bearerToken(req));
   if (!userId) return jsonResp({ error: 'unauthorized' }, 401);
+
+  let translation: Translation = parsed.translation ?? 'BSB';
+  if (!parsed.translation) {
+    try {
+      const { data: profilePref } = await supabase
+        .from('profiles').select('bible_translation').eq('id', userId).maybeSingle();
+      const pref = (profilePref as { bible_translation?: unknown } | null)?.bible_translation;
+      if (typeof pref === 'string' && (VALID_TRANSLATIONS as readonly string[]).includes(pref)) {
+        translation = pref as Translation;
+      }
+    } catch { /* non-fatal: fall through with BSB */ }
+  }
 
   const { data: settings, error: sErr } = await supabase
     .from('lamplight_settings').select('enabled').eq('user_id', userId).maybeSingle();
@@ -123,6 +135,7 @@ async function handleStudy(req: Request): Promise<Response> {
         includeNotes, noteIds,
         voyageDeps, rerankEnabled,
         crossRefK: CROSSREF_K, noteK: NOTE_K,
+        translation,
       });
 
       const result = await runBibleChatPipeline({

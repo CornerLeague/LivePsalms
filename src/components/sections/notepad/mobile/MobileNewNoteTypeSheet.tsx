@@ -31,7 +31,7 @@ export function MobileNewNoteTypeSheet({ open, onClose, onSelect }: MobileNewNot
       <div
         className="relative rounded-t-2xl flex flex-col"
         style={{
-          background: 'var(--plaster)',
+          background: 'var(--notepad-page-bg)',
           paddingBottom: 'env(safe-area-inset-bottom)',
           boxShadow: '0 -8px 28px rgba(0,0,0,0.18)',
         }}
@@ -54,7 +54,7 @@ export function MobileNewNoteTypeSheet({ open, onClose, onSelect }: MobileNewNot
               <button
                 key={type}
                 onClick={() => onSelect(type)}
-                className="flex items-center gap-3 px-5 py-3.5 text-sm hover:bg-black/5 transition-colors text-left"
+                className="flex items-center gap-3 px-5 py-3.5 text-sm hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-left"
                 style={{ color: 'var(--deep-umber)' }}
               >
                 <Icon size={18} style={{ color }} />

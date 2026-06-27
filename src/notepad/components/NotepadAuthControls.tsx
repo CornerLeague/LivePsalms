@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const btnClass =
-  'flex items-center justify-center rounded hover:bg-black/5 transition-colors cursor-pointer';
+  'flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer';
 
 export function NotepadAuthControls() {
   const navigate = useNavigate();

@@ -4,6 +4,7 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 import { BibleStudyPane } from '@/notepad/bible/BibleStudyPane';
 import type { LamplightAdapter } from '@/notepad/storage/lamplight-adapter';
 import type { InvokeFn } from '@/notepad/bible/lamplight-chat-client';
+import type { StreamInvoke } from '@/notepad/bible/lamplight-stream-client';
 import { GraphPane } from './GraphPane';
 import { loadEnum, saveEnum, KEY_STUDY_TAB } from '@/notepad/session/session-storage';
 
@@ -16,9 +17,10 @@ interface StudyWindowProps {
   onToggleExpand?: () => void;
   lamplightAdapter: LamplightAdapter | null;
   invoke: InvokeFn;
+  streamInvoke?: StreamInvoke;
 }
 
-export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lamplightAdapter, invoke }: StudyWindowProps) {
+export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lamplightAdapter, invoke, streamInvoke }: StudyWindowProps) {
   const [tab, setTab] = useState<StudyTab>(() =>
     loadEnum<StudyTab>(KEY_STUDY_TAB, ['bible', 'graph'], 'bible'),
   );
@@ -47,7 +49,7 @@ export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lampl
       style={{
         flex: expanded ? '1 1 0%' : graphOpen ? '0 0 35%' : '0 0 0px',
         borderColor: graphOpen ? 'var(--pale-stone)' : 'transparent',
-        background: 'rgba(240, 236, 232, 0.4)',
+        background: 'var(--notepad-aside-bg)',
         opacity: graphOpen ? 1 : 0,
         transition: 'flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
       }}
@@ -65,7 +67,7 @@ export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lampl
       {/* body */}
       <div className="flex-1 relative overflow-hidden">
         {tab === 'bible' ? (
-          <BibleStudyPane lamplightAdapter={lamplightAdapter} invoke={invoke} />
+          <BibleStudyPane lamplightAdapter={lamplightAdapter} invoke={invoke} streamInvoke={streamInvoke} />
         ) : (
           <GraphPane graphOpen={graphOpen} embedded />
         )}

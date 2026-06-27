@@ -8,6 +8,10 @@ export interface ChatThreadMessage {
   role: 'user' | 'assistant';
   content: string;
   citations: ChatCitation[];
+  /** True while the assistant reply is still streaming in (live SSE send). */
+  streaming?: boolean;
+  /** Pipeline stage currently in progress; only meaningful while streaming. */
+  stage?: 'notes' | 'scripture' | 'composing' | null;
 }
 
 export interface UseChatThreadResult {
@@ -16,6 +20,8 @@ export interface UseChatThreadResult {
   error: string | null;
   /** Append messages locally (after a send) without a re-fetch. */
   append: (msgs: ChatThreadMessage[]) => void;
+  /** Shallow-merge patch into the last message; no-op when messages is empty. */
+  updateLast: (patch: Partial<ChatThreadMessage>) => void;
   reload: () => void;
   /** Archive the active thread for this passage, then reload (becomes empty). */
   archiveAndReset: () => Promise<void>;
@@ -30,6 +36,12 @@ export function useChatThread(book: string, chapter: number, userId: string | nu
   const passageRef = `${book}.${chapter}`;
   const reload = useCallback(() => setNonce((n) => n + 1), []);
   const append = useCallback((msgs: ChatThreadMessage[]) => setMessages((prev) => [...prev, ...msgs]), []);
+  const updateLast = useCallback((patch: Partial<ChatThreadMessage>) => {
+    setMessages((prev) => {
+      if (prev.length === 0) return prev;
+      return [...prev.slice(0, -1), { ...prev[prev.length - 1], ...patch }];
+    });
+  }, []);
 
   const archiveAndReset = useCallback(async () => {
     if (!supabase || !userId) return;
@@ -90,5 +102,5 @@ export function useChatThread(book: string, chapter: number, userId: string | nu
     return () => { cancelled = true; };
   }, [passageRef, userId, nonce]);
 
-  return { messages, loading, error, append, reload, archiveAndReset };
+  return { messages, loading, error, append, updateLast, reload, archiveAndReset };
 }

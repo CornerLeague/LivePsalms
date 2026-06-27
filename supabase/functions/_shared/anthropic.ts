@@ -11,6 +11,8 @@
 // array; we locate the tool_use block whose name matches the requested tool
 // and return its `input` as the parsed object.
 
+import { createToolJsonStreamParser } from './stream-json-fields.ts';
+
 const ANTHROPIC_BASE = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
 const MAX_RETRIES = 3;
@@ -54,8 +56,19 @@ export interface GenerateOutput<T> {
   completionTokens: number;
 }
 
+export interface StreamHandlers {
+  onText?: (field: string, delta: string) => void;
+  onField?: (field: string, value: unknown) => void;
+}
+
+export interface GenerateStreamInput extends GenerateInput {
+  textFields?: string[];
+  signal?: AbortSignal;
+}
+
 export interface LLMAdapter {
   generate<T>(input: GenerateInput): Promise<GenerateOutput<T>>;
+  generateStream<T>(input: GenerateStreamInput, handlers: StreamHandlers): Promise<GenerateOutput<T>>;
 }
 
 export interface AnthropicDeps {
@@ -68,6 +81,91 @@ export function createAnthropicAdapter(deps: AnthropicDeps): LLMAdapter {
   return {
     async generate<T>(input: GenerateInput): Promise<GenerateOutput<T>> {
       return generateOnce<T>(input, deps, 0);
+    },
+
+    async generateStream<T>(input: GenerateStreamInput, handlers: StreamHandlers): Promise<GenerateOutput<T>> {
+      const res = await deps.fetch(ANTHROPIC_BASE, {
+        method: 'POST',
+        signal: input.signal,
+        headers: {
+          'x-api-key': deps.apiKey,
+          'anthropic-version': ANTHROPIC_VERSION,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL_IDS[input.model],
+          max_tokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
+          system: input.system,
+          messages: input.messages,
+          tools: [input.tool],
+          tool_choice: { type: 'tool', name: input.tool.name },
+          stream: true,
+        }),
+      });
+
+      if (!res.ok || !res.body) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`anthropic stream ${res.status}: ${detail.slice(0, 500)}`);
+      }
+
+      const parser = createToolJsonStreamParser({ textFields: input.textFields });
+      let modelUsed = MODEL_IDS[input.model];
+      let promptTokens = 0;
+      let completionTokens = 0;
+      const assembled: Record<string, unknown> = {};
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      const flush = (events: ReturnType<typeof parser.push>) => {
+        for (const ev of events) {
+          if (ev.type === 'text') {
+            handlers.onText?.(ev.field, ev.delta);
+          } else {
+            assembled[ev.field] = ev.value;
+            handlers.onField?.(ev.field, ev.value);
+          }
+        }
+      };
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl: number;
+        // SSE events are separated by blank lines; we only need the `data:` payloads.
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trimEnd();
+          buf = buf.slice(nl + 1);
+          if (!line.startsWith('data:')) continue;
+          const json = line.slice(5).trim();
+          if (!json) continue;
+          let evt: Record<string, unknown>;
+          try { evt = JSON.parse(json); } catch { continue; }
+          const type = evt.type as string;
+          if (type === 'error') {
+            const e = evt.error as { message?: string; type?: string } | undefined;
+            throw new Error(`anthropic stream error: ${e?.type ?? 'unknown'}: ${e?.message ?? JSON.stringify(evt)}`);
+          }
+          if (type === 'message_start') {
+            const msg = evt.message as { model?: string; usage?: { input_tokens?: number } };
+            modelUsed = msg?.model ?? modelUsed;
+            promptTokens = msg?.usage?.input_tokens ?? 0;
+          } else if (type === 'content_block_delta') {
+            const delta = evt.delta as { type?: string; partial_json?: string };
+            if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
+              flush(parser.push(delta.partial_json));
+            }
+          } else if (type === 'message_delta') {
+            const u = (evt.usage as { output_tokens?: number }) ?? {};
+            if (typeof u.output_tokens === 'number') completionTokens = u.output_tokens;
+          }
+        }
+      }
+      flush(parser.finish());
+
+      return { parsed: assembled as T, modelUsed, promptTokens, completionTokens };
     },
   };
 }

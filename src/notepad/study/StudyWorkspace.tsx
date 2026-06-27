@@ -8,8 +8,11 @@ import { StudyReader } from './panes/StudyReader';
 import { StudySidePanel } from './panes/StudySidePanel';
 import { StudyModeToggle } from './StudyModeToggle';
 import { NotepadAuthControls } from '@/notepad/components/NotepadAuthControls';
+import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 import { useEnsureStudyFolder } from './useEnsureStudyFolder';
 import './study-theme.css';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileStudyWorkspace } from './mobile/MobileStudyWorkspace';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
 
@@ -26,7 +29,7 @@ const railBtnStyle: React.CSSProperties = {
   borderRadius: 6,
 };
 
-export function StudyWorkspace() {
+export function DesktopStudyWorkspace() {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
   const navigate = useNavigate();
@@ -67,12 +70,13 @@ export function StudyWorkspace() {
         <img
           src="/logo-icon.png"
           alt="LivePsalms"
-          className="h-6 w-auto object-contain cursor-pointer"
+          className="notepad-nav-logo h-6 w-auto object-contain cursor-pointer"
           onClick={() => navigate('/')}
         />
         <StudyModeToggle />
         {/* Push auth controls to the far right, same spot as the journal toolbar */}
         <div style={{ flex: 1 }} />
+        <ThemeToggle className="w-8 h-8" />
         <NotepadAuthControls />
       </header>
       <div style={{ flex: '1 1 0%', minHeight: 0, display: 'flex' }}>
@@ -182,4 +186,9 @@ export function StudyWorkspace() {
       </div>
     </div>
   );
+}
+
+export function StudyWorkspace() {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileStudyWorkspace /> : <DesktopStudyWorkspace />;
 }

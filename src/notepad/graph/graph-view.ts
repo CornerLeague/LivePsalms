@@ -9,6 +9,7 @@ import {
 import type { SimulationNodeDatum, SimulationLinkDatum } from 'd3-force';
 import { forceSphere } from './force-sphere';
 import { projectPoint, depthNorm, depthScale, depthAlpha, type SphereCamera } from './sphere-math';
+import { resolveGraphPalette } from './graph-palette';
 
 export interface PopoverState {
   nodeId: string;
@@ -74,14 +75,6 @@ export const DEFAULT_SETTINGS: GraphSettings = {
   repelForce: 120,
   nodeSize: 1,
   edgeThickness: 1,
-};
-
-const NODE_COLORS: Record<string, string> = {
-  scripture: '#C49A78',
-  sermon: '#7A9BAE',
-  devotion: '#6B8B7A',
-  theme: '#D4A0A0',
-  general: '#9E9484',
 };
 
 const ZOOM_IN_FACTOR = 1.08;
@@ -320,6 +313,9 @@ export class GraphView extends Observable<GraphViewState> {
     const canvas = this.canvas;
     if (!ctx || !canvas) return;
 
+    const styles = this.container && typeof getComputedStyle !== 'undefined' ? getComputedStyle(this.container) : null;
+    const palette = resolveGraphPalette((name) => styles?.getPropertyValue(name) ?? '');
+
     const dpr = this.deps.devicePixelRatio?.() ?? 1;
     const width = canvas.width / dpr;
     const height = canvas.height / dpr;
@@ -371,9 +367,11 @@ export class GraphView extends Observable<GraphViewState> {
       ctx.beginPath();
       ctx.moveTo(a.sx, a.sy);
       ctx.lineTo(b.sx, b.sy);
-      ctx.strokeStyle = `rgba(168, 160, 145, ${alpha})`;
+      ctx.strokeStyle = palette.edge;
+      ctx.globalAlpha = alpha;
       ctx.lineWidth = (1.8 + link.weight * 1.5) * this.settings.edgeThickness * cam.scale;
       ctx.stroke();
+      ctx.globalAlpha = 1;
     }
 
     // Nodes — back-to-front, depth-scaled radius + depth-faded fill.
@@ -382,7 +380,7 @@ export class GraphView extends Observable<GraphViewState> {
       const drawR = n.radius * cam.scale * depthScale(dn);
       const isConnected = !hovered || connectedIds.has(n.id);
       const fade = depthAlpha(dn) * (hovered ? (isConnected ? 1 : 0.18) : 1);
-      const color = NODE_COLORS[n.type] ?? '#999';
+      const color = palette.nodeColors[n.type as keyof typeof palette.nodeColors] ?? '#999';
 
       if (n.id === activeId) {
         ctx.beginPath();
@@ -410,13 +408,13 @@ export class GraphView extends Observable<GraphViewState> {
         const drawR = d.n.radius * cam.scale * depthScale(d.dn);
         ctx.beginPath();
         ctx.arc(d.p.sx, d.p.sy, drawR + 4 * cam.scale, 0, Math.PI * 2);
-        ctx.strokeStyle = `${NODE_COLORS[d.n.type] ?? '#999'}80`;
+        ctx.strokeStyle = `${palette.nodeColors[d.n.type as keyof typeof palette.nodeColors] ?? '#999'}80`;
         ctx.lineWidth = 2;
         ctx.stroke();
 
         ctx.font = `${d.n.radius > 24 ? '15px' : '13px'} Outfit, sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillStyle = 'rgba(62, 50, 40, 0.85)';
+        ctx.fillStyle = palette.label;
         ctx.fillText(d.n.title, d.p.sx, d.p.sy + drawR + 10);
       }
     }

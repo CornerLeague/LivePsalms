@@ -7,6 +7,7 @@ import { GraphPane } from '../GraphPane';
 import { BibleStudyPane } from '@/notepad/bible/BibleStudyPane';
 import type { LamplightAdapter } from '../../../../notepad/storage/lamplight-adapter';
 import type { InvokeFn } from '@/notepad/bible/lamplight-chat-client';
+import type { StreamInvoke } from '@/notepad/bible/lamplight-stream-client';
 import { NodePeek } from './NodePeek';
 import { buildPeekData, type PeekTarget } from './node-peek-data';
 import { useNoteCollection } from '../../../../notepad/context/useNoteCollection';
@@ -22,9 +23,10 @@ export interface MobileMoreSheetProps {
   onOpenNote: (id: string) => void;
   lamplightAdapter: LamplightAdapter | null;
   invoke: InvokeFn;
+  streamInvoke?: StreamInvoke;
 }
 
-export function MobileMoreSheet({ open, onClose, onOpenNote, lamplightAdapter, invoke }: MobileMoreSheetProps) {
+export function MobileMoreSheet({ open, onClose, onOpenNote, lamplightAdapter, invoke, streamInvoke }: MobileMoreSheetProps) {
   const [segment, setSegment] = useState<DetailSegment>('backlinks');
   const [peeked, setPeeked] = useState<PeekTarget | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -64,7 +66,7 @@ export function MobileMoreSheet({ open, onClose, onOpenNote, lamplightAdapter, i
       <div
         className="relative rounded-t-2xl flex flex-col"
         style={{
-          background: 'var(--plaster)',
+          background: 'var(--notepad-page-bg)',
           maxHeight: '80vh',
           paddingBottom: 'env(safe-area-inset-bottom)',
           boxShadow: '0 -8px 28px rgba(0,0,0,0.18)',
@@ -112,7 +114,7 @@ export function MobileMoreSheet({ open, onClose, onOpenNote, lamplightAdapter, i
           )}
           {segment === 'bible' && (
             <div className="h-full min-h-[60vh]">
-              <BibleStudyPane lamplightAdapter={lamplightAdapter} invoke={invoke} />
+              <BibleStudyPane lamplightAdapter={lamplightAdapter} invoke={invoke} streamInvoke={streamInvoke} />
             </div>
           )}
         </div>

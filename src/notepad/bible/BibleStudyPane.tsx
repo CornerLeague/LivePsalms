@@ -9,8 +9,9 @@ import { SignInGate } from '@/notepad/components/lamplight/SignInGate';
 import { PaywallCard } from '@/notepad/components/lamplight/PaywallCard';
 import { LamplightChat } from '@/notepad/components/lamplight/chat/LamplightChat';
 import type { InvokeFn } from './lamplight-chat-client';
+import type { StreamInvoke } from './lamplight-stream-client';
 import { BibleReader, type PassageRef } from './BibleReader';
-import { useBibleTranslation } from './useBibleTranslation';
+import { useBiblePrefs } from './prefs/bible-prefs-context';
 import { useBibleHighlights } from './highlights/useBibleHighlights';
 import { bookByAbbrev } from './bible-books';
 import { SplitResizeHandle } from './SplitResizeHandle';
@@ -20,9 +21,10 @@ import { loadBiblePassage, saveBiblePassage } from '@/notepad/session/session-st
 export interface BibleStudyPaneProps {
   lamplightAdapter: LamplightAdapter | null;
   invoke: InvokeFn;
+  streamInvoke?: StreamInvoke;
 }
 
-export function BibleStudyPane({ lamplightAdapter, invoke }: BibleStudyPaneProps) {
+export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: BibleStudyPaneProps) {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
   const [chatOpen, setChatOpen] = useState(false);
@@ -52,7 +54,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke }: BibleStudyPaneProps
     });
   }, []);
 
-  const { translation, setTranslation } = useBibleTranslation({ userId });
+  const { translation, setLocalTranslation, verseLayout, setLocalVerseLayout } = useBiblePrefs();
 
   const { swatchByVerse, setHighlight, removeHighlight } = useBibleHighlights(
     passage.book,
@@ -82,7 +84,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke }: BibleStudyPaneProps
       );
     }
     if (!entitlement.hasAccess('chat')) return <PaywallCard />;
-    return <LamplightChat book={passage.book} chapter={passage.chapter} userId={user.id} invoke={invoke} />;
+    return <LamplightChat book={passage.book} chapter={passage.chapter} userId={user.id} invoke={invoke} streamInvoke={streamInvoke} />;
   };
 
   return (
@@ -124,7 +126,9 @@ export function BibleStudyPane({ lamplightAdapter, invoke }: BibleStudyPaneProps
             initialBook={passage.book}
             initialChapter={passage.chapter}
             translation={translation}
-            onTranslationChange={setTranslation}
+            onTranslationChange={setLocalTranslation}
+            verseLayout={verseLayout}
+            onVerseLayoutChange={setLocalVerseLayout}
             onPassageChange={handlePassageChange}
             highlightSwatchByVerse={swatchByVerse}
             onSetHighlight={setHighlight}

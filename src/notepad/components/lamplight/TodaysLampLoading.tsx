@@ -1,15 +1,15 @@
 import { loadingState } from '../../lamplight/lamplight-copy';
 
 export interface TodaysLampLoadingProps {
-  step: 0 | 1 | 2;
+  stage: 'notes' | 'scripture' | 'composing';
   firstName: string | null;
 }
 
-export function TodaysLampLoading({ step, firstName }: TodaysLampLoadingProps) {
-  const copyByStep: Record<0 | 1 | 2, string> = {
-    0: 'Reading your recent notes…',
-    1: 'Searching Scripture…',
-    2: loadingState(firstName),
+export function TodaysLampLoading({ stage, firstName }: TodaysLampLoadingProps) {
+  const copyByStage: Record<'notes' | 'scripture' | 'composing', string> = {
+    notes: 'Reading your recent notes…',
+    scripture: 'Searching Scripture…',
+    composing: loadingState(firstName),
   };
   return (
     <div
@@ -23,7 +23,7 @@ export function TodaysLampLoading({ step, firstName }: TodaysLampLoadingProps) {
         role="status"
         aria-live="polite"
       >
-        {copyByStep[step]}
+        {copyByStage[stage]}
       </p>
     </div>
   );

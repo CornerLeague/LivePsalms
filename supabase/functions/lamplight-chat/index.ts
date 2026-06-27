@@ -20,6 +20,7 @@ import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
 import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
 import { runBibleChatPipeline, type BibleChatContext } from './bible-chat-pipeline.ts';
 import { BIBLE_INSIGHT_PROMPT } from './prompts/bible-insight.ts';
+import { streamBibleChat, type BibleChatStreamDeps } from './bible-chat-stream.ts';
 
 const HISTORY_LIMIT = 10;
 const NOTE_K = 4;
@@ -48,9 +49,10 @@ async function handleChat(req: Request): Promise<Response> {
   if (!anthropicKey) return jsonResp({ error: 'ANTHROPIC_API_KEY missing' }, 500);
   if (!voyageKey) return jsonResp({ error: 'VOYAGE_AI_KEY missing' }, 500);
 
-  let body: { book?: string; chapter?: number; message?: string; mode?: string; translation?: string };
+  let body: { book?: string; chapter?: number; message?: string; mode?: string; translation?: string; stream?: boolean };
   try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
   const mode = body.mode === 'insight' ? 'insight' : 'chat';
+  const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || body.stream === true;
 
   const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
   type Translation = typeof VALID_TRANSLATIONS[number];
@@ -103,6 +105,62 @@ async function handleChat(req: Request): Promise<Response> {
     recordUsage: (row) => recordLamplightUsage(supabase, row),
     classifyError: classifyGenerateError,
   };
+
+  // Streaming branch: SSE over the same gates + pipeline as the buffered path.
+  // The module re-checks opt-in/entitlement/quota so the seam is independently
+  // testable; the buffered gates above are harmless redundancy.
+  if (wantsStream) {
+    type HistoryRow = { role: 'user' | 'assistant'; content: string };
+    const buildStreamDeps = (): BibleChatStreamDeps => ({
+      cors,
+      isOptedIn: async (uid) => {
+        const { data } = await supabase.from('lamplight_settings').select('enabled').eq('user_id', uid).maybeSingle();
+        return !!data?.enabled;
+      },
+      hasChatAccess: async () => hasChatAccess({ tier, promoActive }),
+      checkQuota: lifecycleDeps.checkQuota,
+      recordUsage: (row) => recordLamplightUsage(supabase, row),
+      upsertThread: (firstMessage) => upsertThread(supabase, userId, book, chapter, passageRef, firstMessage),
+      loadHistory: async (threadId) => {
+        const { data } = await supabase
+          .from('lamplight_chat_messages')
+          .select('role, content')
+          .eq('thread_id', threadId)
+          .order('created_at', { ascending: false })
+          .limit(HISTORY_LIMIT);
+        return ((data ?? []) as HistoryRow[]).reverse();
+      },
+      persistUserMessage: async (threadId) => {
+        await supabase.from('lamplight_chat_messages').insert({ thread_id: threadId, user_id: userId, role: 'user', content: message, citations: [] });
+      },
+      persistAssistant: async (threadId, reply, citations) => {
+        await supabase.from('lamplight_chat_messages').insert({ thread_id: threadId, user_id: userId, role: 'assistant', content: reply, citations });
+        await supabase.from('lamplight_chat_threads').update({ updated_at: new Date().toISOString() }).eq('id', threadId);
+      },
+      buildContext: async ({ history }) => {
+        let retrievalQuery = message;
+        if (mode === 'insight') {
+          const { data: chRows } = await supabase
+            .from('bible_passages')
+            .select('text')
+            .like('id', `${book}.${chapter}.%`)
+            .order('verse_start', { ascending: true })
+            .limit(20);
+          retrievalQuery = ((chRows ?? []) as Array<{ text: string }>).map((r) => r.text).join(' ').slice(0, 1500) || `${book} ${chapter}`;
+        }
+        return buildChatContext(supabase, {
+          userId, book, chapter, passageRef,
+          message: mode === 'insight' ? '' : message,
+          retrievalQuery, history, voyageDeps, rerankEnabled, translation,
+        });
+      },
+      llm,
+      prompt: mode === 'insight' ? BIBLE_INSIGHT_PROMPT : undefined,
+    });
+    return await streamBibleChat(buildStreamDeps(), {
+      userId, mode, message, threadTitle: message || `Study of ${book} ${chapter}`, signal: req.signal,
+    });
+  }
 
   const { status, response } = await runGeneration(
     lifecycleDeps,

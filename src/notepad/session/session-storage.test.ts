@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, beforeEach } from 'vitest';
 import {
   loadLastNoteId,
   saveLastNoteId,
@@ -7,6 +7,8 @@ import {
   saveEnum,
   loadBiblePassage,
   saveBiblePassage,
+  hasValidStored,
+  KEY_BIBLE_TRANSLATION,
 } from './session-storage';
 
 afterEach(() => {
@@ -46,5 +48,25 @@ describe('session-storage', () => {
     expect(loadBiblePassage()).toBeNull();
     localStorage.setItem('psalms.bible.passage', '{"book":"psa"}'); // missing chapter
     expect(loadBiblePassage()).toBeNull();
+  });
+});
+
+describe('hasValidStored', () => {
+  const ALLOWED = ['BSB', 'KJV', 'WEB'] as const;
+
+  beforeEach(() => localStorage.clear());
+
+  it('returns false when the key was never written', () => {
+    expect(hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED)).toBe(false);
+  });
+
+  it('returns true once a valid value has been stored', () => {
+    saveEnum(KEY_BIBLE_TRANSLATION, 'KJV');
+    expect(hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED)).toBe(true);
+  });
+
+  it('returns false when the stored value is not in the allow-list (corrupt/legacy)', () => {
+    saveEnum(KEY_BIBLE_TRANSLATION, 'NIV');
+    expect(hasValidStored(KEY_BIBLE_TRANSLATION, ALLOWED)).toBe(false);
   });
 });

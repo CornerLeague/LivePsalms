@@ -9,6 +9,9 @@ const KEY_EDITOR_TAB = 'psalms.session.editorTab';
 const KEY_STUDY_TAB = 'psalms.session.studyTab';
 const KEY_BIBLE_PASSAGE = 'psalms.bible.passage';
 const KEY_BIBLE_TRANSLATION = 'psalms.bible.translation';
+const KEY_BIBLE_VERSE_LAYOUT = 'psalms.bible.verseLayout';
+const KEY_THEME = 'psalms.session.theme';
+const KEY_MOBILE_STUDY_TAB = 'psalms.session.mobileStudyTab';
 
 export {
   KEY_LAST_NOTE,
@@ -16,6 +19,9 @@ export {
   KEY_EDITOR_TAB,
   KEY_STUDY_TAB,
   KEY_BIBLE_TRANSLATION,
+  KEY_BIBLE_VERSE_LAYOUT,
+  KEY_THEME,
+  KEY_MOBILE_STUDY_TAB,
 };
 
 function readRaw(key: string): string | null {
@@ -56,6 +62,16 @@ export function loadEnum<T extends string>(
 
 export function saveEnum(key: string, value: string): void {
   writeRaw(key, value);
+}
+
+/**
+ * True iff this key holds a value that is a member of `allowed` — a VALID stored
+ * pick, not merely any string. A corrupt/legacy value (present but not in the
+ * allow-list) returns false so the caller treats it as absent and can re-seed.
+ */
+export function hasValidStored(key: string, allowed: readonly string[]): boolean {
+  const raw = readRaw(key);
+  return raw != null && allowed.includes(raw);
 }
 
 export interface StoredPassage {

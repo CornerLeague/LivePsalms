@@ -18,13 +18,27 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
+// jsdom doesn't implement ResizeObserver — stub it for Radix Tooltip.
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+Object.defineProperty(window, 'ResizeObserver', {
+  writable: true,
+  value: ResizeObserverMock,
+});
+
 const useBiblePassages = vi.fn();
 vi.mock('./useBiblePassages', () => ({ useBiblePassages: (...a: unknown[]) => useBiblePassages(...a) }));
+vi.mock('sonner', () => ({ toast: vi.fn() }));
 
 import { BibleReader } from './BibleReader';
+import { toast } from 'sonner';
 
 beforeEach(() => {
   useBiblePassages.mockReset();
+  vi.mocked(toast).mockClear();
   useBiblePassages.mockReturnValue({
     loading: false,
     error: null,
@@ -107,6 +121,19 @@ describe('BibleReader', () => {
     expect(screen.getByText('Genesis 3')).toBeInTheDocument();
     expect(onPassageChange).toHaveBeenLastCalledWith({ book: 'gen', chapter: 3 });
   });
+
+  it('fires a device-only toast nudge when the version is changed in the reader', () => {
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Translation'), { target: { value: 'KJV' } });
+    expect(toast).toHaveBeenCalledWith(expect.stringContaining('on this device'));
+    expect(toast).toHaveBeenCalledWith(expect.stringContaining('KJV'));
+  });
+
+  it('shows a device-only tooltip on the translation info affordance', async () => {
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
+    fireEvent.focus(screen.getByLabelText('Translation info'));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/applies to this device only/i);
+  });
 });
 
 describe('BibleReader translation selector', () => {
@@ -119,9 +146,71 @@ describe('BibleReader translation selector', () => {
     expect(onTranslationChange).toHaveBeenCalledWith('KJV');
   });
 
-  it('exposes the active translation attribution', () => {
+  it('exposes the active translation attribution', async () => {
     render(<BibleReader translation="KJV" onTranslationChange={() => {}} />);
-    expect(screen.getByLabelText('Translation')
-      .closest('div')!.querySelector('[title]')!.getAttribute('title')).toMatch(/public domain/i);
+    fireEvent.focus(screen.getByLabelText('Translation info'));
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent(/public domain/i);
+  });
+});
+
+describe('BibleReader verse layout control', () => {
+  it('renders the layout control labelled with the current mode', () => {
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        verseLayout="inline" onVerseLayoutChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /change verse layout \(currently inline\)/i })).toBeInTheDocument();
+  });
+
+  it('cycles inline -> lines on click', () => {
+    const onVerseLayoutChange = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        verseLayout="inline" onVerseLayoutChange={onVerseLayoutChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /change verse layout/i }));
+    expect(onVerseLayoutChange).toHaveBeenCalledWith('lines');
+  });
+
+  it('cycles spaced -> inline on click', () => {
+    const onVerseLayoutChange = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        verseLayout="spaced" onVerseLayoutChange={onVerseLayoutChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /change verse layout/i }));
+    expect(onVerseLayoutChange).toHaveBeenCalledWith('inline');
+  });
+
+  it('keeps verse anchors, text, and tap selection in spaced mode', () => {
+    const onSelectVerse = vi.fn();
+    const { container } = render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        verseLayout="spaced" onVerseLayoutChange={() => {}}
+        onSelectVerse={onSelectVerse}
+      />,
+    );
+    const verse1 = container.querySelector('#bible-verse-1') as HTMLElement;
+    expect(verse1).not.toBeNull();
+    expect(verse1.textContent).toMatch(/In the beginning was the Word/);
+    fireEvent.click(screen.getByText(/In the beginning was the Word/));
+    expect(onSelectVerse).toHaveBeenLastCalledWith({ book: 'jhn', chapter: 1, verse: 1 });
+  });
+
+  it('defaults to inline (joined prose) when no layout prop is given', () => {
+    const { container } = render(
+      <BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />,
+    );
+    // Inline mode renders the verses inside a <p>; block modes use a <div>.
+    const verse1 = container.querySelector('#bible-verse-1') as HTMLElement;
+    expect(verse1.closest('p')).not.toBeNull();
   });
 });
