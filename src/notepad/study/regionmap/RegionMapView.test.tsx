@@ -48,4 +48,12 @@ describe('RegionMapView', () => {
     fireEvent.click(screen.getByRole('button', { name: /expand map/i }));
     expect(onExpand).toHaveBeenCalledTimes(1);
   });
+
+  it('switches tabs via ArrowRight and ArrowLeft', () => {
+    render(<Harness />);
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Biblical times' }), { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'Today' }).getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Today' }), { key: 'ArrowLeft' });
+    expect(screen.getByRole('tab', { name: 'Biblical times' }).getAttribute('aria-selected')).toBe('true');
+  });
 });
