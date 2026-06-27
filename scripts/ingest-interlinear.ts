@@ -3,10 +3,10 @@
 // TAGNT for Greek NT) into bible_interlinear. Idempotent: upserts on (verse_id,
 // position).
 //
-// Usage:
+// Usage (INGEST_LANG, not LANG — LANG is the OS locale variable):
 //   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
-//     LANG=hebrew FILE=scripts/data/TAHOT.txt npx tsx scripts/ingest-interlinear.ts
-//   (run again with LANG=greek FILE=scripts/data/TAGNT.txt for the NT)
+//     INGEST_LANG=hebrew FILE=scripts/data/TAHOT.txt npx tsx scripts/ingest-interlinear.ts
+//   (run again with INGEST_LANG=greek FILE=scripts/data/TAGNT.txt for the NT)
 //
 // Source: https://github.com/STEPBible/STEPBible-Data (TAHOT / TAGNT, CC BY 4.0).
 // Download a release file and cache it at scripts/data/. See the runbook for the
@@ -147,8 +147,23 @@ function required(name: string): string {
   return v;
 }
 
+const LEXICON_LANGUAGES: readonly LexiconLanguage[] = ['hebrew', 'aramaic', 'greek'];
+
+// Resolve the corpus language from INGEST_LANG. Deliberately NOT `LANG`: that is the
+// POSIX locale variable the OS almost always sets (e.g. "en_US.UTF-8"), so reading it
+// would slip a locale string past the cast and fail the bible_interlinear language
+// check with a cryptic Postgres error. Validate so a typo fails fast and clearly.
+export function resolveLanguage(env: Record<string, string | undefined> = process.env): LexiconLanguage {
+  const raw = env.INGEST_LANG;
+  if (!raw) throw new Error('INGEST_LANG required (one of: hebrew, aramaic, greek)');
+  if (!LEXICON_LANGUAGES.includes(raw as LexiconLanguage)) {
+    throw new Error(`INGEST_LANG must be one of: ${LEXICON_LANGUAGES.join(', ')} (got "${raw}")`);
+  }
+  return raw as LexiconLanguage;
+}
+
 async function main() {
-  const language = (process.env.LANG ?? 'hebrew') as LexiconLanguage;
+  const language = resolveLanguage();
   const file = required('FILE');
   const url = required('SUPABASE_URL');
   const key = required('SUPABASE_SERVICE_ROLE_KEY');

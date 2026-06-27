@@ -1,6 +1,29 @@
 // scripts/ingest-interlinear.test.ts
 import { describe, it, expect } from 'vitest';
-import { stepRefToVerse, toInterlinearRows, extractStepRecords } from './ingest-interlinear';
+import { stepRefToVerse, toInterlinearRows, extractStepRecords, resolveLanguage } from './ingest-interlinear';
+
+describe('resolveLanguage', () => {
+  it('reads INGEST_LANG and accepts each valid language', () => {
+    expect(resolveLanguage({ INGEST_LANG: 'hebrew' })).toBe('hebrew');
+    expect(resolveLanguage({ INGEST_LANG: 'aramaic' })).toBe('aramaic');
+    expect(resolveLanguage({ INGEST_LANG: 'greek' })).toBe('greek');
+  });
+
+  it('ignores the OS LANG locale variable so an unprefixed run fails loudly, not silently', () => {
+    // LANG is POSIX-reserved and almost always set by the OS (e.g. "en_US.UTF-8").
+    // Keying off it would slip a locale string past the cast and fail the DB
+    // language check cryptically; resolveLanguage must only read INGEST_LANG.
+    expect(() => resolveLanguage({ LANG: 'en_US.UTF-8' })).toThrow(/INGEST_LANG required/);
+  });
+
+  it('throws a clear error when INGEST_LANG is missing', () => {
+    expect(() => resolveLanguage({})).toThrow(/INGEST_LANG required/);
+  });
+
+  it('throws a clear error when INGEST_LANG is not a known language', () => {
+    expect(() => resolveLanguage({ INGEST_LANG: 'en_US.UTF-8' })).toThrow(/must be one of/);
+  });
+});
 
 describe('stepRefToVerse', () => {
   it('maps a STEPBible ref to a lowercase-OSIS verse id + position', () => {

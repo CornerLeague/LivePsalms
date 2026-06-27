@@ -36,12 +36,14 @@ Populates `bible_interlinear` and `bible_strongs`. Run after migration 041 is ap
    divergence. This was the `ON CONFLICT … cannot affect row a second time` (Postgres
    `21000`) crash; covered by `ingest-interlinear.test.ts`.
 3. Download `strongs-hebrew-dictionary.json` + `strongs-greek-dictionary.json` to `scripts/data/`.
-4. Load (service-role env required):
+4. Load (service-role env required). Use `INGEST_LANG`, **not** `LANG` — `LANG` is the
+   POSIX locale variable the OS sets (e.g. `en_US.UTF-8`); the scripts read `INGEST_LANG`
+   and reject anything that isn't `hebrew`/`aramaic`/`greek` so a misset value fails fast:
    ```
-   LANG=hebrew FILE=scripts/data/TAHOT.txt npx tsx scripts/ingest-interlinear.ts
-   LANG=greek  FILE=scripts/data/TAGNT.txt npx tsx scripts/ingest-interlinear.ts
-   LANG=hebrew FILE=scripts/data/strongs-hebrew-dictionary.json npx tsx scripts/ingest-strongs.ts
-   LANG=greek  FILE=scripts/data/strongs-greek-dictionary.json  npx tsx scripts/ingest-strongs.ts
+   INGEST_LANG=hebrew FILE=scripts/data/TAHOT.txt npx tsx scripts/ingest-interlinear.ts
+   INGEST_LANG=greek  FILE=scripts/data/TAGNT.txt npx tsx scripts/ingest-interlinear.ts
+   INGEST_LANG=hebrew FILE=scripts/data/strongs-hebrew-dictionary.json npx tsx scripts/ingest-strongs.ts
+   INGEST_LANG=greek  FILE=scripts/data/strongs-greek-dictionary.json  npx tsx scripts/ingest-strongs.ts
    ```
 5. Spot-check: `select * from bible_interlinear where verse_id = 'jhn.3.16' order by position;`
 

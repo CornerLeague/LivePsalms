@@ -1,5 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { toStrongsRows } from './ingest-strongs';
+import { toStrongsRows, resolveLanguage } from './ingest-strongs';
+
+describe('resolveLanguage', () => {
+  it('reads INGEST_LANG and accepts each valid language', () => {
+    expect(resolveLanguage({ INGEST_LANG: 'hebrew' })).toBe('hebrew');
+    expect(resolveLanguage({ INGEST_LANG: 'aramaic' })).toBe('aramaic');
+    expect(resolveLanguage({ INGEST_LANG: 'greek' })).toBe('greek');
+  });
+
+  it('ignores the OS LANG locale variable so an unprefixed run fails loudly, not silently', () => {
+    expect(() => resolveLanguage({ LANG: 'en_US.UTF-8' })).toThrow(/INGEST_LANG required/);
+  });
+
+  it('throws a clear error when INGEST_LANG is missing or not a known language', () => {
+    expect(() => resolveLanguage({})).toThrow(/INGEST_LANG required/);
+    expect(() => resolveLanguage({ INGEST_LANG: 'en_US.UTF-8' })).toThrow(/must be one of/);
+  });
+});
 
 describe('toStrongsRows', () => {
   it('maps an OpenScriptures dictionary object to bible_strongs rows', () => {
