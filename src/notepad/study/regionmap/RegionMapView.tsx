@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Maximize2 } from 'lucide-react';
 import { ZoomableMap } from './ZoomableMap';
 import type { MapTab, RegionMap } from './region-maps';
@@ -27,6 +28,11 @@ export function RegionMapView({ map, activeTab, onTabChange, onExpand, trailing,
   const fullscreen = variant === 'fullscreen';
   const comingSoon = !!image.comingSoon;
 
+  // Unique per instance so the inline + fullscreen views never collide on ids.
+  const baseId = useId();
+  const panelId = `${baseId}-panel`;
+  const tabId = (t: MapTab) => `${baseId}-tab-${t}`;
+
   function onTabKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
@@ -42,9 +48,11 @@ export function RegionMapView({ map, activeTab, onTabChange, onExpand, trailing,
           return (
             <button
               key={t.id}
+              id={tabId(t.id)}
               role="tab"
               type="button"
               aria-selected={selected}
+              aria-controls={panelId}
               tabIndex={selected ? 0 : -1}
               onClick={() => onTabChange(t.id)}
               onKeyDown={onTabKeyDown}
@@ -62,7 +70,15 @@ export function RegionMapView({ map, activeTab, onTabChange, onExpand, trailing,
         {trailing}
       </div>
 
-      <div style={{ flex: fullscreen ? 1 : 'none', minHeight: 0 }}>
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={tabId(activeTab)}
+        // Focusable only when the panel has no focusable content of its own
+        // (the coming-soon placeholder); the map view already has zoom buttons.
+        tabIndex={comingSoon ? 0 : undefined}
+        style={{ flex: fullscreen ? 1 : 'none', minHeight: 0 }}
+      >
         {comingSoon ? (
           <div
             style={{

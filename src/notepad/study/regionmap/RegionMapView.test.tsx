@@ -54,6 +54,22 @@ describe('RegionMapView', () => {
     expect(screen.getByRole('tab', { name: 'Today' }).getAttribute('aria-selected')).toBe('false');
   });
 
+  it('wires the content pane as a tabpanel labelled by the active tab', () => {
+    render(<Harness />);
+    const panel = screen.getByRole('tabpanel');
+    const activeTab = screen.getByRole('tab', { selected: true });
+    expect(panel.id).toBeTruthy();
+    expect(activeTab.id).toBeTruthy();
+    expect(panel.getAttribute('aria-labelledby')).toBe(activeTab.id);
+    expect(activeTab.getAttribute('aria-controls')).toBe(panel.id);
+
+    // The single panel re-labels to whichever tab is active after a switch.
+    fireEvent.click(screen.getByRole('tab', { name: 'Today' }));
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(
+      screen.getByRole('tab', { selected: true }).id,
+    );
+  });
+
   it('fires onExpand from the expand button when provided', () => {
     const onExpand = vi.fn();
     render(<RegionMapView map={map} activeTab="then" onTabChange={() => {}} onExpand={onExpand} />);
