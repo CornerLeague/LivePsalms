@@ -29,6 +29,11 @@ export function ZoomableMap({ image, height, overlayTopRight }: ZoomableMapProps
     return () => { active = false; };
   }, []);
 
+  // Reset the load-failure flag when the image changes (e.g. switching the era
+  // tab and back) so a previously-failed image never keeps the fallback showing
+  // over a different, working image.
+  useEffect(() => { setFailed(false); }, [image.src]);
+
   const img = (
     <img
       src={image.src}
