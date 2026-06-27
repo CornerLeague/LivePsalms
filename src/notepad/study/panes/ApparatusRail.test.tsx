@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
+
+afterEach(cleanup);
 
 const useApparatus = vi.fn();
 vi.mock('../useApparatus', () => ({ useApparatus: (b: string, c: number) => useApparatus(b, c) }));
@@ -8,6 +10,11 @@ vi.mock('../useApparatus', () => ({ useApparatus: (b: string, c: number) => useA
 const panelProps = vi.fn();
 vi.mock('../lexicon/OriginalLanguagePanel', () => ({
   OriginalLanguagePanel: (props: { verseId: string | null; reference: string | null }) => { panelProps(props); return null; },
+}));
+
+const regionMapBlock = vi.fn();
+vi.mock('../regionmap/RegionMapBlock', () => ({
+  RegionMapBlock: (props: { book: string }) => { regionMapBlock(props); return <div data-testid="region-map-block" />; },
 }));
 
 import { ApparatusRail } from './ApparatusRail';
@@ -28,6 +35,22 @@ describe('ApparatusRail', () => {
     useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
     const { container } = render(<ApparatusRail book="xyz" chapter={1} />);
     expect(container.textContent).not.toContain('undefined');
+  });
+  it('renders the region map block between book context and cross-references', () => {
+    regionMapBlock.mockClear();
+    useApparatus.mockReturnValue({
+      book: { full_name: 'Lamentations', author: 'Jeremiah', author_note: '', date_label: '~586 BC', region: 'Judah', cultural_context: '', genre: 'Lament', summary: 'Grief over fallen Jerusalem.' },
+      crossRefs: [{ to_book: 'mat', to_chapter: 1, to_verse_start: 1, to_verse_end: 1, votes: 1, crossesTestament: true, text: 't' }],
+      loading: false, error: null,
+    });
+    render(<ApparatusRail book="lam" chapter={1} />);
+    expect(regionMapBlock).toHaveBeenCalledWith({ book: 'lam' });
+    const heading = screen.getByRole('heading', { level: 2, name: 'Lamentations' });
+    const block = screen.getByTestId('region-map-block');
+    const xrefs = screen.getByRole('heading', { level: 3, name: 'CROSS-REFERENCES' });
+    // DOM order: context heading → region map block → cross-references heading
+    expect(heading.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(block.compareDocumentPosition(xrefs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 

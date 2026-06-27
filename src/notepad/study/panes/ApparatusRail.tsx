@@ -2,6 +2,7 @@
 import { useApparatus, type CrossRefView } from '../useApparatus';
 import { bookByAbbrev } from '@/notepad/bible/bible-books';
 import { OriginalLanguagePanel } from '../lexicon/OriginalLanguagePanel';
+import { RegionMapBlock } from '../regionmap/RegionMapBlock';
 
 function refLabel(x: CrossRefView): string {
   const name = bookByAbbrev(x.to_book)?.name ?? x.to_book;
@@ -46,6 +47,8 @@ export function ApparatusRail({ book, chapter, selectedVerse = null }: Apparatus
           </dl>
         </section>
       )}
+
+      <RegionMapBlock book={book} />
 
       {!loading && !error && crossRefs.length > 0 && (
         <section>
