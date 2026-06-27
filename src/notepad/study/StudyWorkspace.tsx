@@ -1,5 +1,5 @@
 // src/notepad/study/StudyWorkspace.tsx
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { useAuthSession } from '@/auth/context/useAuthSession';
@@ -35,6 +35,9 @@ export function DesktopStudyWorkspace() {
   const navigate = useNavigate();
   useEnsureStudyFolder();
   const [passage, setPassage] = useState<{ book: string; chapter: number }>({ book: 'jhn', chapter: 1 });
+  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
+  // Clear the selected verse whenever the passage changes (new book/chapter).
+  useEffect(() => { setSelectedVerse(null); }, [passage.book, passage.chapter]);
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [sideMode, setSideMode] = useState<SidePanelMode>('normal');
 
@@ -120,7 +123,7 @@ export function DesktopStudyWorkspace() {
               </button>
             </div>
             <div style={{ flex: '1 1 0%', overflow: 'auto' }}>
-              <ApparatusRail book={passage.book} chapter={passage.chapter} />
+              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} />
             </div>
           </aside>
         )}
@@ -133,7 +136,12 @@ export function DesktopStudyWorkspace() {
             display: sideMode === 'expanded' ? 'none' : 'block',
           }}
         >
-          <StudyReader book={passage.book} chapter={passage.chapter} onPassageChange={handlePassageChange} />
+          <StudyReader
+            book={passage.book}
+            chapter={passage.chapter}
+            onPassageChange={handlePassageChange}
+            onSelectVerse={(ref) => setSelectedVerse(ref.verse)}
+          />
         </main>
 
         {/* Right: notes / chat — collapses to a strip, or expands over the reader */}

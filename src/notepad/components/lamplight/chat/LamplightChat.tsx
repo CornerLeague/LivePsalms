@@ -4,7 +4,7 @@ import { useChatThread, type ChatThreadMessage } from '@/notepad/bible/useChatTh
 import { sendChatMessage, requestOpeningInsight, type InvokeFn, type ChatCitation } from '@/notepad/bible/lamplight-chat-client';
 import { createSentenceChunker } from '@/notepad/bible/sentence-chunker';
 import type { StreamInvoke } from '@/notepad/bible/lamplight-stream-client';
-import { useBibleTranslation } from '@/notepad/bible/useBibleTranslation';
+import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
 import { useChatThreadList } from '@/notepad/bible/useChatThreadList';
 import { ChatMessage } from './ChatMessage';

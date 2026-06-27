@@ -26,3 +26,7 @@ public/Logo-motion/my-video/snapshots/
 
 # Superpowers brainstorming companion artifacts
 .superpowers/
+
+# Bible lexicon ingest source data — large local downloads (TAHOT/TAGNT + Strong's
+# dictionaries). Reproduce via docs/runbooks/bible-lexicon-ingest.md; never commit.
+scripts/data/
