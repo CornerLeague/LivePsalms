@@ -31,7 +31,7 @@ interface InterlinearRow extends InterlinearWord {
 export function useVerseLexicon(verseId: string | null): UseVerseLexiconResult {
   const [words, setWords] = useState<InterlinearWord[]>([]);
   const [language, setLanguage] = useState<LexiconLanguage | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => verseId != null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
