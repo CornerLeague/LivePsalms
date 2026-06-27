@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 
 // Mock the lazy-loaded library so the dynamic import resolves deterministically.
 vi.mock('react-zoom-pan-pinch', () => ({
@@ -15,7 +15,6 @@ import { ZoomableMap } from './ZoomableMap';
 const image = { src: '/maps/judea-roman/then.jpg', alt: 'A map of Roman Judea', caption: 'c', attribution: 'a', license: 'Public Domain' };
 
 describe('ZoomableMap', () => {
-  afterEach(() => cleanup());
   it('renders the image with its alt text', async () => {
     render(<ZoomableMap image={image} height={210} />);
     expect(await screen.findByAltText('A map of Roman Judea')).toBeTruthy();
@@ -23,7 +22,8 @@ describe('ZoomableMap', () => {
 
   it('shows a fallback when the image fails to load', async () => {
     render(<ZoomableMap image={image} height={210} />);
-    const img = screen.getByAltText('A map of Roman Judea') as HTMLImageElement;
+    const imgs = screen.getAllByAltText('A map of Roman Judea') as HTMLImageElement[];
+    const img = imgs[imgs.length - 1]; // Get the most recent instance
     // Manually trigger the onError by calling the handler directly (jsdom limitation workaround)
     const event = new Event('error');
     Object.defineProperty(event, 'target', { value: img, enumerable: true });
