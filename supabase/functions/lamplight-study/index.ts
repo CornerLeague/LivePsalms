@@ -17,6 +17,7 @@ import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/qu
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
 import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
 import { runBibleChatPipeline } from '../lamplight-chat/bible-chat-pipeline.ts';
+import { streamBibleChat, type BibleChatStreamDeps } from '../lamplight-chat/bible-chat-stream.ts';
 import { buildStudyContext } from './study-context.ts';
 import { STUDY_CHAT_PROMPT } from './prompts/study-chat.ts';
 import { STUDY_INSIGHT_PROMPT } from './prompts/study-insight.ts';
@@ -75,6 +76,8 @@ async function handleStudy(req: Request): Promise<Response> {
     } catch { /* non-fatal: fall through with BSB */ }
   }
 
+  const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || parsed.stream === true;
+
   const { data: settings, error: sErr } = await supabase
     .from('lamplight_settings').select('enabled').eq('user_id', userId).maybeSingle();
   if (sErr) return jsonResp({ error: sErr.message }, 500);
@@ -92,6 +95,72 @@ async function handleStudy(req: Request): Promise<Response> {
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
   const llm = createAnthropicAdapter({ apiKey: anthropicKey, fetch });
   const quotaCfg = resolveQuotaLimits(Deno.env);
+
+  // Streaming branch: SSE over the same gates + study context as the buffered
+  // path. Reuses the shared streamBibleChat helper; offered_notes ride the
+  // done event via extraDoneFields (captured from buildStudyContext's `offered`).
+  if (wantsStream) {
+    type HistoryRow = { role: 'user' | 'assistant'; content: string };
+    let capturedOffered: unknown[] = [];
+    const streamQuota = async (uid: string) => {
+      const q = await checkQuota(supabaseQuotaDeps(supabase), quotaCfg.study, quotaCfg.global, { userId: uid, nowMs: Date.now() });
+      return q.ok ? { ok: true as const } : { ok: false as const, reason: q.reason };
+    };
+    const deps: BibleChatStreamDeps = {
+      cors,
+      isOptedIn: async (uid) => {
+        const { data } = await supabase.from('lamplight_settings').select('enabled').eq('user_id', uid).maybeSingle();
+        return !!(data as { enabled?: boolean } | null)?.enabled;
+      },
+      hasChatAccess: async () => hasChatAccess({ tier, promoActive }),
+      checkQuota: streamQuota,
+      recordUsage: (row) => recordLamplightUsage(supabase, row),
+      upsertThread: (firstMessage) => upsertStudyThread(supabase, userId, book, chapter, passageRef, firstMessage),
+      loadHistory: async (threadId) => {
+        const { data } = await supabase
+          .from('lamplight_chat_messages')
+          .select('role, content')
+          .eq('thread_id', threadId)
+          .order('created_at', { ascending: false })
+          .limit(HISTORY_LIMIT);
+        return ((data ?? []) as HistoryRow[]).reverse();
+      },
+      persistUserMessage: async (threadId) => {
+        await supabase.from('lamplight_chat_messages').insert({ thread_id: threadId, user_id: userId, role: 'user', content: message, citations: [] });
+      },
+      persistAssistant: async (threadId, reply, citations) => {
+        await supabase.from('lamplight_chat_messages').insert({ thread_id: threadId, user_id: userId, role: 'assistant', content: reply, citations });
+        await supabase.from('lamplight_chat_threads').update({ updated_at: new Date().toISOString() }).eq('id', threadId);
+      },
+      buildContext: async ({ history }) => {
+        let retrievalQuery = message;
+        if (mode === 'insight') {
+          const { data: chRows } = await supabase
+            .from('bible_passages').select('text')
+            .like('id', `${book}.${chapter}.%`).order('verse_start', { ascending: true }).limit(20);
+          retrievalQuery = ((chRows ?? []) as Array<{ text: string }>).map((r) => r.text).join(' ').slice(0, 1500) || `${book} ${chapter}`;
+        }
+        const { ctx, offered } = await buildStudyContext(supabase, {
+          userId, book, chapter, passageRef,
+          message: mode === 'insight' ? '' : message,
+          retrievalQuery, history,
+          includeNotes, noteIds,
+          voyageDeps, rerankEnabled,
+          crossRefK: CROSSREF_K, noteK: NOTE_K,
+          translation,
+        });
+        capturedOffered = offered;
+        return ctx;
+      },
+      llm,
+      prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
+      extraDoneFields: () => ({ offered_notes: capturedOffered }),
+      artifactKind: 'bible_study',
+    };
+    return await streamBibleChat(deps, {
+      userId, mode, message, threadTitle: message || `Study of ${book} ${chapter}`, signal: req.signal,
+    });
+  }
 
   const lifecycleDeps: GenerationLifecycleDeps = {
     checkQuota: async (uid) => {
