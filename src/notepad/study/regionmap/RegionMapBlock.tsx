@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useRegionMap } from './useRegionMap';
 import { RegionMapView } from './RegionMapView';
@@ -15,14 +15,20 @@ export function RegionMapBlock({ book }: RegionMapBlockProps) {
   const [activeTab, setActiveTab] = useState<MapTab>('then');
   const [fullscreen, setFullscreen] = useState(false);
 
+  const baseId = useId();
+  const btnId = `${baseId}-toggle`;
+  const panelId = `${baseId}-panel`;
+
   if (!map) return null;
 
   return (
     <section style={{ marginBottom: 24, borderTop: '1px solid var(--pale-stone)', paddingTop: 16 }}>
       <button
         type="button"
+        id={btnId}
         onClick={() => setExpanded((o) => !o)}
         aria-expanded={expanded}
+        aria-controls={expanded ? panelId : undefined}
         style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
       >
         {expanded
@@ -32,7 +38,12 @@ export function RegionMapBlock({ book }: RegionMapBlockProps) {
       </button>
 
       {expanded && (
-        <div style={{ marginTop: 10, border: '1px solid var(--pale-stone)', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+        <div
+          id={panelId}
+          role="region"
+          aria-labelledby={btnId}
+          style={{ marginTop: 10, border: '1px solid var(--pale-stone)', borderRadius: 8, overflow: 'hidden', background: '#fff' }}
+        >
           <RegionMapView
             map={map}
             activeTab={activeTab}

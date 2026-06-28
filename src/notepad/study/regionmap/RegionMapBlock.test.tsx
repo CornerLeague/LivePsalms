@@ -43,6 +43,23 @@ describe('RegionMapBlock', () => {
     expect(screen.getByRole('tablist')).toBeTruthy();
   });
 
+  it('links the disclosure button to its expanded panel (aria-controls + region/labelledby)', () => {
+    useRegionMap.mockReturnValue(map);
+    render(<RegionMapBlock book="jhn" />);
+    const toggle = screen.getByRole('button', { name: /map of the region/i });
+    expect(toggle.id).toBeTruthy();
+    // collapsed → no dangling aria-controls reference
+    expect(toggle.getAttribute('aria-controls')).toBeNull();
+
+    fireEvent.click(toggle);
+    const panelId = toggle.getAttribute('aria-controls');
+    expect(panelId).toBeTruthy();
+    const panel = document.getElementById(panelId!);
+    expect(panel).not.toBeNull();
+    expect(panel!.getAttribute('role')).toBe('region');
+    expect(panel!.getAttribute('aria-labelledby')).toBe(toggle.id);
+  });
+
   it('opens fullscreen and restores focus to the expand trigger on close', () => {
     useRegionMap.mockReturnValue(map);
     render(<RegionMapBlock book="jhn" />);
