@@ -28,6 +28,11 @@ export interface BibleChatStreamDeps {
   buildContext: (input: { history: HistoryRow[] }) => Promise<BibleChatContext>;
   llm: LLMAdapter;
   prompt?: ChatPromptModule; // insight passes BIBLE_INSIGHT_PROMPT; chat leaves undefined
+  // Optional extra fields spread into the `done` event payload (after the base
+  // fields). Study supplies offered_notes here; bible chat omits it → unchanged.
+  extraDoneFields?: () => Record<string, unknown>;
+  // Usage artifact_kind for recordUsage; defaults to 'bible_chat'. Study passes 'bible_study'.
+  artifactKind?: string;
 }
 
 function jsonResponse(cors: Record<string, string>, body: unknown, status: number): Response {
@@ -108,7 +113,16 @@ export async function streamBibleChat(
 
       if (result.ok) {
         await deps.persistAssistant(threadId, result.reply, result.citations);
-        void emit({ t: 'done', payload: { ok: true, thread_id: threadId, reply: result.reply, citations: result.citations } });
+        void emit({
+          t: 'done',
+          payload: {
+            ok: true,
+            thread_id: threadId,
+            reply: result.reply,
+            citations: result.citations,
+            ...(deps.extraDoneFields?.() ?? {}),
+          },
+        });
       } else {
         // validators_failed → error beat (the streaming analogue of the buffered
         // ok:false JSON). User message already persisted; no assistant row.
@@ -119,7 +133,7 @@ export async function streamBibleChat(
       // actually spent (validators_failed still carries an error-usage row).
       if (result.usage) {
         void Promise.resolve(
-          deps.recordUsage({ ...result.usage, user_id: args.userId, artifact_kind: 'bible_chat' }),
+          deps.recordUsage({ ...result.usage, user_id: args.userId, artifact_kind: deps.artifactKind ?? 'bible_chat' }),
         ).catch(() => {});
       }
     }),
