@@ -105,7 +105,7 @@ export function RegionMapView({ map, activeTab, onTabChange, onExpand, trailing,
 
       {!comingSoon && (
         <div style={{ padding: fullscreen ? '10px 14px' : '8px 10px', background: fullscreen ? 'rgba(0,0,0,.55)' : 'transparent' }}>
-          <div style={{ fontSize: 11, fontStyle: 'italic', lineHeight: 1.5, color: fullscreen ? '#f4efe4' : '#5a4f3c' }}>{image.caption}</div>
+          <div aria-live="polite" aria-atomic="true" style={{ fontSize: 11, fontStyle: 'italic', lineHeight: 1.5, color: fullscreen ? '#f4efe4' : '#5a4f3c' }}>{image.caption}</div>
           {!fullscreen && (
             <div style={{ fontSize: 9, color: '#a89f90', marginTop: 4 }}>{image.attribution} · {image.license}</div>
           )}

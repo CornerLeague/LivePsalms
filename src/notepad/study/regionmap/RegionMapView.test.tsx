@@ -54,6 +54,16 @@ describe('RegionMapView', () => {
     expect(screen.getByRole('tab', { name: 'Today' }).getAttribute('aria-selected')).toBe('false');
   });
 
+  it('renders the caption in a polite live region so caption swaps are announced', () => {
+    render(<Harness />);
+    const caption = screen.getByText('Roman Judea and Galilee in the first century AD.');
+    expect(caption.getAttribute('aria-live')).toBe('polite');
+    // and it still updates on tab switch (the live region keeps the same node)
+    fireEvent.click(screen.getByRole('tab', { name: 'Today' }));
+    const updated = screen.getByText('The same region today.');
+    expect(updated.getAttribute('aria-live')).toBe('polite');
+  });
+
   it('wires the content pane as a tabpanel labelled by the active tab', () => {
     render(<Harness />);
     const panel = screen.getByRole('tabpanel');
