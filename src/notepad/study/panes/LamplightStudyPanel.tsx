@@ -110,7 +110,8 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
             padding: '8px 10px',
             borderRadius: 6,
             border: '1px solid var(--pale-stone)',
-            background: signedIn ? undefined : 'rgba(0,0,0,0.03)',
+            background: signedIn ? 'var(--surface-elevated)' : 'rgba(0,0,0,0.03)',
+            color: 'var(--deep-umber)',
             cursor: signedIn ? undefined : 'not-allowed',
           }}
         />

@@ -53,4 +53,12 @@ describe('LamplightStudyPanel notes-on-offer', () => {
     await waitFor(() => expect(screen.getByText(/please sign in to use lamplight study/i)).toBeTruthy());
     expect(screen.queryByText(/non-2xx/i)).toBeNull();
   });
+
+  it('themes the input so typed text follows the theme (visible in dark mode)', () => {
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    const input = screen.getByPlaceholderText(/ask/i) as HTMLInputElement;
+    // inline style uses CSS vars so the field + ink follow --surface-elevated / --deep-umber
+    expect(input.style.color).toBe('var(--deep-umber)');
+    expect(input.style.background).toBe('var(--surface-elevated)');
+  });
 });
