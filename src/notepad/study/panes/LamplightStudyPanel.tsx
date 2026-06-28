@@ -76,12 +76,25 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
             {signedIn ? 'Start a conversation to dive into the Word.' : 'Sign in to use Lamplight Study.'}
           </div>
         )}
-        {thread.messages.map((m) => (
-          <div key={m.id} style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 10, color: 'var(--silica)', marginBottom: 2 }}>{m.role === 'user' ? 'You' : 'Lamplight Study'}</div>
-            <div style={{ fontSize: 13, color: 'var(--deep-umber)', whiteSpace: 'pre-wrap' }}>{m.content}</div>
-          </div>
-        ))}
+        {thread.messages.map((m) =>
+          m.role === 'user' ? (
+            <div key={m.id} data-role="user" style={{ marginBottom: 20, textAlign: 'right' }}>
+              <div style={{ fontSize: 10, color: 'var(--silica)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>You</div>
+              <div style={{ fontSize: 13, color: 'var(--deep-umber)', whiteSpace: 'pre-wrap' }}>{m.content}</div>
+            </div>
+          ) : (
+            <div key={m.id} data-role="assistant" style={{ marginBottom: 20, display: 'flex' }}>
+              <div
+                data-testid="lamplight-accent-bar"
+                style={{ width: 2, alignSelf: 'stretch', background: 'var(--lamplight-accent)', borderRadius: 1, flexShrink: 0 }}
+              />
+              <div style={{ paddingLeft: 10, flex: 1 }}>
+                <div style={{ fontSize: 10, color: 'var(--silica)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>Lamplight</div>
+                <div style={{ fontSize: 13, color: 'var(--deep-umber)', whiteSpace: 'pre-wrap' }}>{m.content}</div>
+              </div>
+            </div>
+          ),
+        )}
         {notes.offered.length > 0 && (
           <div style={{ marginTop: 8, padding: 10, borderRadius: 8, border: '1px solid var(--lamplight-accent)', fontSize: 12 }}>
             <div style={{ marginBottom: 6, color: 'var(--deep-umber)' }}>
