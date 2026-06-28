@@ -45,4 +45,26 @@ describe('RegionMapFullscreen', () => {
     unmount();
     expect(document.body.style.overflow).toBe('');
   });
+
+  it('does not steal focus when onClose identity changes (tab switch re-renders the host)', () => {
+    const { rerender } = render(<RegionMapFullscreen map={map} activeTab="then" onTabChange={() => {}} onClose={() => {}} />);
+    // User moves focus onto a tab to navigate with the arrow keys.
+    const tab = screen.getByRole('tab', { name: 'Biblical times' });
+    tab.focus();
+    expect(document.activeElement).toBe(tab);
+    // Host re-renders with a fresh inline onClose identity (as RegionMapBlock does
+    // when activeTab changes). The setup effect must NOT re-run and yank focus.
+    rerender(<RegionMapFullscreen map={map} activeTab="then" onTabChange={() => {}} onClose={() => {}} />);
+    expect(document.activeElement).toBe(tab);
+  });
+
+  it('still closes via Escape after onClose changes (uses the latest handler)', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(<RegionMapFullscreen map={map} activeTab="then" onTabChange={() => {}} onClose={first} />);
+    rerender(<RegionMapFullscreen map={map} activeTab="then" onTabChange={() => {}} onClose={second} />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
 });

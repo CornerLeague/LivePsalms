@@ -19,6 +19,12 @@ const closeBtn: React.CSSProperties = {
 export function RegionMapFullscreen({ map, activeTab, onTabChange, onClose }: RegionMapFullscreenProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // Hold the latest onClose in a ref so the setup effect can run exactly once on
+  // mount. Otherwise an inline onClose from the parent (a fresh identity every
+  // render — e.g. switching the era tab in fullscreen) re-triggers this effect,
+  // teleporting focus to the ✕ button and breaking keyboard tab navigation.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -27,7 +33,7 @@ export function RegionMapFullscreen({ map, activeTab, onTabChange, onClose }: Re
     closeRef.current?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); return; }
       if (e.key === 'Tab') {
         const nodes = overlayRef.current?.querySelectorAll<HTMLElement>('button, [href], [tabindex]:not([tabindex="-1"])');
         if (!nodes || nodes.length === 0) return;
@@ -44,7 +50,8 @@ export function RegionMapFullscreen({ map, activeTab, onTabChange, onClose }: Re
       document.body.style.overflow = prevOverflow;
       previouslyFocused?.focus();
     };
-  }, [onClose]);
+    // Runs once: setup/teardown is mount-scoped; onClose is read via onCloseRef.
+  }, []);
 
   return createPortal(
     <div
