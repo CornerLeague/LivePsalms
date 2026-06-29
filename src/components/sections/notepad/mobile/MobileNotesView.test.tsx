@@ -50,4 +50,45 @@ describe('<MobileNotesView />', () => {
     expect(onOpenSearch).toHaveBeenCalledOnce();
     expect(onNewNote).toHaveBeenCalledOnce();
   });
+
+  it('renders a Lamplight flame button that calls onOpenLamplight', () => {
+    const onOpenLamplight = vi.fn();
+    const { getByRole } = render(
+      <ThemeContext.Provider value={themeValue}>
+        <MobileNotesView
+          onExit={() => {}}
+          onOpenSearch={() => {}}
+          onNewNote={() => {}}
+          onScanNote={() => {}}
+          onUploadFiles={() => {}}
+          onOpenNote={() => {}}
+          onOpenLamplight={onOpenLamplight}
+          lamplightHasConnections={false}
+        />
+      </ThemeContext.Provider>,
+    );
+    const btn = getByRole('button', { name: /Lamplight/i });
+    fireEvent.click(btn);
+    expect(onOpenLamplight).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the connection dot on the flame only when lamplightHasConnections is true', () => {
+    const base = {
+      onExit: () => {}, onOpenSearch: () => {}, onNewNote: () => {},
+      onScanNote: () => {}, onUploadFiles: () => {}, onOpenNote: () => {},
+      onOpenLamplight: () => {},
+    };
+    const { container, rerender } = render(
+      <ThemeContext.Provider value={themeValue}>
+        <MobileNotesView {...base} lamplightHasConnections={false} />
+      </ThemeContext.Provider>,
+    );
+    expect(container.querySelector('[data-testid="lamplight-dot"]')).toBeNull();
+    rerender(
+      <ThemeContext.Provider value={themeValue}>
+        <MobileNotesView {...base} lamplightHasConnections />
+      </ThemeContext.Provider>,
+    );
+    expect(container.querySelector('[data-testid="lamplight-dot"]')).not.toBeNull();
+  });
 });

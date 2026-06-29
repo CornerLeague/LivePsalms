@@ -1,5 +1,5 @@
 // src/components/sections/notepad/mobile/MobileEditorView.tsx
-import { User } from 'lucide-react';
+import { User, Flame } from 'lucide-react';
 import { NotepadEditor } from '../../../../notepad/components/Editor';
 import type { Note } from '../../../../notepad/types';
 import { useKeyboardInset } from './useKeyboardInset';
@@ -14,6 +14,10 @@ export interface MobileEditorViewProps {
   onOpenAccount?: () => void;
   /** The signed-in user's avatar URL, if they've uploaded one. */
   avatarUrl?: string | null;
+  /** Opens the Lamplight view (relocated from the bottom bar to the header). */
+  onOpenLamplight?: () => void;
+  /** Show the gold connection dot on the flame when Lamplight has neighbors. */
+  lamplightHasConnections?: boolean;
   /** Whether a note is currently displayed in the editor. */
   hasActiveNote: boolean;
   /** Create a new note (used by the empty-state FAB). */
@@ -25,6 +29,8 @@ export function MobileEditorView({
   onAfterSave,
   onOpenAccount,
   avatarUrl,
+  onOpenLamplight,
+  lamplightHasConnections,
   hasActiveNote,
   onNewNote,
 }: MobileEditorViewProps) {
@@ -43,6 +49,20 @@ export function MobileEditorView({
           <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
+        <button
+          aria-label="Lamplight"
+          onClick={onOpenLamplight}
+          className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+          style={{ color: '#b8843a' }}
+        >
+          <Flame size={18} />
+          {lamplightHasConnections && (
+            <span
+              data-testid="lamplight-dot"
+              style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: '#b8843a' }}
+            />
+          )}
+        </button>
         <ThemeToggle className="w-9 h-9" />
         <button
           aria-label="Account"

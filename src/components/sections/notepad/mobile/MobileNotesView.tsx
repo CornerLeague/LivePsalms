@@ -1,5 +1,5 @@
 // src/components/sections/notepad/mobile/MobileNotesView.tsx
-import { Search, User } from 'lucide-react';
+import { Search, User, Flame } from 'lucide-react';
 import { NotepadSidebar } from '../../../../notepad/components/Sidebar';
 import { MobileFabMenu } from './MobileFabMenu';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
@@ -13,6 +13,10 @@ export interface MobileNotesViewProps {
   /** Receives files chosen via the FAB "Upload note" option. */
   onUploadFiles: (files: File[]) => void | Promise<void>;
   onOpenNote: (id: string) => void;
+  /** Opens the Lamplight view (relocated from the bottom bar to the header). */
+  onOpenLamplight?: () => void;
+  /** Show the gold connection dot on the flame when Lamplight has neighbors. */
+  lamplightHasConnections?: boolean;
   /** Opens the account menu (signed in) or the sign in / sign up modal (signed out). */
   onOpenAccount?: () => void;
   /** The signed-in user's avatar URL, if they've uploaded one. */
@@ -26,6 +30,8 @@ export function MobileNotesView({
   onScanNote,
   onUploadFiles,
   onOpenNote,
+  onOpenLamplight,
+  lamplightHasConnections,
   onOpenAccount,
   avatarUrl,
 }: MobileNotesViewProps) {
@@ -43,6 +49,20 @@ export function MobileNotesView({
           <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
+          <button
+            aria-label="Lamplight"
+            onClick={onOpenLamplight}
+            className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+            style={{ color: '#b8843a' }}
+          >
+            <Flame size={18} />
+            {lamplightHasConnections && (
+              <span
+                data-testid="lamplight-dot"
+                style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: '#b8843a' }}
+              />
+            )}
+          </button>
           <button
             aria-label="Search notes"
             onClick={onOpenSearch}
