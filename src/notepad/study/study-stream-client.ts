@@ -64,12 +64,16 @@ export function makeStudyStreamInvoke(client: SupabaseClient): StudyStreamInvoke
 
     // A non-OK response is never an SSE stream in this design (gates/errors are
     // JSON before any stream). Throw so the caller fast-paths to its buffered
-    // fallback — unless a future path streams an error beat at a non-200 status.
+    // fallback.
     if (!res.ok) {
-      const contentType = res.headers?.get('content-type') ?? '';
-      if (!contentType.includes('text/event-stream')) {
-        throw new Error(`lamplight-study stream failed: ${res.status} ${res.statusText}`);
-      }
+      throw new Error(`lamplight-study stream failed: ${res.status} ${res.statusText}`);
+    }
+    // Guard: only a 200 with SSE content-type confirms the server started the
+    // stream AND persisted the user message. onStart gates the fallback, so it
+    // must not fire for non-SSE 200s (e.g. insight-skip JSON 200).
+    const contentType = res.headers?.get('content-type') ?? '';
+    if (!contentType.includes('text/event-stream')) {
+      throw new Error(`lamplight-study: unexpected non-SSE 200 response`);
     }
 
     // Fire onStart exactly once: a 200 SSE response is confirmed → the server has
