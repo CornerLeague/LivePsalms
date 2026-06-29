@@ -90,7 +90,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       let content = '';
       let started = false;
       type DonePayload = { reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] };
-      const state = { donePayload: null as DonePayload | null };
+      const state = { donePayload: null as DonePayload | null, errorHandled: false };
       const onEvent = (ev: StudySseEvent) => {
         switch (ev.t) {
           case 'text':
@@ -104,6 +104,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
           case 'error':
             // Store the server reason so the soft-error message can be specific.
             state.donePayload = null; // explicit: no fallback
+            state.errorHandled = true;
             setError(ev.reason ? friendlyError(ev.reason) : STREAM_INTERRUPTED);
             break;
           // stage / piece / refining are ignored for the Study refined-flat view
