@@ -1,10 +1,11 @@
 // src/components/sections/notepad/mobile/MobileEditorView.tsx
-import { User, Flame } from 'lucide-react';
+import { User } from 'lucide-react';
 import { NotepadEditor } from '../../../../notepad/components/Editor';
 import type { Note } from '../../../../notepad/types';
 import { useKeyboardInset } from './useKeyboardInset';
 import { MobileNewNoteFab } from './MobileNewNoteFab';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
+import { HeaderLamplightFlame } from './HeaderLamplightFlame';
 
 export interface MobileEditorViewProps {
   /** Tapping the logo returns to the home page. */
@@ -49,21 +50,8 @@ export function MobileEditorView({
           <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
-        <button
-          aria-label="Lamplight"
-          onClick={onOpenLamplight}
-          className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
-          style={{ color: '#b8843a' }}
-        >
-          <Flame size={18} />
-          {lamplightHasConnections && (
-            <span
-              data-testid="lamplight-dot"
-              style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: '#b8843a' }}
-            />
-          )}
-        </button>
-        <ThemeToggle className="w-9 h-9" />
+          <HeaderLamplightFlame onOpenLamplight={onOpenLamplight} lamplightHasConnections={lamplightHasConnections} />
+          <ThemeToggle className="w-9 h-9" />
         <button
           aria-label="Account"
           onClick={onOpenAccount}

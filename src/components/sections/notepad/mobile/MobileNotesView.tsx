@@ -1,8 +1,9 @@
 // src/components/sections/notepad/mobile/MobileNotesView.tsx
-import { Search, User, Flame } from 'lucide-react';
+import { Search, User } from 'lucide-react';
 import { NotepadSidebar } from '../../../../notepad/components/Sidebar';
 import { MobileFabMenu } from './MobileFabMenu';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
+import { HeaderLamplightFlame } from './HeaderLamplightFlame';
 
 export interface MobileNotesViewProps {
   onExit: () => void;
@@ -49,20 +50,7 @@ export function MobileNotesView({
           <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
-          <button
-            aria-label="Lamplight"
-            onClick={onOpenLamplight}
-            className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
-            style={{ color: '#b8843a' }}
-          >
-            <Flame size={18} />
-            {lamplightHasConnections && (
-              <span
-                data-testid="lamplight-dot"
-                style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: '#b8843a' }}
-              />
-            )}
-          </button>
+          <HeaderLamplightFlame onOpenLamplight={onOpenLamplight} lamplightHasConnections={lamplightHasConnections} />
           <button
             aria-label="Search notes"
             onClick={onOpenSearch}

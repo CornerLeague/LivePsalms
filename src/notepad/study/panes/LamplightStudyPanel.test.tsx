@@ -138,25 +138,44 @@ describe('LamplightStudyPanel streaming', () => {
     await waitFor(() => expect(screen.getByText(/buffered reply\./i)).toBeTruthy());
   });
 
-  it('falls back to buffered send when the stream emits an error beat', async () => {
-    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void }) => {
-      h.onEvent({ t: 'error', reason: 'validators_failed' });
+  it('does NOT fall back to buffered send when the stream drops after it started (no double-charge)', async () => {
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();                                            // 200 SSE received → server already persisted
+      h.onEvent({ t: 'text', field: 'reply', delta: 'Grac' });
+      throw new Error('network blip mid-stream');
     });
-    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'Recovered.', citations: [], offeredNotes: [] });
+    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'should-not-appear', citations: [], offeredNotes: [] });
     render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
     fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
-    await waitFor(() => expect(sendStudyMessage).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByText(/recovered\./i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/your message was saved/i)).toBeTruthy());
+    expect(sendStudyMessage).not.toHaveBeenCalled();           // the fix: no buffered fallback after start
   });
 
-  it('falls back to buffered send when the stream resolves without any terminal event', async () => {
-    streamStudyMessage.mockResolvedValue(undefined);
-    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'Recovered no-terminal.', citations: [], offeredNotes: [] });
+  it('does NOT fall back when the stream emits an error beat after starting', async () => {
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();
+      h.onEvent({ t: 'error', reason: 'validators_failed' });
+    });
+    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'should-not-appear', citations: [], offeredNotes: [] });
     render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
     fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
-    await waitFor(() => expect(sendStudyMessage).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByText(/recovered no-terminal\./i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/your message was saved/i)).toBeTruthy());
+    expect(sendStudyMessage).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fall back when the stream ends after starting with no terminal event', async () => {
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();
+      h.onEvent({ t: 'text', field: 'reply', delta: 'partial' });
+      // resolves with no done/error
+    });
+    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'should-not-appear', citations: [], offeredNotes: [] });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText(/your message was saved/i)).toBeTruthy());
+    expect(sendStudyMessage).not.toHaveBeenCalled();
   });
 });

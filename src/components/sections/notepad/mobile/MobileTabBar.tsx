@@ -49,7 +49,7 @@ export function MobileTabBar({ active, onSelect }: MobileTabBarProps) {
               background: 'transparent',
             }}
           >
-            <span className="relative">
+            <span>
               <Icon size={18} />
             </span>
             <span className="text-[10px] tracking-wide">{label}</span>

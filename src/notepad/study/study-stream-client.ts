@@ -28,7 +28,7 @@ export interface StreamStudyArgs {
 
 export type StudyStreamInvoke = (
   args: StreamStudyArgs,
-  handlers: { onEvent: (ev: StudySseEvent) => void; signal?: AbortSignal },
+  handlers: { onEvent: (ev: StudySseEvent) => void; onStart?: () => void; signal?: AbortSignal },
 ) => Promise<void>;
 
 export function makeStudyStreamInvoke(client: SupabaseClient): StudyStreamInvoke {
@@ -71,6 +71,10 @@ export function makeStudyStreamInvoke(client: SupabaseClient): StudyStreamInvoke
         throw new Error(`lamplight-study stream failed: ${res.status} ${res.statusText}`);
       }
     }
+
+    // Fire onStart exactly once: a 200 SSE response is confirmed → the server has
+    // already persisted the user message. The caller uses this to gate fallback.
+    handlers.onStart?.();
 
     if (!res.body) return;
 

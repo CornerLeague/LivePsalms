@@ -236,6 +236,7 @@ describe('streamBibleChat', () => {
     );
     await drainSse(res);
     await Promise.resolve();
+    expect(recordUsage).toHaveBeenCalledTimes(1);
     expect(recordUsage.mock.calls[0][0].artifact_kind).toBe('bible_chat');
   });
 

@@ -2,7 +2,6 @@
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/notepad/bible/BibleStudyPane', () => ({ BibleStudyPane: () => <div data-testid="bible-study">bible</div> }));
 vi.mock('../../../../notepad/components/BacklinksPanel', () => ({ BacklinksPanel: () => <div data-testid="backlinks" /> }));
 vi.mock('../../../../notepad/components/InfoPanel', () => ({ InfoPanel: () => <div data-testid="info" /> }));
 vi.mock('../../../../notepad/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => true }));
