@@ -18,6 +18,7 @@ interface UseMigrationWorkflowArgs {
 interface UseMigrationWorkflowResult {
   state: MigrationWorkflowState;
   start: () => void;
+  decline: () => void;
   dismissError: () => void;
 }
 
@@ -58,6 +59,7 @@ export function useMigrationWorkflow({
     start: () => {
       void workflow.start();
     },
+    decline: () => workflow.decline(),
     dismissError: workflow.dismissError,
   };
 }

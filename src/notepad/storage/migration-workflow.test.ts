@@ -346,3 +346,25 @@ describe('MigrationWorkflow — dispose()', () => {
     expect(rec.timersCleared).toHaveLength(0);
   });
 });
+
+describe('MigrationWorkflow — decline()', () => {
+  it('purges the source, toasts, and closes when called from idle', () => {
+    const { deps, rec } = makeDeps();
+    const w = new MigrationWorkflow(deps);
+    w.decline();
+    expect(rec.clearSourceCalls).toBe(1);
+    expect(rec.toastSuccess).toEqual(['Local notes removed.']);
+    expect(rec.onClose).toBe(1);
+    expect(w.getSnapshot()).toEqual({ status: 'idle' });
+  });
+
+  it('is a no-op while a migration is in progress', () => {
+    const { deps, rec, migrate } = makeDeps();
+    const w = new MigrationWorkflow(deps);
+    void w.start(); // status === 'loading'
+    w.decline();
+    expect(rec.clearSourceCalls).toBe(0);
+    expect(rec.onClose).toBe(0);
+    migrate.resolve({ folders: 0, notes: 0 }); // let start() settle
+  });
+});
