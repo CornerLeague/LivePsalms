@@ -1,4 +1,4 @@
-import { NotebookPen, Pencil, Flame, MoreHorizontal } from 'lucide-react';
+import { NotebookPen, Pencil, BookOpen, MoreHorizontal } from 'lucide-react';
 import type { MobileTab } from './types';
 
 interface TabDef {
@@ -10,17 +10,16 @@ interface TabDef {
 const TABS: TabDef[] = [
   { id: 'notes', label: 'Notes', Icon: NotebookPen },
   { id: 'editor', label: 'Editor', Icon: Pencil },
-  { id: 'lamplight', label: 'Lamplight', Icon: Flame },
+  { id: 'bible', label: 'Bible', Icon: BookOpen },
   { id: 'more', label: 'More', Icon: MoreHorizontal },
 ];
 
 export interface MobileTabBarProps {
   active: MobileTab;
   onSelect: (tab: MobileTab) => void;
-  lamplightHasConnections: boolean;
 }
 
-export function MobileTabBar({ active, onSelect, lamplightHasConnections }: MobileTabBarProps) {
+export function MobileTabBar({ active, onSelect }: MobileTabBarProps) {
   return (
     <div
       role="tablist"
@@ -36,7 +35,6 @@ export function MobileTabBar({ active, onSelect, lamplightHasConnections }: Mobi
     >
       {TABS.map(({ id, label, Icon }) => {
         const selected = id === active;
-        const accent = id === 'lamplight';
         return (
           <button
             key={id}
@@ -46,31 +44,13 @@ export function MobileTabBar({ active, onSelect, lamplightHasConnections }: Mobi
             className="relative flex-1 flex flex-col items-center justify-center gap-0.5"
             style={{
               minHeight: 56,
-              color: selected
-                ? accent
-                  ? '#b8843a'
-                  : 'var(--deep-umber)'
-                : 'var(--silica)',
-              borderTop: selected ? `2px solid ${accent ? '#b8843a' : 'var(--deep-umber)'}` : '2px solid transparent',
+              color: selected ? 'var(--deep-umber)' : 'var(--silica)',
+              borderTop: selected ? '2px solid var(--deep-umber)' : '2px solid transparent',
               background: 'transparent',
             }}
           >
             <span className="relative">
               <Icon size={18} />
-              {accent && lamplightHasConnections && (
-                <span
-                  data-testid="lamplight-dot"
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -4,
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: '#b8843a',
-                  }}
-                />
-              )}
             </span>
             <span className="text-[10px] tracking-wide">{label}</span>
           </button>
