@@ -91,9 +91,18 @@ describe('MigrationDialog — confirm-decline', () => {
   it('shows the delete confirmation when No is clicked', async () => {
     getNotes.mockResolvedValue([note('A note')]);
     renderDialog();
-    fireEvent.click(await screen.findByText('No'));
-    expect(screen.getByText('Delete these notes?')).toBeTruthy();
+    await screen.findByText('Import this note?'); // wait for titles to load
+    fireEvent.click(screen.getByText('No'));
+    expect(screen.getByText('Delete this note?')).toBeTruthy();
     expect(screen.getByText(/permanently deleted/i)).toBeTruthy();
+  });
+
+  it('uses plural copy in the delete confirmation for multiple notes', async () => {
+    getNotes.mockResolvedValue([note('One'), note('Two')]);
+    renderDialog();
+    await screen.findByText('Import these 2 notes?');
+    fireEvent.click(screen.getByText('No'));
+    expect(screen.getByText('Delete these notes?')).toBeTruthy();
   });
 
   it('returns to the prompt when Keep is clicked, without deleting', async () => {
@@ -127,8 +136,9 @@ describe('MigrationDialog — confirm-decline', () => {
     const { rerender } = render(
       <MigrationDialog open onClose={vi.fn()} targetAdapter={targetAdapter} onMigrationComplete={vi.fn()} />,
     );
-    fireEvent.click(await screen.findByText('No'));
-    expect(screen.getByText('Delete these notes?')).toBeTruthy();
+    await screen.findByText('Import this note?'); // wait for titles to load
+    fireEvent.click(screen.getByText('No'));
+    expect(screen.getByText('Delete this note?')).toBeTruthy();
     rerender(
       <MigrationDialog open={false} onClose={vi.fn()} targetAdapter={targetAdapter} onMigrationComplete={vi.fn()} />,
     );

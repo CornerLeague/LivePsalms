@@ -58,8 +58,15 @@ export function MigrationDialog({
 
   // Read local note titles when the dialog opens. Source-side ownership stays
   // inside LocalStorageAdapter — the dialog never touches storage keys.
+  // Clear on close so a reopen never flashes the previous session's notes; the
+  // dialog has a fade/zoom-out exit animation, so stale (or "0 notes") copy
+  // would otherwise be visible during it. The neutral heading below covers the
+  // brief empty window on close/load.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setTitles([]);
+      return;
+    }
     localAdapter.getNotes().then((notes) =>
       setTitles(notes.map((n) => n.title.trim() || 'Untitled note')),
     );
@@ -195,7 +202,7 @@ export function MigrationDialog({
                 fontFamily: 'Cormorant Garamond, serif',
               }}
             >
-              Delete these notes?
+              {total === 1 ? 'Delete this note?' : 'Delete these notes?'}
             </DialogTitle>
             <DialogDescription
               className="text-center text-sm mt-2"
@@ -240,7 +247,11 @@ export function MigrationDialog({
                 fontFamily: 'Cormorant Garamond, serif',
               }}
             >
-              {total === 1 ? 'Import this note?' : `Import these ${total} notes?`}
+              {total === 0
+                ? 'Import notes?'
+                : total === 1
+                  ? 'Import this note?'
+                  : `Import these ${total} notes?`}
             </DialogTitle>
 
             <DialogDescription className="sr-only">
