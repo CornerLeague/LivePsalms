@@ -203,20 +203,23 @@ export function MigrationDialog({
             >
               Your local notes will be permanently deleted and can't be recovered.
             </DialogDescription>
+            {/* Keep (safe) holds the filled primary slot on the right; Delete
+                (destructive) is a danger-styled secondary on the left, so the
+                reflexive primary action is never the permanent delete. */}
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setView('prompt')}
+                onClick={decline}
                 className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
                 style={{
-                  border: '1px solid var(--pale-stone)',
-                  color: 'var(--deep-umber)',
+                  border: '1px solid var(--error-rose)',
+                  color: 'var(--error-rose)',
                   fontFamily: 'Outfit, sans-serif',
                 }}
               >
-                Keep
+                Delete
               </button>
               <button
-                onClick={decline}
+                onClick={() => setView('prompt')}
                 className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-opacity"
                 style={{
                   background: 'var(--deep-umber)',
@@ -224,7 +227,7 @@ export function MigrationDialog({
                   fontFamily: 'Outfit, sans-serif',
                 }}
               >
-                Delete
+                Keep
               </button>
             </div>
           </>
