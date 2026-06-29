@@ -17,7 +17,12 @@ const model = {
 };
 vi.mock('./useMobileWorkspaceModel', () => ({ useMobileWorkspaceModel: () => model }));
 vi.mock('./useHasConnections', () => ({ useHasConnections: () => false }));
-vi.mock('./MobileNotesView', () => ({ MobileNotesView: () => <div data-testid="view-notes" /> }));
+vi.mock('./MobileNotesView', () => ({
+  MobileNotesView: (p: { onOpenLamplight?: () => void }) => (
+    <div data-testid="view-notes"><button data-testid="open-lamplight" onClick={p.onOpenLamplight}>flame</button></div>
+  ),
+}));
+vi.mock('@/notepad/bible/BibleStudyPane', () => ({ BibleStudyPane: () => <div data-testid="view-bible" /> }));
 const { editorViewSpy } = vi.hoisted(() => ({ editorViewSpy: vi.fn() }));
 vi.mock('./MobileEditorView', () => ({
   MobileEditorView: (props: { hasActiveNote?: boolean; onNewNote?: () => void }) => {
@@ -40,7 +45,7 @@ vi.mock('../../../../notepad/context/useNotepadActions', () => ({ useNotepadActi
 
 import { MobileNotepadWorkspace } from './MobileNotepadWorkspace';
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); localStorage.clear(); });
 
 function renderShell() {
   return render(
@@ -56,10 +61,10 @@ describe('<MobileNotepadWorkspace />', () => {
     expect(getByTestId('view-notes')).toBeTruthy();
   });
 
-  it('switches the visible view when a tab is selected', () => {
+  it('renders the Bible pane when the Bible tab is selected', () => {
     const { getByRole, getByTestId } = renderShell();
-    fireEvent.click(getByRole('tab', { name: /Lamplight/ }));
-    expect(getByTestId('view-lamplight')).toBeTruthy();
+    fireEvent.click(getByRole('tab', { name: /Bible/ }));
+    expect(getByTestId('view-bible')).toBeTruthy();
   });
 
   it('opens the More sheet from the More tab', () => {
@@ -75,5 +80,11 @@ describe('<MobileNotepadWorkspace />', () => {
     expect(editorViewSpy).toHaveBeenCalledWith(
       expect.objectContaining({ hasActiveNote: true, onNewNote: expect.any(Function) }),
     );
+  });
+
+  it('opens the Lamplight view from the header flame', () => {
+    const { getByTestId } = renderShell();
+    fireEvent.click(getByTestId('open-lamplight'));
+    expect(getByTestId('view-lamplight')).toBeTruthy();
   });
 });

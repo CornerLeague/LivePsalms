@@ -191,6 +191,55 @@ describe('streamBibleChat', () => {
     expect(persistAssistant).not.toHaveBeenCalled();
   });
 
+  it('spreads extraDoneFields into the done payload (study offered_notes)', async () => {
+    const res = await streamBibleChat(
+      makeDeps({ extraDoneFields: () => ({ offered_notes: [{ id: 'n1', title: 'A', snippet: 's' }] }) }),
+      { userId: 'user-1', mode: 'chat', message: 'hi', threadTitle: 't' },
+    );
+    expect(res.status).toBe(200);
+    const body = await drainSse(res);
+    expect(body).toContain('"t":"done"');
+    expect(body).toContain('"offered_notes"');
+    expect(body).toContain('"id":"n1"');
+    // base fields still present
+    expect(body).toContain('"ok":true');
+    expect(body).toContain('"thread_id":"thread-1"');
+  });
+
+  it('omits offered_notes from done when extraDoneFields is not provided (bible chat unchanged)', async () => {
+    const res = await streamBibleChat(
+      makeDeps(),
+      { userId: 'user-1', mode: 'chat', message: 'hi', threadTitle: 't' },
+    );
+    const body = await drainSse(res);
+    expect(body).toContain('"t":"done"');
+    expect(body).not.toContain('offered_notes');
+  });
+
+  it('records artifact_kind "bible_study" when artifactKind is provided (study)', async () => {
+    const recordUsage = vi.fn();
+    const res = await streamBibleChat(
+      makeDeps({ recordUsage, artifactKind: 'bible_study' }),
+      { userId: 'user-1', mode: 'chat', message: 'hi', threadTitle: 't' },
+    );
+    await drainSse(res);
+    await Promise.resolve();
+    expect(recordUsage).toHaveBeenCalledTimes(1);
+    expect(recordUsage.mock.calls[0][0].artifact_kind).toBe('bible_study');
+  });
+
+  it('defaults artifact_kind to "bible_chat" when artifactKind omitted (bible chat unchanged)', async () => {
+    const recordUsage = vi.fn();
+    const res = await streamBibleChat(
+      makeDeps({ recordUsage }),
+      { userId: 'user-1', mode: 'chat', message: 'hi', threadTitle: 't' },
+    );
+    await drainSse(res);
+    await Promise.resolve();
+    expect(recordUsage).toHaveBeenCalledTimes(1);
+    expect(recordUsage.mock.calls[0][0].artifact_kind).toBe('bible_chat');
+  });
+
   it('validators_failed: error beat, user message persisted, no assistant row', async () => {
     // Cite a verse NOT in allowedVerseRefs so both attempts fail validation.
     const persistUserMessage = vi.fn(async () => {});

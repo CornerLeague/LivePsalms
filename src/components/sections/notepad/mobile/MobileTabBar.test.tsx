@@ -6,33 +6,26 @@ import { MobileTabBar } from './MobileTabBar';
 afterEach(cleanup);
 
 describe('<MobileTabBar />', () => {
-  it('renders all four tabs and marks the active one', () => {
-    const { getByRole } = render(
-      <MobileTabBar active="editor" onSelect={() => {}} lamplightHasConnections={false} />,
+  it('renders Notes, Editor, Bible, More (no Lamplight) and marks the active one', () => {
+    const { getByRole, queryByRole } = render(
+      <MobileTabBar active="editor" onSelect={() => {}} />,
     );
     expect(getByRole('tab', { name: /Notes/ })).toBeTruthy();
     expect(getByRole('tab', { name: /Editor/ }).getAttribute('aria-selected')).toBe('true');
-    expect(getByRole('tab', { name: /Lamplight/ })).toBeTruthy();
+    expect(getByRole('tab', { name: /Bible/ })).toBeTruthy();
     expect(getByRole('tab', { name: /More/ })).toBeTruthy();
+    expect(queryByRole('tab', { name: /Lamplight/ })).toBeNull();
   });
 
   it('calls onSelect with the tab id when a tab is tapped', () => {
     const onSelect = vi.fn();
-    const { getByRole } = render(
-      <MobileTabBar active="notes" onSelect={onSelect} lamplightHasConnections={false} />,
-    );
-    fireEvent.click(getByRole('tab', { name: /Lamplight/ }));
-    expect(onSelect).toHaveBeenCalledWith('lamplight');
+    const { getByRole } = render(<MobileTabBar active="notes" onSelect={onSelect} />);
+    fireEvent.click(getByRole('tab', { name: /Bible/ }));
+    expect(onSelect).toHaveBeenCalledWith('bible');
   });
 
-  it('shows the connection glow-dot only when lamplightHasConnections is true', () => {
-    const { rerender, container } = render(
-      <MobileTabBar active="notes" onSelect={() => {}} lamplightHasConnections={false} />,
-    );
+  it('never renders the lamplight connection dot in the bar (it moved to the header)', () => {
+    const { container } = render(<MobileTabBar active="notes" onSelect={() => {}} />);
     expect(container.querySelector('[data-testid="lamplight-dot"]')).toBeNull();
-    rerender(
-      <MobileTabBar active="notes" onSelect={() => {}} lamplightHasConnections={true} />,
-    );
-    expect(container.querySelector('[data-testid="lamplight-dot"]')).not.toBeNull();
   });
 });

@@ -139,7 +139,7 @@ export function AuthCard({ onAuthenticated }: AuthCardProps) {
     >
       {/* Logo */}
       <div className="flex flex-col items-center mb-8">
-        <img src="/logo-icon.png" alt="LivePsalms" className="h-10 w-auto mb-3" />
+        <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-10 w-auto mb-3" />
         {!verifyEmail && (
           <h1
             className="text-lg font-medium"
