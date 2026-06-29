@@ -77,3 +77,55 @@ describe('MigrationDialog — title list', () => {
     expect(start).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('MigrationDialog — confirm-decline', () => {
+  it('shows the delete confirmation when No is clicked', async () => {
+    getNotes.mockResolvedValue([note('A note')]);
+    renderDialog();
+    fireEvent.click(await screen.findByText('No'));
+    expect(screen.getByText('Delete these notes?')).toBeTruthy();
+    expect(screen.getByText(/permanently deleted/i)).toBeTruthy();
+  });
+
+  it('returns to the prompt when Keep is clicked, without deleting', async () => {
+    getNotes.mockResolvedValue([note('A note')]);
+    const onClose = renderDialog();
+    fireEvent.click(await screen.findByText('No'));
+    fireEvent.click(screen.getByText('Keep'));
+    expect(screen.getByText('Import this note?')).toBeTruthy();
+    expect(decline).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('calls decline when Delete is confirmed', async () => {
+    getNotes.mockResolvedValue([note('A note')]);
+    renderDialog();
+    fireEvent.click(await screen.findByText('No'));
+    fireEvent.click(screen.getByText('Delete'));
+    expect(decline).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking No does not delete or close on its own', async () => {
+    getNotes.mockResolvedValue([note('A note')]);
+    const onClose = renderDialog();
+    fireEvent.click(await screen.findByText('No'));
+    expect(decline).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('resets to the prompt view when reopened', async () => {
+    getNotes.mockResolvedValue([note('A note')]);
+    const { rerender } = render(
+      <MigrationDialog open onClose={vi.fn()} targetAdapter={targetAdapter} onMigrationComplete={vi.fn()} />,
+    );
+    fireEvent.click(await screen.findByText('No'));
+    expect(screen.getByText('Delete these notes?')).toBeTruthy();
+    rerender(
+      <MigrationDialog open={false} onClose={vi.fn()} targetAdapter={targetAdapter} onMigrationComplete={vi.fn()} />,
+    );
+    rerender(
+      <MigrationDialog open onClose={vi.fn()} targetAdapter={targetAdapter} onMigrationComplete={vi.fn()} />,
+    );
+    expect(await screen.findByText('Import this note?')).toBeTruthy();
+  });
+});

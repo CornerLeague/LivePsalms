@@ -48,12 +48,13 @@ export function MigrationDialog({
   targetAdapter,
   onMigrationComplete,
 }: MigrationDialogProps) {
-  const { state, start, dismissError } = useMigrationWorkflow({
+  const { state, start, decline, dismissError } = useMigrationWorkflow({
     target: targetAdapter,
     onMigrationComplete,
     onClose,
   });
   const [titles, setTitles] = useState<string[]>([]);
+  const [view, setView] = useState<'prompt' | 'confirm-decline'>('prompt');
 
   // Read local note titles when the dialog opens. Source-side ownership stays
   // inside LocalStorageAdapter — the dialog never touches storage keys.
@@ -62,6 +63,10 @@ export function MigrationDialog({
     localAdapter.getNotes().then((notes) =>
       setTitles(notes.map((n) => n.title.trim() || 'Untitled note')),
     );
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setView('prompt');
   }, [open]);
 
   const total = titles.length;
@@ -181,6 +186,48 @@ export function MigrationDialog({
               </button>
             </div>
           </>
+        ) : view === 'confirm-decline' ? (
+          <>
+            <DialogTitle
+              className="text-lg font-medium text-center"
+              style={{
+                color: 'var(--deep-umber)',
+                fontFamily: 'Cormorant Garamond, serif',
+              }}
+            >
+              Delete these notes?
+            </DialogTitle>
+            <DialogDescription
+              className="text-center text-sm mt-2"
+              style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}
+            >
+              Your local notes will be permanently deleted and can't be recovered.
+            </DialogDescription>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setView('prompt')}
+                className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                style={{
+                  border: '1px solid var(--pale-stone)',
+                  color: 'var(--deep-umber)',
+                  fontFamily: 'Outfit, sans-serif',
+                }}
+              >
+                Keep
+              </button>
+              <button
+                onClick={decline}
+                className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-opacity"
+                style={{
+                  background: 'var(--deep-umber)',
+                  color: 'var(--plaster)',
+                  fontFamily: 'Outfit, sans-serif',
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <DialogTitle
@@ -216,7 +263,7 @@ export function MigrationDialog({
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={onClose}
+                onClick={() => setView('confirm-decline')}
                 className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
                 style={{
                   border: '1px solid var(--pale-stone)',
