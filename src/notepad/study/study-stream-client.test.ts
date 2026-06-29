@@ -102,3 +102,39 @@ describe('makeStudyStreamInvoke', () => {
     expect(onEvent).not.toHaveBeenCalled();
   });
 });
+
+describe('study-stream-client thread_id', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://test.supabase.co');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon-key');
+  });
+  afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+
+  it('includes thread_id in the POST body when provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'text/event-stream' }),
+      body: null,
+    } as unknown as Response);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const invoke = makeStudyStreamInvoke(fakeClient);
+    await invoke({ book: 'rom', chapter: 8, message: 'hi', threadId: 'thread-1' }, { onEvent: vi.fn() });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+    expect(body.thread_id).toBe('thread-1');
+  });
+
+  it('omits thread_id when not provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'text/event-stream' }),
+      body: null,
+    } as unknown as Response);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const invoke = makeStudyStreamInvoke(fakeClient);
+    await invoke({ book: 'rom', chapter: 8, message: 'hi' }, { onEvent: vi.fn() });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+    expect('thread_id' in body).toBe(false);
+  });
+});
