@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectOfferedNotes, type RelevantNote } from './study-context.ts';
+import { selectOfferedNotes, selectRelatedPassages, retrieveRelatedPassages, type RelevantNote } from './study-context.ts';
 
 const notes: RelevantNote[] = [
   { id: 'n1', title: 'Shepherd', plaintext: 'rest as trust in God here', similarity: 0.9 },
@@ -24,5 +24,59 @@ describe('selectOfferedNotes', () => {
     const { included, offered } = selectOfferedNotes(notes, { includeNotes: true });
     expect(included.map((n) => n.id)).toEqual(['n1', 'n2']);
     expect(offered).toEqual([]);
+  });
+});
+
+describe('selectRelatedPassages', () => {
+  const chapterVerseRefs = new Set(['john 10:11', 'john 10:14']);
+  const crossRefSet = new Set(['ezekiel 34:11']);
+
+  it('drops refs already in the open chapter or the cross-ref set (case-insensitive)', () => {
+    const out = selectRelatedPassages(
+      [
+        { ref: 'John 10:11', text: 'I am the good shepherd' }, // in chapter → drop
+        { ref: 'Ezekiel 34:11', text: 'I myself will search' }, // in crossRefs → drop
+        { ref: 'Psalm 23:1', text: 'The LORD is my shepherd' }, // keep
+      ],
+      { chapterVerseRefs, crossRefSet },
+    );
+    expect(out.map((p) => p.ref)).toEqual(['Psalm 23:1']);
+  });
+
+  it('dedupes repeated refs within the retrieved set', () => {
+    const out = selectRelatedPassages(
+      [
+        { ref: 'Psalm 23:1', text: 'a' },
+        { ref: 'psalm 23:1', text: 'b' },
+      ],
+      { chapterVerseRefs: new Set(), crossRefSet: new Set() },
+    );
+    expect(out).toEqual([{ ref: 'Psalm 23:1', text: 'a' }]);
+  });
+
+  it('returns [] for empty input', () => {
+    expect(selectRelatedPassages([], { chapterVerseRefs, crossRefSet })).toEqual([]);
+  });
+});
+
+const fakeVoyage = { apiKey: 'k', fetch: (() => { throw new Error('no network'); }) as unknown as typeof fetch };
+
+describe('retrieveRelatedPassages', () => {
+  it('returns [] when search yields no rows', async () => {
+    const supabase = { rpc: async () => ({ data: [], error: null }) } as never;
+    const out = await retrieveRelatedPassages(
+      { supabase, voyage: fakeVoyage, rerankEnabled: false },
+      { query: 'q', k: 6, translation: 'BSB', queryEmbedding: [0.1], chapterVerseRefs: new Set(), crossRefSet: new Set() },
+    );
+    expect(out).toEqual([]);
+  });
+
+  it('degrades to [] when the search throws (retrieval must not fail the turn)', async () => {
+    const supabase = { rpc: async () => { throw new Error('rpc down'); } } as never;
+    const out = await retrieveRelatedPassages(
+      { supabase, voyage: fakeVoyage, rerankEnabled: false },
+      { query: 'q', k: 6, translation: 'BSB', queryEmbedding: [0.1], chapterVerseRefs: new Set(), crossRefSet: new Set() },
+    );
+    expect(out).toEqual([]);
   });
 });
