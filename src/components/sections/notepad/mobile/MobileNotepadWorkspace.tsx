@@ -13,6 +13,7 @@ import { MobileTabBar } from './MobileTabBar';
 import { MobileNotesView } from './MobileNotesView';
 import { MobileEditorView } from './MobileEditorView';
 import { LamplightMobileView } from './LamplightMobileView';
+import { BibleStudyPane } from '@/notepad/bible/BibleStudyPane';
 import { MobileMoreSheet } from './MobileMoreSheet';
 import { MobileAuthModal } from './MobileAuthModal';
 import { MobileAccountSheet } from './MobileAccountSheet';
@@ -38,7 +39,7 @@ export function MobileNotepadWorkspace() {
   const { showMigration, dismissMigration } = useNotepadFirstLoad();
 
   const [tab, setTab] = useState<MobileTab>(() =>
-    loadEnum<MobileTab>(KEY_MOBILE_TAB, ['notes', 'editor', 'lamplight'], 'notes'),
+    loadEnum<MobileTab>(KEY_MOBILE_TAB, ['notes', 'editor', 'lamplight', 'bible'], 'notes'),
   );
   const [moreOpen, setMoreOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -176,6 +177,8 @@ export function MobileNotepadWorkspace() {
             onScanNote={handleScanNote}
             onUploadFiles={handleUploadFiles}
             onOpenNote={handleOpenNote}
+            onOpenLamplight={() => setTab('lamplight')}
+            lamplightHasConnections={hasConnections}
             onOpenAccount={openAccount}
             avatarUrl={profile?.avatarUrl ?? null}
           />
@@ -186,6 +189,8 @@ export function MobileNotepadWorkspace() {
             onAfterSave={model.onAfterSave}
             onOpenAccount={openAccount}
             avatarUrl={profile?.avatarUrl ?? null}
+            onOpenLamplight={() => setTab('lamplight')}
+            lamplightHasConnections={hasConnections}
             hasActiveNote={!!model.activeNote}
             onNewNote={handleNewNote}
           />
@@ -208,9 +213,16 @@ export function MobileNotepadWorkspace() {
             Lamplight unavailable — Supabase not configured.
           </div>
         )}
+        {effectiveTab === 'bible' && (
+          <BibleStudyPane
+            lamplightAdapter={model.lamplightAdapter}
+            invoke={model.invoke}
+            streamInvoke={model.streamInvoke}
+          />
+        )}
       </div>
 
-      <MobileTabBar active={effectiveTab} onSelect={handleSelectTab} lamplightHasConnections={hasConnections} />
+      <MobileTabBar active={effectiveTab} onSelect={handleSelectTab} />
 
       <MobileMoreSheet
         open={moreOpen}
