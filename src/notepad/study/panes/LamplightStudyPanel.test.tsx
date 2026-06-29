@@ -37,6 +37,10 @@ vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({
     saveGlobalPrefs: vi.fn(async () => ({ ok: true })),
   }),
 }));
+const streamStudyMessage = vi.fn();
+vi.mock('../study-stream-client', () => ({
+  makeStudyStreamInvoke: () => (...a: unknown[]) => streamStudyMessage(...a),
+}));
 
 import { LamplightStudyPanel } from './LamplightStudyPanel';
 
@@ -78,11 +82,6 @@ describe('LamplightStudyPanel notes-on-offer', () => {
     expect(input.style.background).toBe('var(--surface-elevated)');
   });
 });
-
-const streamStudyMessage = vi.fn();
-vi.mock('../study-stream-client', () => ({
-  makeStudyStreamInvoke: () => (...a: unknown[]) => streamStudyMessage(...a),
-}));
 
 describe('LamplightStudyPanel refined-flat layout', () => {
   afterEach(() => { studyThreadMessages.length = 0; });
@@ -149,5 +148,15 @@ describe('LamplightStudyPanel streaming', () => {
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(sendStudyMessage).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText(/recovered\./i)).toBeTruthy());
+  });
+
+  it('falls back to buffered send when the stream resolves without any terminal event', async () => {
+    streamStudyMessage.mockResolvedValue(undefined);
+    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'Recovered no-terminal.', citations: [], offeredNotes: [] });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(sendStudyMessage).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText(/recovered no-terminal\./i)).toBeTruthy());
   });
 });

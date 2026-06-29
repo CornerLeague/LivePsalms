@@ -54,65 +54,66 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
 
   const doSend = useCallback(async (message: string, includeIds: string[]) => {
     setSending(true); setError(null);
-    if (!includeIds.length) {
-      thread.append([{ id: `local-${Date.now()}`, role: 'user', content: message, citations: [] }]);
-    }
-
-    if (!streamInvoke) {
-      await bufferedSend(message, includeIds);
-      setSending(false);
-      return;
-    }
-
-    setStreamingContent('');
-    let content = '';
-    type DonePayload = { reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] };
-    const state = { terminal: false, donePayload: null as DonePayload | null };
-    const onEvent = (ev: StudySseEvent) => {
-      switch (ev.t) {
-        case 'text':
-          if (ev.field !== 'reply') break;
-          content += ev.delta;
-          setStreamingContent(content);
-          break;
-        case 'done':
-          state.terminal = true;
-          state.donePayload = (ev.payload ?? {}) as DonePayload;
-          break;
-        case 'error':
-          state.terminal = true;
-          break;
-        // stage / piece / refining are ignored for the Study refined-flat view
-      }
-    };
-
     try {
-      await streamInvoke(
-        { book, chapter, message, includeNotes: includeIds.length > 0, noteIds: includeIds, translation },
-        { onEvent },
-      );
-    } catch {
-      setStreamingContent(null);
-      await bufferedSend(message, includeIds);
-      setSending(false);
-      return;
-    }
+      if (!includeIds.length) {
+        thread.append([{ id: `local-${Date.now()}`, role: 'user', content: message, citations: [] }]);
+      }
 
-    setStreamingContent(null);
-    if (state.terminal && state.donePayload) {
-      const dp = state.donePayload;
-      thread.append([{
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        content: typeof dp.reply === 'string' ? dp.reply : content,
-        citations: dp.citations ?? [],
-      }]);
-      notes.setOffered(dp.offered_notes ?? []);
-    } else {
-      // error beat or no terminal event → recover via buffered send
-      await bufferedSend(message, includeIds);
+      if (!streamInvoke) {
+        await bufferedSend(message, includeIds);
+        return;
+      }
+
+      setStreamingContent('');
+      let content = '';
+      type DonePayload = { reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] };
+      const state = { terminal: false, donePayload: null as DonePayload | null };
+      const onEvent = (ev: StudySseEvent) => {
+        switch (ev.t) {
+          case 'text':
+            if (ev.field !== 'reply') break;
+            content += ev.delta;
+            setStreamingContent(content);
+            break;
+          case 'done':
+            state.terminal = true;
+            state.donePayload = (ev.payload ?? {}) as DonePayload;
+            break;
+          case 'error':
+            state.terminal = true;
+            break;
+          // stage / piece / refining are ignored for the Study refined-flat view
+        }
+      };
+
+      try {
+        await streamInvoke(
+          { book, chapter, message, includeNotes: includeIds.length > 0, noteIds: includeIds, translation },
+          { onEvent },
+        );
+      } catch {
+        setStreamingContent(null);
+        await bufferedSend(message, includeIds);
+        return;
+      }
+
+      setStreamingContent(null);
+      if (state.terminal && state.donePayload) {
+        const dp = state.donePayload;
+        thread.append([{
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          content: typeof dp.reply === 'string' ? dp.reply : content,
+          citations: dp.citations ?? [],
+        }]);
+        notes.setOffered(dp.offered_notes ?? []);
+      } else {
+        // error beat or no terminal event → recover via buffered send
+        await bufferedSend(message, includeIds);
+      }
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   }, [book, chapter, translation, thread, notes, streamInvoke, bufferedSend]);
 
   const send = useCallback(async () => {
