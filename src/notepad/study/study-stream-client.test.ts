@@ -29,7 +29,7 @@ describe('makeStudyStreamInvoke', () => {
       { t: 'text', field: 'reply', delta: 'Grace' },
       { t: 'done', payload: { ok: true, offered_notes: [{ id: 'n1', title: 'A', snippet: 's' }] } },
     ];
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, body: streamFromFrames(frames) } as unknown as Response);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({ 'content-type': 'text/event-stream' }), body: streamFromFrames(frames) } as unknown as Response);
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const received: StudySseEvent[] = [];
@@ -61,7 +61,7 @@ describe('makeStudyStreamInvoke', () => {
     const stream = new ReadableStream<Uint8Array>({
       start(ctrl) { ctrl.enqueue(enc.encode(whole.slice(0, cut))); ctrl.enqueue(enc.encode(whole.slice(cut))); ctrl.close(); },
     });
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, body: stream } as unknown as Response) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({ 'content-type': 'text/event-stream' }), body: stream } as unknown as Response) as unknown as typeof fetch;
 
     const received: StudySseEvent[] = [];
     await makeStudyStreamInvoke(fakeClient)(
@@ -82,6 +82,23 @@ describe('makeStudyStreamInvoke', () => {
     await expect(
       makeStudyStreamInvoke(fakeClient)({ book: 'jhn', chapter: 10, message: 'hi' }, { onEvent }),
     ).rejects.toThrow(/500/);
+    expect(onEvent).not.toHaveBeenCalled();
+  });
+
+  it('throws on a non-SSE 200 response so the caller falls back to buffered (e.g. insight-skip JSON)', async () => {
+    const onStart = vi.fn();
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      body: new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new TextEncoder().encode('{"ok":true,"skipped":true}')); c.close(); } }),
+    } as unknown as Response) as unknown as typeof fetch;
+
+    const onEvent = vi.fn();
+    await expect(
+      makeStudyStreamInvoke(fakeClient)({ book: 'jhn', chapter: 10, message: 'hi' }, { onEvent, onStart }),
+    ).rejects.toThrow(/non-SSE/);
+    // started must NOT fire on a non-SSE 200 → caller treats it as pre-start → safe buffered fallback.
+    expect(onStart).not.toHaveBeenCalled();
     expect(onEvent).not.toHaveBeenCalled();
   });
 });
