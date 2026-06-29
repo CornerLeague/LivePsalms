@@ -1,1 +1,1 @@
-export type MobileTab = 'notes' | 'editor' | 'lamplight' | 'more';
+export type MobileTab = 'notes' | 'editor' | 'lamplight' | 'bible' | 'more';

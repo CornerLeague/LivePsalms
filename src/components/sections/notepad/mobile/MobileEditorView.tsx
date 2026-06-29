@@ -5,6 +5,7 @@ import type { Note } from '../../../../notepad/types';
 import { useKeyboardInset } from './useKeyboardInset';
 import { MobileNewNoteFab } from './MobileNewNoteFab';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
+import { HeaderLamplightFlame } from './HeaderLamplightFlame';
 
 export interface MobileEditorViewProps {
   /** Tapping the logo returns to the home page. */
@@ -14,6 +15,10 @@ export interface MobileEditorViewProps {
   onOpenAccount?: () => void;
   /** The signed-in user's avatar URL, if they've uploaded one. */
   avatarUrl?: string | null;
+  /** Opens the Lamplight view (relocated from the bottom bar to the header). */
+  onOpenLamplight?: () => void;
+  /** Show the gold connection dot on the flame when Lamplight has neighbors. */
+  lamplightHasConnections?: boolean;
   /** Whether a note is currently displayed in the editor. */
   hasActiveNote: boolean;
   /** Create a new note (used by the empty-state FAB). */
@@ -25,6 +30,8 @@ export function MobileEditorView({
   onAfterSave,
   onOpenAccount,
   avatarUrl,
+  onOpenLamplight,
+  lamplightHasConnections,
   hasActiveNote,
   onNewNote,
 }: MobileEditorViewProps) {
@@ -43,7 +50,8 @@ export function MobileEditorView({
           <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
-        <ThemeToggle className="w-9 h-9" />
+          <HeaderLamplightFlame onOpenLamplight={onOpenLamplight} lamplightHasConnections={lamplightHasConnections} />
+          <ThemeToggle className="w-9 h-9" />
         <button
           aria-label="Account"
           onClick={onOpenAccount}
