@@ -42,12 +42,12 @@ import { MobileMoreSheet } from './MobileMoreSheet';
 afterEach(cleanup);
 
 function open(extra: Partial<{ onClose: () => void; onOpenNote: (id: string) => void }> = {}) {
-  return render(<MobileMoreSheet open onClose={extra.onClose ?? vi.fn()} onOpenNote={extra.onOpenNote ?? vi.fn()} lamplightAdapter={null} invoke={vi.fn()} />);
+  return render(<MobileMoreSheet open onClose={extra.onClose ?? vi.fn()} onOpenNote={extra.onOpenNote ?? vi.fn()} />);
 }
 
 describe('<MobileMoreSheet />', () => {
   it('renders nothing when closed', () => {
-    const { container } = render(<MobileMoreSheet open={false} onClose={vi.fn()} onOpenNote={vi.fn()} lamplightAdapter={null} invoke={vi.fn()} />);
+    const { container } = render(<MobileMoreSheet open={false} onClose={vi.fn()} onOpenNote={vi.fn()} />);
     expect(container.querySelector('[data-testid="backlinks"]')).toBeNull();
   });
 
@@ -115,11 +115,10 @@ describe('<MobileMoreSheet />', () => {
     expect(getByTestId('graph')).toBeTruthy();
   });
 
-  it('shows the Bible study pane on the Bible segment', () => {
-    const { getByRole, getByTestId } = render(
-      <MobileMoreSheet open onClose={() => {}} onOpenNote={() => {}} lamplightAdapter={null} invoke={vi.fn()} />,
-    );
-    fireEvent.click(getByRole('button', { name: /bible/i }));
-    expect(getByTestId('bible-study')).toBeInTheDocument();
+  it('no longer offers a Bible segment (Bible is a first-class tab now)', () => {
+    const { queryByRole, queryByTestId, getByTestId } = open();
+    expect(queryByRole('button', { name: 'Bible' })).toBeNull();
+    expect(queryByTestId('bible-study')).toBeNull();
+    expect(getByTestId('backlinks')).toBeTruthy(); // Backlinks / Info / Graph remain
   });
 });
