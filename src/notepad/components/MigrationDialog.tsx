@@ -11,6 +11,8 @@ import { useMigrationWorkflow } from '../storage/useMigrationWorkflow';
 import type { MigrationWorkflowState } from '../storage/migration-workflow';
 import type { StorageAdapter } from '../storage/adapter';
 
+const PREVIEW_LIMIT = 3;
+
 interface MigrationDialogProps {
   open: boolean;
   onClose: () => void;
@@ -46,20 +48,35 @@ export function MigrationDialog({
   targetAdapter,
   onMigrationComplete,
 }: MigrationDialogProps) {
-  const { state, start, dismissError } = useMigrationWorkflow({
+  const { state, start, decline, dismissError } = useMigrationWorkflow({
     target: targetAdapter,
     onMigrationComplete,
     onClose,
   });
-  const [noteCount, setNoteCount] = useState(0);
+  const [titles, setTitles] = useState<string[]>([]);
+  const [view, setView] = useState<'prompt' | 'confirm-decline'>('prompt');
 
-  // Read the current local note count when the dialog opens. Source-side
-  // ownership stays inside LocalStorageAdapter — the dialog no longer knows
-  // the storage keys.
+  // Read local note titles when the dialog opens. Source-side ownership stays
+  // inside LocalStorageAdapter — the dialog never touches storage keys.
+  // Clear on close so a reopen never flashes the previous session's notes; the
+  // dialog has a fade/zoom-out exit animation, so stale (or "0 notes") copy
+  // would otherwise be visible during it. The neutral heading below covers the
+  // brief empty window on close/load.
   useEffect(() => {
-    if (!open) return;
-    localAdapter.getNotes().then((notes) => setNoteCount(notes.length));
+    if (!open) {
+      setTitles([]);
+      return;
+    }
+    localAdapter.getNotes().then((notes) =>
+      setTitles(notes.map((n) => n.title.trim() || 'Untitled note')),
+    );
   }, [open]);
+
+  useEffect(() => {
+    if (open) setView('prompt');
+  }, [open]);
+
+  const total = titles.length;
 
   const inProgress = isInProgress(state);
 
@@ -176,6 +193,51 @@ export function MigrationDialog({
               </button>
             </div>
           </>
+        ) : view === 'confirm-decline' ? (
+          <>
+            <DialogTitle
+              className="text-lg font-medium text-center"
+              style={{
+                color: 'var(--deep-umber)',
+                fontFamily: 'Cormorant Garamond, serif',
+              }}
+            >
+              {total === 1 ? 'Delete this note?' : 'Delete these notes?'}
+            </DialogTitle>
+            <DialogDescription
+              className="text-center text-sm mt-2"
+              style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}
+            >
+              Your local notes will be permanently deleted and can't be recovered.
+            </DialogDescription>
+            {/* Keep (safe) holds the filled primary slot on the right; Delete
+                (destructive) is a danger-styled secondary on the left, so the
+                reflexive primary action is never the permanent delete. */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={decline}
+                className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                style={{
+                  border: '1px solid var(--error-rose)',
+                  color: 'var(--error-rose)',
+                  fontFamily: 'Outfit, sans-serif',
+                }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setView('prompt')}
+                className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-opacity"
+                style={{
+                  background: 'var(--deep-umber)',
+                  color: 'var(--plaster)',
+                  fontFamily: 'Outfit, sans-serif',
+                }}
+              >
+                Keep
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <DialogTitle
@@ -185,22 +247,41 @@ export function MigrationDialog({
                 fontFamily: 'Cormorant Garamond, serif',
               }}
             >
-              Import Local Notes?
+              {total === 0
+                ? 'Import notes?'
+                : total === 1
+                  ? 'Import this note?'
+                  : `Import these ${total} notes?`}
             </DialogTitle>
-            <DialogDescription
-              className="text-center text-sm mt-2"
-              style={{
-                color: 'var(--silica)',
-                fontFamily: 'Outfit, sans-serif',
-              }}
-            >
-              You have {noteCount} {noteCount === 1 ? 'note' : 'notes'} saved locally.
-              Would you like to import them to your account?
+
+            <DialogDescription className="sr-only">
+              Choose whether to import these notes to your account or permanently delete them.
             </DialogDescription>
+
+            <ul className="mt-3 flex flex-col gap-1.5">
+              {titles.slice(0, PREVIEW_LIMIT).map((t, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 text-sm"
+                  style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
+                >
+                  <span aria-hidden style={{ color: 'var(--silica)' }}>•</span>
+                  <span className="truncate">{t}</span>
+                </li>
+              ))}
+              {total > PREVIEW_LIMIT && (
+                <li
+                  className="text-sm pl-4"
+                  style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}
+                >
+                  …and {total - PREVIEW_LIMIT} more
+                </li>
+              )}
+            </ul>
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={onClose}
+                onClick={() => setView('confirm-decline')}
                 className="flex-1 py-2.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
                 style={{
                   border: '1px solid var(--pale-stone)',
@@ -208,7 +289,7 @@ export function MigrationDialog({
                   fontFamily: 'Outfit, sans-serif',
                 }}
               >
-                No Thanks
+                No
               </button>
               <button
                 onClick={start}

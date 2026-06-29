@@ -40,6 +40,8 @@ export const MIGRATION_TIMELINE = {
 export const MIGRATION_FALLBACK_ERROR =
   'Something went wrong importing your notes. Your local copy was left untouched.';
 
+export const MIGRATION_DECLINE_MESSAGE = 'Local notes removed.';
+
 export class MigrationWorkflow extends Observable<MigrationWorkflowState> {
   private readonly deps: MigrationWorkflowDeps;
   private celebratoryHandle: number | null = null;
@@ -74,6 +76,15 @@ export class MigrationWorkflow extends Observable<MigrationWorkflowState> {
   dismissError = (): void => {
     if (this.getSnapshot().status !== 'error') return;
     this.update(() => ({ status: 'idle' }));
+    this.deps.onClose();
+  };
+
+  decline = (): void => {
+    const { status } = this.getSnapshot();
+    if (status !== 'idle' && status !== 'error') return; // never delete mid-import
+    this.deps.clearSource();
+    this.update(() => ({ status: 'idle' }));
+    this.deps.toastSuccess(MIGRATION_DECLINE_MESSAGE);
     this.deps.onClose();
   };
 
