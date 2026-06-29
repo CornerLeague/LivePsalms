@@ -124,7 +124,12 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       }
 
       setStreamingContent(null);
-      if (state.donePayload) {
+      if (state.errorShown) {
+        // Error beat wins, regardless of beat ordering. Checked FIRST so a done beat that
+        // arrives alongside an error (a malformed stream — this module treats the wire as
+        // untrusted) can never commit a reply on top of the error banner. The specific
+        // server-reason message is already shown; nothing to commit, never buffered-recover.
+      } else if (state.donePayload) {
         // success → commit the finalized turn
         const dp = state.donePayload;
         thread.append([{
@@ -136,9 +141,9 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
         notes.setOffered(dp.offered_notes ?? []);
       } else if (started) {
         // The 200 SSE already returned (server persisted the user message) → never
-        // buffered-recover (it would re-insert + re-charge). An error beat already set a
-        // specific message; a stream that ended with no terminal event needs the generic one.
-        if (!state.errorShown) setError(STREAM_INTERRUPTED);
+        // buffered-recover (it would re-insert + re-charge). No terminal event arrived,
+        // so surface the generic interrupt copy.
+        setError(STREAM_INTERRUPTED);
       } else {
         // Defensive: resolved without a 200 SSE response → safe to recover.
         await bufferedSend(message, includeIds);
