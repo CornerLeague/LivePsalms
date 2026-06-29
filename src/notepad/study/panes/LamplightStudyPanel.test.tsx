@@ -152,7 +152,7 @@ describe('LamplightStudyPanel streaming', () => {
     expect(sendStudyMessage).not.toHaveBeenCalled();           // the fix: no buffered fallback after start
   });
 
-  it('does NOT fall back when the stream emits an error beat after starting', async () => {
+  it('shows a server-reason-specific message (not the generic one) on an error beat, no fallback', async () => {
     streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
       h.onStart?.();
       h.onEvent({ t: 'error', reason: 'validators_failed' });
@@ -161,7 +161,43 @@ describe('LamplightStudyPanel streaming', () => {
     render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
     fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
-    await waitFor(() => expect(screen.getByText(/your message was saved/i)).toBeTruthy());
+    // friendlyError('validators_failed') → generic "Something went wrong" message, and the
+    // post-stream gate must NOT clobber it with the STREAM_INTERRUPTED ("…message was saved…") copy.
+    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeTruthy());
+    expect(screen.queryByText(/your message was saved/i)).toBeNull();
+    expect(sendStudyMessage).not.toHaveBeenCalled();
+  });
+
+  it('lets an error beat win even when a done beat also arrives AFTER it (no reply committed)', async () => {
+    // Defense-in-depth: this client treats the SSE wire as untrusted. If a buggy/malformed
+    // stream emits an error beat and THEN a done beat, the error must win — the gate must not
+    // commit the finalized reply on top of an error banner (contradictory UI).
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();
+      h.onEvent({ t: 'error', reason: 'validators_failed' });
+      h.onEvent({ t: 'done', payload: { ok: true, reply: 'committed-after-error', citations: [], offered_notes: [] } });
+    });
+    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'should-not-appear', citations: [], offeredNotes: [] });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeTruthy());
+    expect(screen.queryByText(/committed-after-error/i)).toBeNull();
+    expect(sendStudyMessage).not.toHaveBeenCalled();
+  });
+
+  it('lets an error beat win even when a done beat arrived BEFORE it (no reply committed)', async () => {
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();
+      h.onEvent({ t: 'done', payload: { ok: true, reply: 'committed-before-error', citations: [], offered_notes: [] } });
+      h.onEvent({ t: 'error', reason: 'validators_failed' });
+    });
+    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'should-not-appear', citations: [], offeredNotes: [] });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeTruthy());
+    expect(screen.queryByText(/committed-before-error/i)).toBeNull();
     expect(sendStudyMessage).not.toHaveBeenCalled();
   });
 

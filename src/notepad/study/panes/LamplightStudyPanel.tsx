@@ -90,7 +90,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       let content = '';
       let started = false;
       type DonePayload = { reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] };
-      const state = { donePayload: null as DonePayload | null, errorHandled: false };
+      const state = { donePayload: null as DonePayload | null, errorShown: false };
       const onEvent = (ev: StudySseEvent) => {
         switch (ev.t) {
           case 'text':
@@ -102,9 +102,9 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
             state.donePayload = (ev.payload ?? {}) as DonePayload;
             break;
           case 'error':
-            // Store the server reason so the soft-error message can be specific.
-            state.donePayload = null; // explicit: no fallback
-            state.errorHandled = true;
+            // Terminal error beat. Surface a server-reason-specific message and mark it
+            // shown so the post-stream gate doesn't overwrite it with the generic one.
+            state.errorShown = true;
             setError(ev.reason ? friendlyError(ev.reason) : STREAM_INTERRUPTED);
             break;
           // stage / piece / refining are ignored for the Study refined-flat view
@@ -124,7 +124,12 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       }
 
       setStreamingContent(null);
-      if (state.donePayload) {
+      if (state.errorShown) {
+        // Error beat wins, regardless of beat ordering. Checked FIRST so a done beat that
+        // arrives alongside an error (a malformed stream — this module treats the wire as
+        // untrusted) can never commit a reply on top of the error banner. The specific
+        // server-reason message is already shown; nothing to commit, never buffered-recover.
+      } else if (state.donePayload) {
         // success → commit the finalized turn
         const dp = state.donePayload;
         thread.append([{
@@ -135,8 +140,9 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
         }]);
         notes.setOffered(dp.offered_notes ?? []);
       } else if (started) {
-        // error beat OR no terminal event, but the 200 SSE already returned (server
-        // persisted the user message) → buffered would re-insert + re-charge. Soft error.
+        // The 200 SSE already returned (server persisted the user message) → never
+        // buffered-recover (it would re-insert + re-charge). No terminal event arrived,
+        // so surface the generic interrupt copy.
         setError(STREAM_INTERRUPTED);
       } else {
         // Defensive: resolved without a 200 SSE response → safe to recover.
