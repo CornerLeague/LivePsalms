@@ -240,6 +240,10 @@ export function MigrationDialog({
               {total === 1 ? 'Import this note?' : `Import these ${total} notes?`}
             </DialogTitle>
 
+            <DialogDescription className="sr-only">
+              Choose whether to import these notes to your account or permanently delete them.
+            </DialogDescription>
+
             <ul className="mt-3 flex flex-col gap-1.5">
               {titles.slice(0, PREVIEW_LIMIT).map((t, i) => (
                 <li

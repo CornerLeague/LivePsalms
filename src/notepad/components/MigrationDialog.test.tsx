@@ -76,6 +76,15 @@ describe('MigrationDialog — title list', () => {
     fireEvent.click(await screen.findByText('Import Notes'));
     expect(start).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes an accessible description on the prompt for screen readers', async () => {
+    getNotes.mockResolvedValue([note('A note')]);
+    renderDialog();
+    expect(await screen.findByText('Import this note?')).toBeTruthy();
+    expect(
+      screen.getByText('Choose whether to import these notes to your account or permanently delete them.'),
+    ).toBeTruthy();
+  });
 });
 
 describe('MigrationDialog — confirm-decline', () => {
