@@ -102,7 +102,10 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
             state.donePayload = (ev.payload ?? {}) as DonePayload;
             break;
           case 'error':
-            break; // terminal error → donePayload stays null → soft error via the `started` gate
+            // Store the server reason so the soft-error message can be specific.
+            state.donePayload = null; // explicit: no fallback
+            setError(ev.reason ? friendlyError(ev.reason) : STREAM_INTERRUPTED);
+            break;
           // stage / piece / refining are ignored for the Study refined-flat view
         }
       };
