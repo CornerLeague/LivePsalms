@@ -152,7 +152,7 @@ describe('LamplightStudyPanel streaming', () => {
     expect(sendStudyMessage).not.toHaveBeenCalled();           // the fix: no buffered fallback after start
   });
 
-  it('does NOT fall back when the stream emits an error beat after starting', async () => {
+  it('shows a server-reason-specific message (not the generic one) on an error beat, no fallback', async () => {
     streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
       h.onStart?.();
       h.onEvent({ t: 'error', reason: 'validators_failed' });
@@ -161,7 +161,10 @@ describe('LamplightStudyPanel streaming', () => {
     render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
     fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
-    await waitFor(() => expect(screen.getByText(/your message was saved/i)).toBeTruthy());
+    // friendlyError('validators_failed') → generic "Something went wrong" message, and the
+    // post-stream gate must NOT clobber it with the STREAM_INTERRUPTED ("…message was saved…") copy.
+    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeTruthy());
+    expect(screen.queryByText(/your message was saved/i)).toBeNull();
     expect(sendStudyMessage).not.toHaveBeenCalled();
   });
 

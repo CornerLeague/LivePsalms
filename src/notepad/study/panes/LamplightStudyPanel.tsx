@@ -90,7 +90,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       let content = '';
       let started = false;
       type DonePayload = { reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] };
-      const state = { donePayload: null as DonePayload | null, errorHandled: false };
+      const state = { donePayload: null as DonePayload | null, errorShown: false };
       const onEvent = (ev: StudySseEvent) => {
         switch (ev.t) {
           case 'text':
@@ -102,9 +102,9 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
             state.donePayload = (ev.payload ?? {}) as DonePayload;
             break;
           case 'error':
-            // Store the server reason so the soft-error message can be specific.
-            state.donePayload = null; // explicit: no fallback
-            state.errorHandled = true;
+            // Terminal error beat. Surface a server-reason-specific message and mark it
+            // shown so the post-stream gate doesn't overwrite it with the generic one.
+            state.errorShown = true;
             setError(ev.reason ? friendlyError(ev.reason) : STREAM_INTERRUPTED);
             break;
           // stage / piece / refining are ignored for the Study refined-flat view
@@ -135,9 +135,10 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
         }]);
         notes.setOffered(dp.offered_notes ?? []);
       } else if (started) {
-        // error beat OR no terminal event, but the 200 SSE already returned (server
-        // persisted the user message) → buffered would re-insert + re-charge. Soft error.
-        setError(STREAM_INTERRUPTED);
+        // The 200 SSE already returned (server persisted the user message) → never
+        // buffered-recover (it would re-insert + re-charge). An error beat already set a
+        // specific message; a stream that ended with no terminal event needs the generic one.
+        if (!state.errorShown) setError(STREAM_INTERRUPTED);
       } else {
         // Defensive: resolved without a 200 SSE response → safe to recover.
         await bufferedSend(message, includeIds);
