@@ -90,7 +90,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       let content = '';
       let started = false;
       type DonePayload = { reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] };
-      const state = { terminal: false, donePayload: null as DonePayload | null };
+      const state = { donePayload: null as DonePayload | null };
       const onEvent = (ev: StudySseEvent) => {
         switch (ev.t) {
           case 'text':
@@ -99,12 +99,10 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
             setStreamingContent(content);
             break;
           case 'done':
-            state.terminal = true;
             state.donePayload = (ev.payload ?? {}) as DonePayload;
             break;
           case 'error':
-            state.terminal = true;
-            break;
+            break; // terminal error → donePayload stays null → soft error via the `started` gate
           // stage / piece / refining are ignored for the Study refined-flat view
         }
       };
