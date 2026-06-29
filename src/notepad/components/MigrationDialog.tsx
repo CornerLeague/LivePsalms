@@ -11,6 +11,8 @@ import { useMigrationWorkflow } from '../storage/useMigrationWorkflow';
 import type { MigrationWorkflowState } from '../storage/migration-workflow';
 import type { StorageAdapter } from '../storage/adapter';
 
+const PREVIEW_LIMIT = 3;
+
 interface MigrationDialogProps {
   open: boolean;
   onClose: () => void;
@@ -51,15 +53,18 @@ export function MigrationDialog({
     onMigrationComplete,
     onClose,
   });
-  const [noteCount, setNoteCount] = useState(0);
+  const [titles, setTitles] = useState<string[]>([]);
 
-  // Read the current local note count when the dialog opens. Source-side
-  // ownership stays inside LocalStorageAdapter — the dialog no longer knows
-  // the storage keys.
+  // Read local note titles when the dialog opens. Source-side ownership stays
+  // inside LocalStorageAdapter — the dialog never touches storage keys.
   useEffect(() => {
     if (!open) return;
-    localAdapter.getNotes().then((notes) => setNoteCount(notes.length));
+    localAdapter.getNotes().then((notes) =>
+      setTitles(notes.map((n) => n.title.trim() || 'Untitled note')),
+    );
   }, [open]);
+
+  const total = titles.length;
 
   const inProgress = isInProgress(state);
 
@@ -185,18 +190,29 @@ export function MigrationDialog({
                 fontFamily: 'Cormorant Garamond, serif',
               }}
             >
-              Import Local Notes?
+              {total === 1 ? 'Import this note?' : `Import these ${total} notes?`}
             </DialogTitle>
-            <DialogDescription
-              className="text-center text-sm mt-2"
-              style={{
-                color: 'var(--silica)',
-                fontFamily: 'Outfit, sans-serif',
-              }}
-            >
-              You have {noteCount} {noteCount === 1 ? 'note' : 'notes'} saved locally.
-              Would you like to import them to your account?
-            </DialogDescription>
+
+            <ul className="mt-3 flex flex-col gap-1.5">
+              {titles.slice(0, PREVIEW_LIMIT).map((t, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 text-sm"
+                  style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
+                >
+                  <span aria-hidden style={{ color: 'var(--silica)' }}>•</span>
+                  <span className="truncate">{t}</span>
+                </li>
+              ))}
+              {total > PREVIEW_LIMIT && (
+                <li
+                  className="text-sm pl-4"
+                  style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}
+                >
+                  …and {total - PREVIEW_LIMIT} more
+                </li>
+              )}
+            </ul>
 
             <div className="flex gap-3 mt-6">
               <button
@@ -208,7 +224,7 @@ export function MigrationDialog({
                   fontFamily: 'Outfit, sans-serif',
                 }}
               >
-                No Thanks
+                No
               </button>
               <button
                 onClick={start}
