@@ -231,6 +231,11 @@
      notepad chrome. Lift it to a light silhouette. Scoped to .dark + the notepad
      nav only — light mode and every other logo usage stay untouched. */
   .dark .notepad-nav-logo { filter: brightness(0) invert(1); }
+}
+
+@keyframes lamplight-caret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+@layer base {
 
   /* Mobile Lamplight tab: its surfaces (and the desktop-shared panels it embeds)
      paint var(--alabaster) — one step warmer/lighter than the rest of the dark
