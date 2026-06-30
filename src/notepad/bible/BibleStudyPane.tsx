@@ -1,5 +1,5 @@
 // src/notepad/bible/BibleStudyPane.tsx
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import { useLamplightSettings } from '@/notepad/hooks/useLamplightSettings';
@@ -17,6 +17,11 @@ import { bookByAbbrev } from './bible-books';
 import { SplitResizeHandle } from './SplitResizeHandle';
 import { useDragResize } from './useDragResize';
 import { loadBiblePassage, saveBiblePassage } from '@/notepad/session/session-storage';
+import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+import { useScriptureFocusLists } from './focus/useScriptureFocusLists';
+import { FocusListView } from './focus/FocusListView';
+import { createBrowserVerseSearchDeps } from './verse-search-client';
 
 export interface BibleStudyPaneProps {
   lamplightAdapter: LamplightAdapter | null;
@@ -55,6 +60,9 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: Bible
   }, []);
 
   const { translation, setLocalTranslation, verseLayout, setLocalVerseLayout } = useBiblePrefs();
+
+  const focus = useScriptureFocusLists();
+  const searchDeps = useMemo(() => createBrowserVerseSearchDeps(supabase, translation), [translation]);
 
   const { swatchByVerse, setHighlight, removeHighlight } = useBibleHighlights(
     passage.book,
@@ -133,6 +141,15 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: Bible
             highlightSwatchByVerse={swatchByVerse}
             onSetHighlight={setHighlight}
             onRemoveHighlight={removeHighlight}
+            focus={{
+              focusModeOn: focus.focusModeOn,
+              onToggleFocusMode: focus.toggleFocusMode,
+              activeList: focus.activeList,
+              onAddCurrentVerse: (ref) => { focus.addRefs([ref]); toast(`Added ${ref.label}`); },
+              renderFocusBody: () => (
+                <FocusListView focus={focus} translation={translation} searchDeps={searchDeps} />
+              ),
+            }}
           />
         </div>
         {chatOpen && (
