@@ -1,6 +1,7 @@
 // src/notepad/bible/BibleReader.tsx
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, CornerDownLeft, Search, Info, WrapText, List, Rows3 } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ChevronLeft, ChevronRight, CornerDownLeft, Search, Info, WrapText, List, Rows3, ListOrdered, Plus } from 'lucide-react';
+import type { FocusList, ScriptureRef } from './focus/focus-list-types';
 import { bookByAbbrev, type BibleBook } from './bible-books';
 import { searchBooks } from './book-search';
 import { useBiblePassages } from './useBiblePassages';
@@ -21,6 +22,16 @@ export interface PassageRef {
 
 export interface VerseRef extends PassageRef {
   verse: number;
+}
+
+/** Bridge the host (BibleStudyPane) passes so the reader can drive focus mode. */
+export interface BibleReaderFocusBridge {
+  focusModeOn: boolean;
+  onToggleFocusMode: () => void;
+  /** The active focus list (quick or saved); null only when no list exists. */
+  activeList: FocusList | null;
+  onAddCurrentVerse: (ref: ScriptureRef) => void;
+  renderFocusBody: () => ReactNode;
 }
 
 export interface BibleReaderProps {
@@ -47,6 +58,10 @@ export interface BibleReaderProps {
   verseLayout?: VerseLayout;
   /** Called when the user cycles the layout control. */
   onVerseLayoutChange?: (layout: VerseLayout) => void;
+  /** Optional Scripture-focus bridge. When present, the reader shows a Focus toggle,
+      can render a focus list instead of the chapter, and offers a per-verse "add to
+      list" affordance while browsing. Omitted by the Study reader. */
+  focus?: BibleReaderFocusBridge;
 }
 
 export function BibleReader({
@@ -62,6 +77,7 @@ export function BibleReader({
   verseNumberColor = 'var(--lamplight-accent)',
   verseLayout = 'inline',
   onVerseLayoutChange,
+  focus,
 }: BibleReaderProps) {
   const [book, setBook] = useState(initialBook);
   const [chapter, setChapter] = useState(initialChapter);
@@ -161,6 +177,9 @@ export function BibleReader({
   };
 
   const label = `${meta?.name ?? book} ${chapter}`;
+  // Show the per-verse "add to list" control while browsing (focus mode off) when a
+  // list is active. A const so the narrowing holds inside the click closure.
+  const focusBrowseAdd = focus && !focus.focusModeOn ? focus : null;
   const LayoutIcon = verseLayout === 'inline' ? WrapText : verseLayout === 'lines' ? List : Rows3;
 
   return (
@@ -177,6 +196,18 @@ export function BibleReader({
           <span className="text-[9px]" style={{ color: 'var(--silica)' }}>▾</span>
         </button>
         <div className="flex items-center gap-1">
+          {focus && (
+            <button
+              aria-label="Focus list"
+              aria-pressed={focus.focusModeOn}
+              title="Focus — read a curated verse list"
+              onClick={focus.onToggleFocusMode}
+              className="p-1.5 rounded hover:bg-black/5 transition-colors"
+              style={{ background: focus.focusModeOn ? 'rgba(196,154,120,0.22)' : 'transparent' }}
+            >
+              <ListOrdered className="w-4 h-4" style={{ color: 'var(--deep-umber)' }} />
+            </button>
+          )}
           <button
             aria-label={`Change verse layout (currently ${VERSE_LAYOUT_LABEL[verseLayout].toLowerCase()})`}
             title={`Verse layout: ${VERSE_LAYOUT_LABEL[verseLayout]} — click to change`}
@@ -333,6 +364,7 @@ export function BibleReader({
 
       {/* body */}
       <div className="flex-1 overflow-y-auto px-4 py-3" style={{ fontFamily: 'Georgia, serif' }}>
+        {focus?.focusModeOn ? focus.renderFocusBody() : (<>
         {loading && (
           <p className="text-[11px] tracking-wider" style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>
             Loading passage…
@@ -376,6 +408,22 @@ export function BibleReader({
                   >
                     <sup className="text-[9px] font-bold mr-1" style={{ color: verseNumberColor }}>{v.verse}</sup>
                     {v.text}{blockMode ? '' : ' '}
+                    {focusBrowseAdd?.activeList && (
+                      <button
+                        type="button"
+                        aria-label={`Add ${meta?.name ?? book} ${chapter}:${v.verse} to ${focusBrowseAdd.activeList.title}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          focusBrowseAdd.onAddCurrentVerse({
+                            book, chapter, verseStart: v.verse, verseEnd: v.verse,
+                            label: `${meta?.name ?? book} ${chapter}:${v.verse}`,
+                          });
+                        }}
+                        className="inline-flex items-center align-middle ml-1 p-0.5 rounded hover:bg-black/10"
+                      >
+                        <Plus className="w-3 h-3" style={{ color: 'var(--silica)' }} />
+                      </button>
+                    )}
                   </span>
                 );
                 return blockMode ? (
@@ -411,6 +459,7 @@ export function BibleReader({
             />
           )
         )}
+        </>)}
       </div>
     </div>
   );

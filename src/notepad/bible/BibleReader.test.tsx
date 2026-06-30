@@ -35,6 +35,8 @@ vi.mock('sonner', () => ({ toast: vi.fn() }));
 
 import { BibleReader } from './BibleReader';
 import { toast } from 'sonner';
+import type { BibleReaderFocusBridge } from './BibleReader';
+import type { FocusList } from './focus/focus-list-types';
 
 beforeEach(() => {
   useBiblePassages.mockReset();
@@ -212,5 +214,55 @@ describe('BibleReader verse layout control', () => {
     // Inline mode renders the verses inside a <p>; block modes use a <div>.
     const verse1 = container.querySelector('#bible-verse-1') as HTMLElement;
     expect(verse1.closest('p')).not.toBeNull();
+  });
+});
+
+const quickList: FocusList = { id: '__quick__', title: 'Quick list', position: -1, items: [] };
+
+function makeBridge(over: Partial<BibleReaderFocusBridge> = {}): BibleReaderFocusBridge {
+  return {
+    focusModeOn: false,
+    onToggleFocusMode: vi.fn(),
+    activeList: quickList,
+    onAddCurrentVerse: vi.fn(),
+    renderFocusBody: () => <div data-testid="focus-body">FOCUS BODY</div>,
+    ...over,
+  };
+}
+
+describe('BibleReader focus bridge', () => {
+  it('renders no focus toggle when no focus prop is given', () => {
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
+    expect(screen.queryByRole('button', { name: /focus list/i })).not.toBeInTheDocument();
+  });
+
+  it('renders the focus toggle and reports a click', () => {
+    const bridge = makeBridge();
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} focus={bridge} />);
+    fireEvent.click(screen.getByRole('button', { name: /focus list/i }));
+    expect(bridge.onToggleFocusMode).toHaveBeenCalled();
+  });
+
+  it('renders the focus body (not the chapter) when focus mode is on', () => {
+    const bridge = makeBridge({ focusModeOn: true });
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} focus={bridge} />);
+    expect(screen.getByTestId('focus-body')).toBeInTheDocument();
+    expect(screen.queryByText(/In the beginning was the Word/)).not.toBeInTheDocument();
+  });
+
+  it('adds the current verse to the active list without selecting it', () => {
+    const bridge = makeBridge();
+    const onSelectVerse = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        focus={bridge} onSelectVerse={onSelectVerse}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Add John 1:1 to Quick list/i }));
+    expect(bridge.onAddCurrentVerse).toHaveBeenCalledWith({
+      book: 'jhn', chapter: 1, verseStart: 1, verseEnd: 1, label: 'John 1:1',
+    });
+    expect(onSelectVerse).not.toHaveBeenCalled(); // stopPropagation kept the tap off the verse
   });
 });
