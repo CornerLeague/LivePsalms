@@ -205,7 +205,16 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     setError(null);
   }, [notes]);
 
-  const now = useMemo(() => Date.now(), [history.items]);
+  // Relative timestamps in the history list go stale if the panel sits open with no other
+  // re-render. Tick once a minute *while it's visible* so "2 minutes ago" keeps advancing;
+  // Date.now() per render (≤50 items) is cheap and keeps formatHistoryLabel pure/testable.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    if (!showHistory) return;
+    const id = setInterval(() => setNowTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [showHistory]);
+  const now = Date.now();
   const headerLabel = selection.mode === 'thread'
     ? formatPassageLabel(groundBook, groundChapter)
     : `${groundBook.toUpperCase()} ${groundChapter}`;

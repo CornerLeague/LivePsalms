@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 
 afterEach(cleanup);
 
@@ -332,5 +332,26 @@ describe('LamplightStudyPanel history list stays in sync after mutations', () =>
     render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
     fireEvent.click(screen.getByRole('button', { name: /new conversation/i }));
     await waitFor(() => expect(historyReload).toHaveBeenCalled());
+  });
+});
+
+describe('LamplightStudyPanel history timestamps keep ticking while open', () => {
+  beforeEach(() => { historyItems.length = 0; });
+  afterEach(() => { studyThreadMessages.length = 0; historyItems.length = 0; });
+
+  it('advances the relative timestamp on an interval while the panel stays open', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-29T12:00:00Z'));
+    try {
+      historyItems.push({ threadId: 't1', book: 'rom', chapter: 8, title: 'x', updatedAt: '2026-06-29T11:59:00Z' });
+      render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+      fireEvent.click(screen.getByRole('button', { name: /history/i }));
+      expect(screen.getByText(/1 minute ago/i)).toBeTruthy();
+      // Panel left open; clock moves on. The list must re-render and re-derive "now".
+      act(() => { vi.advanceTimersByTime(120_000); });
+      expect(screen.getByText(/3 minutes ago/i)).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
