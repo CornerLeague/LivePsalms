@@ -10,7 +10,7 @@ import type { OfferedNote } from '../study-chat-client';
 import { makeStudyStreamInvoke, type StudySseEvent } from '../study-stream-client';
 import type { ChatCitation, InvokeFn } from '@/notepad/bible/lamplight-chat-client';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
-import { formatHistoryLabel } from '../history-label';
+import { formatHistoryLabel, formatPassageLabel } from '../history-label';
 
 const invoke: InvokeFn = (name, options) =>
   supabase!.functions.invoke(name, { body: options.body as Record<string, unknown> }) as ReturnType<InvokeFn>;
@@ -67,6 +67,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
   // book/chapter (reader's passage) drive archiveAndReset; selectedThreadId loads a reopened thread.
   const thread = useStudyChatThread(book, chapter, userId, selectedThreadId);
   const history = useStudyChatHistory(userId);
+  const { reload: reloadHistory } = history; // stable useCallback — safe to depend on directly
   const notes = useNotesOnOffer();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -93,7 +94,8 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     if (!res.ok) { setError(friendlyError(res.reason)); return; }
     thread.append([{ id: `a-${Date.now()}`, role: 'assistant', content: res.reply, citations: res.citations }]);
     notes.setOffered(res.offeredNotes);
-  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes]);
+    reloadHistory(); // a successful send creates/touches a thread server-side → keep the list in sync
+  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes, reloadHistory]);
 
   const doSend = useCallback(async (message: string, includeIds: string[]) => {
     setSending(true); setError(null);
@@ -160,6 +162,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
           citations: dp.citations ?? [],
         }]);
         notes.setOffered(dp.offered_notes ?? []);
+        reloadHistory(); // new/updated thread persisted → refresh the history list
       } else if (started) {
         // The 200 SSE already returned (server persisted the user message) → never
         // buffered-recover (it would re-insert + re-charge). No terminal event arrived,
@@ -172,7 +175,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     } finally {
       setSending(false);
     }
-  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes, streamInvoke, bufferedSend]);
+  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes, streamInvoke, bufferedSend, reloadHistory]);
 
   const send = useCallback(async () => {
     const m = draft.trim();
@@ -192,7 +195,8 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     notes.reset();
     setError(null);
     await thread.archiveAndReset();
-  }, [thread, notes]);
+    reloadHistory(); // the archive changed the thread list → refresh it
+  }, [thread, notes, reloadHistory]);
 
   const openThread = useCallback((item: { threadId: string; book: string; chapter: number }) => {
     setSelection({ mode: 'thread', threadId: item.threadId, book: item.book, chapter: item.chapter });
@@ -201,9 +205,18 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     setError(null);
   }, [notes]);
 
-  const now = useMemo(() => Date.now(), [history.items]);
+  // Relative timestamps in the history list go stale if the panel sits open with no other
+  // re-render. Tick once a minute *while it's visible* so "2 minutes ago" keeps advancing;
+  // Date.now() per render (≤50 items) is cheap and keeps formatHistoryLabel pure/testable.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    if (!showHistory) return;
+    const id = setInterval(() => setNowTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [showHistory]);
+  const now = Date.now();
   const headerLabel = selection.mode === 'thread'
-    ? formatHistoryLabel(groundBook, groundChapter, '', now).split(' · ')[0]
+    ? formatPassageLabel(groundBook, groundChapter)
     : `${groundBook.toUpperCase()} ${groundChapter}`;
 
   // requestStudyInsight is available for future use (e.g. opening insight button)

@@ -13,8 +13,12 @@ export function formatRelativeTime(iso: string, now: number): string {
   return `${day} day${day === 1 ? '' : 's'} ago`;
 }
 
-// "Romans 8 · 2 days ago" — book abbrev resolved to its display name.
+// "Romans 8" — book abbrev resolved to its display name (raw abbrev if unknown).
+export function formatPassageLabel(book: string, chapter: number): string {
+  return `${bookByAbbrev(book)?.name ?? book} ${chapter}`;
+}
+
+// "Romans 8 · 2 days ago" — passage label joined with the relative time.
 export function formatHistoryLabel(book: string, chapter: number, updatedAtIso: string, now: number): string {
-  const name = bookByAbbrev(book)?.name ?? book;
-  return `${name} ${chapter} · ${formatRelativeTime(updatedAtIso, now)}`;
+  return `${formatPassageLabel(book, chapter)} · ${formatRelativeTime(updatedAtIso, now)}`;
 }
