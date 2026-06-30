@@ -1,13 +1,16 @@
 // src/notepad/study/panes/LamplightStudyPanel.tsx
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus, History as HistoryIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useStudyChatThread } from '../useStudyChatThread';
+import { useStudyChatHistory } from '../useStudyChatHistory';
 import { useNotesOnOffer } from '../useNotesOnOffer';
 import { sendStudyMessage, requestStudyInsight } from '../study-chat-client';
 import type { OfferedNote } from '../study-chat-client';
 import { makeStudyStreamInvoke, type StudySseEvent } from '../study-stream-client';
 import type { ChatCitation, InvokeFn } from '@/notepad/bible/lamplight-chat-client';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
+import { formatHistoryLabel } from '../history-label';
 
 const invoke: InvokeFn = (name, options) =>
   supabase!.functions.invoke(name, { body: options.body as Record<string, unknown> }) as ReturnType<InvokeFn>;
@@ -50,9 +53,20 @@ function AssistantRow({ content, streaming }: { content: string; streaming?: boo
 
 export interface LamplightStudyPanelProps { book: string; chapter: number; userId: string | null }
 
+type StudySelection =
+  | { mode: 'passage' }
+  | { mode: 'thread'; threadId: string; book: string; chapter: number };
+
 export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPanelProps) {
   const { translation } = useBiblePrefs();
-  const thread = useStudyChatThread(book, chapter, userId);
+  const [selection, setSelection] = useState<StudySelection>({ mode: 'passage' });
+  const [showHistory, setShowHistory] = useState(false);
+  const selectedThreadId = selection.mode === 'thread' ? selection.threadId : undefined;
+  const groundBook = selection.mode === 'thread' ? selection.book : book;
+  const groundChapter = selection.mode === 'thread' ? selection.chapter : chapter;
+  // book/chapter (reader's passage) drive archiveAndReset; selectedThreadId loads a reopened thread.
+  const thread = useStudyChatThread(book, chapter, userId, selectedThreadId);
+  const history = useStudyChatHistory(userId);
   const notes = useNotesOnOffer();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -62,17 +76,24 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
   const signedIn = !!userId;
 
+  // Reader navigation drops any reopened thread and returns to the open chapter.
+  useEffect(() => {
+    setSelection({ mode: 'passage' });
+    setShowHistory(false);
+  }, [book, chapter]);
+
   const bufferedSend = useCallback(async (message: string, includeIds: string[]) => {
     const res = await sendStudyMessage(invoke, {
-      book, chapter, message,
+      book: groundBook, chapter: groundChapter, message,
       includeNotes: includeIds.length > 0,
       noteIds: includeIds,
       translation,
+      threadId: selectedThreadId,
     });
     if (!res.ok) { setError(friendlyError(res.reason)); return; }
     thread.append([{ id: `a-${Date.now()}`, role: 'assistant', content: res.reply, citations: res.citations }]);
     notes.setOffered(res.offeredNotes);
-  }, [book, chapter, translation, thread, notes]);
+  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes]);
 
   const doSend = useCallback(async (message: string, includeIds: string[]) => {
     setSending(true); setError(null);
@@ -113,7 +134,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
 
       try {
         await streamInvoke(
-          { book, chapter, message, includeNotes: includeIds.length > 0, noteIds: includeIds, translation },
+          { book: groundBook, chapter: groundChapter, message, includeNotes: includeIds.length > 0, noteIds: includeIds, translation, threadId: selectedThreadId },
           { onEvent, onStart: () => { started = true; } },
         );
       } catch {
@@ -151,7 +172,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     } finally {
       setSending(false);
     }
-  }, [book, chapter, translation, thread, notes, streamInvoke, bufferedSend]);
+  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes, streamInvoke, bufferedSend]);
 
   const send = useCallback(async () => {
     const m = draft.trim();
@@ -165,45 +186,98 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     await doSend(lastMessage, [...notes.includedIds, id]);
   }, [doSend, lastMessage, notes]);
 
+  const newConversation = useCallback(async () => {
+    setSelection({ mode: 'passage' });
+    setShowHistory(false);
+    notes.reset();
+    setError(null);
+    await thread.archiveAndReset();
+  }, [thread, notes]);
+
+  const openThread = useCallback((item: { threadId: string; book: string; chapter: number }) => {
+    setSelection({ mode: 'thread', threadId: item.threadId, book: item.book, chapter: item.chapter });
+    setShowHistory(false);
+    notes.reset();
+    setError(null);
+  }, [notes]);
+
+  const now = useMemo(() => Date.now(), [history.items]);
+  const headerLabel = selection.mode === 'thread'
+    ? formatHistoryLabel(groundBook, groundChapter, '', now).split(' · ')[0]
+    : `${groundBook.toUpperCase()} ${groundChapter}`;
+
   // requestStudyInsight is available for future use (e.g. opening insight button)
   void requestStudyInsight;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Outfit, sans-serif' }}>
-      <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column' }}>
-        {!thread.loading && thread.messages.length === 0 && notes.offered.length === 0 && !error && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--silica)', fontSize: 13, padding: 24 }}>
-            {signedIn ? 'Start a conversation to dive into the Word.' : 'Sign in to use Lamplight Study.'}
-          </div>
-        )}
-        {thread.messages.map((m) =>
-          m.role === 'user' ? (
-            <div key={m.id} data-role="user" style={{ marginBottom: 20, textAlign: 'right' }}>
-              <div style={{ fontSize: 10, color: 'var(--silica)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>You</div>
-              <div style={{ fontSize: 13, color: 'var(--deep-umber)', whiteSpace: 'pre-wrap' }}>{m.content}</div>
-            </div>
-          ) : (
-            <AssistantRow key={m.id} content={m.content} />
-          ),
-        )}
-        {streamingContent !== null && (
-          <AssistantRow content={streamingContent} streaming />
-        )}
-        {notes.offered.length > 0 && (
-          <div style={{ marginTop: 8, padding: 10, borderRadius: 8, border: '1px solid var(--lamplight-accent)', fontSize: 12 }}>
-            <div style={{ marginBottom: 6, color: 'var(--deep-umber)' }}>
-              You have {notes.offered.length} note{notes.offered.length === 1 ? '' : 's'} touching this — bring them in?
-            </div>
-            {notes.offered.map((o) => (
-              <button key={o.id} onClick={() => void bringInNote(o.id)}
-                style={{ display: 'block', textAlign: 'left', width: '100%', marginBottom: 4, padding: '4px 8px', background: 'transparent', border: 'none', color: 'var(--lamplight-accent)', cursor: 'pointer' }}>
-                + {o.title}
-              </button>
-            ))}
-          </div>
-        )}
-        {error && <div style={{ color: '#b00', fontSize: 12, marginTop: 8 }}>{error}</div>}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--pale-stone)', flex: '0 0 auto' }}>
+        <div style={{ fontSize: 11, color: 'var(--silica)', letterSpacing: '0.06em', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {headerLabel}
+        </div>
+        <div style={{ display: 'flex', gap: 2 }}>
+          <button type="button" aria-label="New conversation" title="New conversation" disabled={!signedIn}
+            onClick={() => void newConversation()}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, border: 'none', background: 'transparent', color: 'var(--silica)', borderRadius: 6, cursor: signedIn ? 'pointer' : 'not-allowed' }}>
+            <Plus className="w-4 h-4" />
+          </button>
+          <button type="button" aria-label="History" title="History" disabled={!signedIn}
+            onClick={() => setShowHistory((v) => !v)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, border: 'none', background: 'transparent', color: 'var(--silica)', borderRadius: 6, cursor: signedIn ? 'pointer' : 'not-allowed' }}>
+            <HistoryIcon className="w-4 h-4" />
+          </button>
+        </div>
       </div>
+      {showHistory ? (
+        <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
+          {history.loading && <div style={{ padding: 16, color: 'var(--silica)', fontSize: 12 }}>Loading…</div>}
+          {history.error && <div style={{ padding: 16, color: '#b00', fontSize: 12 }}>Couldn't load history. Please try again.</div>}
+          {!history.loading && !history.error && history.items.length === 0 && (
+            <div style={{ padding: 16, color: 'var(--silica)', fontSize: 12 }}>No past conversations yet.</div>
+          )}
+          {history.items.map((it) => (
+            <button key={it.threadId} type="button" onClick={() => openThread(it)}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', marginBottom: 4, border: 'none', borderRadius: 6, background: 'transparent', color: 'var(--deep-umber)', cursor: 'pointer', fontSize: 13 }}>
+              {formatHistoryLabel(it.book, it.chapter, it.updatedAt, now)}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column' }}>
+          {!thread.loading && thread.messages.length === 0 && notes.offered.length === 0 && !error && (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--silica)', fontSize: 13, padding: 24 }}>
+              {signedIn ? 'Start a conversation to dive into the Word.' : 'Sign in to use Lamplight Study.'}
+            </div>
+          )}
+          {thread.messages.map((m) =>
+            m.role === 'user' ? (
+              <div key={m.id} data-role="user" style={{ marginBottom: 20, textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: 'var(--silica)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>You</div>
+                <div style={{ fontSize: 13, color: 'var(--deep-umber)', whiteSpace: 'pre-wrap' }}>{m.content}</div>
+              </div>
+            ) : (
+              <AssistantRow key={m.id} content={m.content} />
+            ),
+          )}
+          {streamingContent !== null && (
+            <AssistantRow content={streamingContent} streaming />
+          )}
+          {notes.offered.length > 0 && (
+            <div style={{ marginTop: 8, padding: 10, borderRadius: 8, border: '1px solid var(--lamplight-accent)', fontSize: 12 }}>
+              <div style={{ marginBottom: 6, color: 'var(--deep-umber)' }}>
+                You have {notes.offered.length} note{notes.offered.length === 1 ? '' : 's'} touching this — bring them in?
+              </div>
+              {notes.offered.map((o) => (
+                <button key={o.id} onClick={() => void bringInNote(o.id)}
+                  style={{ display: 'block', textAlign: 'left', width: '100%', marginBottom: 4, padding: '4px 8px', background: 'transparent', border: 'none', color: 'var(--lamplight-accent)', cursor: 'pointer' }}>
+                  + {o.title}
+                </button>
+              ))}
+            </div>
+          )}
+          {error && <div style={{ color: '#b00', fontSize: 12, marginTop: 8 }}>{error}</div>}
+        </div>
+      )}
       <div style={{ borderTop: '1px solid var(--pale-stone)', padding: 12, display: 'flex', gap: 8 }}>
         <input
           value={draft}

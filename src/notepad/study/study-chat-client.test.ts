@@ -57,3 +57,20 @@ describe('study-chat-client passes translation', () => {
     expect(bodies[0]).toMatchObject({ book: 'jhn', chapter: 3, mode: 'insight', translation: 'WEB' });
   });
 });
+
+describe('sendStudyMessage thread_id', () => {
+  it('includes thread_id in the body when provided', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { ok: true, thread_id: 't', reply: 'r', citations: [], offered_notes: [] }, error: null });
+    await sendStudyMessage(invoke, { book: 'rom', chapter: 8, message: 'hi', threadId: 'thread-1' });
+    expect(invoke).toHaveBeenCalledWith('lamplight-study', expect.objectContaining({
+      body: expect.objectContaining({ thread_id: 'thread-1' }),
+    }));
+  });
+
+  it('omits thread_id when not provided', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { ok: true, thread_id: 't', reply: 'r', citations: [], offered_notes: [] }, error: null });
+    await sendStudyMessage(invoke, { book: 'rom', chapter: 8, message: 'hi' });
+    const body = (invoke.mock.calls[0][1] as { body: Record<string, unknown> }).body;
+    expect('thread_id' in body).toBe(false);
+  });
+});

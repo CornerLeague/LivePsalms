@@ -133,4 +133,18 @@ describe('useStudyChatThread', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(eqSurface).toHaveBeenCalledWith('surface', 'study');
   });
+
+  it('loads a specific thread directly when threadId is supplied (skips the passage lookup)', async () => {
+    // maybeSingle would be the passage→active-thread lookup; it must NOT be used.
+    maybeSingle.mockResolvedValue({ data: { id: 'SHOULD_NOT_BE_USED' }, error: null });
+    setOrderResult({
+      data: [{ id: 'm9', role: 'assistant', content: 'resumed', citations: [] }],
+      error: null,
+    });
+    const { result } = renderHook(() => useStudyChatThread('jhn', 10, 'u1', 'thread-42'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.messages.map((m) => m.id)).toEqual(['m9']);
+    expect(eqMsg).toHaveBeenCalledWith('thread_id', 'thread-42');
+    expect(maybeSingle).not.toHaveBeenCalled();
+  });
 });

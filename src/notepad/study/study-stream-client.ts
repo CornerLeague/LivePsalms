@@ -24,6 +24,7 @@ export interface StreamStudyArgs {
   noteIds?: string[];
   translation?: string;
   mode?: 'chat' | 'insight';
+  threadId?: string;
 }
 
 export type StudyStreamInvoke = (
@@ -49,6 +50,7 @@ export function makeStudyStreamInvoke(client: SupabaseClient): StudyStreamInvoke
       stream: true,
     };
     if (args.mode) body.mode = args.mode;
+    if (args.threadId) body.thread_id = args.threadId;
 
     const res = await fetch(`${url}/functions/v1/lamplight-study`, {
       method: 'POST',

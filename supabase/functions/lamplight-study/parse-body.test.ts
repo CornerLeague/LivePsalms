@@ -20,3 +20,22 @@ describe('parseStudyBody stream flag', () => {
     if (out.ok) expect(out.stream).toBe(false);
   });
 });
+
+describe('parseStudyBody thread_id', () => {
+  const uuid = '11111111-2222-3333-4444-555555555555';
+  it('parses a UUID-shaped thread_id', () => {
+    const out = parseStudyBody({ book: 'jhn', chapter: 10, message: 'hi', thread_id: uuid });
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.threadId).toBe(uuid);
+  });
+  it('leaves threadId undefined when absent', () => {
+    const out = parseStudyBody({ book: 'jhn', chapter: 10, message: 'hi' });
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.threadId).toBeUndefined();
+  });
+  it('ignores a non-UUID thread_id', () => {
+    const out = parseStudyBody({ book: 'jhn', chapter: 10, message: 'hi', thread_id: 'not-a-uuid' });
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.threadId).toBeUndefined();
+  });
+});

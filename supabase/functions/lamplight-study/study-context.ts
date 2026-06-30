@@ -2,9 +2,9 @@
 // the Supabase-backed buildStudyContext (added alongside) is glue.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { type VoyageDeps, embedQuery } from '../_shared/voyage.ts';
-import { searchUserNotesByQuery } from '../_shared/retrieval.ts';
+import { searchUserNotesByQuery, searchBible } from '../_shared/retrieval.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
-import { formatVerseRef } from '../_shared/bible-passage.ts';
+import { formatVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
 import type { BibleChatContext, BookContext } from '../lamplight-chat/bible-chat-pipeline.ts';
 
 export interface RelevantNote { id: string; title: string; plaintext: string; similarity: number }
@@ -12,6 +12,7 @@ export interface NoteForPrompt { id: string; title: string; plaintext: string }
 export interface OfferedNote { id: string; title: string; snippet: string }
 
 const SNIPPET_LEN = 160;
+export const VERSE_K = 6;
 
 export function selectOfferedNotes(
   relevant: RelevantNote[],
@@ -26,6 +27,50 @@ export function selectOfferedNotes(
     else offered.push({ id: n.id, title: n.title, snippet: n.plaintext.slice(0, SNIPPET_LEN) });
   }
   return { included, offered };
+}
+
+// Dedupe retrieved whole-Bible passages against the verses already supplied
+// (open chapter + curated cross-refs) and against each other. Keys are compared
+// case-insensitively; chapterVerseRefs/crossRefSet are already lowercased.
+export function selectRelatedPassages(
+  passages: Array<{ ref: string; text: string }>,
+  opts: { chapterVerseRefs: Set<string>; crossRefSet: Set<string> },
+): Array<{ ref: string; text: string }> {
+  const seen = new Set<string>();
+  const out: Array<{ ref: string; text: string }> = [];
+  for (const p of passages) {
+    const key = p.ref.toLowerCase();
+    if (opts.chapterVerseRefs.has(key) || opts.crossRefSet.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+  return out;
+}
+
+// Whole-Bible semantic retrieval for A1, mirroring journaling chat
+// (lamplight-chat/index.ts). Graceful degradation: any failure or empty result
+// yields [] so the turn still proceeds on chapter + cross-ref grounding.
+export async function retrieveRelatedPassages(
+  deps: { supabase: SupabaseClient; voyage: VoyageDeps; rerankEnabled: boolean },
+  args: {
+    query: string; k: number; translation: string; queryEmbedding?: number[];
+    chapterVerseRefs: Set<string>; crossRefSet: Set<string>;
+  },
+): Promise<Array<{ ref: string; text: string }>> {
+  try {
+    const retrieved = await searchBible(
+      { supabase: deps.supabase, voyage: deps.voyage, rerankEnabled: deps.rerankEnabled },
+      { query: args.query, k: args.k, queryEmbedding: args.queryEmbedding, translation: args.translation },
+    );
+    const ids = [...new Set(retrieved.map((r) => r.source_id))];
+    if (ids.length === 0) return [];
+    const byId = await fetchPassageText(deps.supabase as never, ids, args.translation);
+    const passages = [...byId.values()].map((p) => ({ ref: formatVerseRef(p), text: p.text }));
+    return selectRelatedPassages(passages, { chapterVerseRefs: args.chapterVerseRefs, crossRefSet: args.crossRefSet });
+  } catch (err) {
+    console.error('[lamplight-study] related-passage retrieval failed; degrading to chapter grounding:', err);
+    return [];
+  }
 }
 
 export async function buildStudyContext(
@@ -113,6 +158,15 @@ export async function buildStudyContext(
   }
   const { included, offered } = selectOfferedNotes(relevant, { includeNotes: args.includeNotes, noteIds: args.noteIds });
 
+  // A1: whole-Bible related passages (reuses the embedding computed for notes).
+  const relatedPassages = await retrieveRelatedPassages(
+    { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
+    {
+      query: args.retrievalQuery, k: VERSE_K, translation: args.translation, queryEmbedding,
+      chapterVerseRefs, crossRefSet,
+    },
+  );
+
   const ctx: BibleChatContext = {
     passageRef: `${args.book} ${args.chapter}`,
     passageText,
@@ -121,8 +175,13 @@ export async function buildStudyContext(
     history: args.history,
     userMessage: args.message,
     allowedNoteIds: new Set(included.map((n) => n.id)),
-    allowedVerseRefs: new Set<string>([...chapterVerseRefs, ...crossRefSet]),
+    allowedVerseRefs: new Set<string>([
+      ...chapterVerseRefs,
+      ...crossRefSet,
+      ...relatedPassages.map((p) => p.ref.toLowerCase()),
+    ]),
     bookContext,
+    relatedPassages,
   };
   return { ctx, offered };
 }

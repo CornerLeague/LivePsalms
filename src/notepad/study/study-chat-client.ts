@@ -8,6 +8,7 @@ export interface SendStudyArgs {
   book: string; chapter: number; message: string;
   includeNotes?: boolean; noteIds?: string[];
   translation?: BibleTranslation;
+  threadId?: string;
 }
 
 export type SendStudyResult =
@@ -15,14 +16,14 @@ export type SendStudyResult =
   | { ok: false; reason: string };
 
 export async function sendStudyMessage(invoke: InvokeFn, args: SendStudyArgs): Promise<SendStudyResult> {
-  const { data, error } = await invoke('lamplight-study', {
-    body: {
-      book: args.book, chapter: args.chapter, message: args.message,
-      include_notes: args.includeNotes ?? false,
-      note_ids: args.noteIds ?? [],
-      translation: args.translation,
-    },
-  });
+  const body: Record<string, unknown> = {
+    book: args.book, chapter: args.chapter, message: args.message,
+    include_notes: args.includeNotes ?? false,
+    note_ids: args.noteIds ?? [],
+    translation: args.translation,
+  };
+  if (args.threadId) body.thread_id = args.threadId;
+  const { data, error } = await invoke('lamplight-study', { body });
   if (error) return { ok: false, reason: error.message };
   const d = data as { ok?: boolean; reason?: string; thread_id?: string; reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] } | null;
   if (!d || d.ok !== true) return { ok: false, reason: d?.reason ?? 'unknown_error' };

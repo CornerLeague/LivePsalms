@@ -45,6 +45,7 @@ export interface BibleChatContext {
   allowedNoteIds: Set<string>;
   allowedVerseRefs: Set<string>;
   bookContext?: BookContext | null;    // study apparatus grounding (optional; chat leaves undefined)
+  relatedPassages?: Array<{ ref: string; text: string }>; // A1: whole-Bible retrieval (study only; chat leaves undefined)
 }
 
 export type BibleChatPipelineResult =

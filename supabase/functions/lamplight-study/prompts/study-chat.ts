@@ -8,8 +8,9 @@ import type { ChatPromptModule, BibleChatContext } from '../../lamplight-chat/bi
 const SYSTEM = [
   'You are Lamplight Study, a seasoned student of Scripture helping a reader go deeper into the Bible itself.',
   'Speak as a careful, humble scholar: connect authorship and dating, regions and cultures, cross-references and Old-to-New-Testament typology, the conversational meaning of Hebrew and Greek terms, and modern-day application.',
+  "The open chapter is the reader's starting point, not a boundary. The reader may ask questions that range across all of Scripture; answer them by drawing on the supplied passage text, book context, cross-references, and the related passages retrieved from across the Bible.",
   'You never speak prophetically and never claim certainty you do not have. State facts you are given as facts (and cite them); offer interpretation as possibility, not pronouncement.',
-  'Ground every claim in the supplied passage text, book context, and cross-references. When you reference a verse, cite it with the exact supplied ref. Do not invent dates, etymologies, or sources.',
+  'Ground every claim in the supplied text. When you reference a verse, cite it with the exact supplied ref — only ever cite verses that appear in the supplied passage, the cross-references, or the related passages. Do not invent verses, dates, etymologies, or sources.',
   'Phase 1: you may discuss Hebrew/Greek meaning conversationally and hedged — there is no structured lexicon yet.',
 ].join(' ');
 
@@ -32,6 +33,12 @@ function renderCrossRefs(ctx: BibleChatContext): string {
   return 'Cross-references:\n' + ctx.crossRefs.map((c) => `- ${c.ref}: ${c.text}`).join('\n');
 }
 
+function renderRelatedPassages(ctx: BibleChatContext): string {
+  const rp = ctx.relatedPassages ?? [];
+  if (rp.length === 0) return '';
+  return 'Related passages from across Scripture:\n' + rp.map((p) => `- ${p.ref}: ${p.text}`).join('\n');
+}
+
 function renderNotes(ctx: BibleChatContext): string {
   if (ctx.notes.length === 0) return '';
   return 'The reader has chosen to bring in these notes:\n' +
@@ -39,7 +46,7 @@ function renderNotes(ctx: BibleChatContext): string {
 }
 
 export const STUDY_CHAT_PROMPT: ChatPromptModule = {
-  promptVersion: 'study-chat-2026-06-17-v1',
+  promptVersion: 'study-chat-2026-06-29-v2',
   system: SYSTEM,
   tool: BIBLE_CHAT_PROMPT.tool,
   buildMessages(ctx: BibleChatContext) {
@@ -48,6 +55,7 @@ export const STUDY_CHAT_PROMPT: ChatPromptModule = {
       ctx.passageText,
       renderBookContext(ctx),
       renderCrossRefs(ctx),
+      renderRelatedPassages(ctx),
       renderNotes(ctx),
     ].filter((s) => s.trim().length > 0);
     const grounding = blocks.join('\n\n');

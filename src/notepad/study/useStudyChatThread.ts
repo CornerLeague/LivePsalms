@@ -21,7 +21,7 @@ export interface UseStudyChatThreadResult {
   archiveAndReset: () => Promise<void>;
 }
 
-export function useStudyChatThread(book: string, chapter: number, userId: string | null): UseStudyChatThreadResult {
+export function useStudyChatThread(book: string, chapter: number, userId: string | null, threadId?: string): UseStudyChatThreadResult {
   const [messages, setMessages] = useState<StudyThreadMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,23 +63,26 @@ export function useStudyChatThread(book: string, chapter: number, userId: string
     }
 
     (async () => {
-      const thread = await supabase
-        .from('lamplight_chat_threads')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('passage_ref', passageRef)
-        .eq('surface', 'study')
-        .eq('archived', false)
-        .maybeSingle();
-      if (cancelled) return;
-      if (thread.error) { setError(thread.error.message); setLoading(false); return; }
-      const threadId = (thread.data as { id?: string } | null)?.id;
-      if (!threadId) { setMessages([]); setLoading(false); return; }
+      let tid: string | null = threadId ?? null;
+      if (!tid) {
+        const thread = await supabase
+          .from('lamplight_chat_threads')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('passage_ref', passageRef)
+          .eq('surface', 'study')
+          .eq('archived', false)
+          .maybeSingle();
+        if (cancelled) return;
+        if (thread.error) { setError(thread.error.message); setLoading(false); return; }
+        tid = (thread.data as { id?: string } | null)?.id ?? null;
+      }
+      if (!tid) { setMessages([]); setLoading(false); return; }
 
       const { data, error: mErr } = await supabase
         .from('lamplight_chat_messages')
         .select('id, role, content, citations')
-        .eq('thread_id', threadId)
+        .eq('thread_id', tid)
         .order('created_at', { ascending: true });
       if (cancelled) return;
       if (mErr) { setError(mErr.message); setMessages([]); }
@@ -88,7 +91,7 @@ export function useStudyChatThread(book: string, chapter: number, userId: string
     })();
 
     return () => { cancelled = true; };
-  }, [passageRef, userId, nonce]);
+  }, [passageRef, userId, nonce, threadId]);
 
   return { messages, loading, error, append, reload, archiveAndReset };
 }

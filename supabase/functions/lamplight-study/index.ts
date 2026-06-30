@@ -22,6 +22,7 @@ import { buildStudyContext } from './study-context.ts';
 import { STUDY_CHAT_PROMPT } from './prompts/study-chat.ts';
 import { STUDY_INSIGHT_PROMPT } from './prompts/study-insight.ts';
 import { parseStudyBody, type ParsedStudyBody, VALID_TRANSLATIONS, type Translation } from './parse-body.ts';
+import { verifyStudyThread } from './verify-thread.ts';
 
 export { parseStudyBody, type ParsedStudyBody };
 
@@ -91,6 +92,24 @@ async function handleStudy(req: Request): Promise<Response> {
   const promoActive = promoRow?.value === true;
   if (!hasChatAccess({ tier, promoActive })) return jsonResp({ ok: false, reason: 'no_entitlement' }, 402);
 
+  // B1: resume-in-place. When a thread_id is supplied, verify ownership up-front
+  // (cheap, no write) and ground on the thread's STORED passage — not the body's
+  // open chapter. The ownership 404 precedes the quota gate; the opt-in/entitlement
+  // gates above already ran identically. A new send (no thread_id) keeps body
+  // grounding and lazy upsert so quota still gates thread creation.
+  let groundBook = book;
+  let groundChapter = chapter;
+  let groundPassageRef = passageRef;
+  let resolvedThreadId: string | null = null;
+  if (parsed.threadId) {
+    const verified = await verifyStudyThread(supabase, { threadId: parsed.threadId, userId });
+    if (!verified.ok) return jsonResp({ ok: false, reason: verified.reason }, 404);
+    groundBook = verified.thread.book;
+    groundChapter = verified.thread.chapter;
+    groundPassageRef = verified.thread.passageRef;
+    resolvedThreadId = verified.thread.threadId;
+  }
+
   const voyageDeps: VoyageDeps = { apiKey: voyageKey, fetch };
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
   const llm = createAnthropicAdapter({ apiKey: anthropicKey, fetch });
@@ -115,7 +134,10 @@ async function handleStudy(req: Request): Promise<Response> {
       hasChatAccess: async () => hasChatAccess({ tier, promoActive }),
       checkQuota: streamQuota,
       recordUsage: (row) => recordLamplightUsage(supabase, row),
-      upsertThread: (firstMessage) => upsertStudyThread(supabase, userId, book, chapter, passageRef, firstMessage),
+      upsertThread: (firstMessage) =>
+        resolvedThreadId
+          ? Promise.resolve(resolvedThreadId)
+          : upsertStudyThread(supabase, userId, groundBook, groundChapter, groundPassageRef, firstMessage),
       loadHistory: async (threadId) => {
         const { data } = await supabase
           .from('lamplight_chat_messages')
@@ -137,11 +159,11 @@ async function handleStudy(req: Request): Promise<Response> {
         if (mode === 'insight') {
           const { data: chRows } = await supabase
             .from('bible_passages').select('text')
-            .like('id', `${book}.${chapter}.%`).order('verse_start', { ascending: true }).limit(20);
-          retrievalQuery = ((chRows ?? []) as Array<{ text: string }>).map((r) => r.text).join(' ').slice(0, 1500) || `${book} ${chapter}`;
+            .like('id', `${groundBook}.${groundChapter}.%`).order('verse_start', { ascending: true }).limit(20);
+          retrievalQuery = ((chRows ?? []) as Array<{ text: string }>).map((r) => r.text).join(' ').slice(0, 1500) || `${groundBook} ${groundChapter}`;
         }
         const { ctx, offered } = await buildStudyContext(supabase, {
-          userId, book, chapter, passageRef,
+          userId, book: groundBook, chapter: groundChapter, passageRef: groundPassageRef,
           message: mode === 'insight' ? '' : message,
           retrievalQuery, history,
           includeNotes, noteIds,
@@ -158,7 +180,7 @@ async function handleStudy(req: Request): Promise<Response> {
       artifactKind: 'bible_study',
     };
     return await streamBibleChat(deps, {
-      userId, mode, message, threadTitle: message || `Study of ${book} ${chapter}`, signal: req.signal,
+      userId, mode, message, threadTitle: message || `Study of ${groundBook} ${groundChapter}`, signal: req.signal,
     });
   }
 
@@ -175,7 +197,8 @@ async function handleStudy(req: Request): Promise<Response> {
     lifecycleDeps,
     { userId, artifactKind: 'bible_study' },
     async () => {
-      const threadId = await upsertStudyThread(supabase, userId, book, chapter, passageRef, message || `Study of ${book} ${chapter}`);
+      const threadId = resolvedThreadId
+        ?? await upsertStudyThread(supabase, userId, groundBook, groundChapter, groundPassageRef, message || `Study of ${groundBook} ${groundChapter}`);
 
       const { data: histRows } = await supabase
         .from('lamplight_chat_messages')
@@ -193,12 +216,12 @@ async function handleStudy(req: Request): Promise<Response> {
       if (mode === 'insight') {
         const { data: chRows } = await supabase
           .from('bible_passages').select('text')
-          .like('id', `${book}.${chapter}.%`).order('verse_start', { ascending: true }).limit(20);
-        retrievalQuery = ((chRows ?? []) as Array<{ text: string }>).map((r) => r.text).join(' ').slice(0, 1500) || `${book} ${chapter}`;
+          .like('id', `${groundBook}.${groundChapter}.%`).order('verse_start', { ascending: true }).limit(20);
+        retrievalQuery = ((chRows ?? []) as Array<{ text: string }>).map((r) => r.text).join(' ').slice(0, 1500) || `${groundBook} ${groundChapter}`;
       }
 
       const { ctx, offered } = await buildStudyContext(supabase, {
-        userId, book, chapter, passageRef,
+        userId, book: groundBook, chapter: groundChapter, passageRef: groundPassageRef,
         message: mode === 'insight' ? '' : message,
         retrievalQuery, history,
         includeNotes, noteIds,

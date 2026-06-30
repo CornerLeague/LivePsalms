@@ -10,17 +10,21 @@ vi.mock('../study-chat-client', () => ({
   requestStudyInsight: vi.fn().mockResolvedValue({ ok: false, reason: 'skipped' }),
 }));
 const studyThreadMessages: Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: unknown[] }> = [];
+const studyThreadCalls: Array<unknown[]> = [];
 vi.mock('../useStudyChatThread', () => ({
-  useStudyChatThread: () => ({
-    messages: studyThreadMessages,
-    loading: false,
-    error: null,
-    append: vi.fn((msgs: Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: unknown[] }>) => {
-      studyThreadMessages.push(...msgs);
-    }),
-    reload: vi.fn(),
-    archiveAndReset: vi.fn(),
-  }),
+  useStudyChatThread: (...args: unknown[]) => {
+    studyThreadCalls.push(args);
+    return {
+      messages: studyThreadMessages,
+      loading: false,
+      error: null,
+      append: vi.fn((msgs: Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: unknown[] }>) => {
+        studyThreadMessages.push(...msgs);
+      }),
+      reload: vi.fn(),
+      archiveAndReset: vi.fn().mockResolvedValue(undefined),
+    };
+  },
 }));
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -40,6 +44,11 @@ vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({
 const streamStudyMessage = vi.fn();
 vi.mock('../study-stream-client', () => ({
   makeStudyStreamInvoke: () => (...a: unknown[]) => streamStudyMessage(...a),
+}));
+
+const historyItems: Array<{ threadId: string; book: string; chapter: number; title: string; updatedAt: string }> = [];
+vi.mock('../useStudyChatHistory', () => ({
+  useStudyChatHistory: () => ({ items: historyItems, loading: false, error: null, reload: vi.fn() }),
 }));
 
 import { LamplightStudyPanel } from './LamplightStudyPanel';
@@ -213,5 +222,70 @@ describe('LamplightStudyPanel streaming', () => {
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(screen.getByText(/your message was saved/i)).toBeTruthy());
     expect(sendStudyMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('LamplightStudyPanel history + resume', () => {
+  beforeEach(() => { historyItems.length = 0; studyThreadCalls.length = 0; sendStudyMessage.mockReset(); streamStudyMessage.mockReset(); });
+  afterEach(() => { studyThreadMessages.length = 0; historyItems.length = 0; studyThreadCalls.length = 0; });
+
+  it('shows New conversation + History controls in the header', () => {
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    expect(screen.getByRole('button', { name: /new conversation/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /history/i })).toBeTruthy();
+  });
+
+  it('opens the history list and reopens a conversation in thread mode', () => {
+    historyItems.push({ threadId: 'thread-42', book: 'rom', chapter: 8, title: 'Paul', updatedAt: '2026-06-27T12:00:00Z' });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.click(screen.getByRole('button', { name: /history/i }));
+    // Label uses the history-label helper → "Romans 8 · …"
+    const item = screen.getByText(/romans 8 ·/i);
+    fireEvent.click(item);
+    // After reopening, the thread hook is called with the thread's id.
+    const lastCall = studyThreadCalls[studyThreadCalls.length - 1];
+    expect(lastCall[3]).toBe('thread-42');
+  });
+
+  it('resume send carries threadId + the thread\'s book/chapter (not the reader\'s)', async () => {
+    historyItems.push({ threadId: 'thread-42', book: 'rom', chapter: 8, title: 'Paul', updatedAt: '2026-06-27T12:00:00Z' });
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();
+      h.onEvent({ t: 'done', payload: { ok: true, reply: 'ok', citations: [], offered_notes: [] } });
+    });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.click(screen.getByRole('button', { name: /history/i }));
+    fireEvent.click(screen.getByText(/romans 8 ·/i));
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'connect to psalm 23?' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(streamStudyMessage).toHaveBeenCalled());
+    const sentArgs = streamStudyMessage.mock.calls[0][0] as { book: string; chapter: number; threadId?: string };
+    expect(sentArgs.book).toBe('rom');
+    expect(sentArgs.chapter).toBe(8);
+    expect(sentArgs.threadId).toBe('thread-42');
+  });
+
+  it('New conversation archives + returns to passage mode', async () => {
+    historyItems.push({ threadId: 'thread-42', book: 'rom', chapter: 8, title: 'Paul', updatedAt: '2026-06-27T12:00:00Z' });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    // reopen a thread first
+    fireEvent.click(screen.getByRole('button', { name: /history/i }));
+    fireEvent.click(screen.getByText(/romans 8 ·/i));
+    // now start a new conversation
+    fireEvent.click(screen.getByRole('button', { name: /new conversation/i }));
+    await waitFor(() => {
+      const lastCall = studyThreadCalls[studyThreadCalls.length - 1];
+      expect(lastCall[3]).toBeUndefined(); // back to passage mode → no threadId
+    });
+  });
+
+  it('resets to passage mode when the reader navigates to a new chapter', () => {
+    historyItems.push({ threadId: 'thread-42', book: 'rom', chapter: 8, title: 'Paul', updatedAt: '2026-06-27T12:00:00Z' });
+    const { rerender } = render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.click(screen.getByRole('button', { name: /history/i }));
+    fireEvent.click(screen.getByText(/romans 8 ·/i));
+    rerender(<LamplightStudyPanel book="jhn" chapter={11} userId="u1" />);
+    const lastCall = studyThreadCalls[studyThreadCalls.length - 1];
+    expect(lastCall[3]).toBeUndefined(); // navigation dropped the reopened thread
   });
 });
