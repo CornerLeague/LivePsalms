@@ -28,6 +28,7 @@ import { useNoteCollection } from '../context/useNoteCollection';
 import { useNotepadActions } from '../context/useNotepadActions';
 import { useReferenceGraph } from '../context/useReferenceGraph';
 import { useNoteEditor } from '../editor/use-note-editor';
+import { useNoteTitle } from '../editor/use-note-title';
 import { useBiblePrefs } from '../bible/prefs/bible-prefs-context';
 import { useNoteLinkPopup } from '../editor/use-note-link-popup';
 import { useVerseTooltip } from '../editor/use-verse-tooltip';
@@ -83,6 +84,12 @@ export function NotepadEditor({
   // The TipTap↔NotepadActions bridge for the active Note. See NoteEditor in CONTEXT.md.
   const { editor } = useNoteEditor({ activeNote, updateNote, onAfterSave, translation });
 
+  // The title is owned as instant local state and persisted on a debounce (same
+  // model as the body above). This decouples the visible value from the awaited
+  // storage write, which otherwise gated every keystroke behind a Supabase
+  // round-trip — felt as typing lag on mobile.
+  const { title, onTitleChange, flushTitle } = useNoteTitle({ activeNote, updateNote });
+
 
   const isBottomToolbar = toolbarPlacement === 'bottom';
 
@@ -111,7 +118,7 @@ export function NotepadEditor({
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
-  }, [activeNote?.id, activeNote?.title]);
+  }, [activeNote?.id, title]);
 
   // A behind-text decoration sits below the editor text, so a normal click lands
   // on the text (keeping it editable). Alt-click or double-click over the
@@ -460,8 +467,15 @@ export function NotepadEditor({
           <textarea
             ref={titleRef}
             rows={1}
-            value={activeNote.title}
-            onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            onBlur={flushTitle}
+            // Mobile keyboards otherwise rewrite words mid-type and flag every
+            // word as a spelling error, which disrupts the typing flow on a free-
+            // form note title. Sentence-case is kept (gentle, non-disruptive).
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck={false}
             onKeyDown={(e) => {
               // Keep title single-logical-line: Enter commits rather than
               // inserting a newline (it still wraps visually when too long).
