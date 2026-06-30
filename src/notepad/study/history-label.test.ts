@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeTime, formatHistoryLabel } from './history-label';
+import { formatRelativeTime, formatHistoryLabel, formatPassageLabel } from './history-label';
 
 const NOW = Date.parse('2026-06-29T12:00:00Z');
+
+describe('formatPassageLabel', () => {
+  it('resolves a known abbrev to its display name', () => {
+    expect(formatPassageLabel('rom', 8)).toBe('Romans 8');
+  });
+  it('falls back to the raw abbrev for an unknown book', () => {
+    expect(formatPassageLabel('zzz', 3)).toBe('zzz 3');
+  });
+});
 
 describe('formatRelativeTime', () => {
   it('buckets seconds/minutes/hours/days with correct pluralization', () => {

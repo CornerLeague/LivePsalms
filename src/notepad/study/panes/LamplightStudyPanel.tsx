@@ -10,7 +10,7 @@ import type { OfferedNote } from '../study-chat-client';
 import { makeStudyStreamInvoke, type StudySseEvent } from '../study-stream-client';
 import type { ChatCitation, InvokeFn } from '@/notepad/bible/lamplight-chat-client';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
-import { formatHistoryLabel } from '../history-label';
+import { formatHistoryLabel, formatPassageLabel } from '../history-label';
 
 const invoke: InvokeFn = (name, options) =>
   supabase!.functions.invoke(name, { body: options.body as Record<string, unknown> }) as ReturnType<InvokeFn>;
@@ -203,7 +203,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
 
   const now = useMemo(() => Date.now(), [history.items]);
   const headerLabel = selection.mode === 'thread'
-    ? formatHistoryLabel(groundBook, groundChapter, '', now).split(' · ')[0]
+    ? formatPassageLabel(groundBook, groundChapter)
     : `${groundBook.toUpperCase()} ${groundChapter}`;
 
   // requestStudyInsight is available for future use (e.g. opening insight button)
