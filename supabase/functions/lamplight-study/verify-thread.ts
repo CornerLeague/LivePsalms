@@ -16,13 +16,14 @@ export async function verifyStudyThread(
   supabase: SupabaseClient,
   args: { threadId: string; userId: string },
 ): Promise<{ ok: true; thread: VerifiedStudyThread } | { ok: false; reason: 'thread_not_found' }> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('lamplight_chat_threads')
     .select('id, book, chapter, passage_ref')
     .eq('id', args.threadId)
     .eq('user_id', args.userId)
     .eq('surface', 'study')
     .maybeSingle();
+  if (error) throw error;
   const row = data as { id: string; book: string; chapter: number; passage_ref: string } | null;
   if (!row) return { ok: false, reason: 'thread_not_found' };
   return { ok: true, thread: { threadId: row.id, book: row.book, chapter: row.chapter, passageRef: row.passage_ref } };

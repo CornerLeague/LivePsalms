@@ -30,4 +30,9 @@ describe('verifyStudyThread', () => {
     expect(eq).toHaveBeenCalledWith('user_id', 'u1');
     expect(eq).toHaveBeenCalledWith('surface', 'study');
   });
+
+  it('throws on a transient query error so the handler maps to 500, not a misleading 404', async () => {
+    const { client } = mockSupabase({ data: null, error: { message: 'db connection reset' } });
+    await expect(verifyStudyThread(client, { threadId: 't1', userId: 'u1' })).rejects.toBeDefined();
+  });
 });
