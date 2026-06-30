@@ -47,8 +47,9 @@ vi.mock('../study-stream-client', () => ({
 }));
 
 const historyItems: Array<{ threadId: string; book: string; chapter: number; title: string; updatedAt: string }> = [];
+const historyReload = vi.fn();
 vi.mock('../useStudyChatHistory', () => ({
-  useStudyChatHistory: () => ({ items: historyItems, loading: false, error: null, reload: vi.fn() }),
+  useStudyChatHistory: () => ({ items: historyItems, loading: false, error: null, reload: historyReload }),
 }));
 
 import { LamplightStudyPanel } from './LamplightStudyPanel';
@@ -287,5 +288,49 @@ describe('LamplightStudyPanel history + resume', () => {
     rerender(<LamplightStudyPanel book="jhn" chapter={11} userId="u1" />);
     const lastCall = studyThreadCalls[studyThreadCalls.length - 1];
     expect(lastCall[3]).toBeUndefined(); // navigation dropped the reopened thread
+  });
+});
+
+describe('LamplightStudyPanel history list stays in sync after mutations', () => {
+  beforeEach(() => { historyReload.mockReset(); sendStudyMessage.mockReset(); streamStudyMessage.mockReset(); });
+  afterEach(() => { studyThreadMessages.length = 0; historyReload.mockReset(); sendStudyMessage.mockReset(); streamStudyMessage.mockReset(); });
+
+  it('reloads the history list after a successful streaming send (the new thread appears)', async () => {
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();
+      h.onEvent({ t: 'done', payload: { ok: true, reply: 'ok', citations: [], offered_notes: [] } });
+    });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(historyReload).toHaveBeenCalled());
+  });
+
+  it('reloads the history list after a buffered-fallback send', async () => {
+    streamStudyMessage.mockRejectedValue(new Error('network'));
+    sendStudyMessage.mockResolvedValue({ ok: true, threadId: 't', reply: 'buffered', citations: [], offeredNotes: [] });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(sendStudyMessage).toHaveBeenCalled());
+    await waitFor(() => expect(historyReload).toHaveBeenCalled());
+  });
+
+  it('does NOT reload the history list when the send fails', async () => {
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();
+      h.onEvent({ t: 'error', reason: 'validators_failed' });
+    });
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.change(screen.getByPlaceholderText(/ask/i), { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeTruthy());
+    expect(historyReload).not.toHaveBeenCalled();
+  });
+
+  it('reloads the history list after starting a new conversation', async () => {
+    render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
+    fireEvent.click(screen.getByRole('button', { name: /new conversation/i }));
+    await waitFor(() => expect(historyReload).toHaveBeenCalled());
   });
 });

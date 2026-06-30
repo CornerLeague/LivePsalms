@@ -67,6 +67,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
   // book/chapter (reader's passage) drive archiveAndReset; selectedThreadId loads a reopened thread.
   const thread = useStudyChatThread(book, chapter, userId, selectedThreadId);
   const history = useStudyChatHistory(userId);
+  const { reload: reloadHistory } = history; // stable useCallback — safe to depend on directly
   const notes = useNotesOnOffer();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -93,7 +94,8 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     if (!res.ok) { setError(friendlyError(res.reason)); return; }
     thread.append([{ id: `a-${Date.now()}`, role: 'assistant', content: res.reply, citations: res.citations }]);
     notes.setOffered(res.offeredNotes);
-  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes]);
+    reloadHistory(); // a successful send creates/touches a thread server-side → keep the list in sync
+  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes, reloadHistory]);
 
   const doSend = useCallback(async (message: string, includeIds: string[]) => {
     setSending(true); setError(null);
@@ -160,6 +162,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
           citations: dp.citations ?? [],
         }]);
         notes.setOffered(dp.offered_notes ?? []);
+        reloadHistory(); // new/updated thread persisted → refresh the history list
       } else if (started) {
         // The 200 SSE already returned (server persisted the user message) → never
         // buffered-recover (it would re-insert + re-charge). No terminal event arrived,
@@ -172,7 +175,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     } finally {
       setSending(false);
     }
-  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes, streamInvoke, bufferedSend]);
+  }, [groundBook, groundChapter, translation, selectedThreadId, thread, notes, streamInvoke, bufferedSend, reloadHistory]);
 
   const send = useCallback(async () => {
     const m = draft.trim();
@@ -192,7 +195,8 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     notes.reset();
     setError(null);
     await thread.archiveAndReset();
-  }, [thread, notes]);
+    reloadHistory(); // the archive changed the thread list → refresh it
+  }, [thread, notes, reloadHistory]);
 
   const openThread = useCallback((item: { threadId: string; book: string; chapter: number }) => {
     setSelection({ mode: 'thread', threadId: item.threadId, book: item.book, chapter: item.chapter });
