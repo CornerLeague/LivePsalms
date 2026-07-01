@@ -16,3 +16,28 @@
 @media (prefers-reduced-motion: reduce) {
   .lamplight-waitline { animation: none; }
 }
+
+/* Typing-style dots after the "Lamplight" waiting label. */
+.lamplight-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 5px;
+}
+.lamplight-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: lamplight-dot 1.2s ease-in-out infinite;
+}
+.lamplight-dots span:nth-child(2) { animation-delay: 0.16s; }
+.lamplight-dots span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes lamplight-dot {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lamplight-dots span { animation: none; opacity: 0.6; }
+}

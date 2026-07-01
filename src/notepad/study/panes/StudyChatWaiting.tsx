@@ -1,30 +1,29 @@
 // src/notepad/study/panes/StudyChatWaiting.tsx
 import { useEffect, useMemo, useState } from 'react';
 
-// Gentle encouragements shown while Lamplight prepares a reply. They never make
-// promises on God's behalf or speak prophetically — they steady and invite,
-// offering reflection as possibility rather than pronouncement (Lamplight voice).
-// Styled deliberately unlike a reply (centered, serif, italic, accent-toned) so a
-// waiting line is never mistaken for the answer.
-const WAITING_LINES = [
-  'Be still a moment; the light is drawing near.',
-  'Even the waiting is held in kinder hands.',
-  'Grace is never in a hurry, and neither are you.',
-  'Every question carried to the Light is already heard.',
-  'Let the quiet become a kind of prayer.',
-  'Mercy keeps its own gentle time.',
-  'What you seek in the Word is also seeking you.',
-  'Rest here — nothing true is ever rushed.',
-  'The same hands that hung the stars are near.',
-  'Breathe; you are known, and you are kept.',
-  'Hope gathers slowly, like light before dawn.',
-  'The Word is patient; it will meet you where you are.',
-  'Peace is settling in, one small moment at a time.',
-  'Faith often grows quietest in the waiting.',
-  'Come as you are; there is room enough here.',
+// Short, comforting Scriptures shown while Lamplight prepares a reply. Kept to
+// public-domain wording (KJV / WEB / BSB are consistent on these) so there's no
+// translation-copyright concern. Styled unlike a reply (centered serif italic in
+// the accent tone) so a waiting verse is never mistaken for the answer.
+const WAITING_VERSES: { text: string; ref: string }[] = [
+  { text: 'Be still, and know that I am God.', ref: 'Psalm 46:10' },
+  { text: 'The LORD is my light and my salvation — whom shall I fear?', ref: 'Psalm 27:1' },
+  { text: 'Wait for the LORD; be strong, and take heart.', ref: 'Psalm 27:14' },
+  { text: 'The LORD is near to all who call on Him.', ref: 'Psalm 145:18' },
+  { text: 'The light shines in the darkness, and the darkness has not overcome it.', ref: 'John 1:5' },
+  { text: 'Come to Me, all who are weary and burdened, and I will give you rest.', ref: 'Matthew 11:28' },
+  { text: 'Cast all your anxiety on Him, because He cares for you.', ref: '1 Peter 5:7' },
+  { text: 'Your word is a lamp to my feet and a light to my path.', ref: 'Psalm 119:105' },
+  { text: 'His mercies are new every morning; great is Your faithfulness.', ref: 'Lamentations 3:22–23' },
+  { text: 'Peace I leave with you; My peace I give to you.', ref: 'John 14:27' },
+  { text: 'Those who wait upon the LORD will renew their strength.', ref: 'Isaiah 40:31' },
+  { text: 'The LORD your God is with you, He is mighty to save.', ref: 'Zephaniah 3:17' },
+  { text: 'Trust in the LORD with all your heart.', ref: 'Proverbs 3:5' },
+  { text: 'I have called you by name; you are Mine.', ref: 'Isaiah 43:1' },
+  { text: 'The LORD is my shepherd; I shall not want.', ref: 'Psalm 23:1' },
 ];
 
-/** Types one line in, character by character. Fresh instance per line (keyed),
+/** Types one line in, character by character. Fresh instance per verse (keyed),
  *  so all state updates land inside timers — never synchronously in the effect. */
 function TypeLine({ text, animate }: { text: string; animate: boolean }) {
   const [shown, setShown] = useState(animate ? '' : text);
@@ -37,7 +36,7 @@ function TypeLine({ text, animate }: { text: string; animate: boolean }) {
       if (cancelled) return;
       i += 1;
       setShown(text.slice(0, i));
-      if (i < text.length) timers.push(setTimeout(tick, 32));
+      if (i < text.length) timers.push(setTimeout(tick, 30));
     };
     timers.push(setTimeout(tick, 80));
     return () => { cancelled = true; timers.forEach(clearTimeout); };
@@ -51,10 +50,10 @@ export function StudyChatWaiting() {
     [],
   );
   // Shuffle once on mount — in an effect, where impurity (Math.random) is allowed —
-  // so the same wait doesn't always open with the same line.
-  const [order, setOrder] = useState<number[]>(() => WAITING_LINES.map((_, i) => i));
+  // so the same wait doesn't always open with the same verse.
+  const [order, setOrder] = useState<number[]>(() => WAITING_VERSES.map((_, i) => i));
   useEffect(() => {
-    const idx = WAITING_LINES.map((_, i) => i);
+    const idx = WAITING_VERSES.map((_, i) => i);
     for (let i = idx.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [idx[i], idx[j]] = [idx[j], idx[i]];
@@ -64,15 +63,15 @@ export function StudyChatWaiting() {
     return () => clearTimeout(t);
   }, []);
   const [pos, setPos] = useState(0);
-  const line = WAITING_LINES[order[pos % order.length]];
+  const verse = WAITING_VERSES[order[pos % order.length]];
 
-  // Advance to the next line once the current one has had time to type + rest.
+  // Advance to the next verse once the current one has had time to type + rest.
   // setPos fires inside a timer (never synchronously in the effect body).
   useEffect(() => {
-    const dwell = reduce ? 3600 : Math.min(2600 + line.length * 32, 5200);
+    const dwell = reduce ? 4200 : Math.min(3200 + verse.text.length * 30, 6500);
     const t = setTimeout(() => setPos((p) => p + 1), dwell);
     return () => clearTimeout(t);
-  }, [pos, line, reduce]);
+  }, [pos, verse, reduce]);
 
   return (
     <div
@@ -83,17 +82,26 @@ export function StudyChatWaiting() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
         textAlign: 'center',
       }}
     >
+      {/* "Lamplight" + animated dots — a typing-style indicator. */}
       <span
         aria-hidden
-        style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--silica)', opacity: 0.7 }}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          fontSize: 10,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--silica)',
+        }}
       >
-        While you wait
+        Lamplight
+        <span className="lamplight-dots" aria-hidden><span /><span /><span /></span>
       </span>
-      {/* key={pos} remounts per line so the CSS fade-in replays; TypeLine streams it. */}
+      {/* key={pos} remounts per verse so the CSS fade-in replays; TypeLine streams it. */}
       <span
         key={pos}
         aria-hidden
@@ -107,15 +115,18 @@ export function StudyChatWaiting() {
           color: 'var(--lamplight-accent)',
         }}
       >
-        <TypeLine text={line} animate={!reduce} />
+        <TypeLine text={verse.text} animate={!reduce} />
       </span>
-      {/* One steady status for screen readers; the poetic lines themselves are decorative. */}
+      <span aria-hidden style={{ fontSize: 11, letterSpacing: '0.04em', color: 'var(--silica)' }}>
+        {verse.ref}
+      </span>
+      {/* One steady status for screen readers; the verses themselves are decorative. */}
       <span
         role="status"
         aria-live="polite"
         style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}
       >
-        Lamplight is preparing a reflection…
+        Lamplight is preparing a reply…
       </span>
     </div>
   );
