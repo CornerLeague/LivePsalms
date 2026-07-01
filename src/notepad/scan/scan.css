@@ -136,7 +136,6 @@
   /* The image + transcript scroll here, above the pinned action bar. */
   overflow-y: auto;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   padding-bottom: 4px;
 }
 
