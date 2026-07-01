@@ -69,9 +69,38 @@
 
 .scan-capture__busy {
   margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   text-align: center;
   font-size: 15px;
   color: var(--silica);
+}
+
+/* Animated waiting dots after "Reading your handwriting" — a gentle staggered
+   wave for a calmer, more elevated wait. */
+.scan-capture__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.scan-capture__dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: scan-dot-pulse 1.2s ease-in-out infinite;
+}
+.scan-capture__dots span:nth-child(2) { animation-delay: 0.16s; }
+.scan-capture__dots span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes scan-dot-pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan-capture__dots span { animation: none; opacity: 0.6; }
 }
 
 .scan-capture__error {
@@ -88,9 +117,12 @@
 .transcription-review {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  /* Fill the scan overlay so the panes can scroll and the actions can pin to
+     the bottom of the screen. Desktop dialog restores normal flow below. */
+  flex: 1;
+  min-height: 0;
   gap: 14px;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  padding: 16px 16px 0;
   font-family: 'Outfit', sans-serif;
   color: var(--deep-umber);
 }
@@ -101,6 +133,10 @@
   gap: 14px;
   flex: 1;
   min-height: 0;
+  /* The image + transcript scroll here, above the pinned action bar. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 4px;
 }
 
 .transcription-review__image { margin: 0; }
@@ -125,6 +161,16 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.transcription-review__field-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--silica);
+  margin-bottom: -2px;
 }
 
 .transcription-review__title {
@@ -176,15 +222,15 @@
 .transcription-review__actions {
   display: flex;
   gap: 10px;
-  margin-top: auto;
-  /* Pin the actions so "Save note" stays reachable even when a long transcript
-     pushes past the fold in the scrolling overlay. Bg matches the overlay (the
-     token flips with the theme) so scrolled content doesn't show through. */
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
+  /* A bottom action bar: the panes above scroll, Save/Discard stay put at the
+     bottom of the screen. Full-bleed (the negative margin cancels the parent's
+     side padding) with its own inset so the buttons keep their margins, and a
+     safe-area inset so they clear the home indicator. */
+  margin: 0 -16px;
   background: var(--notepad-page-bg);
   border-top: 1px solid var(--pale-stone);
-  padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
 }
 .transcription-review__actions button {
   flex: 1;
@@ -217,14 +263,26 @@
 
 /* Side-by-side image + transcript on wider screens (desktop modal). */
 @media (min-width: 720px) {
-  .transcription-review__panes { flex-direction: row; align-items: flex-start; }
+  /* The desktop dialog isn't a full-screen flex column — restore normal flow so
+     the panes don't inner-scroll and the footer sits under the content. */
+  .transcription-review {
+    flex: initial;
+    min-height: 100%;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .transcription-review__panes {
+    flex-direction: row;
+    align-items: flex-start;
+    overflow: visible;
+    padding-bottom: 0;
+  }
   .transcription-review__image,
   .transcription-review__text { flex: 1; min-width: 0; }
   .transcription-review__image img { max-height: 60vh; }
   /* Inside the desktop dialog there's no full-screen scroll, so the footer
-     doesn't need to stick — keep it in normal flow. */
+     doesn't need a bar — keep it in normal flow. */
   .transcription-review__actions {
-    position: static;
+    margin: 0;
     background: transparent;
     border-top: none;
     padding: 8px 0 0;

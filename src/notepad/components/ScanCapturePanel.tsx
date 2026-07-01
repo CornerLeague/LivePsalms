@@ -41,7 +41,12 @@ export function ScanCapturePanel({ userId, onResult, onCancel }: Props) {
 
       {(phase === 'cleaning' || phase === 'transcribing') && (
         <div className="scan-capture__busy" aria-live="polite">
-          {phase === 'cleaning' ? 'Cleaning up image…' : 'Reading your handwriting…'}
+          <span>{phase === 'cleaning' ? 'Cleaning up image' : 'Reading your handwriting'}</span>
+          <span className="scan-capture__dots" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
         </div>
       )}
 

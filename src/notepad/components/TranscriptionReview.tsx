@@ -114,7 +114,11 @@ export function TranscriptionReview({ result, folderId, persistNotes, onSaved, o
               : <div aria-busy="true">Loading image…</div>}
         </figure>
         <div className="transcription-review__text">
+          <label className="transcription-review__field-label" htmlFor="scan-note-title">
+            Title
+          </label>
           <input
+            id="scan-note-title"
             className="transcription-review__title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
