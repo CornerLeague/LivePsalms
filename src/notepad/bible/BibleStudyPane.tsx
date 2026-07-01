@@ -17,7 +17,6 @@ import { bookByAbbrev } from './bible-books';
 import { SplitResizeHandle } from './SplitResizeHandle';
 import { useDragResize } from './useDragResize';
 import { loadBiblePassage, saveBiblePassage } from '@/notepad/session/session-storage';
-import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useScriptureFocusLists } from './focus/useScriptureFocusLists';
 import { FocusListView } from './focus/FocusListView';
@@ -145,7 +144,6 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: Bible
               focusModeOn: focus.focusModeOn,
               onToggleFocusMode: focus.toggleFocusMode,
               activeList: focus.activeList,
-              onAddCurrentVerse: async (ref) => { if (await focus.addRefs([ref])) toast(`Added ${ref.label}`); },
               renderFocusBody: () => (
                 <FocusListView focus={focus} translation={translation} searchDeps={searchDeps} />
               ),

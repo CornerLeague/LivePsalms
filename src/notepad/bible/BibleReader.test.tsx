@@ -224,7 +224,6 @@ function makeBridge(over: Partial<BibleReaderFocusBridge> = {}): BibleReaderFocu
     focusModeOn: false,
     onToggleFocusMode: vi.fn(),
     activeList: quickList,
-    onAddCurrentVerse: vi.fn(),
     renderFocusBody: () => <div data-testid="focus-body">FOCUS BODY</div>,
     ...over,
   };
@@ -250,19 +249,16 @@ describe('BibleReader focus bridge', () => {
     expect(screen.queryByText(/In the beginning was the Word/)).not.toBeInTheDocument();
   });
 
-  it('adds the current verse to the active list without selecting it', () => {
+  it('renders no per-verse add-to-list control while browsing the chapter', () => {
     const bridge = makeBridge();
-    const onSelectVerse = vi.fn();
     render(
       <BibleReader
         initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
-        focus={bridge} onSelectVerse={onSelectVerse}
+        focus={bridge}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /Add John 1:1 to Quick list/i }));
-    expect(bridge.onAddCurrentVerse).toHaveBeenCalledWith({
-      book: 'jhn', chapter: 1, verseStart: 1, verseEnd: 1, label: 'John 1:1',
-    });
-    expect(onSelectVerse).not.toHaveBeenCalled(); // stopPropagation kept the tap off the verse
+    // Verses render (browse mode) but no inline "add to list" affordance exists.
+    expect(screen.getByText(/In the beginning was the Word/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add .* to Quick list/i })).not.toBeInTheDocument();
   });
 });
