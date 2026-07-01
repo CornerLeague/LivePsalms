@@ -6,7 +6,11 @@ export function StudyModeToggle() {
   const isStudy = pathname.endsWith('/study');
   const base = isStudy ? pathname.slice(0, -'/study'.length) : pathname.replace(/\/$/, '');
   const segStyle = (active: boolean): React.CSSProperties => ({
-    padding: '4px 12px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    lineHeight: 1,
+    padding: '6px 12px',
     fontSize: 11,
     letterSpacing: '0.08em',
     fontFamily: 'Outfit, sans-serif',

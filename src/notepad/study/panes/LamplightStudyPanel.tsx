@@ -11,6 +11,7 @@ import { makeStudyStreamInvoke, type StudySseEvent } from '../study-stream-clien
 import type { ChatCitation, InvokeFn } from '@/notepad/bible/lamplight-chat-client';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { formatHistoryLabel, formatPassageLabel } from '../history-label';
+import { StudyChatWaiting } from './StudyChatWaiting';
 
 const invoke: InvokeFn = (name, options) =>
   supabase!.functions.invoke(name, { body: options.body as Record<string, unknown> }) as ReturnType<InvokeFn>;
@@ -219,6 +220,14 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     ? formatPassageLabel(groundBook, groundChapter)
     : `${groundBook.toUpperCase()} ${groundChapter}`;
 
+  // The window between "sent" and the first reply token: show the gentle waiting
+  // stream instead of an empty bubble. True while a streaming placeholder has no
+  // tokens yet ('') or a buffered send is out and the reply isn't appended yet.
+  const lastMsg = thread.messages[thread.messages.length - 1];
+  const awaitingReply =
+    streamingContent === '' ||
+    (sending && streamingContent === null && lastMsg?.role !== 'assistant');
+
   // requestStudyInsight is available for future use (e.g. opening insight button)
   void requestStudyInsight;
 
@@ -272,9 +281,10 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
               <AssistantRow key={m.id} content={m.content} />
             ),
           )}
-          {streamingContent !== null && (
+          {streamingContent !== null && streamingContent !== '' && (
             <AssistantRow content={streamingContent} streaming />
           )}
+          {awaitingReply && <StudyChatWaiting />}
           {notes.offered.length > 0 && (
             <div style={{ marginTop: 8, padding: 10, borderRadius: 8, border: '1px solid var(--lamplight-accent)', fontSize: 12 }}>
               <div style={{ marginBottom: 6, color: 'var(--deep-umber)' }}>
