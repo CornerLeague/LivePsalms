@@ -45,6 +45,12 @@ export class InMemoryFocusListAdapter implements FocusListAdapter {
     this.#lists.delete(id);
   }
 
+  async renameList(id: string, title: string): Promise<void> {
+    const list = this.#lists.get(id);
+    if (!list) return;
+    list.title = title;
+  }
+
   async addItems(listId: string, refs: ScriptureRef[], startPosition: number): Promise<FocusListItem[]> {
     const list = this.#lists.get(listId);
     if (!list) throw new Error(`list ${listId} not found`);

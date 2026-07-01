@@ -71,6 +71,14 @@ export class SupabaseFocusListAdapter implements FocusListAdapter {
     if (error) throw error;
   }
 
+  async renameList(id: string, title: string): Promise<void> {
+    const { error } = await this.#client
+      .from('scripture_focus_lists')
+      .update({ title })
+      .eq('id', id);
+    if (error) throw error;
+  }
+
   async addItems(listId: string, refs: ScriptureRef[], startPosition: number): Promise<FocusListItem[]> {
     if (refs.length === 0) return [];
     const rows = refs.map((r, idx) => ({

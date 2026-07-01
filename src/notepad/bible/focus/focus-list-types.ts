@@ -33,6 +33,8 @@ export interface FocusListAdapter {
   listLists(): Promise<FocusList[]>;
   createList(title: string, refs: ScriptureRef[]): Promise<FocusList>;
   deleteList(id: string): Promise<void>;
+  /** Rename a saved list. */
+  renameList(id: string, title: string): Promise<void>;
   /** Append items after the existing ones; `startPosition` = current item count. */
   addItems(listId: string, refs: ScriptureRef[], startPosition: number): Promise<FocusListItem[]>;
   removeItem(itemId: string): Promise<void>;

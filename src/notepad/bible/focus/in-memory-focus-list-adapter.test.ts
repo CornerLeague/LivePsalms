@@ -58,4 +58,12 @@ describe('InMemoryFocusListAdapter', () => {
     const [reloaded] = await a.listLists();
     expect(reloaded.items[0].label).toBe('a');
   });
+
+  it('renames a list and reflects the new title in listLists', async () => {
+    const a = new InMemoryFocusListAdapter();
+    const list = await a.createList('Old Title', []);
+    await a.renameList(list.id, 'New Title');
+    const [reloaded] = await a.listLists();
+    expect(reloaded.title).toBe('New Title');
+  });
 });

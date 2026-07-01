@@ -27,6 +27,9 @@ class FailingReorderItems extends InMemoryFocusListAdapter {
 class FailingDeleteList extends InMemoryFocusListAdapter {
   async deleteList(): Promise<void> { throw new Error('deleteList boom'); }
 }
+class FailingRenameList extends InMemoryFocusListAdapter {
+  async renameList(): Promise<void> { throw new Error('renameList boom'); }
+}
 
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); });
 afterEach(cleanup);
@@ -150,6 +153,28 @@ describe('useScriptureFocusLists', () => {
     await act(async () => { await result.current.reorderItem(secondItemId, 'up'); });
     // optimistic reorder was rolled back — original order preserved
     expect(result.current.savedLists[0].items.map((i) => i.label)).toEqual(['a', 'b']);
+    expect(vi.mocked(toast.error)).toHaveBeenCalledTimes(1);
+  });
+
+  it('renameList updates savedLists[0].title optimistically', async () => {
+    const adapter = new InMemoryFocusListAdapter();
+    await adapter.createList('Old Name', []);
+    const { result } = renderHook(() => useScriptureFocusLists({ adapterOverride: adapter }));
+    await waitFor(() => expect(result.current.savedLists).toHaveLength(1));
+    const listId = result.current.savedLists[0].id;
+    await act(async () => { await result.current.renameList(listId, 'New Name'); });
+    expect(result.current.savedLists[0].title).toBe('New Name');
+  });
+
+  it('rolls back savedLists and calls toast.error when renameList rejects', async () => {
+    const adapter = new FailingRenameList();
+    await adapter.createList('Sunday', []);
+    const { result } = renderHook(() => useScriptureFocusLists({ adapterOverride: adapter }));
+    await waitFor(() => expect(result.current.savedLists).toHaveLength(1));
+    const listId = result.current.savedLists[0].id;
+    await act(async () => { await result.current.renameList(listId, 'Monday'); });
+    // optimistic rename was rolled back — original title is preserved
+    expect(result.current.savedLists[0].title).toBe('Sunday');
     expect(vi.mocked(toast.error)).toHaveBeenCalledTimes(1);
   });
 

@@ -51,6 +51,17 @@ describe('SupabaseFocusListAdapter — single-call mutations', () => {
     wire({ message: 'boom' });
     await expect(adapter().removeItem('x')).rejects.toBeTruthy();
   });
+
+  it('renameList updates scripture_focus_lists by id', async () => {
+    await adapter().renameList('list-7', 'New Name');
+    expect(from).toHaveBeenCalledWith('scripture_focus_lists');
+    expect(eq).toHaveBeenCalledWith('id', 'list-7');
+  });
+
+  it('throws when the renameList update returns an error', async () => {
+    wire({ message: 'boom' });
+    await expect(adapter().renameList('list-7', 'New Name')).rejects.toBeTruthy();
+  });
 });
 
 describe('SupabaseFocusListAdapter — reorderItems is atomic', () => {

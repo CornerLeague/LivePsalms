@@ -25,6 +25,7 @@ export interface UseScriptureFocusListsResult {
   newList: (title: string) => Promise<void>;
   saveQuickList: (title: string) => Promise<void>;
   deleteList: (id: string) => Promise<void>;
+  renameList: (id: string, title: string) => Promise<void>;
   addRefs: (refs: ScriptureRef[]) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<void>;
   reorderItem: (itemId: string, direction: 'up' | 'down') => Promise<void>;
@@ -210,6 +211,19 @@ export function useScriptureFocusLists(
     }
   }, [adapter, quickItems, selectList, persistQuick]);
 
+  const renameList = useCallback(async (id: string, title: string) => {
+    if (!adapter) return;
+    const prev = savedLists;
+    setSavedLists((cur) => cur.map((l) => (l.id === id ? { ...l, title } : l)));
+    try {
+      await adapter.renameList(id, title);
+    } catch (err) {
+      console.warn('[useScriptureFocusLists] renameList failed:', err);
+      setSavedLists(prev);
+      toast.error('Could not rename the list. Please try again.');
+    }
+  }, [adapter, savedLists]);
+
   const deleteList = useCallback(async (id: string) => {
     if (!adapter) return;
     const prev = savedLists;
@@ -232,7 +246,7 @@ export function useScriptureFocusLists(
   return {
     focusModeOn, toggleFocusMode,
     savedLists, quickList, activeListId, activeList, canSave,
-    selectList, newList, saveQuickList, deleteList,
+    selectList, newList, saveQuickList, deleteList, renameList,
     addRefs, removeItem, reorderItem,
   };
 }
