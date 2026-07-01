@@ -70,6 +70,16 @@ describe('FocusListView', () => {
     expect(screen.getByRole('button', { name: /Verses/ })).toHaveTextContent('1 / 2');
   });
 
+  it('closes the verse dropdown on a pointerdown outside it', () => {
+    const items = [item('a', 'John 3:16'), item('b', 'John 3:17')];
+    wireVerseText(items);
+    render(<div><button data-testid="outside">outside</button><FocusListView focus={makeFocus(items)} translation="BSB" searchDeps={searchDeps} /></div>);
+    fireEvent.click(screen.getByRole('button', { name: /Verses/ })); // open the dropdown
+    expect(screen.getByRole('button', { name: /1\. John 3:16/ })).toBeInTheDocument();
+    fireEvent.pointerDown(screen.getByTestId('outside'));
+    expect(screen.queryByRole('button', { name: /1\. John 3:16/ })).not.toBeInTheDocument();
+  });
+
   it('shows the empty state when the list has no items', () => {
     render(<FocusListView focus={makeFocus([])} translation="BSB" searchDeps={searchDeps} />);
     expect(screen.getByText(/No verses yet/i)).toBeInTheDocument();

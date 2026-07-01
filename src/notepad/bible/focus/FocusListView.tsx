@@ -3,7 +3,7 @@
 // The verse-count dropdown also holds per-verse reorder/remove controls.
 // Verse text is fetched/assembled by useFocusListVerseText so the reader reads
 // in the active translation.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import type { BibleTranslation } from '../translations';
 import type { VerseSearchDeps } from '../verse-search-types';
@@ -11,6 +11,7 @@ import type { UseScriptureFocusListsResult } from './useScriptureFocusLists';
 import { useFocusListVerseText } from './useFocusListVerseText';
 import { FocusListSwitcher } from './FocusListSwitcher';
 import { AddVersePanel } from './AddVersePanel';
+import { useClickOutside } from './useClickOutside';
 
 export interface FocusListViewProps {
   focus: UseScriptureFocusListsResult;
@@ -22,6 +23,9 @@ export function FocusListView({ focus, translation, searchDeps }: FocusListViewP
   const [showAdd, setShowAdd] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [countOpen, setCountOpen] = useState(false);
+  const countRef = useRef<HTMLDivElement>(null);
+  // Click/tap anywhere outside closes the verse dropdown (desktop click + mobile touch).
+  useClickOutside(countRef, countOpen, () => setCountOpen(false));
   const { itemTexts } = useFocusListVerseText(focus.activeList.items, translation);
 
   const count = focus.activeList.items.length;
@@ -53,7 +57,7 @@ export function FocusListView({ focus, translation, searchDeps }: FocusListViewP
           <Plus className="w-4 h-4" style={{ color: 'var(--deep-umber)' }} />
         </button>
         {count > 0 && (
-          <div className="relative ml-auto">
+          <div className="relative ml-auto" ref={countRef}>
             <button
               aria-label="Verses"
               aria-expanded={countOpen}

@@ -3,10 +3,11 @@
 // and — when the Quick list is active and savable — a "Save this list…" action.
 // Per-list rename and delete are always visible (no edit-mode gate).
 // List naming uses an in-component modal instead of window.prompt.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, ChevronDown, Pencil, Plus, Save, X, Zap } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QUICK_LIST_ID, type FocusList } from './focus-list-types';
+import { useClickOutside } from './useClickOutside';
 
 export interface FocusListSwitcherProps {
   savedLists: FocusList[];
@@ -30,6 +31,9 @@ export function FocusListSwitcher({
   const [modal, setModal] = useState<ModalState>(null);
   const [nameInput, setNameInput] = useState('');
   const isMobile = useIsMobile();
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Click/tap anywhere outside closes the dropdown (desktop click + mobile touch).
+  useClickOutside(rootRef, open, () => setOpen(false));
 
   const activeTitle = activeListId === QUICK_LIST_ID
     ? quickList.title
@@ -134,7 +138,7 @@ export function FocusListSwitcher({
   );
 
   return (
-    <div className="relative">
+    <div className="relative" ref={rootRef}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-1 text-[12px] font-semibold px-2 py-1 rounded hover:bg-black/5"

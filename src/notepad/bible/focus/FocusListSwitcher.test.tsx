@@ -47,6 +47,21 @@ describe('FocusListSwitcher', () => {
     expect(screen.getByRole('button', { name: /Quick list \(unsaved\)/ })).toBeInTheDocument();
   });
 
+  it('closes the panel on a pointerdown outside the switcher', () => {
+    render(<div><button data-testid="outside">outside</button><FocusListSwitcher {...makeProps()} /></div>);
+    fireEvent.click(screen.getByRole('button', { name: /Comfort/ })); // open
+    expect(screen.getByRole('button', { name: /New list/ })).toBeInTheDocument();
+    fireEvent.pointerDown(screen.getByTestId('outside'));
+    expect(screen.queryByRole('button', { name: /New list/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the panel open on a pointerdown inside it', () => {
+    render(<FocusListSwitcher {...makeProps()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Comfort/ })); // open
+    fireEvent.pointerDown(screen.getByRole('button', { name: /New list/ }));
+    expect(screen.getByRole('button', { name: /New list/ })).toBeInTheDocument();
+  });
+
   it('selecting a saved list calls onSelect with its id', () => {
     const props = makeProps();
     render(<FocusListSwitcher {...props} />);
