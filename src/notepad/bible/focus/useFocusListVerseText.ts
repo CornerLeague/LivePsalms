@@ -60,6 +60,7 @@ export function useFocusListVerseText(
   useEffect(() => {
     const keys = keySignature ? keySignature.split(',') : [];
     if (!supabase || keys.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRowsByChapter(new Map());
       setLoading(false);
       return;
