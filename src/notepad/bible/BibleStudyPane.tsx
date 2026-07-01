@@ -145,7 +145,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: Bible
               focusModeOn: focus.focusModeOn,
               onToggleFocusMode: focus.toggleFocusMode,
               activeList: focus.activeList,
-              onAddCurrentVerse: (ref) => { focus.addRefs([ref]); toast(`Added ${ref.label}`); },
+              onAddCurrentVerse: async (ref) => { if (await focus.addRefs([ref])) toast(`Added ${ref.label}`); },
               renderFocusBody: () => (
                 <FocusListView focus={focus} translation={translation} searchDeps={searchDeps} />
               ),

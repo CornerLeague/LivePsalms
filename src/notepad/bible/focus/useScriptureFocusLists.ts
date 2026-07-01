@@ -25,7 +25,7 @@ export interface UseScriptureFocusListsResult {
   newList: (title: string) => Promise<void>;
   saveQuickList: (title: string) => Promise<void>;
   deleteList: (id: string) => Promise<void>;
-  addRefs: (refs: ScriptureRef[]) => Promise<void>;
+  addRefs: (refs: ScriptureRef[]) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<void>;
   reorderItem: (itemId: string, direction: 'up' | 'down') => Promise<void>;
 }
@@ -85,11 +85,23 @@ export function useScriptureFocusLists(
     saveQuickListItems(items);
   }, []);
 
-  // Resolve the active list; fall back to the quick list if the id is unknown.
+  // Derive the effective active id: if the stored id refers to a list that no
+  // longer exists (e.g. user signs out, localStorage still holds a saved-list id
+  // from the previous session), fall back to QUICK_LIST_ID so that mutators
+  // always operate on an existing target rather than silently no-op'ing.
+  const effectiveActiveListId = useMemo(
+    () => (activeListId !== QUICK_LIST_ID && savedLists.some((l) => l.id === activeListId))
+      ? activeListId
+      : QUICK_LIST_ID,
+    [activeListId, savedLists],
+  );
+
+  // Resolve the active list; uses effectiveActiveListId so it always returns a
+  // real list object even when the stored id is stale.
   const activeList: FocusList = useMemo(() => {
-    if (activeListId === QUICK_LIST_ID) return quickList;
-    return savedLists.find((l) => l.id === activeListId) ?? quickList;
-  }, [activeListId, savedLists, quickList]);
+    if (effectiveActiveListId === QUICK_LIST_ID) return quickList;
+    return savedLists.find((l) => l.id === effectiveActiveListId) ?? quickList;
+  }, [effectiveActiveListId, savedLists, quickList]);
 
   const toggleFocusMode = useCallback(() => {
     setFocusModeOn((prev) => { const next = !prev; saveFocusMode(next); return next; });
@@ -100,34 +112,36 @@ export function useScriptureFocusLists(
     saveActiveListId(id);
   }, []);
 
-  const addRefs = useCallback(async (refs: ScriptureRef[]) => {
-    if (refs.length === 0) return;
-    if (activeListId === QUICK_LIST_ID) {
+  const addRefs = useCallback(async (refs: ScriptureRef[]): Promise<boolean> => {
+    if (refs.length === 0) return false;
+    if (effectiveActiveListId === QUICK_LIST_ID) {
       persistQuick([...quickItems, ...refs.map((r, i) => refToQuickItem(r, quickItems.length + i))]);
-      return;
+      return true;
     }
-    if (!adapter) return;
-    const list = savedLists.find((l) => l.id === activeListId);
-    if (!list) return;
+    if (!adapter) return false;
+    const list = savedLists.find((l) => l.id === effectiveActiveListId);
+    if (!list) return false;
     const prev = savedLists;
     try {
-      const created = await adapter.addItems(activeListId, refs, list.items.length);
-      setSavedLists((cur) => cur.map((l) => (l.id === activeListId ? { ...l, items: [...l.items, ...created] } : l)));
+      const created = await adapter.addItems(effectiveActiveListId, refs, list.items.length);
+      setSavedLists((cur) => cur.map((l) => (l.id === effectiveActiveListId ? { ...l, items: [...l.items, ...created] } : l)));
+      return true;
     } catch (err) {
       console.warn('[useScriptureFocusLists] addItems failed:', err);
       setSavedLists(prev);
       toast.error('Could not add to the list. Please try again.');
+      return false;
     }
-  }, [activeListId, adapter, quickItems, savedLists, persistQuick]);
+  }, [effectiveActiveListId, adapter, quickItems, savedLists, persistQuick]);
 
   const removeItem = useCallback(async (itemId: string) => {
-    if (activeListId === QUICK_LIST_ID) {
+    if (effectiveActiveListId === QUICK_LIST_ID) {
       persistQuick(quickItems.filter((i) => i.id !== itemId).map((i, idx) => ({ ...i, position: idx })));
       return;
     }
     if (!adapter) return;
     const prev = savedLists;
-    setSavedLists((cur) => cur.map((l) => (l.id === activeListId
+    setSavedLists((cur) => cur.map((l) => (l.id === effectiveActiveListId
       ? { ...l, items: l.items.filter((i) => i.id !== itemId).map((i, idx) => ({ ...i, position: idx })) }
       : l)));
     try {
@@ -137,7 +151,7 @@ export function useScriptureFocusLists(
       setSavedLists(prev);
       toast.error('Could not remove the verse. Please try again.');
     }
-  }, [activeListId, adapter, quickItems, savedLists, persistQuick]);
+  }, [effectiveActiveListId, adapter, quickItems, savedLists, persistQuick]);
 
   const reorderItem = useCallback(async (itemId: string, direction: 'up' | 'down') => {
     const reorder = (items: FocusListItem[]): FocusListItem[] | null => {
@@ -150,26 +164,26 @@ export function useScriptureFocusLists(
       return next.map((i, position) => ({ ...i, position }));
     };
 
-    if (activeListId === QUICK_LIST_ID) {
+    if (effectiveActiveListId === QUICK_LIST_ID) {
       const next = reorder(quickItems);
       if (next) persistQuick(next);
       return;
     }
     if (!adapter) return;
-    const list = savedLists.find((l) => l.id === activeListId);
+    const list = savedLists.find((l) => l.id === effectiveActiveListId);
     if (!list) return;
     const next = reorder(list.items);
     if (!next) return;
     const prev = savedLists;
-    setSavedLists((cur) => cur.map((l) => (l.id === activeListId ? { ...l, items: next } : l)));
+    setSavedLists((cur) => cur.map((l) => (l.id === effectiveActiveListId ? { ...l, items: next } : l)));
     try {
-      await adapter.reorderItems(activeListId, next.map((i) => i.id));
+      await adapter.reorderItems(effectiveActiveListId, next.map((i) => i.id));
     } catch (err) {
       console.warn('[useScriptureFocusLists] reorderItems failed:', err);
       setSavedLists(prev);
       toast.error('Could not reorder. Please try again.');
     }
-  }, [activeListId, adapter, quickItems, savedLists, persistQuick]);
+  }, [effectiveActiveListId, adapter, quickItems, savedLists, persistQuick]);
 
   const newList = useCallback(async (title: string) => {
     if (!adapter) { toast.error('Sign in to save lists.'); return; }

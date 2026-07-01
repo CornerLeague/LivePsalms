@@ -30,7 +30,8 @@ export class SupabaseFocusListAdapter implements FocusListAdapter {
     const { data: lists, error: lErr } = await this.#client
       .from('scripture_focus_lists')
       .select('id, title, position')
-      .order('position', { ascending: true });
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true });
     if (lErr) throw lErr;
     const listRows = (lists ?? []) as ListRow[];
     if (listRows.length === 0) return [];

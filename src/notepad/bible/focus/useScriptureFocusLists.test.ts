@@ -94,6 +94,22 @@ describe('useScriptureFocusLists', () => {
     expect(result.current.quickList.items.map((i) => i.label)).toEqual(['b', 'a', 'c']);
   });
 
+  it('addRefs routes to the quick list (not a silent no-op) when activeListId is a stale saved-list id', async () => {
+    // Simulate the signed-out / stale-localStorage case: the stored id points to
+    // a saved list that no longer exists because there is no adapter (signed out).
+    localStorage.setItem('psalms.bible.focus.activeListId', 'stale-saved-id');
+    const { result } = renderHook(() => useScriptureFocusLists({ adapterOverride: null }));
+    // The raw stored id is preserved (selectList is not called on its behalf).
+    expect(result.current.activeListId).toBe('stale-saved-id');
+    // But activeList falls back to the quick list because the id is unresolvable.
+    expect(result.current.activeList.id).toBe(QUICK_LIST_ID);
+    // addRefs must add to the quick list and return true — NOT silently drop the add.
+    let ok: boolean | undefined;
+    await act(async () => { ok = await result.current.addRefs([ref('John 3:16')]); });
+    expect(ok).toBe(true);
+    expect(result.current.quickList.items.map((i) => i.label)).toEqual(['John 3:16']);
+  });
+
   // ── Optimistic-rollback catch branches ──────────────────────────────────────
 
   it('rolls back savedLists and calls toast.error when addItems rejects', async () => {
