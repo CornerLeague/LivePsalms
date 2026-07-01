@@ -1,9 +1,10 @@
 // List switcher for focus mode: dropdown (desktop) / bottom sheet (mobile). Lists
 // saved lists with the active one checkmarked, the unsaved Quick list, "New list…",
 // and — when the Quick list is active and savable — a "Save this list…" action.
-// v1 names lists via window.prompt (a styled dialog is a deferred polish item).
+// Per-list rename and delete are always visible (no edit-mode gate).
+// List naming uses an in-component modal instead of window.prompt.
 import { useState } from 'react';
-import { Check, ChevronDown, Plus, Save, X, Zap } from 'lucide-react';
+import { Check, ChevronDown, Pencil, Plus, Save, X, Zap } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QUICK_LIST_ID, type FocusList } from './focus-list-types';
 
@@ -16,34 +17,55 @@ export interface FocusListSwitcherProps {
   onNew: (title: string) => void;
   onSaveQuick: (title: string) => void;
   onDelete: (id: string) => void;
-  editMode: boolean;
+  onRename: (id: string, title: string) => void;
 }
+
+type ModalState = { mode: 'new' | 'save' | 'rename'; id?: string } | null;
 
 export function FocusListSwitcher({
   savedLists, quickList, activeListId, canSave,
-  onSelect, onNew, onSaveQuick, onDelete, editMode,
+  onSelect, onNew, onSaveQuick, onDelete, onRename,
 }: FocusListSwitcherProps) {
   const [open, setOpen] = useState(false);
+  const [modal, setModal] = useState<ModalState>(null);
+  const [nameInput, setNameInput] = useState('');
   const isMobile = useIsMobile();
 
   const activeTitle = activeListId === QUICK_LIST_ID
     ? quickList.title
     : savedLists.find((l) => l.id === activeListId)?.title ?? quickList.title;
 
-  const promptName = (): string | null => {
-    const name = window.prompt('Name this list');
-    const trimmed = name?.trim();
-    return trimmed ? trimmed : null;
-  };
-
   const handleNew = () => {
-    const name = promptName();
-    if (name) { onNew(name); setOpen(false); }
+    setModal({ mode: 'new' });
+    setNameInput('');
+    setOpen(false);
   };
   const handleSaveQuick = () => {
-    const name = promptName();
-    if (name) { onSaveQuick(name); setOpen(false); }
+    setModal({ mode: 'save' });
+    setNameInput('');
+    setOpen(false);
   };
+  const handleRename = (l: FocusList) => {
+    setModal({ mode: 'rename', id: l.id });
+    setNameInput(l.title);
+    setOpen(false);
+  };
+
+  const confirmModal = () => {
+    const name = nameInput.trim();
+    if (!name || !modal) return;
+    if (modal.mode === 'new') onNew(name);
+    else if (modal.mode === 'save') onSaveQuick(name);
+    else if (modal.mode === 'rename') onRename(modal.id!, name);
+    setModal(null);
+  };
+
+  const cancelModal = () => setModal(null);
+
+  const modalLabel =
+    modal?.mode === 'new' ? 'New list' :
+    modal?.mode === 'save' ? 'Save list' :
+    'Rename list';
 
   const showSaveQuick = activeListId === QUICK_LIST_ID && canSave && quickList.items.length > 0;
 
@@ -64,15 +86,20 @@ export function FocusListSwitcher({
             <Check className="w-3 h-3 shrink-0" style={{ opacity: l.id === activeListId ? 1 : 0 }} />
             {l.title}
           </button>
-          {editMode && (
-            <button
-              aria-label={`Delete ${l.title}`}
-              onClick={() => onDelete(l.id)}
-              className="p-1 rounded hover:bg-black/10"
-            >
-              <X className="w-3 h-3" style={{ color: '#b45454' }} />
-            </button>
-          )}
+          <button
+            aria-label={`Rename ${l.title}`}
+            onClick={() => handleRename(l)}
+            className="p-1 rounded hover:bg-black/10"
+          >
+            <Pencil className="w-3 h-3" style={{ color: 'var(--deep-umber)' }} />
+          </button>
+          <button
+            aria-label={`Delete ${l.title}`}
+            onClick={() => onDelete(l.id)}
+            className="p-1 rounded hover:bg-black/10"
+          >
+            <X className="w-3 h-3" style={{ color: '#b45454' }} />
+          </button>
         </div>
       ))}
 
@@ -117,6 +144,52 @@ export function FocusListSwitcher({
         <ChevronDown className="w-3 h-3" style={{ color: 'var(--silica)' }} />
       </button>
       {open && panel}
+
+      {modal !== null && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+        >
+          <div
+            className="w-64 rounded-lg p-4"
+            style={{ background: 'var(--surface-elevated)', border: '1px solid var(--pale-stone)' }}
+          >
+            <label className="text-[11px]" style={{ color: 'var(--silica)' }}>
+              {modalLabel}
+            </label>
+            <input
+              autoFocus
+              aria-label="List name"
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmModal();
+                if (e.key === 'Escape') cancelModal();
+              }}
+              className="text-[13px] p-2 mt-1 w-full rounded"
+              style={{ border: '1px solid var(--pale-stone)', color: 'var(--deep-umber)', background: 'transparent' }}
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                onClick={cancelModal}
+                className="text-[12px] px-3 py-1 rounded hover:bg-black/5"
+                style={{ color: 'var(--deep-umber)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmModal}
+                disabled={!nameInput.trim()}
+                className="text-[12px] px-3 py-1 rounded disabled:opacity-40"
+                style={{ background: 'var(--lamplight-accent)', color: 'var(--surface-elevated)' }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

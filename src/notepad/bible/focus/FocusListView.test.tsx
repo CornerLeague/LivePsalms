@@ -42,6 +42,7 @@ function makeFocus(items: FocusListItem[]): UseScriptureFocusListsResult {
     newList: vi.fn(),
     saveQuickList: vi.fn(),
     deleteList: vi.fn(),
+    renameList: vi.fn(),
     addRefs: vi.fn(),
     removeItem: vi.fn(),
     reorderItem: vi.fn(),
@@ -61,11 +62,12 @@ beforeEach(() => { verseTextRef.current = { itemTexts: [], loading: false }; });
 afterEach(cleanup);
 
 describe('FocusListView', () => {
-  it('renders the verse count', () => {
+  it('renders the first verse text and the 1/N counter', () => {
     const items = [item('a', 'John 3:16'), item('b', 'John 3:17')];
     wireVerseText(items);
     render(<FocusListView focus={makeFocus(items)} translation="BSB" searchDeps={searchDeps} />);
-    expect(screen.getByText('2 verses')).toBeInTheDocument();
+    expect(screen.getByText('text John 3:16')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Verses/ })).toHaveTextContent('1 / 2');
   });
 
   it('shows the empty state when the list has no items', () => {
@@ -80,23 +82,45 @@ describe('FocusListView', () => {
     expect(screen.getByLabelText(/paste references/i)).toBeInTheDocument();
   });
 
-  it('reorders a verse up in edit mode', () => {
+  it('Next arrow advances to verse 2; Prev disabled at index 0; Next disabled at last', () => {
+    const items = [item('a', 'John 3:16'), item('b', 'John 3:17')];
+    wireVerseText(items);
+    render(<FocusListView focus={makeFocus(items)} translation="BSB" searchDeps={searchDeps} />);
+    expect(screen.getByRole('button', { name: /Previous verse/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Next verse/ })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /Next verse/ }));
+    expect(screen.getByText('text John 3:17')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Next verse/ })).toBeDisabled();
+  });
+
+  it('verse dropdown opens and lists every verse; clicking a label shows that verse', () => {
+    const items = [item('a', 'John 3:16'), item('b', 'John 3:17'), item('c', 'John 3:18')];
+    wireVerseText(items);
+    render(<FocusListView focus={makeFocus(items)} translation="BSB" searchDeps={searchDeps} />);
+    fireEvent.click(screen.getByRole('button', { name: /Verses/ }));
+    expect(screen.getByText('1. John 3:16')).toBeInTheDocument();
+    expect(screen.getByText('2. John 3:17')).toBeInTheDocument();
+    expect(screen.getByText('3. John 3:18')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('3. John 3:18'));
+    expect(screen.getByText('text John 3:18')).toBeInTheDocument();
+  });
+
+  it('reorder and remove buttons in dropdown call the right hook methods', () => {
     const items = [item('a', 'John 3:16'), item('b', 'John 3:17')];
     wireVerseText(items);
     const focus = makeFocus(items);
     render(<FocusListView focus={focus} translation="BSB" searchDeps={searchDeps} />);
-    fireEvent.click(screen.getByRole('button', { name: /edit list/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Move John 3:17 up/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Verses/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Move John 3:17 up/ }));
     expect(focus.reorderItem).toHaveBeenCalledWith('b', 'up');
+    fireEvent.click(screen.getByRole('button', { name: /Remove John 3:16/ }));
+    expect(focus.removeItem).toHaveBeenCalledWith('a');
   });
 
-  it('removes a verse in edit mode', () => {
+  it('has no "Edit list" control', () => {
     const items = [item('a', 'John 3:16')];
     wireVerseText(items);
-    const focus = makeFocus(items);
-    render(<FocusListView focus={focus} translation="BSB" searchDeps={searchDeps} />);
-    fireEvent.click(screen.getByRole('button', { name: /edit list/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Remove John 3:16/i }));
-    expect(focus.removeItem).toHaveBeenCalledWith('a');
+    render(<FocusListView focus={makeFocus(items)} translation="BSB" searchDeps={searchDeps} />);
+    expect(screen.queryByLabelText('Edit list')).toBeNull();
   });
 });
