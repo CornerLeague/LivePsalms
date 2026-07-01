@@ -117,7 +117,14 @@ export function StudyChatWaiting() {
       >
         <TypeLine text={verse.text} animate={!reduce} />
       </span>
-      <span aria-hidden style={{ fontSize: 11, letterSpacing: '0.04em', color: 'var(--silica)' }}>
+      {/* Keyed + fading in step with the verse so the reference never snaps in
+          ahead of the line above it. */}
+      <span
+        key={`ref-${pos}`}
+        aria-hidden
+        className="lamplight-waitline"
+        style={{ fontSize: 11, letterSpacing: '0.04em', color: 'var(--silica)' }}
+      >
         {verse.ref}
       </span>
       {/* One steady status for screen readers; the verses themselves are decorative. */}
