@@ -60,7 +60,6 @@ beforeEach(() => {
   useAuthSession.mockReturnValue({ user: { id: 'u1' } });
   useLamplightSettings.mockReturnValue({ isLoading: false, settings: { enabled: true } });
   useLamplightEntitlement.mockReturnValue({ isLoading: false, hasAccess: () => true });
-  focusFake.addRefs.mockResolvedValue(true);
 });
 afterEach(cleanup);
 
