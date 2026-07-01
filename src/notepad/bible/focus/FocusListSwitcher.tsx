@@ -52,7 +52,7 @@ export function FocusListSwitcher({
       className={isMobile
         ? 'fixed inset-x-0 bottom-0 z-50 rounded-t-xl p-3'
         : 'absolute left-0 top-full z-50 mt-1 w-56 rounded-lg p-1'}
-      style={{ background: '#fff', border: '1px solid var(--pale-stone)', boxShadow: '0 6px 24px rgba(0,0,0,0.12)' }}
+      style={{ background: 'var(--surface-elevated)', border: '1px solid var(--pale-stone)', boxShadow: '0 6px 24px rgba(0,0,0,0.12)' }}
     >
       {savedLists.map((l) => (
         <div key={l.id} className="flex items-center">
