@@ -1,3 +1,5 @@
+import type { FocusListItem } from '@/notepad/bible/focus/focus-list-types';
+
 // Per-device session state persisted to localStorage so the app can return the
 // user to where they left off after a refresh or sign-out/sign-in. All reads and
 // writes are guarded — a disabled/full localStorage degrades to "no memory"
@@ -12,6 +14,9 @@ const KEY_BIBLE_TRANSLATION = 'psalms.bible.translation';
 const KEY_BIBLE_VERSE_LAYOUT = 'psalms.bible.verseLayout';
 const KEY_THEME = 'psalms.session.theme';
 const KEY_MOBILE_STUDY_TAB = 'psalms.session.mobileStudyTab';
+const KEY_FOCUS_MODE = 'psalms.bible.focus.mode';
+const KEY_FOCUS_ACTIVE_LIST = 'psalms.bible.focus.activeListId';
+const KEY_QUICK_LIST = 'psalms.bible.focus.quickList';
 
 export {
   KEY_LAST_NOTE,
@@ -22,6 +27,9 @@ export {
   KEY_BIBLE_VERSE_LAYOUT,
   KEY_THEME,
   KEY_MOBILE_STUDY_TAB,
+  KEY_FOCUS_MODE,
+  KEY_FOCUS_ACTIVE_LIST,
+  KEY_QUICK_LIST,
 };
 
 function readRaw(key: string): string | null {
@@ -100,4 +108,32 @@ export function loadBiblePassage(): StoredPassage | null {
 
 export function saveBiblePassage(passage: StoredPassage): void {
   writeRaw(KEY_BIBLE_PASSAGE, JSON.stringify(passage));
+}
+
+export function loadFocusMode(): boolean {
+  return readRaw(KEY_FOCUS_MODE) === '1';
+}
+export function saveFocusMode(on: boolean): void {
+  writeRaw(KEY_FOCUS_MODE, on ? '1' : '0');
+}
+
+export function loadActiveListId(): string | null {
+  return readRaw(KEY_FOCUS_ACTIVE_LIST);
+}
+export function saveActiveListId(id: string | null): void {
+  writeRaw(KEY_FOCUS_ACTIVE_LIST, id);
+}
+
+export function loadQuickListItems(): FocusListItem[] {
+  const raw = readRaw(KEY_QUICK_LIST);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as FocusListItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+export function saveQuickListItems(items: FocusListItem[]): void {
+  writeRaw(KEY_QUICK_LIST, JSON.stringify(items));
 }
