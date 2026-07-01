@@ -135,7 +135,7 @@ export function ApplePersonalTokensSection({ client, userId }: ApplePersonalToke
               href={APPLE_SHORTCUT_ICLOUD_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs px-3 py-2 rounded-lg text-center"
+              className="text-xs px-3 py-2 rounded-lg flex items-center justify-center"
               style={{
                 background: 'var(--deep-umber)',
                 color: 'var(--alabaster)',

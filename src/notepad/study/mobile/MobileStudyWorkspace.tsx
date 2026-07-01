@@ -25,6 +25,10 @@ export function MobileStudyWorkspace() {
     loadEnum<MobileStudyTab>(KEY_MOBILE_STUDY_TAB, ['reader', 'study', 'context'], 'reader'),
   );
   const [passage, setPassage] = useState<{ book: string; chapter: number }>({ book: 'jhn', chapter: 1 });
+  // Lifted so a verse tapped in the Reader tab feeds the Original Language panel
+  // in the Context tab (desktop lifts this in StudyWorkspace; mobile omitted it,
+  // so Original Language never populated here).
+  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
 
   useEffect(() => {
     saveEnum(KEY_MOBILE_STUDY_TAB, tab);
@@ -75,13 +79,13 @@ export function MobileStudyWorkspace() {
           <>
             {/* Panes stay mounted (display toggle) so reader scroll + chat draft survive tab switches. */}
             <div style={{ height: '100%', display: tab === 'reader' ? 'block' : 'none', overflow: 'auto' }}>
-              <StudyReader book={passage.book} chapter={passage.chapter} onPassageChange={handlePassageChange} />
+              <StudyReader book={passage.book} chapter={passage.chapter} onPassageChange={handlePassageChange} onSelectVerse={(ref) => setSelectedVerse(ref.verse)} />
             </div>
             <div style={{ height: '100%', display: tab === 'study' ? 'block' : 'none' }}>
               <StudySidePanel book={passage.book} chapter={passage.chapter} userId={userId} />
             </div>
             <div style={{ height: '100%', display: tab === 'context' ? 'block' : 'none', overflow: 'auto' }}>
-              <ApparatusRail book={passage.book} chapter={passage.chapter} />
+              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} />
             </div>
           </>
         )}
