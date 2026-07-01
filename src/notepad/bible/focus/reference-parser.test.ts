@@ -81,3 +81,33 @@ describe('parseReferences — rejections', () => {
     expect(parseReferences('John 3:16-2').unparsed).toEqual(['John 3:16-2']);
   });
 });
+
+describe('parseReferences — tolerant separators & punctuation (mobile-friendly)', () => {
+  const john316 = { book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16, label: 'John 3:16' };
+
+  it('accepts a period as the chapter:verse separator', () => {
+    expect(parseReferences('John 3.16').refs).toEqual([john316]);
+  });
+
+  it('accepts a full-width colon from mobile keyboards', () => {
+    expect(parseReferences('John 3：16').refs).toEqual([john316]);
+  });
+
+  it('accepts no space between the book and the chapter', () => {
+    expect(parseReferences('John3:16').refs).toEqual([john316]);
+  });
+
+  it('accepts a space as the chapter:verse separator', () => {
+    expect(parseReferences('John 3 16').refs).toEqual([john316]);
+  });
+
+  it('accepts a period range and normalizes a unicode dash', () => {
+    expect(parseReferences('Ps 23.1—3').refs).toEqual([
+      { book: 'psa', chapter: 23, verseStart: 1, verseEnd: 3, label: 'Psalm 23:1-3' },
+    ]);
+  });
+
+  it('still rejects a chapter-only reference after the relaxations', () => {
+    expect(parseReferences('Genesis 1').unparsed).toEqual(['Genesis 1']);
+  });
+});

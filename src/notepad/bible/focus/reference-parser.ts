@@ -63,6 +63,16 @@ function normalize(s: string): string {
   return s.trim().toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ');
 }
 
+// Map smart / full-width punctuation (common from mobile keyboards and pasted
+// text) to ASCII so a typed reference still parses: full-width colon, unicode
+// dashes, and non-breaking / unicode spaces.
+function normalizePunctuation(s: string): string {
+  return s
+    .replace(/\uFF1A/g, ':')                                   // full-width colon
+    .replace(/[\u2010-\u2015\u2212]/g, '-')                    // hyphen / en / em / minus dashes
+    .replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' '); // nbsp + unicode spaces
+}
+
 /** Resolve a book token (name or abbreviation) to a canonical book, or null. */
 function resolveBookToken(token: string): BibleBook | null {
   const n = normalize(token);
@@ -84,14 +94,15 @@ function resolveBookToken(token: string): BibleBook | null {
 }
 
 // Book part (optional 1-3 prefix + letters/spaces/periods), then chapter, then an
-// optional ":verse" with an optional "-/–/— end".
-const REF_RE = /^([1-3]?\s*[a-z][a-z. ]*?)\s+(\d{1,3})(?::(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?)?$/i;
+// optional verse — separated by a space, "." or ":" — with an optional "-" end.
+// Punctuation is normalized (normalizePunctuation) before this runs.
+const REF_RE = /^([1-3]?\s*[a-z][a-z. ]*?)\s*(\d{1,3})(?:[\s.:]+(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?)?$/i;
 
 /** Parse a string of one or more references; never throws. */
 export function parseReferences(input: string): ParseResult {
   const refs: ScriptureRef[] = [];
   const unparsed: string[] = [];
-  const tokens = input.split(/[,;\n]+/).map((t) => t.trim()).filter(Boolean);
+  const tokens = normalizePunctuation(input).split(/[,;\n]+/).map((t) => t.trim()).filter(Boolean);
 
   for (const token of tokens) {
     const m = REF_RE.exec(token);
