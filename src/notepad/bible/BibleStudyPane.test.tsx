@@ -2,7 +2,6 @@
 // src/notepad/bible/BibleStudyPane.test.tsx
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import { toast } from 'sonner';
 import type { ReactNode } from 'react';
 
 const useAuthSession = vi.fn();
@@ -61,10 +60,6 @@ beforeEach(() => {
   useAuthSession.mockReturnValue({ user: { id: 'u1' } });
   useLamplightSettings.mockReturnValue({ isLoading: false, settings: { enabled: true } });
   useLamplightEntitlement.mockReturnValue({ isLoading: false, hasAccess: () => true });
-  // addRefs now returns Promise<boolean>; default to success so the toast fires.
-  focusFake.addRefs.mockResolvedValue(true);
-  // Clear toast between tests so cross-test call counts don't bleed in.
-  vi.mocked(toast).mockClear();
 });
 afterEach(cleanup);
 
@@ -156,22 +151,5 @@ describe('BibleStudyPane — Scripture Focus wiring', () => {
     const node = (readerProps.current?.focus as { renderFocusBody: () => ReactNode }).renderFocusBody();
     render(<>{node}</>);
     expect(screen.getByTestId('focus-body')).toBeInTheDocument();
-  });
-
-  it('onAddCurrentVerse adds the ref and toasts on success', async () => {
-    render(<BibleStudyPane lamplightAdapter={adapter} invoke={vi.fn()} />);
-    const ref = { book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16, label: 'John 3:16' };
-    await (readerProps.current?.focus as { onAddCurrentVerse: (r: typeof ref) => Promise<void> }).onAddCurrentVerse(ref);
-    expect(focusFake.addRefs).toHaveBeenCalledWith([ref]);
-    expect(toast).toHaveBeenCalledWith(expect.stringContaining('John 3:16'));
-  });
-
-  it('onAddCurrentVerse does NOT toast when addRefs resolves false', async () => {
-    focusFake.addRefs.mockResolvedValueOnce(false);
-    render(<BibleStudyPane lamplightAdapter={adapter} invoke={vi.fn()} />);
-    const ref = { book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16, label: 'John 3:16' };
-    await (readerProps.current?.focus as { onAddCurrentVerse: (r: typeof ref) => Promise<void> }).onAddCurrentVerse(ref);
-    expect(focusFake.addRefs).toHaveBeenCalledWith([ref]);
-    expect(toast).not.toHaveBeenCalledWith(expect.stringContaining('Added'));
   });
 });
