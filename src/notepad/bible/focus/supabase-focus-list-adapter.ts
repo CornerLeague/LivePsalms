@@ -92,14 +92,28 @@ export class SupabaseFocusListAdapter implements FocusListAdapter {
   }
 
   async reorderItems(_listId: string, orderedItemIds: string[]): Promise<void> {
-    // Renumber positions densely. One update per item keeps it simple and RLS-safe;
-    // lists are short (a service's worth of verses), so the round-trip count is fine.
-    for (let position = 0; position < orderedItemIds.length; position += 1) {
-      const { error } = await this.#client
-        .from('scripture_focus_list_items')
-        .update({ position })
-        .eq('id', orderedItemIds[position]);
-      if (error) throw error;
-    }
+    if (orderedItemIds.length === 0) return;
+    // Renumber densely, but write every new position in ONE upsert. A per-row
+    // UPDATE loop commits each row independently, so a mid-loop failure leaves the
+    // DB with mixed-epoch positions (scrambled order on the next listLists) while
+    // the hook rolls its React state back — a persistent corruption. A single
+    // upsert is atomic: it all lands or none does. Full rows are required because
+    // upsert's INSERT path must satisfy the NOT NULL columns; on conflict (PK id)
+    // it updates. RLS still applies per row (owner-scoped through the parent list).
+    const { data, error } = await this.#client
+      .from('scripture_focus_list_items')
+      .select('id, list_id, book, chapter, verse_start, verse_end, label')
+      .in('id', orderedItemIds);
+    if (error) throw error;
+    const byId = new Map(((data ?? []) as Omit<ItemRow, 'position'>[]).map((r) => [r.id, r]));
+    const rows = orderedItemIds.map((id, position) => {
+      const row = byId.get(id);
+      if (!row) throw new Error(`reorderItems: item ${id} not found`);
+      return { ...row, position };
+    });
+    const { error: upErr } = await this.#client
+      .from('scripture_focus_list_items')
+      .upsert(rows, { onConflict: 'id' });
+    if (upErr) throw upErr;
   }
 }
