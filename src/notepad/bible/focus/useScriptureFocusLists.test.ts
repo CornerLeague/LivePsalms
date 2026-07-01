@@ -153,18 +153,22 @@ describe('useScriptureFocusLists', () => {
     expect(vi.mocked(toast.error)).toHaveBeenCalledTimes(1);
   });
 
-  it('rolls back savedLists and calls toast.error when deleteList rejects', async () => {
+  it('rolls back savedLists AND the active-list selection when deleteList rejects', async () => {
     const adapter = new FailingDeleteList();
     await adapter.createList('Sunday', []);
     const { result } = renderHook(() => useScriptureFocusLists({ adapterOverride: adapter }));
     await waitFor(() => expect(result.current.savedLists).toHaveLength(1));
     const listId = result.current.savedLists[0].id;
     act(() => { result.current.selectList(listId); });
+    expect(localStorage.getItem('psalms.bible.focus.activeListId')).toBe(listId);
     await act(async () => { await result.current.deleteList(listId); });
     // optimistic deletion was rolled back — list is restored
     await waitFor(() => expect(result.current.savedLists).toHaveLength(1));
     expect(result.current.savedLists[0].id).toBe(listId);
+    // the optimistic switch to the quick list is ALSO rolled back — in state AND
+    // localStorage — so the selection survives a page reload after a failed delete.
+    expect(result.current.activeListId).toBe(listId);
+    expect(localStorage.getItem('psalms.bible.focus.activeListId')).toBe(listId);
     expect(vi.mocked(toast.error)).toHaveBeenCalledTimes(1);
-    // NOTE: activeListId is intentionally NOT asserted — the hook does not restore it (known Minor)
   });
 });

@@ -213,13 +213,18 @@ export function useScriptureFocusLists(
   const deleteList = useCallback(async (id: string) => {
     if (!adapter) return;
     const prev = savedLists;
+    const wasActive = activeListId === id;
     setSavedLists((cur) => cur.filter((l) => l.id !== id));
-    if (activeListId === id) selectList(QUICK_LIST_ID);
+    if (wasActive) selectList(QUICK_LIST_ID);
     try {
       await adapter.deleteList(id);
     } catch (err) {
       console.warn('[useScriptureFocusLists] deleteList failed:', err);
       setSavedLists(prev);
+      // Restore the optimistic active-list switch too (both state and localStorage
+      // via selectList) — otherwise the restored list reappears but the selection
+      // is silently lost on the next reload.
+      if (wasActive) selectList(id);
       toast.error('Could not delete the list. Please try again.');
     }
   }, [adapter, activeListId, savedLists, selectList]);
