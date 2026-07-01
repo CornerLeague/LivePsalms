@@ -1,7 +1,7 @@
 // src/components/sections/notepad/mobile/MobileNotepadWorkspace.tsx
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { WifiOff } from 'lucide-react';
+import { WifiOff, X } from 'lucide-react';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import { useAccountProfile } from '@/auth/context/useAccountProfile';
 import { useNotepadActions } from '../../../../notepad/context/useNotepadActions';
@@ -253,6 +253,23 @@ export function MobileNotepadWorkspace() {
           className="fixed inset-0 z-[60] flex flex-col overflow-y-auto"
           style={{ background: 'var(--notepad-page-bg)' }}
         >
+          <div
+            className="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
+            style={{ background: 'var(--notepad-page-bg)', paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
+          >
+            <span className="text-sm font-medium" style={{ color: 'var(--deep-umber)' }}>
+              {scan === 'capture' ? 'Scan note' : 'Review scan'}
+            </span>
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setScan(null)}
+              className="flex h-9 w-9 items-center justify-center rounded-full"
+              style={{ color: 'var(--deep-umber)' }}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           {scan === 'capture' ? (
             <ScanCapturePanel
               userId={model.user.id}

@@ -31,19 +31,11 @@ export function ScanCapturePanel({ userId, onResult, onCancel }: Props) {
 
       {phase === 'idle' && (
         <div className="scan-capture__choices">
-          <button onClick={() => void scan.startCamera()}>Take photo</button>
-          <button onClick={() => scan.fileRef.current?.click()}>Choose photo</button>
+          {/* One capture path: the file input (capture="environment") opens the
+              camera on mobile and the picker on desktop — reliable on both, unlike
+              the getUserMedia flow it replaced. */}
+          <button onClick={() => scan.fileRef.current?.click()}>Take photo</button>
           <button onClick={scan.cancel}>Cancel</button>
-        </div>
-      )}
-
-      {phase === 'camera' && (
-        <div className="scan-capture__camera">
-          <video ref={scan.videoRef} playsInline muted aria-label="Camera preview" />
-          <div className="scan-capture__camera-actions">
-            <button onClick={() => void scan.capture()}>Capture</button>
-            <button onClick={scan.backToIdle}>Back</button>
-          </div>
         </div>
       )}
 
