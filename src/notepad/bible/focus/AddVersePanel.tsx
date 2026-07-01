@@ -1,17 +1,22 @@
 // The "+ Add" panel for a focus list: a Type/paste tab (tolerant reference parser)
-// and a Search tab (shared verse-search). Both surface ScriptureRefs via onAddRefs;
-// the panel never persists anything itself.
+// and a Search tab (shared verse-search + book→chapter→verse bubble browser).
+// Both surface ScriptureRefs via onAddRefs; the panel never persists anything itself.
 import { useEffect, useMemo, useState } from 'react';
 import { parseReferences } from './reference-parser';
 import { formatVerseLabel, type ScriptureRef } from './focus-list-types';
 import { createVerseSearch } from '../verse-search';
 import type { VerseCandidate, VerseSearchDeps } from '../verse-search-types';
 import type { BibleTranslation } from '../translations';
+import { searchBooks } from '../book-search';
+import type { BibleBook } from '../bible-books';
+import { loadChapterVerses as defaultLoadChapterVerses } from './chapter-verses';
 
 export interface AddVersePanelProps {
   onAddRefs: (refs: ScriptureRef[]) => void;
   searchDeps: VerseSearchDeps;
   translation: BibleTranslation;
+  /** Injected verse loader; defaults to the live supabase query. Tests pass a fake. */
+  loadChapterVerses?: (book: string, chapter: number, translation: BibleTranslation) => Promise<number[]>;
 }
 
 // A search candidate's osis ("jhn.3.16") carries the OSIS abbrev we store as
@@ -28,15 +33,45 @@ function candidateToRef(c: VerseCandidate): ScriptureRef {
   };
 }
 
-export function AddVersePanel({ onAddRefs, searchDeps, translation }: AddVersePanelProps) {
+export function AddVersePanel({
+  onAddRefs,
+  searchDeps,
+  translation,
+  loadChapterVerses: loadChapterVersesProp,
+}: AddVersePanelProps) {
   const [tab, setTab] = useState<'paste' | 'search'>('paste');
   const [text, setText] = useState('');
   const [unparsed, setUnparsed] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<VerseCandidate[]>([]);
 
+  // Browse navigator state
+  const [navBook, setNavBook] = useState<BibleBook | null>(null);
+  const [navChapter, setNavChapter] = useState<number | null>(null);
+  const [chapterVerses, setChapterVerses] = useState<number[]>([]);
+  const [loadingVerses, setLoadingVerses] = useState(false);
+
+  const loadVerses = loadChapterVersesProp ?? defaultLoadChapterVerses;
+
   const search = useMemo(() => createVerseSearch(searchDeps), [searchDeps]);
   useEffect(() => () => search.cancel(), [search]);
+
+  // Load verse numbers when the user drills into a chapter.
+  useEffect(() => {
+    if (!navBook || navChapter == null) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoadingVerses(true);
+
+    setChapterVerses([]);
+    (async () => {
+      const verses = await loadVerses(navBook.abbrev, navChapter, translation);
+      if (cancelled) return;
+      setChapterVerses(verses);
+      setLoadingVerses(false);
+    })();
+    return () => { cancelled = true; };
+  }, [navBook, navChapter, translation, loadVerses]);
 
   const submitPaste = () => {
     const { refs, unparsed: bad } = parseReferences(text);
@@ -48,6 +83,15 @@ export function AddVersePanel({ onAddRefs, searchDeps, translation }: AddVersePa
     setQuery(value);
     if (!value.trim()) { setResults([]); search.cancel(); return; }
     search.query(value, (next) => setResults(next));
+  };
+
+  const bookPills = searchBooks(query).books;
+
+  // Pill / bubble shared style tokens (matches BibleReader.tsx)
+  const pillStyle: React.CSSProperties = {
+    border: '1px solid var(--pale-stone)',
+    color: 'var(--deep-umber)',
+    fontFamily: 'Outfit, sans-serif',
   };
 
   return (
@@ -105,6 +149,87 @@ export function AddVersePanel({ onAddRefs, searchDeps, translation }: AddVersePa
             className="w-full text-[12px] p-2 rounded outline-none"
             style={{ border: '1px solid var(--pale-stone)', color: 'var(--deep-umber)', background: 'transparent' }}
           />
+
+          {/* Browse navigator — between the search input and keyword results */}
+          <div className="mt-1.5 mb-1">
+            {navBook === null ? (
+              /* Book level: pill grid filtered by the same query */
+              <div className="flex flex-wrap gap-1.5">
+                {bookPills.map((book) => (
+                  <button
+                    key={book.abbrev}
+                    onClick={() => { setNavBook(book); setNavChapter(null); }}
+                    className="text-[10px] px-2 py-1 rounded hover:bg-black/5"
+                    style={pillStyle}
+                  >
+                    {book.name}
+                  </button>
+                ))}
+              </div>
+            ) : navChapter === null ? (
+              /* Chapter level: back button + chapter bubble grid */
+              <div>
+                <button
+                  onClick={() => setNavBook(null)}
+                  className="text-[11px] block mb-1"
+                  style={{ color: 'var(--deep-umber)' }}
+                >
+                  ← {navBook.name}
+                </button>
+                <div className="grid grid-cols-8 gap-1.5">
+                  {Array.from({ length: navBook.chapterCount }, (_, i) => i + 1).map((ch) => (
+                    <button
+                      key={ch}
+                      aria-label={`Chapter ${ch}`}
+                      onClick={() => setNavChapter(ch)}
+                      className="text-[10px] py-1 rounded text-center hover:bg-black/5"
+                      style={pillStyle}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Verse level: back button + verse bubble grid loaded live */
+              <div>
+                <button
+                  onClick={() => setNavChapter(null)}
+                  className="text-[11px] block mb-1"
+                  style={{ color: 'var(--deep-umber)' }}
+                >
+                  ← {navBook.name} {navChapter}
+                </button>
+                {loadingVerses ? (
+                  <p className="text-[10px]" style={{ color: 'var(--deep-umber)' }}>Loading…</p>
+                ) : (
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {chapterVerses.map((v) => (
+                      <button
+                        key={v}
+                        aria-label={`Verse ${v}`}
+                        onClick={() =>
+                          onAddRefs([{
+                            book: navBook.abbrev,
+                            chapter: navChapter,
+                            verseStart: v,
+                            verseEnd: v,
+                            label: formatVerseLabel(navBook.name, navChapter, v, v),
+                          }])
+                        }
+                        className="text-[10px] py-1 rounded text-center hover:bg-black/5"
+                        style={pillStyle}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Keyword search results — unchanged */}
           <ul className="mt-1">
             {results.map((c) => {
               const verseEnd = c.verseEnd ?? c.verseStart;
