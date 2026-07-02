@@ -15,7 +15,7 @@ export function UsernameClaim() {
   const [skipping, setSkipping] = useState(false);
 
   function goToNotepad(username: string) {
-    navigate(`/notepad/u/${username}`, { replace: true });
+    navigate(`/notebook/u/${username}`, { replace: true });
   }
 
   async function handleSkip() {

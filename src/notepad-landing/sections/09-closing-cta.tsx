@@ -41,7 +41,7 @@ export function ClosingCTA({ prm }: ClosingCTAProps) {
           <h2 id="sec09-h2">{h2}</h2>
         </div>
         <div className="closing-actions">
-          <Link to="/notepad/notes" className="cta-primary closing-cta-primary">{ctaPrimary}</Link>
+          <Link to="/notebook/notes" className="cta-primary closing-cta-primary">{ctaPrimary}</Link>
           <Link to="/login" className="closing-cta-secondary">{ctaSecondary}</Link>
         </div>
       </div>

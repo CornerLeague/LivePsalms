@@ -38,7 +38,7 @@ export function ParticleHero({ prm }: ParticleHeroProps) {
         <h1 id="hero-h1" className="hero-h1">{h1}</h1>
         <p className="hero-sub">{sub}</p>
         <div className="hero-actions">
-          <Link to="/notepad/notes" className="cta-primary">{ctaPrimary}</Link>
+          <Link to="/notebook/notes" className="cta-primary">{ctaPrimary}</Link>
           <a href="#section-02" className="cta-ghost">{ctaGhost}</a>
         </div>
         <p className="hero-cta-note">{ctaNote}</p>

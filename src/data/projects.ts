@@ -113,7 +113,7 @@ export const projects: Project[] = [
 
 export const navItems = [
   { label: 'Purpose', href: '/purpose' },
-  { label: 'Notepad', href: '/notepad' },
+  { label: 'Notebook', href: '/notebook' },
   { label: 'Community', href: '/community' },
   { label: 'Contact', href: '/contact' },
 ];
@@ -123,7 +123,7 @@ export const navItems = [
 // imported by HeaderDesktop and HeaderMobile.
 export const NAV_TRIGGER_LABELS: ReadonlySet<string> = new Set([
   'Purpose',
-  'Notepad',
+  'Notebook',
   'Community',
   'Contact',
 ]);

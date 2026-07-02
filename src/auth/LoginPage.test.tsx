@@ -26,7 +26,7 @@ function renderAt(path = '/login') {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/notepad/notes" element={<div>NOTES</div>} />
+        <Route path="/notebook/notes" element={<div>NOTES</div>} />
       </Routes>
       <LocationProbe />
     </MemoryRouter>,
@@ -44,7 +44,7 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/login');
   });
 
-  it('redirects an already-signed-in user to /notepad/notes without navigating during render', () => {
+  it('redirects an already-signed-in user to /notebook/notes without navigating during render', () => {
     // navigate() during render emits a React console.error ("Cannot update a
     // component while rendering a different component"). The declarative
     // <Navigate> must not trigger it — guards the desktop login-redirect bug.
@@ -53,7 +53,7 @@ describe('LoginPage', () => {
 
     renderAt();
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/notepad/notes');
+    expect(screen.getByTestId('location')).toHaveTextContent('/notebook/notes');
     expect(screen.getByText('NOTES')).toBeInTheDocument();
     expect(screen.queryByText('AUTH_CARD')).not.toBeInTheDocument();
     expect(errSpy).not.toHaveBeenCalled();

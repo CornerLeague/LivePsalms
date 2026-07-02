@@ -107,7 +107,7 @@ export class AuthSession extends Observable<AuthSessionState> {
   signUp = async (email: string, password: string, fullName: string): Promise<void> => {
     if (!this.client) throw new Error('Supabase not configured');
     const emailRedirectTo =
-      typeof window !== 'undefined' ? `${window.location.origin}/notepad/notes` : undefined;
+      typeof window !== 'undefined' ? `${window.location.origin}/notebook/notes` : undefined;
     const { error } = await this.client.auth.signUp({
       email,
       password,
@@ -119,7 +119,7 @@ export class AuthSession extends Observable<AuthSessionState> {
   resendSignupEmail = async (email: string): Promise<void> => {
     if (!this.client) throw new Error('Supabase not configured');
     const emailRedirectTo =
-      typeof window !== 'undefined' ? `${window.location.origin}/notepad/notes` : undefined;
+      typeof window !== 'undefined' ? `${window.location.origin}/notebook/notes` : undefined;
     const { error } = await this.client.auth.resend({
       type: 'signup',
       email,
@@ -151,7 +151,7 @@ export class AuthSession extends Observable<AuthSessionState> {
   signInWithGoogle = async (): Promise<void> => {
     if (!this.client) throw new Error('Supabase not configured');
     const redirectTo =
-      typeof window !== 'undefined' ? `${window.location.origin}/notepad/notes` : undefined;
+      typeof window !== 'undefined' ? `${window.location.origin}/notebook/notes` : undefined;
     const { error } = await this.client.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
@@ -162,7 +162,7 @@ export class AuthSession extends Observable<AuthSessionState> {
   signInWithApple = async (): Promise<void> => {
     if (!this.client) throw new Error('Supabase not configured');
     const redirectTo =
-      typeof window !== 'undefined' ? `${window.location.origin}/notepad/notes` : undefined;
+      typeof window !== 'undefined' ? `${window.location.origin}/notebook/notes` : undefined;
     const { error } = await this.client.auth.signInWithOAuth({
       provider: 'apple',
       options: { redirectTo },

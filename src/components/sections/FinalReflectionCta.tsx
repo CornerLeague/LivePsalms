@@ -126,7 +126,7 @@ export function FinalReflectionCta() {
           In the verses you underlined, the prayers you wrote. Add your notes and journals here and see what He's been revealing about you — to you.
         </p>
         <Link
-          to="/notepad/notes"
+          to="/notebook/notes"
           aria-label="Open your notebook"
           className="final-reflection-notepad-cta group inline-flex items-center justify-center gap-2 px-6 md:px-8 py-3.5 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-1 max-w-[70vw] md:max-w-none"
           style={{

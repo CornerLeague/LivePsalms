@@ -69,7 +69,7 @@ export function MobileNotepadWorkspace() {
   const handleSignOut = useCallback(async () => {
     setAccountOpen(false);
     await session.signOut();
-    navigate('/notepad');
+    navigate('/notebook');
   }, [session, navigate]);
 
   const { openNote, createNote } = model;

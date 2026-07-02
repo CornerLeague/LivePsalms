@@ -26,6 +26,7 @@ import { RouteTransitionProvider } from '@/transitions/RouteTransitionContext';
 import { LoadingOverlayContext } from '@/hooks/loading-overlay-context';
 import { ThemeProvider } from '@/notepad/theme/ThemeProvider';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
+import { NotepadCompatRedirect } from '@/routing/NotepadCompatRedirect';
 import './App.css';
 
 // ── Route-level code splitting ───────────────────────────────────────────────
@@ -168,10 +169,10 @@ function App() {
 
   const isDetailPage = location.pathname.startsWith('/purpose/');
   const isPurposePage = location.pathname === '/purpose';
-  const isNotepadLanding = location.pathname === '/notepad';
+  const isNotepadLanding = location.pathname === '/notebook';
   const isNotepadEditor =
-    location.pathname.startsWith('/notepad/notes') ||
-    location.pathname.startsWith('/notepad/u/');
+    location.pathname.startsWith('/notebook/notes') ||
+    location.pathname.startsWith('/notebook/u/');
   const isNotepadAny = isNotepadLanding || isNotepadEditor;
   const isLoginPage = location.pathname === '/login';
   const isProfilePage = location.pathname === '/profile';
@@ -263,15 +264,21 @@ function App() {
                 </main>
               }
             />
-            <Route path="/notepad" element={<NotepadLanding />} />
-            <Route path="/notepad/notes" element={<LocalNotepadLayout />}>
+            <Route path="/notebook" element={<NotepadLanding />} />
+            <Route path="/notebook/notes" element={<LocalNotepadLayout />}>
               <Route index element={<NotepadWorkspace />} />
               <Route path="study" element={<StudyWorkspace />} />
             </Route>
-            <Route path="/notepad/u/:username" element={<VanityNotepadLayout />}>
+            <Route path="/notebook/u/:username" element={<VanityNotepadLayout />}>
               <Route index element={<NotepadWorkspace />} />
               <Route path="study" element={<StudyWorkspace />} />
             </Route>
+            {/* Backward-compat: old /notepad* links (bookmarks + already-sent
+                auth emails) redirect to their /notebook* equivalents, search +
+                hash preserved so OAuth callbacks still complete. */}
+            <Route path="/notepad" element={<NotepadCompatRedirect />} />
+            <Route path="/notepad/notes" element={<NotepadCompatRedirect />} />
+            <Route path="/notepad/u/:username" element={<NotepadCompatRedirect />} />
             <Route path="/community" element={<CommunityComingSoon />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />

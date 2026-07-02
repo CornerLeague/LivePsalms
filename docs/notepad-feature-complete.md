@@ -47,13 +47,15 @@ Two persistence modes: **anonymous/local** (works fully offline, no account) and
 
 | Route | Element | Role |
 |---|---|---|
-| `/notepad` | `NotepadLanding` | Marketing landing page (the scroll experience transcribed separately). Not the editor. |
-| `/notepad/notes` | `LegacyNotepadRoute` | Legacy entry + funnel target. Anonymous users get the **local-mode editor** here; signed-in users are redirected to their vanity URL. |
-| `/notepad/u/:username` | `VanityNotepadRoute` | Canonical signed-in editor URL, keyed on the user's username. **Private/owner-only** today. |
+| `/notebook` | `NotepadLanding` | Marketing landing page (the scroll experience transcribed separately). Not the editor. |
+| `/notebook/notes` | `LegacyNotepadRoute` | Legacy entry + funnel target. Anonymous users get the **local-mode editor** here; signed-in users are redirected to their vanity URL. |
+| `/notebook/u/:username` | `VanityNotepadRoute` | Canonical signed-in editor URL, keyed on the user's username. **Private/owner-only** today. |
+
+Legacy `/notepad`, `/notepad/notes`, and `/notepad/u/:username` URLs still resolve: `NotepadCompatRedirect` (`src/routing/`) redirects each to its `/notebook*` equivalent, preserving the query string and hash so already-sent Supabase auth-email links keep working.
 
 **Gate-driven rendering** (`useUsernameGate()` → `loading | signed-out | needs-username | ready`):
-- `/notepad/notes`: `signed-out` → `<Notepad/>` (local mode); `needs-username` → username picker; `ready` → redirect to `/notepad/u/:username`.
-- `/notepad/u/:username`: `signed-out` → redirect to `/notepad/notes`; `ready` → ownership check (`normalizeUsername(param) === gate.username`), else redirect to your own. **You can never load another user's editor.**
+- `/notebook/notes`: `signed-out` → `<Notepad/>` (local mode); `needs-username` → username picker; `ready` → redirect to `/notebook/u/:username`.
+- `/notebook/u/:username`: `signed-out` → redirect to `/notebook/notes`; `ready` → ownership check (`normalizeUsername(param) === gate.username`), else redirect to your own. **You can never load another user's editor.**
 
 The editor routes unmount the global header/dock and footer (`isNotepadEditor`), taking over the full viewport.
 
@@ -101,7 +103,7 @@ A different shell: full-screen column with a **bottom `MobileTabBar`** — **not
 
 ### 2.5 End-to-end journey
 
-Discover (`/notepad`) → CTA *"Open your notepad →"* → gate resolves (`/notepad/notes`) → (anonymous: editor opens in local mode; signed-in: username picker or redirect to vanity URL) → first-load migration prompt if applicable → **NEW NOTE** or open from sidebar → write in the Content tab → use Search (⌘K), Study Window (Bible/Graph), Backlinks/Info, Lamplight, Connection Cards, Upload/Scan → tier rewards → sign out returns to `/notepad` + local storage.
+Discover (`/notebook`) → CTA *"Open your notepad →"* → gate resolves (`/notebook/notes`) → (anonymous: editor opens in local mode; signed-in: username picker or redirect to vanity URL) → first-load migration prompt if applicable → **NEW NOTE** or open from sidebar → write in the Content tab → use Search (⌘K), Study Window (Bible/Graph), Backlinks/Info, Lamplight, Connection Cards, Upload/Scan → tier rewards → sign out returns to `/notebook` + local storage.
 
 ---
 
@@ -651,7 +653,7 @@ These are findings worth flagging for product/eng:
 
 9. **Voice/tradition preferences were removed** (migration 020) — Lamplight now auto-infers them from note content. The settings model still carries `quietMode`/`inlineSuggestions`/`weeklyEmail` without surfaced toggles.
 
-10. **Vanity URLs are private/owner-only today** — `/notepad/u/:username` enforces ownership and redirects mismatches. The readable username is an identity/canonicalization device and the seam for a future public share surface, not a public read mode yet.
+10. **Vanity URLs are private/owner-only today** — `/notebook/u/:username` enforces ownership and redirects mismatches. The readable username is an identity/canonicalization device and the seam for a future public share surface, not a public read mode yet.
 
 ---
 

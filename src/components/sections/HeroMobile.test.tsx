@@ -308,7 +308,7 @@ describe('HeroMobile content', () => {
     expect(quote.className).not.toContain('px-8');
   });
 
-  it('renders the "Open your Notebook" text link (arrow, no pill) linking to /notepad/notes', async () => {
+  it('renders the "Open your Notebook" text link (arrow, no pill) linking to /notebook/notes', async () => {
     Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true });
     setMatchMedia({ mobile: true });
     vi.resetModules();
@@ -316,7 +316,7 @@ describe('HeroMobile content', () => {
     const { getByTestId } = render(<Hero introActive={false} />);
     const cta = getByTestId('hero-notepad-link');
     expect(cta.tagName).toBe('A');
-    expect(cta).toHaveAttribute('href', '/notepad/notes');
+    expect(cta).toHaveAttribute('href', '/notebook/notes');
     // No pill chrome — it's the hero text link with an arrow.
     expect(cta.className).not.toContain('two-path-cta-notepad');
     expect(cta).toHaveTextContent('Open your Notebook');

@@ -25,7 +25,7 @@ export function heroNotepadLinkOpacity(introRevealed: boolean, progress: number)
 }
 
 const LINK_LABEL = 'Open Your Notebook';
-const NOTEPAD_NOTES_PATH = '/notepad/notes';
+const NOTEPAD_NOTES_PATH = '/notebook/notes';
 
 export interface HeroNotepadLinkProps {
   onNavTrigger?: () => void;

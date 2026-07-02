@@ -162,7 +162,7 @@ export function TwoPathInterlude() {
           Take a moment to write about where you're at and see how God meets you there.
         </p>
         <Link
-          to="/notepad/notes"
+          to="/notebook/notes"
           className="two-path-cta two-path-cta-notepad"
           aria-label="Open your Notebook"
         >

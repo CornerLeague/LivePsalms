@@ -16,7 +16,7 @@ function NotepadGateSpinner() {
   return <HeroLoadingOverlay active />;
 }
 
-/** /notepad/notes — legacy entry. Signed-out users stay here (local mode). */
+/** /notebook/notes — legacy entry. Signed-out users stay here (local mode). */
 export function LegacyNotepadRoute() {
   const gate = useUsernameGate();
   switch (gate.kind) {
@@ -27,11 +27,11 @@ export function LegacyNotepadRoute() {
     case 'needs-username':
       return <UsernameClaim />;
     case 'ready':
-      return <Navigate to={`/notepad/u/${gate.username}`} replace />;
+      return <Navigate to={`/notebook/u/${gate.username}`} replace />;
   }
 }
 
-/** /notepad/u/:username — private vanity editor, owner-only. */
+/** /notebook/u/:username — private vanity editor, owner-only. */
 export function VanityNotepadRoute() {
   const gate = useUsernameGate();
   const { username: param } = useParams();
@@ -39,20 +39,20 @@ export function VanityNotepadRoute() {
     case 'loading':
       return <NotepadGateSpinner />;
     case 'signed-out':
-      return <Navigate to="/notepad/notes" replace />;
+      return <Navigate to="/notebook/notes" replace />;
     case 'needs-username':
       return <UsernameClaim />;
     case 'ready':
       return normalizeUsername(param ?? '') === gate.username ? (
         <Notepad />
       ) : (
-        <Navigate to={`/notepad/u/${gate.username}`} replace />
+        <Navigate to={`/notebook/u/${gate.username}`} replace />
       );
   }
 }
 
 /**
- * Layout route for /notepad/notes — hoists NotepadProvider above nested children
+ * Layout route for /notebook/notes — hoists NotepadProvider above nested children
  * (journaling workspace + study workspace) so toggling between them does not
  * remount the notes brain. Signed-out users (local mode) get the provider;
  * signed-in users are redirected to their vanity URL.
@@ -66,7 +66,7 @@ export function LocalNotepadLayout() {
     case 'needs-username':
       return <UsernameClaim />;
     case 'ready':
-      return <Navigate to={`/notepad/u/${gate.username}`} replace />;
+      return <Navigate to={`/notebook/u/${gate.username}`} replace />;
     case 'signed-out':
       return (
         <NotepadProvider adapter={adapter}>
@@ -77,7 +77,7 @@ export function LocalNotepadLayout() {
 }
 
 /**
- * Layout route for /notepad/u/:username — hoists NotepadProvider above nested
+ * Layout route for /notebook/u/:username — hoists NotepadProvider above nested
  * children (journaling workspace + study workspace). Owner-only; mismatched
  * username param redirects to the correct vanity URL.
  */
@@ -89,7 +89,7 @@ export function VanityNotepadLayout() {
     case 'loading':
       return <NotepadGateSpinner />;
     case 'signed-out':
-      return <Navigate to="/notepad/notes" replace />;
+      return <Navigate to="/notebook/notes" replace />;
     case 'needs-username':
       return <UsernameClaim />;
     case 'ready':
@@ -98,7 +98,7 @@ export function VanityNotepadLayout() {
           <Outlet />
         </NotepadProvider>
       ) : (
-        <Navigate to={`/notepad/u/${gate.username}`} replace />
+        <Navigate to={`/notebook/u/${gate.username}`} replace />
       );
   }
 }

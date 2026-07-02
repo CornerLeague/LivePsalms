@@ -249,14 +249,14 @@ describe('AuthSession — auth methods', () => {
     expect(auth.signUpCalls[0]).toEqual({ email: 'a@b.com', password: 'pw', fullName: 'Alice Doe' });
   });
 
-  it('signUp passes an emailRedirectTo to /notepad/notes when a window exists', async () => {
+  it('signUp passes an emailRedirectTo to /notebook/notes when a window exists', async () => {
     const originalWindow = (globalThis as { window?: unknown }).window;
     (globalThis as { window?: unknown }).window = { location: { origin: 'https://example.test' } };
     try {
       const { client, auth } = makeFakeClient();
       const session = new AuthSession(client, local, new FakeOAuthProbe());
       await session.signUp('a@b.com', 'pw', 'Alice Doe');
-      expect(auth.signUpCalls[0].emailRedirectTo).toBe('https://example.test/notepad/notes');
+      expect(auth.signUpCalls[0].emailRedirectTo).toBe('https://example.test/notebook/notes');
     } finally {
       if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
       else (globalThis as { window?: unknown }).window = originalWindow;
@@ -273,7 +273,7 @@ describe('AuthSession — auth methods', () => {
       expect(auth.resendCalls[0]).toEqual({
         type: 'signup',
         email: 'a@b.com',
-        emailRedirectTo: 'https://example.test/notepad/notes',
+        emailRedirectTo: 'https://example.test/notebook/notes',
       });
     } finally {
       if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
