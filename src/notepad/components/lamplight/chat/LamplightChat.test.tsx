@@ -17,6 +17,7 @@ vi.mock('@/notepad/context/useNoteCollection', () => ({ useNoteCollection: () =>
 
 const useChatThreadList = vi.fn(() => ({ threads: [], loading: false, error: null, reload: vi.fn() }));
 vi.mock('@/notepad/bible/useChatThreadList', () => ({ useChatThreadList: () => useChatThreadList() }));
+vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({ useBiblePrefs: () => ({ translation: 'BSB' }) }));
 vi.mock('./ChatHistoryList', () => ({
   ChatHistoryList: (p: { onSelect: (id: string) => void; onBack: () => void }) => (
     <div data-testid="history-list">
