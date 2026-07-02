@@ -164,15 +164,15 @@ export function TwoPathInterlude() {
         <Link
           to="/notepad/notes"
           className="two-path-cta two-path-cta-notepad"
-          aria-label="Open your Notepad"
+          aria-label="Open your Notebook"
         >
           {hoverable ? (
             <TextStaggerHover as="span" className="two-path-cta-label">
-              <TextStaggerHoverActive animation="blur">Open your Notepad</TextStaggerHoverActive>
-              <TextStaggerHoverHidden animation="blur">Open your Notepad</TextStaggerHoverHidden>
+              <TextStaggerHoverActive animation="blur">Open your Notebook</TextStaggerHoverActive>
+              <TextStaggerHoverHidden animation="blur">Open your Notebook</TextStaggerHoverHidden>
             </TextStaggerHover>
           ) : (
-            <span className="two-path-cta-label">Open your Notepad</span>
+            <span className="two-path-cta-label">Open your Notebook</span>
           )}
         </Link>
       </div>

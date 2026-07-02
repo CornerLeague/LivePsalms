@@ -53,7 +53,7 @@ describe('TwoPathInterlude', () => {
     expect(labels).toHaveLength(2);
     const texts = Array.from(labels).map((el) => el.textContent);
     expect(texts).toContain('Read Below');
-    expect(texts).toContain('Open your Notepad');
+    expect(texts).toContain('Open your Notebook');
   });
 
   it('renders TextStaggerHover (duplicated label spans) when (hover: hover) matches', async () => {

@@ -127,7 +127,7 @@ export function FinalReflectionCta() {
         </p>
         <Link
           to="/notepad/notes"
-          aria-label="Open your notepad"
+          aria-label="Open your notebook"
           className="final-reflection-notepad-cta group inline-flex items-center justify-center gap-2 px-6 md:px-8 py-3.5 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-1 max-w-[70vw] md:max-w-none"
           style={{
             fontFamily: '"Cormorant Garamond", Georgia, serif',
@@ -141,8 +141,8 @@ export function FinalReflectionCta() {
           }}
         >
           <TextStaggerHover as="span">
-            <TextStaggerHoverActive animation="blur">Open your notepad</TextStaggerHoverActive>
-            <TextStaggerHoverHidden animation="blur">Open your notepad</TextStaggerHoverHidden>
+            <TextStaggerHoverActive animation="blur">Open your notebook</TextStaggerHoverActive>
+            <TextStaggerHoverHidden animation="blur">Open your notebook</TextStaggerHoverHidden>
           </TextStaggerHover>
           <span
             aria-hidden="true"

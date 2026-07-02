@@ -55,7 +55,7 @@ describe('HeroNotepadLink', () => {
 
   it('renders a link to /notepad/notes with an accessible name', () => {
     renderLink();
-    const link = screen.getByRole('link', { name: /open your notepad/i });
+    const link = screen.getByRole('link', { name: /open your notebook/i });
     expect(link).toHaveAttribute('href', '/notepad/notes');
   });
 
@@ -69,14 +69,14 @@ describe('HeroNotepadLink', () => {
   it('fires onNavTrigger and navigates to /notepad/notes on click', () => {
     const onNavTrigger = vi.fn();
     renderLink({ onNavTrigger });
-    fireEvent.click(screen.getByRole('link', { name: /open your notepad/i }));
+    fireEvent.click(screen.getByRole('link', { name: /open your notebook/i }));
     expect(onNavTrigger).toHaveBeenCalledTimes(1);
     expect(navigateMock).toHaveBeenCalledWith('/notepad/notes');
   });
 
   it('does not throw when onNavTrigger is omitted, still navigates', () => {
     renderLink();
-    fireEvent.click(screen.getByRole('link', { name: /open your notepad/i }));
+    fireEvent.click(screen.getByRole('link', { name: /open your notebook/i }));
     expect(navigateMock).toHaveBeenCalledWith('/notepad/notes');
   });
 });

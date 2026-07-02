@@ -3,12 +3,12 @@ import { copy } from './copy';
 
 describe('notepad landing copy (locked)', () => {
   it('hero H1 is the locked line', () => {
-    expect(copy.section01.h1).toBe('Everything God’s said to you. In one place that remembers.');
+    expect(copy.section01.h1).toBe('Your Walk with God isn’t just a Journey, it’s a Story.');
   });
 
   it('hero subtitle matches the locked copy', () => {
     expect(copy.section01.sub).toBe(
-      'Your devotions, your sermon notes, the verses you keep coming back to — written down, connected, and read back to you when you need it.',
+      'We have carefully crafted an all-in-one digital notebook made to empower your time with God.',
     );
   });
 
@@ -16,12 +16,12 @@ describe('notepad landing copy (locked)', () => {
     expect(copy.section01.ctaNote).toBe('No account needed to start. Works offline.');
   });
 
-  it('primary CTA reads "Open your notepad →"', () => {
-    expect(copy.section01.ctaPrimary).toBe('Open your notepad →');
+  it('primary CTA reads "Open your notebook →"', () => {
+    expect(copy.section01.ctaPrimary).toBe('Open your notebook →');
   });
 
   it('closing CTA repeats the primary', () => {
-    expect(copy.section09.ctaPrimary).toBe('Open your notepad →');
+    expect(copy.section09.ctaPrimary).toBe('Open your notebook →');
   });
 
   it('Lamplight section leads with the "already knows" framing', () => {

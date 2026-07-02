@@ -1,11 +1,11 @@
 export const copy = {
   section01: {
-    eyebrow: '— THE NOTEPAD —',
-    h1: 'Everything God’s said to you. In one place that remembers.',
-    sub: 'Your devotions, your sermon notes, the verses you keep coming back to — written down, connected, and read back to you when you need it.',
+    eyebrow: '— FAITH-BASED DIGITAL NOTEBOOK —',
+    h1: 'Your Walk with God isn’t just a Journey, it’s a Story.',
+    sub: 'We have carefully crafted an all-in-one digital notebook made to empower your time with God.',
     activeFormLabel: 'ACTIVE FORM',
-    shapeNames: ['Pencil', 'Heart', 'Journal'] as const,
-    ctaPrimary: 'Open your notepad →',
+    shapeNames: ['Pencil', 'Heart', 'Notebook'] as const,
+    ctaPrimary: 'Open your notebook →',
     ctaGhost: 'Read what it does',
     ctaNote: 'No account needed to start. Works offline.',
   },
@@ -29,7 +29,7 @@ export const copy = {
     body: 'Today’s Lamp is a single morning, afternoon, or evening card — built from your own recent notes, anchored in scripture, written for the season you’re actually in.',
     supporting: 'Not a verse-of-the-day. A word for where you are.',
     detail: 'It shows its work: every line names the note and the verse it came from.',
-    cta: 'Open your notepad →',
+    cta: 'Open your notebook →',
   },
   section05: {
     eyebrow: '— PERSONAL BIBLE STUDY —',
@@ -63,7 +63,7 @@ export const copy = {
   },
   section09: {
     h2: 'The first page is open.',
-    ctaPrimary: 'Open your notepad →',
+    ctaPrimary: 'Open your notebook →',
     ctaSecondary: 'Already writing? Sign in →',
   },
 } as const;

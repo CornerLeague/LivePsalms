@@ -24,14 +24,14 @@ export function heroNotepadLinkOpacity(introRevealed: boolean, progress: number)
   return 1 - t;
 }
 
-const LINK_LABEL = 'Open Your Notepad';
+const LINK_LABEL = 'Open Your Notebook';
 const NOTEPAD_NOTES_PATH = '/notepad/notes';
 
 export interface HeroNotepadLinkProps {
   onNavTrigger?: () => void;
   className?: string;
   style?: CSSProperties;
-  /** Visible link text. Defaults to the full phrase; mobile passes "Open your Notepad". */
+  /** Visible link text. Defaults to the full phrase; mobile passes "Open your Notebook". */
   label?: string;
   /** When true, the arrow gently slides left↔right to invite a tap (mobile). */
   animateArrow?: boolean;

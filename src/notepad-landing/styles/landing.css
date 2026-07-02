@@ -54,6 +54,17 @@
   margin-bottom: 2rem;
 }
 
+/* Hero eyebrow sits over the particle cloud — hug it in a scrim pill so the
+   label stays legible without banding the full column. */
+.hero .eyebrow {
+  display: inline-block;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(14, 14, 14, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
 .hero-h1 {
   font-family: var(--np-display);
   font-size: clamp(2.4rem, 5vw, 4.6rem);
@@ -163,6 +174,10 @@
   border-radius: 999px;
   text-decoration: none;
   transition: background 0.4s var(--np-ease), color 0.4s var(--np-ease), transform 0.4s var(--np-ease);
+  /* Scrim: darken the particle cloud behind the label so it stays legible. */
+  background: rgba(14, 14, 14, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
 /* Shimmer: a warm highlight relays from the primary button to the ghost,
@@ -210,7 +225,6 @@
 .cta-primary {
   border: 1.5px solid #c4b5a0;
   color: #f4f0e8;
-  background: transparent;
 }
 
 .cta-primary:hover {
@@ -226,7 +240,9 @@
 
 .cta-ghost:hover {
   border-color: #c4b5a0;
-  color: #c4b5a0;
+  background: #c4b5a0;
+  color: #0e0e0e;
+  transform: translateY(-2px);
 }
 
 .hero-form-indicator {
