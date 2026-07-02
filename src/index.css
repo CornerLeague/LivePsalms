@@ -1041,7 +1041,7 @@ img {
   50% { transform: translateY(4px); opacity: 1; }
 }
 
-/* Open your Notepad — pill border (matches FinalReflectionCta's notepad pill).
+/* Open your Notebook — pill border (matches FinalReflectionCta's notepad pill).
    Overrides the shared .two-path-cta column flex + zero padding + no border. */
 .two-path-cta-notepad {
   flex-direction: row;

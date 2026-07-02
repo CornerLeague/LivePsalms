@@ -16,7 +16,7 @@ describe('NotepadLanding (stub)', () => {
       </MemoryRouter>,
     );
     expect(
-      screen.getByRole('heading', { level: 1, name: /everything god’s said to you/i }),
+      screen.getByRole('heading', { level: 1, name: /your walk with god isn’t just a journey/i }),
     ).toBeInTheDocument();
   });
 
@@ -28,7 +28,7 @@ describe('NotepadLanding (stub)', () => {
         </Routes>
       </MemoryRouter>,
     );
-    const ctas = screen.getAllByRole('link', { name: /open your notepad/i });
+    const ctas = screen.getAllByRole('link', { name: /open your notebook/i });
     expect(ctas.length).toBeGreaterThanOrEqual(1);
     expect(ctas[0]).toHaveAttribute('href', '/notepad/notes');
   });

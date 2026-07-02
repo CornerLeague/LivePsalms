@@ -75,7 +75,7 @@ function RestorationCTA({ purposeWord, overlayColor, variant = 'desktop' }: Rest
           to="/notepad/notes"
           className="group inline-flex items-center gap-2 px-8 py-3.5 rounded-full border border-white/30 bg-white/5 text-base text-white/95 tracking-wide hover:bg-white/10 hover:border-white/50 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 mt-2"
         >
-          Open your notepad
+          Open your notebook
           <span
             aria-hidden="true"
             className="transition-transform duration-200 group-hover:translate-x-[3px] motion-reduce:transform-none"

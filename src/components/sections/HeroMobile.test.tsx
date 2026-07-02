@@ -308,7 +308,7 @@ describe('HeroMobile content', () => {
     expect(quote.className).not.toContain('px-8');
   });
 
-  it('renders the "Open your Notepad" text link (arrow, no pill) linking to /notepad/notes', async () => {
+  it('renders the "Open your Notebook" text link (arrow, no pill) linking to /notepad/notes', async () => {
     Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true });
     setMatchMedia({ mobile: true });
     vi.resetModules();
@@ -319,7 +319,7 @@ describe('HeroMobile content', () => {
     expect(cta).toHaveAttribute('href', '/notepad/notes');
     // No pill chrome — it's the hero text link with an arrow.
     expect(cta.className).not.toContain('two-path-cta-notepad');
-    expect(cta).toHaveTextContent('Open your Notepad');
+    expect(cta).toHaveTextContent('Open your Notebook');
     const arrow = cta.querySelector('[data-testid="hero-notepad-arrow"]');
     expect(arrow).not.toBeNull();
     // Arrow carries the subtle left↔right nudge animation on mobile.
