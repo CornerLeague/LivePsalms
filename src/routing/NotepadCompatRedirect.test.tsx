@@ -26,14 +26,15 @@ function renderAt(path: string) {
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        {/* Legacy /notepad* routes under test — each redirects to /notebook*. */}
-        <Route path="/notepad" element={<NotepadCompatRedirect />} />
-        <Route path="/notepad/notes" element={<NotepadCompatRedirect />} />
-        <Route path="/notepad/u/:username" element={<NotepadCompatRedirect />} />
+        {/* Legacy /notepad* routes under test — a single `/*` splat catches
+            /notepad and every descendant, mirroring App.tsx. */}
+        <Route path="/notepad/*" element={<NotepadCompatRedirect />} />
         {/* Destinations — render the probe so we can read where we landed. */}
         <Route path="/notebook" element={<LocationProbe />} />
         <Route path="/notebook/notes" element={<LocationProbe />} />
+        <Route path="/notebook/notes/study" element={<LocationProbe />} />
         <Route path="/notebook/u/:username" element={<LocationProbe />} />
+        <Route path="/notebook/u/:username/study" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -53,6 +54,16 @@ describe('NotepadCompatRedirect (legacy /notepad → /notebook)', () => {
   it('redirects /notepad/u/:username preserving the username', () => {
     renderAt('/notepad/u/natalie');
     expect(screen.getByTestId('location').textContent).toBe('/notebook/u/natalie');
+  });
+
+  it('redirects the /notes/study child (previously a 404 for old bookmarks)', () => {
+    renderAt('/notepad/notes/study');
+    expect(screen.getByTestId('location').textContent).toBe('/notebook/notes/study');
+  });
+
+  it('redirects the /u/:username/study child preserving the username', () => {
+    renderAt('/notepad/u/natalie/study');
+    expect(screen.getByTestId('location').textContent).toBe('/notebook/u/natalie/study');
   });
 
   it('preserves the query string so already-sent auth-email links still complete (?code=)', () => {

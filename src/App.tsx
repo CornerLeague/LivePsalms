@@ -275,10 +275,11 @@ function App() {
             </Route>
             {/* Backward-compat: old /notepad* links (bookmarks + already-sent
                 auth emails) redirect to their /notebook* equivalents, search +
-                hash preserved so OAuth callbacks still complete. */}
-            <Route path="/notepad" element={<NotepadCompatRedirect />} />
-            <Route path="/notepad/notes" element={<NotepadCompatRedirect />} />
-            <Route path="/notepad/u/:username" element={<NotepadCompatRedirect />} />
+                hash preserved so OAuth callbacks still complete. The `/*` splat
+                matches /notepad itself and every descendant — including the
+                /notes/study and /u/:username/study children — so no old deep
+                link falls through to a 404. */}
+            <Route path="/notepad/*" element={<NotepadCompatRedirect />} />
             <Route path="/community" element={<CommunityComingSoon />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
