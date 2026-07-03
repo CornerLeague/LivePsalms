@@ -221,4 +221,50 @@ describe('RecordingsAudioProvider', () => {
     expect(ctx.mode).toBe('idle');
     expect(ctx.track).toBeNull();
   });
+
+  it('unmounting mid-recording stops the mic stream and clears the tick interval; unmounting mid-playback pauses and detaches audio', async () => {
+    const { unmount } = render(
+      <RecordingsAudioProvider>
+        <Capture />
+      </RecordingsAudioProvider>,
+    );
+    await act(async () => {
+      expect(await ctx.startRecording('note-1')).toBe('ok');
+    });
+    // getTracks() normally mints a fresh mock array per call (fakes.ts); pin
+    // it to a stable stop() spy so the assertion observes the same call the
+    // unmount-cleanup effect makes via teardownCapture().
+    const stream = FakeMediaRecorder.instances[0].stream as unknown as {
+      getTracks: () => { stop: () => void }[];
+    };
+    const stopTrack = vi.fn();
+    stream.getTracks = () => [{ stop: stopTrack }];
+    const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+
+    unmount();
+
+    expect(stopTrack).toHaveBeenCalledTimes(1);
+    expect(clearIntervalSpy).toHaveBeenCalled();
+    // No stray tick fires after unmount.
+    const ticksBefore = ctx.recorder?.elapsedSec;
+    vi.advanceTimersByTime(5000);
+    expect(ctx.recorder?.elapsedSec).toBe(ticksBefore);
+    clearIntervalSpy.mockRestore();
+
+    // Separate mount for the playback half: pause + detach on unmount.
+    const { unmount: unmountPlayback } = render(
+      <RecordingsAudioProvider>
+        <Capture />
+      </RecordingsAudioProvider>,
+    );
+    await act(async () => { await ctx.playRecording(rec); });
+    const audio = FakeAudio.instances[FakeAudio.instances.length - 1];
+    expect(audio.paused).toBe(false);
+
+    unmountPlayback();
+
+    expect(audio.pause).toHaveBeenCalled();
+    expect(audio.paused).toBe(true);
+    expect(audio.src).toBe('');
+  });
 });

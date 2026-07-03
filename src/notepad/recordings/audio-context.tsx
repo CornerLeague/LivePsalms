@@ -417,6 +417,25 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
     [closeDock],
   );
 
+  // Provider-unmount safety net: internal paths (onstop, beforeunload,
+  // teardownCapture) already clean up in every normal flow, but nothing
+  // guards an unmount mid-recording/mid-playback (tests, route-based trees,
+  // future refactors). Reuse the existing teardown helper + detach idiom
+  // rather than duplicating the logic. teardownCapture is a stable
+  // ([]-deps) callback and audioRef/audio detach only reads refs at
+  // cleanup time, so this effect is deliberately mount/unmount-only — it
+  // must not run or affect anything while mounted.
+  useEffect(() => {
+    return () => {
+      teardownCapture();
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.src = '';
+      }
+    };
+  }, [teardownCapture]);
+
   // Native leave-confirmation while capturing or upload-pending (spec §2).
   const captureActive =
     state.mode === 'recording' ||
