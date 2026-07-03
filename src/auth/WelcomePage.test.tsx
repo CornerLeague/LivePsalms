@@ -41,6 +41,6 @@ describe('WelcomePage onboarding flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
     const skip = await screen.findByRole('button', { name: /skip for now/i });
     fireEvent.click(skip);
-    expect(navigate).toHaveBeenCalledWith('/notepad/notes');
+    expect(navigate).toHaveBeenCalledWith('/notebook/notes');
   });
 });

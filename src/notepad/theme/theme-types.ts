@@ -10,7 +10,7 @@ export function isTheme(value: unknown): value is Theme {
 
 /** True when the path is a notepad workspace route that should be dark-eligible. */
 export function isNotepadRoute(pathname: string): boolean {
-  return pathname.startsWith('/notepad/notes') || pathname.startsWith('/notepad/u/');
+  return pathname.startsWith('/notebook/notes') || pathname.startsWith('/notebook/u/');
 }
 
 /** Whether `.dark` should be on <html> for this route + resolved theme. */

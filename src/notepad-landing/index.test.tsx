@@ -9,9 +9,9 @@ afterEach(cleanup);
 describe('NotepadLanding (stub)', () => {
   it('renders the locked hero H1', () => {
     render(
-      <MemoryRouter initialEntries={['/notepad']}>
+      <MemoryRouter initialEntries={['/notebook']}>
         <Routes>
-          <Route path="/notepad" element={<NotepadLanding />} />
+          <Route path="/notebook" element={<NotepadLanding />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -20,16 +20,16 @@ describe('NotepadLanding (stub)', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the primary CTA that links to /notepad/notes', () => {
+  it('renders the primary CTA that links to /notebook/notes', () => {
     render(
-      <MemoryRouter initialEntries={['/notepad']}>
+      <MemoryRouter initialEntries={['/notebook']}>
         <Routes>
-          <Route path="/notepad" element={<NotepadLanding />} />
+          <Route path="/notebook" element={<NotepadLanding />} />
         </Routes>
       </MemoryRouter>,
     );
     const ctas = screen.getAllByRole('link', { name: /open your notebook/i });
     expect(ctas.length).toBeGreaterThanOrEqual(1);
-    expect(ctas[0]).toHaveAttribute('href', '/notepad/notes');
+    expect(ctas[0]).toHaveAttribute('href', '/notebook/notes');
   });
 });

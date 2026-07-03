@@ -75,7 +75,7 @@ export function UpdatePasswordPage() {
               Your password has been updated.
             </p>
             <button
-              onClick={() => navigate('/notepad/notes')}
+              onClick={() => navigate('/notebook/notes')}
               className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity"
               style={{
                 background: 'var(--deep-umber)',

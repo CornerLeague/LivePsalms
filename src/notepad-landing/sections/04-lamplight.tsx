@@ -25,7 +25,7 @@ export function Lamplight({ prm: _prm }: LamplightProps) {
         <p className="supporting lamplight-supporting">{supporting}</p>
         <p className="supporting lamplight-supporting">{detail}</p>
         <div className="lamplight-actions">
-          <Link to="/notepad/notes" className="cta-primary">{cta}</Link>
+          <Link to="/notebook/notes" className="cta-primary">{cta}</Link>
         </div>
       </div>
     </section>

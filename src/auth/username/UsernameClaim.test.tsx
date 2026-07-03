@@ -42,7 +42,7 @@ describe('UsernameClaim skip', () => {
     await waitFor(() => expect(setUsername).toHaveBeenCalledTimes(1));
     const claimed = setUsername.mock.calls[0][0] as string;
     expect(claimed).toMatch(/^[a-z]+_[a-z]+_\d{4}$/);
-    expect(navigate).toHaveBeenCalledWith(`/notepad/u/${claimed}`, { replace: true });
+    expect(navigate).toHaveBeenCalledWith(`/notebook/u/${claimed}`, { replace: true });
     expect(toastSuccess).toHaveBeenCalledTimes(1);
     expect(toastSuccess.mock.calls[0][0]).toContain(claimed);
   });
@@ -56,7 +56,7 @@ describe('UsernameClaim skip', () => {
 
     await waitFor(() => expect(setUsername).toHaveBeenCalledTimes(2));
     const finalName = setUsername.mock.calls[1][0] as string;
-    expect(navigate).toHaveBeenCalledWith(`/notepad/u/${finalName}`, { replace: true });
+    expect(navigate).toHaveBeenCalledWith(`/notebook/u/${finalName}`, { replace: true });
     expect(toastSuccess).toHaveBeenCalledTimes(1);
   });
 

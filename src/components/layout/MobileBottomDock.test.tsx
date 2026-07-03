@@ -98,7 +98,7 @@ describe('MobileBottomDock', () => {
     render(<MemoryRouter><MobileBottomDock /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /^menu$/i }));
     expect(screen.getByRole('link', { name: 'PURPOSE' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'NOTEPAD' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'NOTEBOOK' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'COMMUNITY' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'CONTACT' })).toBeInTheDocument();
   });
@@ -259,7 +259,7 @@ describe('MobileBottomDock', () => {
   it('exposes data-bg on the dock root for adaptive theming', async () => {
     vi.resetModules();
     const { MobileBottomDock } = await import('./MobileBottomDock');
-    render(<MemoryRouter initialEntries={['/notepad']}><MobileBottomDock /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/notebook']}><MobileBottomDock /></MemoryRouter>);
     const dock = screen.getByTestId('mobile-bottom-dock');
     // jsdom's elementsFromPoint returns [] so the hook keeps the initial
     // 'light' default; we only care that the attribute is wired up.
@@ -294,7 +294,7 @@ describe('MobileBottomDock', () => {
     fireEvent.click(screen.getByRole('button', { name: /^social$/i }));
     expect(screen.getByRole('button', { name: /^social$/i }).getAttribute('aria-expanded')).toBe('true');
 
-    fireEvent.click(screen.getByRole('link', { name: 'NOTEPAD' }));
+    fireEvent.click(screen.getByRole('link', { name: 'NOTEBOOK' }));
 
     fireEvent.click(screen.getByRole('button', { name: /^menu$/i }));
     expect(screen.getByRole('button', { name: /^social$/i }).getAttribute('aria-expanded')).toBe('false');
@@ -303,7 +303,7 @@ describe('MobileBottomDock', () => {
   it('does not force data-bg on /notepad — adaptive sampling decides', async () => {
     vi.resetModules();
     const { MobileBottomDock } = await import('./MobileBottomDock');
-    render(<MemoryRouter initialEntries={['/notepad']}><MobileBottomDock /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/notebook']}><MobileBottomDock /></MemoryRouter>);
     // jsdom's elementsFromPoint returns [] so the hook resolves to its
     // 'light' default on /notepad. The point is that the value is NOT
     // route-forced — opposite of the non-notepad case above.

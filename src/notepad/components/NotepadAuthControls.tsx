@@ -52,7 +52,7 @@ export function NotepadAuthControls() {
               <DropdownMenuItem
                 onClick={async () => {
                   await session.signOut();
-                  navigate('/notepad');
+                  navigate('/notebook');
                 }}
                 style={{ fontSize: 12 }}
               >

@@ -105,7 +105,7 @@ export function ProfilePage() {
 
   const handleSignOut = async () => {
     await session.signOut();
-    navigate('/notepad');
+    navigate('/notebook');
   };
 
   const sectionStyle = {
@@ -141,7 +141,7 @@ export function ProfilePage() {
         style={{ borderColor: 'var(--pale-stone)' }}
       >
         <button
-          onClick={() => navigate('/notepad/notes')}
+          onClick={() => navigate('/notebook/notes')}
           className="flex items-center justify-center w-8 h-8 rounded hover:bg-black/5 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" style={{ color: 'var(--deep-umber)' }} />

@@ -32,7 +32,7 @@ export function MobileBottomDock({ onNavTrigger }: MobileBottomDockProps) {
   // (hero → garden → CTA). Every other route stays locked to the cream
   // pill state (data-bg="dark") so the dock reads consistently. The hook
   // is unconditionally called (rules of hooks) but bails out when disabled.
-  const isNotepadLanding = location.pathname === '/notepad';
+  const isNotepadLanding = location.pathname === '/notebook';
   const adaptiveTheme = useAdaptiveDockTheme(isMobile && isNotepadLanding);
   const bgTheme: DockTheme = isNotepadLanding ? adaptiveTheme : 'dark';
 

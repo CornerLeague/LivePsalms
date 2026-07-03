@@ -72,7 +72,7 @@ function RestorationCTA({ purposeWord, overlayColor, variant = 'desktop' }: Rest
           Take a few moments to pause, reflect, and jot down what God is revealing to you.
         </p>
         <Link
-          to="/notepad/notes"
+          to="/notebook/notes"
           className="group inline-flex items-center gap-2 px-8 py-3.5 rounded-full border border-white/30 bg-white/5 text-base text-white/95 tracking-wide hover:bg-white/10 hover:border-white/50 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 mt-2"
         >
           Open your notebook

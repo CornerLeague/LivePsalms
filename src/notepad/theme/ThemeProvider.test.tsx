@@ -56,7 +56,7 @@ describe('ThemeProvider route-gated .dark', () => {
   });
 
   it('adds .dark on a notepad route when resolved theme is dark', () => {
-    renderAt('/notepad/notes');
+    renderAt('/notebook/notes');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
@@ -67,12 +67,12 @@ describe('ThemeProvider route-gated .dark', () => {
 
   it('does NOT add .dark on a notepad route when resolved light', () => {
     installMatchMedia(false); // OS light, theme defaults to system → light
-    renderAt('/notepad/notes');
+    renderAt('/notebook/notes');
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
   it('removes .dark when the provider unmounts', () => {
-    const { unmount } = renderAt('/notepad/notes');
+    const { unmount } = renderAt('/notebook/notes');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     unmount();
     expect(document.documentElement.classList.contains('dark')).toBe(false);
@@ -80,7 +80,7 @@ describe('ThemeProvider route-gated .dark', () => {
 
   it('applies .dark when theme is explicitly set to dark on a notepad route despite OS light', () => {
     installMatchMedia(false); // OS prefers light → 'system' would resolve light
-    renderAt('/notepad/notes');
+    renderAt('/notebook/notes');
     expect(document.documentElement.classList.contains('dark')).toBe(false);
     fireEvent.click(screen.getByText('set-dark'));
     expect(document.documentElement.classList.contains('dark')).toBe(true);

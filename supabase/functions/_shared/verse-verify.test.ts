@@ -33,10 +33,12 @@ describe('verifyVerseRefs', () => {
   const fakeSupabase = (rowsById: Record<string, { id: string; verse_start: number; text: string }[]>) => ({
     from: (_t: string) => ({
       select: () => ({
-        in: (_c: string, ids: string[]) => ({
-          order: () => Promise.resolve({
-            data: ids.flatMap((id) => rowsById[id] ?? []),
-            error: null,
+        eq: () => ({
+          in: (_c: string, ids: string[]) => ({
+            order: () => Promise.resolve({
+              data: ids.flatMap((id) => rowsById[id] ?? []),
+              error: null,
+            }),
           }),
         }),
       }),

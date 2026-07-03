@@ -53,10 +53,10 @@ describe('HeroNotepadLink', () => {
     );
   }
 
-  it('renders a link to /notepad/notes with an accessible name', () => {
+  it('renders a link to /notebook/notes with an accessible name', () => {
     renderLink();
     const link = screen.getByRole('link', { name: /open your notebook/i });
-    expect(link).toHaveAttribute('href', '/notepad/notes');
+    expect(link).toHaveAttribute('href', '/notebook/notes');
   });
 
   it('renders the arrow glyph, hidden from assistive tech', () => {
@@ -66,17 +66,17 @@ describe('HeroNotepadLink', () => {
     expect(arrow).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('fires onNavTrigger and navigates to /notepad/notes on click', () => {
+  it('fires onNavTrigger and navigates to /notebook/notes on click', () => {
     const onNavTrigger = vi.fn();
     renderLink({ onNavTrigger });
     fireEvent.click(screen.getByRole('link', { name: /open your notebook/i }));
     expect(onNavTrigger).toHaveBeenCalledTimes(1);
-    expect(navigateMock).toHaveBeenCalledWith('/notepad/notes');
+    expect(navigateMock).toHaveBeenCalledWith('/notebook/notes');
   });
 
   it('does not throw when onNavTrigger is omitted, still navigates', () => {
     renderLink();
     fireEvent.click(screen.getByRole('link', { name: /open your notebook/i }));
-    expect(navigateMock).toHaveBeenCalledWith('/notepad/notes');
+    expect(navigateMock).toHaveBeenCalledWith('/notebook/notes');
   });
 });

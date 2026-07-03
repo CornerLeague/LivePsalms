@@ -14,7 +14,7 @@ export function WelcomePage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<'profile' | 'import'>('profile');
-  const goNotepad = () => navigate('/notepad/notes');
+  const goNotepad = () => navigate('/notebook/notes');
 
   if (!loading && !user) {
     navigate('/login');

@@ -18,7 +18,7 @@ export function StationLamplight({ isActive }: Props) {
         <p className="body">{body}</p>
         <p className="supporting">{supporting}</p>
         <p className="supporting">{detail}</p>
-        <Link to="/notepad/notes" className="cta-primary">{cta}</Link>
+        <Link to="/notebook/notes" className="cta-primary">{cta}</Link>
       </div>
     </article>
   );
