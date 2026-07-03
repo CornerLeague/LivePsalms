@@ -57,6 +57,7 @@ vi.mock('../editor/use-verse-tooltip', () => ({
 vi.mock('../bible/prefs/bible-prefs-context', () => ({ useBiblePrefs: () => ({ translation: 'BSB' }) }));
 vi.mock('@tiptap/react', () => ({ EditorContent: () => <div data-testid="editor-content" /> }));
 vi.mock('../../auth/context/useAccountProfile', () => ({ useAccountProfile: () => ({ profile: null }) }));
+vi.mock('../recordings/RecordingsStrip', () => ({ RecordingsStrip: () => null }));
 
 import { NotepadEditor } from './Editor';
 

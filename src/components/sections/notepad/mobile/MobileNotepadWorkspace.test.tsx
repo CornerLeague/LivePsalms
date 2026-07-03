@@ -42,6 +42,7 @@ vi.mock('@/auth/context/useAuthSession', () => ({
 }));
 vi.mock('@/auth/context/useAccountProfile', () => ({ useAccountProfile: () => ({ profile: null }) }));
 vi.mock('../../../../notepad/context/useNotepadActions', () => ({ useNotepadActions: () => ({ init: vi.fn() }) }));
+vi.mock('@/notepad/recordings/RecordingsDock', () => ({ RecordingsDock: () => null }));
 
 import { MobileNotepadWorkspace } from './MobileNotepadWorkspace';
 

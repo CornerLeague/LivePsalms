@@ -27,6 +27,8 @@ import { loadEnum, saveEnum, KEY_EDITOR_TAB } from '@/notepad/session/session-st
 import { OnboardingProvider } from '@/notepad/onboarding/OnboardingProvider';
 import { OnboardingSurfaces } from '@/notepad/onboarding/OnboardingSurfaces';
 import { buildGuidedNote } from '@/notepad/onboarding/guided-note/guided-note-template';
+import { RecordingsAudioProvider } from '@/notepad/recordings/audio-context';
+import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 
 function DesktopNotepadWorkspace() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -273,6 +275,14 @@ function DesktopNotepadWorkspace() {
               />
             </div>
           )}
+
+          <RecordingsDock
+            variant="desktop"
+            onOpenNote={(id) => {
+              collection.openNote(id);
+              setActiveTab('content');
+            }}
+          />
         </main>
 
         {/* Study Window — Bible reader + graph, tabbed */}
@@ -329,10 +339,12 @@ function NotepadOnboardingOverlay() {
 export function NotepadWorkspace() {
   const isMobile = useIsMobile();
   return (
-    <OnboardingProvider>
-      {isMobile ? <MobileNotepadWorkspace /> : <DesktopNotepadWorkspace />}
-      <NotepadOnboardingOverlay />
-    </OnboardingProvider>
+    <RecordingsAudioProvider>
+      <OnboardingProvider>
+        {isMobile ? <MobileNotepadWorkspace /> : <DesktopNotepadWorkspace />}
+        <NotepadOnboardingOverlay />
+      </OnboardingProvider>
+    </RecordingsAudioProvider>
   );
 }
 

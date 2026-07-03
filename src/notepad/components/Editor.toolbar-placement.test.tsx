@@ -43,6 +43,7 @@ vi.mock('@tiptap/react', () => ({ EditorContent: () => <div data-testid="editor-
 vi.mock('../../auth/context/useAccountProfile', () => ({
   useAccountProfile: () => ({ profile: null }),
 }));
+vi.mock('../recordings/RecordingsStrip', () => ({ RecordingsStrip: () => null }));
 
 import { NotepadEditor } from './Editor';
 
