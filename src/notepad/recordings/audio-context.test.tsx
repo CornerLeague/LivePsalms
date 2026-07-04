@@ -328,4 +328,84 @@ describe('RecordingsAudioProvider', () => {
     expect(audio.paused).toBe(true);
     expect(audio.src).toBe('');
   });
+
+  it('unmounting mid-recording salvages the in-flight chunks into the normal upload path (spec §2, data-loss regression)', async () => {
+    const { unmount } = render(
+      <RecordingsAudioProvider>
+        <Capture />
+      </RecordingsAudioProvider>,
+    );
+    await act(async () => {
+      expect(await ctx.startRecording('note-1')).toBe('ok');
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(ctx.recorder?.elapsedSec).toBe(3);
+
+    const stream = FakeMediaRecorder.instances[0].stream as unknown as {
+      getTracks: () => { stop: () => void }[];
+    };
+    const stopTrack = vi.fn();
+    stream.getTracks = () => [{ stop: stopTrack }];
+    const recorder = FakeMediaRecorder.instances[0];
+
+    unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // The recorder was stopped (not just discarded) — onstop fires and
+    // assembles the buffered chunks instead of the provider silently
+    // dropping the in-flight capture.
+    expect(recorder.stop).toHaveBeenCalledTimes(1);
+    expect(client.uploadRecording).toHaveBeenCalledWith(
+      expect.objectContaining({
+        noteId: 'note-1',
+        userId: 'user-1',
+        durationSeconds: 3,
+        blob: expect.any(Blob),
+      }),
+      expect.any(Function),
+    );
+    // Teardown still happens — via onstop's call to teardownCapture — so the
+    // mic is released and no hot stream survives the unmount.
+    expect(stopTrack).toHaveBeenCalledTimes(1);
+  });
+
+  it('unmounting while paused also salvages the in-flight chunks (paused !== inactive)', async () => {
+    const { unmount } = render(
+      <RecordingsAudioProvider>
+        <Capture />
+      </RecordingsAudioProvider>,
+    );
+    await act(async () => {
+      expect(await ctx.startRecording('note-1')).toBe('ok');
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    act(() => ctx.pauseRecording());
+    expect(ctx.recorder?.status).toBe('rec-paused');
+
+    const stream = FakeMediaRecorder.instances[0].stream as unknown as {
+      getTracks: () => { stop: () => void }[];
+    };
+    const stopTrack = vi.fn();
+    stream.getTracks = () => [{ stop: stopTrack }];
+    const recorder = FakeMediaRecorder.instances[0];
+    expect(recorder.state).toBe('paused');
+
+    unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(recorder.stop).toHaveBeenCalledTimes(1);
+    expect(client.uploadRecording).toHaveBeenCalledWith(
+      expect.objectContaining({ noteId: 'note-1', durationSeconds: 2 }),
+      expect.any(Function),
+    );
+    expect(stopTrack).toHaveBeenCalledTimes(1);
+  });
 });

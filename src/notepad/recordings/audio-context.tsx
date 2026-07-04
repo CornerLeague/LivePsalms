@@ -437,15 +437,39 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
 
   // Provider-unmount safety net: internal paths (onstop, beforeunload,
   // teardownCapture) already clean up in every normal flow, but nothing
-  // guards an unmount mid-recording/mid-playback (tests, route-based trees,
-  // future refactors). Reuse the existing teardown helper + detach idiom
-  // rather than duplicating the logic. teardownCapture is a stable
-  // ([]-deps) callback and audioRef/audio detach only reads refs at
-  // cleanup time, so this effect is deliberately mount/unmount-only — it
-  // must not run or affect anything while mounted.
+  // guarded an unmount mid-recording/mid-playback (tests, route-based trees,
+  // in-app navigation out of the notebook layout). A bare teardownCapture()
+  // here would silently discard an in-flight capture: it stops the stream
+  // and nulls mediaRecorderRef WITHOUT ever calling recorder.stop(), so
+  // onstop never fires and the chunks in chunksRef are lost.
+  //
+  // Salvage instead (mirrors the onerror handler's "spec §2" comment above:
+  // "Mic unplugged etc: salvage the chunks collected so far — onstop fires
+  // next and routes them into the normal upload path"). If a capture is
+  // active (state 'recording' or 'paused' — anything !== 'inactive'), call
+  // recorder.stop() and let onstop do its normal job: it flushes the final
+  // buffered timeslice chunk, runs teardownCapture() itself, assembles the
+  // blob, sets pendingRef, dispatches RECORD_STOP, and calls runUpload().
+  // That upload (and its success/failure toast) survives the unmount —
+  // sonner's Toaster mounts above this provider, and a post-unmount dispatch
+  // is a safe no-op in React 18+.
+  //
+  // Ordering is the point: do NOT stop the stream tracks before calling
+  // recorder.stop() — that is the bug this replaces. Stopping the tracks
+  // first can drop the final buffered chunk, and in browsers that don't
+  // fire 'stop' on track-end it drops everything.
+  //
+  // Only fall back to a bare teardownCapture() when there is no active
+  // recorder — that still covers a stray stream/tick left over without a
+  // capture in flight.
   useEffect(() => {
     return () => {
-      teardownCapture();
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop(); // onstop salvages chunks + tears down + uploads
+      } else {
+        teardownCapture();
+      }
       const audio = audioRef.current;
       if (audio) {
         audio.pause();
