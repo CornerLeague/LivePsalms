@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
-import { Routes, Route, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { decideHeroIntro, persistIntroPlayed } from '@/components/sections/hero-intro-gate';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -109,7 +109,7 @@ function App() {
     if (decision.persistFlag) {
       persistIntroPlayed(window.sessionStorage);
     }
-    const isInitiallyOnHome = window.location.pathname === '/';
+    const isInitiallyOnHome = window.location.pathname === '/home';
     return {
       homeIntroPlays: isInitiallyOnHome && decision.playIntro,
       prefersReducedMotion,
@@ -197,7 +197,7 @@ function App() {
     [transition],
   );
 
-  const handleExitComplete = useCallback(() => transition.completeExit('/'), [transition]);
+  const handleExitComplete = useCallback(() => transition.completeExit('/home'), [transition]);
 
   // Map the four-state status onto SplitTransition's three-state phase prop.
   // `exiting` is the text-fade pre-overlay phase, during which the overlay is hidden.
@@ -246,8 +246,13 @@ function App() {
             }
           >
           <Routes>
+            {/* livepsalms.com now lands on the Notebook. The former marketing
+                home is preserved at /home (reachable by direct URL); the
+                hero-intro gate, purpose-page exit, and header isHome flag all
+                key off /home so it still renders correctly there. */}
+            <Route path="/" element={<Navigate to="/notebook" replace />} />
             <Route
-              path="/"
+              path="/home"
               element={
                 <main>
                   <WaterRipple
