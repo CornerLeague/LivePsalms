@@ -170,6 +170,12 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Synchronous re-entrancy claim: stateRef.current.recorder only reflects a
+  // session AFTER the RECORD_START dispatch completes, leaving the button
+  // enabled through the whole getUserMedia latency window. This ref is set
+  // synchronously before any await, so a second concurrent call is rejected
+  // immediately instead of racing to create a second capture session.
+  const acquiringRef = useRef(false);
   const chunksRef = useRef<Blob[]>([]);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cancelledRef = useRef(false);
@@ -219,18 +225,27 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
 
   const startRecording = useCallback(
     async (noteId: string): Promise<'ok' | 'permission-denied' | 'busy'> => {
-      if (!user || stateRef.current.recorder) return 'busy';
+      if (!user || stateRef.current.recorder || acquiringRef.current) return 'busy';
+      acquiringRef.current = true; // synchronous claim, before the getUserMedia await
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch {
+        acquiringRef.current = false;
         return 'permission-denied';
       }
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : 'audio/mp4'; // Safari
       const container = mimeType.startsWith('audio/webm') ? 'audio/webm' : 'audio/mp4';
-      const recorder = new MediaRecorder(stream, { mimeType });
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, { mimeType });
+      } catch {
+        stream.getTracks().forEach((t) => t.stop());
+        acquiringRef.current = false;
+        return 'permission-denied';
+      }
       streamRef.current = stream;
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
@@ -267,6 +282,9 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
       recorder.start(1000); // timeslice: chunks accumulate in memory
       dispatch({ type: 'RECORD_START', noteId, mimeType: container });
       tickRef.current = setInterval(() => dispatch({ type: 'RECORD_TICK', seconds: 1 }), 1000);
+      // Setup is complete: stateRef.current.recorder will be truthy once this
+      // dispatch is committed, so the ordinary guard takes over from here.
+      acquiringRef.current = false;
       return 'ok';
     },
     [user, runUpload, teardownCapture],

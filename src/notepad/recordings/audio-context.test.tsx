@@ -222,6 +222,67 @@ describe('RecordingsAudioProvider', () => {
     expect(ctx.track).toBeNull();
   });
 
+  it('a concurrent second startRecording call while getUserMedia is pending is a no-op', async () => {
+    mount();
+    // Pin a distinguishable stop spy on the (single, shared-by-fakes) stream
+    // so we can assert it is stopped at most once — i.e. the guard prevents
+    // a second acquisition from ever touching the refs.
+    const stopTrack = vi.fn();
+    fakes.getUserMedia.mockImplementation(() => {
+      const stream = { getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream;
+      return new Promise((resolve) => setTimeout(() => resolve(stream), 10));
+    });
+
+    let first: Promise<'ok' | 'permission-denied' | 'busy'>;
+    let second: Promise<'ok' | 'permission-denied' | 'busy'>;
+    await act(async () => {
+      // Fire both calls before either awaits past getUserMedia — the classic
+      // double-click/double-tap race.
+      first = ctx.startRecording('note-1');
+      second = ctx.startRecording('note-1');
+      vi.advanceTimersByTime(10);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const [firstResult, secondResult] = await Promise.all([first!, second!]);
+
+    expect(firstResult).toBe('ok');
+    expect(secondResult).toBe('busy');
+    // Only one MediaRecorder/session was ever created.
+    expect(FakeMediaRecorder.instances).toHaveLength(1);
+    expect(ctx.mode).toBe('recording');
+
+    // Only one tick interval is running: elapsedSec advances at 1/sec, not 2/sec.
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(ctx.recorder?.elapsedSec).toBe(3);
+
+    // The mic stream from the (only) acquisition was never stopped by the guard.
+    expect(stopTrack).not.toHaveBeenCalled();
+  });
+
+  it('discardRecording clears a failed/pending session without re-triggering upload', async () => {
+    client.uploadRecording.mockRejectedValueOnce(new Error('offline'));
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('failed');
+
+    act(() => ctx.discardRecording());
+
+    expect(ctx.recorder).toBeNull();
+    expect(ctx.mode).toBe('idle');
+    // Discarding must not resurrect the pending upload payload.
+    client.uploadRecording.mockClear();
+    act(() => ctx.retryUpload());
+    expect(client.uploadRecording).not.toHaveBeenCalled();
+  });
+
   it('unmounting mid-recording stops the mic stream and clears the tick interval; unmounting mid-playback pauses and detaches audio', async () => {
     const { unmount } = render(
       <RecordingsAudioProvider>
