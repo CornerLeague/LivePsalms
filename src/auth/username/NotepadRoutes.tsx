@@ -6,6 +6,7 @@ import { UsernameClaim } from './UsernameClaim';
 import { normalizeUsername } from './username-rules';
 import { NotepadProvider } from '@/notepad/context/NotepadProvider';
 import { useAuthSession } from '@/auth/context/useAuthSession';
+import { RecordingsAudioProvider } from '@/notepad/recordings/audio-context';
 
 /**
  * While the username gate resolves (e.g. after a full page refresh on the
@@ -70,7 +71,9 @@ export function LocalNotepadLayout() {
     case 'signed-out':
       return (
         <NotepadProvider adapter={adapter}>
-          <Outlet />
+          <RecordingsAudioProvider>
+            <Outlet />
+          </RecordingsAudioProvider>
         </NotepadProvider>
       );
   }
@@ -95,7 +98,9 @@ export function VanityNotepadLayout() {
     case 'ready':
       return normalizeUsername(param ?? '') === gate.username ? (
         <NotepadProvider adapter={adapter}>
-          <Outlet />
+          <RecordingsAudioProvider>
+            <Outlet />
+          </RecordingsAudioProvider>
         </NotepadProvider>
       ) : (
         <Navigate to={`/notebook/u/${gate.username}`} replace />

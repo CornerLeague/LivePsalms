@@ -10,6 +10,7 @@ import { ApparatusRail } from '../panes/ApparatusRail';
 import { StudyModeToggle } from '../StudyModeToggle';
 import { StudyTabBar } from './StudyTabBar';
 import { MobileStudyEditorView } from './MobileStudyEditorView';
+import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 import type { MobileStudyTab } from './types';
 import { loadEnum, saveEnum, KEY_MOBILE_STUDY_TAB } from '@/notepad/session/session-storage';
 import '../study-theme.css';
@@ -90,6 +91,8 @@ export function MobileStudyWorkspace() {
           </>
         )}
       </div>
+
+      <RecordingsDock variant="mobile" onOpenNote={(id) => collection.openNote(id)} />
 
       {!editing && <StudyTabBar active={tab} onSelect={setTab} />}
     </div>

@@ -19,6 +19,7 @@ vi.mock('../StudyModeToggle', () => ({ StudyModeToggle: () => <div>mode-toggle</
 vi.mock('./MobileStudyEditorView', () => ({
   MobileStudyEditorView: (p: { onBack: () => void }) => <button onClick={p.onBack}>editor-back</button>,
 }));
+vi.mock('@/notepad/recordings/RecordingsDock', () => ({ RecordingsDock: () => <div>recordings-dock</div> }));
 
 import { MobileStudyWorkspace } from './MobileStudyWorkspace';
 
