@@ -9,7 +9,7 @@ interface LivingGraphProps {
 export function LivingGraph({ prm }: LivingGraphProps) {
   const ref = useRef<HTMLElement>(null);
   const staged = useIntersectionStage(ref);
-  const { eyebrow, h2, body, supporting, caption } = copy.section03;
+  const { eyebrow, h2, points } = copy.section03;
 
   return (
     <section
@@ -27,7 +27,7 @@ export function LivingGraph({ prm }: LivingGraphProps) {
           preload="metadata"
           poster="/notepad-feature-video-poster.jpg"
           controls={prm}
-          aria-label="The Live Psalms knowledge graph showing notes connected by shared scripture"
+          aria-label="A walkthrough of capturing notes in Live Psalms — typing /verse to drop a passage into a note, /lookup to find a verse by its words, and notes filing themselves."
         >
           <source src="/notepad-feature-video.webm" type="video/webm" />
           <source src="/notepad-feature-video.mp4" type="video/mp4" />
@@ -35,10 +35,10 @@ export function LivingGraph({ prm }: LivingGraphProps) {
         <div className="living-graph-overlay">
           <p className="eyebrow">{eyebrow}</p>
           <h2 id="sec03-h2">{h2}</h2>
-          <p className="body">{body}</p>
-          <p className="supporting">{supporting}</p>
+          {points.map((point) => (
+            <p className="body" key={point}>{point}</p>
+          ))}
         </div>
-        <p className="living-graph-caption">{caption}</p>
       </div>
     </section>
   );

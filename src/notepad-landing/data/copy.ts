@@ -10,18 +10,20 @@ export const copy = {
     ctaNote: 'No account needed to start. Works offline.',
   },
   section02: {
-    eyebrow: '— ONE NOTEPAD —',
-    h2: 'You wrote it down. Find it anytime.',
+    eyebrow: '— ALL-IN-ONE NOTEBOOK —',
+    h2: 'Psalm 119 calls the word a lamp to your feet. A lamp doesn’t flood the entire road. It lights the next step.',
     body: 'The word from that conference. The verse that got you through last spring. It’s scattered across a notes app, three journals, and a sermon bulletin in a drawer.',
     supporting:
       'You don’t need another app to write in. You need one that keeps what you write — and shows you how it all connects.',
   },
   section03: {
-    eyebrow: '— THE CONNECTION —',
-    h2: 'Three kinds of writing. One thread running through them.',
-    body: 'Mark each note a Devotion, Sermon, or Theme. Type a verse and it stays live — hover any time for the full text, all 66 books, without leaving the page.',
-    supporting: 'Click a verse to see every note that shares it.',
-    caption: 'That’s the moment in your reading that meets you: months of your own writing, suddenly in conversation.',
+    eyebrow: '— CAPTURE —',
+    h2: 'We make taking notes effortless, so you actually stay in the moment.',
+    points: [
+      'Type /verse and the passage drops right into your note.',
+      'Cannot remember a reference but you know the words, just type /lookup and the phrase and it finds the verse for you.',
+      'Your notes file themselves into the right place on their own.',
+    ] as const,
   },
   section04: {
     eyebrow: '— LAMPLIGHT —',

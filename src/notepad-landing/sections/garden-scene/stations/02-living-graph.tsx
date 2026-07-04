@@ -6,7 +6,7 @@ import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 interface Props { isActive: boolean }
 
 export function StationLivingGraph({ isActive }: Props) {
-  const { eyebrow, h2, body, supporting, caption } = copy.section03;
+  const { eyebrow, h2, points } = copy.section03;
   const videoRef = useRef<HTMLVideoElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -35,9 +35,9 @@ export function StationLivingGraph({ isActive }: Props) {
         <div className="garden-station-content garden-station-content--left">
           <p className="eyebrow">{eyebrow}</p>
           <h2>{h2}</h2>
-          <p className="body">{body}</p>
-          <p className="supporting">{supporting}</p>
-          <p className="caption">{caption}</p>
+          {points.map((point) => (
+            <p className="body" key={point}>{point}</p>
+          ))}
         </div>
         <div className="living-graph-video-wrap">
           <video
@@ -48,7 +48,7 @@ export function StationLivingGraph({ isActive }: Props) {
             muted
             loop
             playsInline
-            aria-label="The Notepad Living Graph in motion — nodes representing scriptures and notes connect as the user navigates them."
+            aria-label="A walkthrough of capturing notes in Live Psalms — typing /verse to drop a passage into a note, /lookup to find a verse by its words, and notes filing themselves."
           >
             <source src="/notepad-feature-video.webm" type="video/webm" />
             <source src="/notepad-feature-video.mp4"  type="video/mp4"  />
