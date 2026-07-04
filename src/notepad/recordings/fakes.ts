@@ -5,6 +5,12 @@ import { vi } from 'vitest';
 export class FakeMediaRecorder {
   static instances: FakeMediaRecorder[] = [];
   static isTypeSupported = vi.fn((type: string) => type.startsWith('audio/webm'));
+  // When true, stop() defers ondataavailable/onstop to a microtask instead of
+  // firing them synchronously — models the real MediaRecorder, whose 'stop'
+  // event is async. Lets a test interleave other work (e.g. a cross-user
+  // identity flip) between stop() and onstop. Defaults to the synchronous
+  // behavior so existing tests are unaffected; reset it in afterEach.
+  static deferOnstop = false;
   state: 'inactive' | 'recording' | 'paused' = 'inactive';
   mimeType: string;
   stream: MediaStream;
@@ -21,8 +27,12 @@ export class FakeMediaRecorder {
   resume = vi.fn(() => { this.state = 'recording'; });
   stop = vi.fn(() => {
     this.state = 'inactive';
-    this.ondataavailable?.({ data: new Blob(['x'], { type: 'audio/webm' }) });
-    this.onstop?.();
+    const fire = () => {
+      this.ondataavailable?.({ data: new Blob(['x'], { type: 'audio/webm' }) });
+      this.onstop?.();
+    };
+    if (FakeMediaRecorder.deferOnstop) void Promise.resolve().then(fire);
+    else fire();
   });
 }
 

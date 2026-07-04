@@ -14,6 +14,7 @@ import {
 } from './audio-context';
 import { installMediaFakes, FakeAudio, FakeMediaRecorder } from './fakes';
 import type { NoteRecording } from './recordings-client';
+import type { PendingRecording } from './pending-store';
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
 // Mutable current-user holder so the cross-user test can flip `user.id` in place
@@ -35,6 +36,20 @@ vi.mock('./recordings-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./recordings-client')>()),
   uploadRecording: client.uploadRecording,
   signedRecordingUrl: client.signedRecordingUrl,
+}));
+// Mock the durable pending-store wholesale: the provider's job is to call the
+// right functions with the right payloads (persist at stop, delete on success/
+// discard, save-with-error on failure, load+restore on mount). loadPending is
+// what feeds rehydration, so tests seed it per case.
+const store = vi.hoisted(() => ({
+  savePending: vi.fn(() => Promise.resolve()),
+  deletePending: vi.fn(() => Promise.resolve()),
+  loadPendingForUser: vi.fn(() => Promise.resolve([])),
+}));
+vi.mock('./pending-store', () => ({
+  savePending: store.savePending,
+  deletePending: store.deletePending,
+  loadPendingForUser: store.loadPendingForUser,
 }));
 import { toast } from 'sonner';
 
@@ -96,6 +111,28 @@ describe('audioReducer (pure)', () => {
     const next = audioReducer(playing, { type: 'CLOSE' });
     expect(next).toMatchObject({ mode: 'idle', track: null, positionSec: 0 });
   });
+
+  it('RESTORE_PENDING rehydrates a durable row as a failed, retryable session', () => {
+    const next = audioReducer(initialAudioState, {
+      type: 'RESTORE_PENDING', noteId: 'note-9', mimeType: 'audio/webm',
+      durationSeconds: 42, error: 'offline',
+    });
+    expect(next.recorder).toMatchObject({
+      noteId: 'note-9', status: 'failed', elapsedSec: 42, uploadProgress: 0,
+      error: 'offline', mimeType: 'audio/webm',
+    });
+    expect(next.mode).toBe('idle'); // does not enter recording
+  });
+
+  it('RESTORE_PENDING no-ops when a recorder session already exists (never clobbers a live capture)', () => {
+    const next = audioReducer(recordingState, {
+      type: 'RESTORE_PENDING', noteId: 'other', mimeType: 'audio/mp4',
+      durationSeconds: 10, error: null,
+    });
+    expect(next).toBe(recordingState);
+    expect(next.recorder?.noteId).toBe('note-1');
+    expect(next.recorder?.status).toBe('recording');
+  });
 });
 
 describe('recordingLabel', () => {
@@ -123,9 +160,15 @@ describe('RecordingsAudioProvider', () => {
     fakes = installMediaFakes();
     client.uploadRecording.mockResolvedValue(rec);
     client.signedRecordingUrl.mockResolvedValue('https://signed.example/a.webm');
+    // Default: no durable rows, so mounting does not rehydrate unless a test
+    // seeds loadPendingForUser. save/delete resolve as fire-and-forget no-ops.
+    store.savePending.mockResolvedValue(undefined);
+    store.deletePending.mockResolvedValue(undefined);
+    store.loadPendingForUser.mockResolvedValue([]);
   });
   afterEach(() => {
     fakes.restore();
+    FakeMediaRecorder.deferOnstop = false;
     vi.useRealTimers();
     vi.clearAllMocks();
   });
@@ -599,5 +642,212 @@ describe('RecordingsAudioProvider', () => {
     expect(ctx.recorder).toBeNull();
     // Cancelled capture must NOT upload the previous user's audio.
     expect(client.uploadRecording).not.toHaveBeenCalled();
+  });
+
+  // ── Durable pending queue (PR #73, increment 2) ───────────────────────────
+
+  function makePendingRow(over: Partial<PendingRecording> = {}): PendingRecording {
+    return {
+      userId: 'user-1', noteId: 'note-restored', recordingId: 'rec-restored',
+      blob: new Blob(['restored-audio'], { type: 'audio/webm' }),
+      mimeType: 'audio/webm', durationSeconds: 27, error: 'offline', createdAt: 1000,
+      ...over,
+    };
+  }
+
+  it('persist wiring: stopping a recording saves the pending payload to the durable store', async () => {
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => { vi.advanceTimersByTime(4000); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+    });
+    expect(store.savePending).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1', noteId: 'note-1', durationSeconds: 4,
+        error: null, blob: expect.any(Blob), createdAt: expect.any(Number),
+      }),
+    );
+  });
+
+  it('delete wiring: a successful upload deletes the durable row by recordingId', async () => {
+    let savedId = '';
+    store.savePending.mockImplementation((p: PendingRecording) => {
+      savedId = p.recordingId;
+      return Promise.resolve();
+    });
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder).toBeNull(); // upload succeeded
+    expect(savedId).not.toBe('');
+    expect(store.deletePending).toHaveBeenCalledWith(savedId);
+  });
+
+  it('failure wiring: a failed upload re-saves the durable row with the error set', async () => {
+    client.uploadRecording.mockRejectedValueOnce(new Error('offline'));
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('failed');
+    // Saved twice: once at stop (error null), once after failure (error set).
+    expect(store.savePending).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'offline' }),
+    );
+  });
+
+  it('discard wiring: discarding a failed session deletes its durable row', async () => {
+    let savedId = '';
+    store.savePending.mockImplementation((p: PendingRecording) => {
+      savedId = p.recordingId;
+      return Promise.resolve();
+    });
+    client.uploadRecording.mockRejectedValueOnce(new Error('offline'));
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('failed');
+    store.deletePending.mockClear();
+    act(() => ctx.discardRecording());
+    expect(store.deletePending).toHaveBeenCalledWith(savedId);
+  });
+
+  it('rehydration: a durable row for the current user restores a failed, retryable session', async () => {
+    store.loadPendingForUser.mockResolvedValue([makePendingRow()]);
+    await act(async () => {
+      mount();
+      await Promise.resolve(); // flush the effect's loadPendingForUser().then
+    });
+    expect(store.loadPendingForUser).toHaveBeenCalledWith('user-1');
+    expect(ctx.recorder).toMatchObject({
+      noteId: 'note-restored', status: 'failed', elapsedSec: 27, error: 'offline',
+    });
+
+    // Retry re-uploads the RESTORED blob and, on success, deletes the row.
+    client.uploadRecording.mockResolvedValueOnce(rec);
+    await act(async () => {
+      ctx.retryUpload();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(client.uploadRecording).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordingId: 'rec-restored', noteId: 'note-restored',
+        userId: 'user-1', blob: expect.any(Blob),
+      }),
+      expect.any(Function),
+    );
+    expect(store.deletePending).toHaveBeenCalledWith('rec-restored');
+    expect(ctx.recorder).toBeNull();
+    expect(ctx.savedVersion).toBe(1);
+  });
+
+  it('rehydration: restores the newest row and drops orphaned older rows (warn each)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    store.loadPendingForUser.mockResolvedValue([
+      makePendingRow({ recordingId: 'old', createdAt: 100 }),
+      makePendingRow({ recordingId: 'newest', createdAt: 999 }),
+      makePendingRow({ recordingId: 'mid', createdAt: 500 }),
+    ]);
+    await act(async () => {
+      mount();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.noteId).toBe('note-restored');
+    // The two non-newest rows are deleted; the newest is kept (restored).
+    expect(store.deletePending).toHaveBeenCalledWith('old');
+    expect(store.deletePending).toHaveBeenCalledWith('mid');
+    expect(store.deletePending).not.toHaveBeenCalledWith('newest');
+    expect(warn).toHaveBeenCalledWith(
+      '[recordings] dropping orphaned pending row', 'old',
+    );
+    warn.mockRestore();
+  });
+
+  it('rehydration: does NOT clobber a live recording session (re-check after async load)', async () => {
+    // Hold the load open with a deferred so we can start a live capture FIRST,
+    // then resolve the load and assert the after-load guard refuses to restore.
+    let resolveLoad!: (rows: PendingRecording[]) => void;
+    store.loadPendingForUser.mockReturnValue(
+      new Promise<PendingRecording[]>((r) => { resolveLoad = r; }),
+    );
+    mount();
+    await act(async () => { await ctx.startRecording('note-live'); });
+    expect(ctx.mode).toBe('recording');
+
+    await act(async () => {
+      resolveLoad([makePendingRow()]); // load resolves AFTER capture is live
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The live recording session is untouched — no restore over it.
+    expect(ctx.mode).toBe('recording');
+    expect(ctx.recorder?.noteId).toBe('note-live');
+    expect(ctx.recorder?.status).toBe('recording');
+  });
+
+  it('rehydration: a row for a DIFFERENT user is not restored (loadPendingForUser scopes by id)', async () => {
+    // loadPendingForUser('user-1') returns [] (its contract filters by user);
+    // user-2's row simply never comes back for user-1.
+    store.loadPendingForUser.mockImplementation((id: string) =>
+      Promise.resolve(id === 'user-2' ? [makePendingRow({ userId: 'user-2' })] : []),
+    );
+    await act(async () => {
+      mount();
+      await Promise.resolve();
+    });
+    expect(store.loadPendingForUser).toHaveBeenCalledWith('user-1');
+    expect(ctx.recorder).toBeNull();
+  });
+
+  // Optional (increment-1 review Minor): with a DEFERRED onstop, a cross-user
+  // flip that fires while a capture is live must not resurrect the departing
+  // user's audio when onstop later runs under the new user. cancelRecording
+  // sets cancelledRef BEFORE stop(), so the deferred onstop discards (never
+  // salvages, never saves) — no upload and no durable save under user-2.
+  it('cross-user with async onstop: a deferred stop does not resurrect the previous user under the new one', async () => {
+    FakeMediaRecorder.deferOnstop = true;
+    const { rerender } = render(
+      <RecordingsAudioProvider>
+        <Capture />
+      </RecordingsAudioProvider>,
+    );
+    await act(async () => { await ctx.startRecording('note-1'); });
+    expect(ctx.mode).toBe('recording');
+
+    client.uploadRecording.mockClear();
+    store.savePending.mockClear();
+    // Identity flips WHILE the capture is live: the guard calls cancelRecording
+    // (→ recorder.stop), but onstop is deferred to a microtask.
+    auth.userId = 'user-2';
+    await act(async () => {
+      rerender(
+        <RecordingsAudioProvider>
+          <Capture />
+        </RecordingsAudioProvider>,
+      );
+      // Let the deferred onstop microtask run under user-2.
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(ctx.recorder).toBeNull();
+    // The cancelled capture salvages nothing: no upload, no durable save.
+    expect(client.uploadRecording).not.toHaveBeenCalled();
+    expect(store.savePending).not.toHaveBeenCalled();
   });
 });

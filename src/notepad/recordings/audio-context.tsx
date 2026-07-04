@@ -15,6 +15,7 @@ import {
   MAX_RECORDING_SECONDS, signedRecordingUrl, uploadRecording,
   type NoteRecording,
 } from './recordings-client';
+import { savePending, deletePending, loadPendingForUser } from './pending-store';
 
 export type AudioMode = 'idle' | 'recording' | 'playing' | 'paused';
 export type RecorderStatus = 'recording' | 'rec-paused' | 'uploading' | 'failed';
@@ -51,6 +52,7 @@ export type AudioAction =
   | { type: 'RECORD_PAUSE' }
   | { type: 'RECORD_RESUME' }
   | { type: 'RECORD_STOP' }
+  | { type: 'RESTORE_PENDING'; noteId: string; mimeType: string; durationSeconds: number; error: string | null }
   | { type: 'UPLOAD_PROGRESS'; progress: number }
   | { type: 'UPLOAD_DONE' }
   | { type: 'UPLOAD_FAILED'; error: string }
@@ -100,6 +102,24 @@ export function audioReducer(state: AudioState, action: AudioAction): AudioState
         ...state,
         mode: 'idle',
         recorder: { ...state.recorder, status: 'uploading', uploadProgress: 0 },
+      };
+    case 'RESTORE_PENDING':
+      // Rehydrate a durable pending row (survived reload/crash) as a FAILED
+      // session so the dock surfaces Retry/Discard. No-op if a recorder slot is
+      // already occupied — a live capture or an already-restored session must
+      // never be clobbered (the effect also re-checks, but the reducer is the
+      // authoritative guard).
+      if (state.recorder) return state;
+      return {
+        ...state,
+        recorder: {
+          noteId: action.noteId,
+          status: 'failed',
+          elapsedSec: action.durationSeconds,
+          uploadProgress: 0,
+          error: action.error,
+          mimeType: action.mimeType,
+        },
       };
     case 'UPLOAD_PROGRESS':
       if (state.recorder?.status !== 'uploading') return state;
@@ -235,11 +255,19 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
       .then(() => {
         uploadingRef.current = false;
         pendingRef.current = null;
+        // Durable row is now redundant — the recording is safely uploaded.
+        // Fire-and-forget; pending-store swallows its own failures, so this can
+        // never throw into the upload success path.
+        void deletePending(pending.recordingId);
         dispatch({ type: 'UPLOAD_DONE' });
       })
       .catch((err: unknown) => {
         uploadingRef.current = false;
-        dispatch({ type: 'UPLOAD_FAILED', error: err instanceof Error ? err.message : 'upload failed' });
+        const message = err instanceof Error ? err.message : 'upload failed';
+        // Reflect the failure in the durable row so a later reload rehydrates
+        // with the real error. Fire-and-forget (swallow-and-warn internally).
+        void savePending({ ...pending, error: message, createdAt: Date.now() });
+        dispatch({ type: 'UPLOAD_FAILED', error: message });
         toast.error('Recording upload failed — retry from the note.');
       });
   }, []);
@@ -293,10 +321,16 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
         }
         const blob = new Blob(chunksRef.current, { type: container });
         chunksRef.current = [];
-        pendingRef.current = {
+        const pending = {
           userId: user.id, noteId, recordingId: uuidv4(), blob,
           mimeType: container, durationSeconds: elapsed,
         };
+        pendingRef.current = pending;
+        // Persist the pending payload the moment recording STOPS, so it survives
+        // a hard reload/crash before the upload finishes (rehydrates as `failed`,
+        // recoverable via the dock). Fire-and-forget on the hot path — the
+        // pending-store swallows its own failures and can never throw here.
+        void savePending({ ...pending, error: null, createdAt: Date.now() });
         dispatch({ type: 'RECORD_STOP' });
         runUpload();
       };
@@ -362,6 +396,10 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
   }, [runUpload]);
 
   const discardRecording = useCallback(() => {
+    // Intentional destroy: also drop the durable row so it never rehydrates.
+    // Fire-and-forget (swallow-and-warn internally).
+    const recordingId = pendingRef.current?.recordingId;
+    if (recordingId) void deletePending(recordingId);
     pendingRef.current = null;
     dispatch({ type: 'RECORDER_CLEAR' });
   }, []);
@@ -403,6 +441,57 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
     uploadingRef.current = false;
     dispatch({ type: 'RECORDER_CLEAR' });
   }, [user?.id, cancelRecording]);
+
+  // Rehydrate a durable pending row (survived a hard reload/crash) once a user
+  // id is available. Declared AFTER the cross-user guard so, on a sign-out→
+  // sign-in identity flip, the guard's SYNCHRONOUS teardown of the departing
+  // user's session runs first; this effect then loads only the CURRENT user's
+  // rows (loadPendingForUser filters by id — that scoping is what isolates
+  // users, so we never restore or delete another user's row here).
+  //
+  // Restore as `failed` (never auto-upload — a silent background write on app
+  // load is surprising; Retry is one tap in the dock). Both guards matter: skip
+  // if a live/pending session already exists BEFORE the load, and re-check AFTER
+  // the async load resolves (a live capture may have started, or the guard may
+  // have run) so we never clobber it. `cancelled` drops a stale load whose
+  // effect re-ran (e.g. the user changed again mid-load).
+  useEffect(() => {
+    const id = user?.id;
+    if (!id) return;
+    if (stateRef.current.recorder || stateRef.current.mode !== 'idle') return;
+    let cancelled = false;
+    void loadPendingForUser(id).then((rows) => {
+      if (cancelled || rows.length === 0) return;
+      // Re-check for a live session that appeared while the load was in flight.
+      if (stateRef.current.recorder || stateRef.current.mode !== 'idle') return;
+      // Confirm the identity is still the one we loaded for (defense in depth
+      // against a same-tick user flip the cleanup didn't cancel).
+      if (userRef.current?.id !== id) return;
+      const sorted = [...rows].sort((a, b) => b.createdAt - a.createdAt);
+      const [newest, ...rest] = sorted;
+      // Under the one-slot invariant there should be at most one row; a crash
+      // between save and delete can orphan extras. Restore the newest, drop the
+      // rest (warn each) so they never resurface.
+      for (const stale of rest) {
+        console.warn('[recordings] dropping orphaned pending row', stale.recordingId);
+        void deletePending(stale.recordingId);
+      }
+      pendingRef.current = {
+        userId: newest.userId, noteId: newest.noteId, recordingId: newest.recordingId,
+        blob: newest.blob, mimeType: newest.mimeType, durationSeconds: newest.durationSeconds,
+      };
+      dispatch({
+        type: 'RESTORE_PENDING',
+        noteId: newest.noteId,
+        mimeType: newest.mimeType,
+        durationSeconds: newest.durationSeconds,
+        error: newest.error,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   // ── Playback ────────────────────────────────────────────────────────
   const ensureAudio = useCallback((): HTMLAudioElement => {
