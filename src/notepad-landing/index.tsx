@@ -15,7 +15,7 @@ const NAV_THEME_SECTIONS_FALLBACK = [
   { selector: '.notepad-landing .hero',              theme: 'dark' },
   { selector: '.notepad-landing .three-voices',      theme: 'light' },
   { selector: '.notepad-landing .living-graph',      theme: 'light' },
-  { selector: '.notepad-landing .lamplight',         theme: 'light' },
+  { selector: '.notepad-landing .connections',         theme: 'light' },
   { selector: '.notepad-landing .scripture-margin',  theme: 'light' },
   { selector: '.notepad-landing .seven-papers',      theme: 'light' },
   { selector: '.notepad-landing .tier-path',         theme: 'light' },

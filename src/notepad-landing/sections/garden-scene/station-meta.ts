@@ -13,7 +13,7 @@ export interface StationMeta {
 export const STATION_META: readonly StationMeta[] = [
   { index: 0, slug: 'section-02', name: 'Three Voices',       roman: 'I',   baseVh: 125, extraVh:  0, itemCount: 1 },
   { index: 1, slug: 'section-03', name: 'Living Graph',       roman: 'II',  baseVh: 125, extraVh:  0, itemCount: 1 },
-  { index: 2, slug: 'section-04', name: 'Lamplight',          roman: 'III', baseVh: 125, extraVh:  0, itemCount: 1 },
+  { index: 2, slug: 'section-04', name: 'Connections',          roman: 'III', baseVh: 125, extraVh:  0, itemCount: 1 },
   { index: 3, slug: 'section-05', name: 'Scripture Margin',   roman: 'IV',  baseVh: 125, extraVh:  0, itemCount: 1 },
   { index: 4, slug: 'section-06', name: 'Seven Papers',       roman: 'V',   baseVh: 125, extraVh: 35, itemCount: 7 },
   { index: 5, slug: 'section-07', name: 'Tier Path',          roman: 'VI',  baseVh: 125, extraVh: 40, itemCount: 8 },

@@ -1,7 +1,7 @@
 // src/notepad-landing/sections/garden-scene/fallback-stack.tsx
 import { ThreeVoices } from '../02-three-voices';
 import { LivingGraph } from '../03-living-graph';
-import { Lamplight } from '../04-lamplight';
+import { Connections } from '../04-connections';
 import { ScriptureMargin } from '../05-scripture-margin';
 import { SevenPapers } from '../06-seven-papers';
 import { TierPath } from '../07-tier-path';
@@ -16,7 +16,7 @@ export function FallbackStack({ prm }: FallbackStackProps) {
     <>
       <ThreeVoices prm={prm} />
       <LivingGraph prm={prm} />
-      <Lamplight prm={prm} />
+      <Connections prm={prm} />
       <ScriptureMargin prm={prm} />
       <SevenPapers prm={prm} />
       <TierPath />

@@ -59,7 +59,7 @@ describe('<GardenScene /> — PRM mode (prm=true)', () => {
     // Each fallback section has a known heading from data/copy.ts
     expect(screen.getByRole('heading', { name: /psalm 119 calls the word a lamp to your feet/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /we make taking notes effortless/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /most apps wait for you to type\. this one already knows\./i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /your notes share connections just like the scriptures share connections\./i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /open any passage\. study it with your own notes in hand/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /a page that actually looks like yours/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /your work counts/i })).toBeInTheDocument();
@@ -146,5 +146,32 @@ describe('<GardenScene /> — Scripture Margin station layout', () => {
     const srcs = sources.map((s) => s.getAttribute('src'));
     expect(srcs).toContain('/notepad-bible-study-video.webm');
     expect(srcs).toContain('/notepad-bible-study-video.mp4');
+  });
+});
+
+describe('<GardenScene /> — Connections station layout', () => {
+  it('wraps the Connections text and video in a .garden-station-pair grid', () => {
+    renderScene(false);
+    const station = document.querySelector('.garden-station--connections');
+    expect(station).not.toBeNull();
+    const pair = station?.querySelector('.garden-station-pair');
+    expect(pair).not.toBeNull();
+    expect(pair?.querySelector('.garden-station-content--left')).not.toBeNull();
+    expect(pair?.querySelector('.connections-video-wrap')).not.toBeNull();
+  });
+
+  it('renders a muted, looping, playsInline video pointing at the connections assets', () => {
+    renderScene(false);
+    const video = document.querySelector<HTMLVideoElement>('.connections-video');
+    expect(video).not.toBeNull();
+    expect(video?.muted).toBe(true);
+    expect(video?.loop).toBe(true);
+    expect(video?.getAttribute('playsinline')).not.toBeNull();
+    expect(video?.getAttribute('preload')).toBe('metadata');
+    expect(video?.getAttribute('poster')).toBe('/notepad-connections-video-poster.jpg');
+    const sources = Array.from(video?.querySelectorAll('source') ?? []);
+    const srcs = sources.map((s) => s.getAttribute('src'));
+    expect(srcs).toContain('/notepad-connections-video.webm');
+    expect(srcs).toContain('/notepad-connections-video.mp4');
   });
 });

@@ -1,7 +1,7 @@
 // src/notepad-landing/sections/garden-scene/garden-content-layer.tsx
 import { StationThreeVoices } from './stations/01-three-voices';
 import { StationLivingGraph } from './stations/02-living-graph';
-import { StationLamplight } from './stations/03-lamplight';
+import { StationConnections } from './stations/03-connections';
 import { StationScriptureMargin } from './stations/04-scripture-margin';
 import { StationSevenPapers } from './stations/05-seven-papers';
 import { StationTierPath } from './stations/06-tier-path';
@@ -16,7 +16,7 @@ export function GardenContentLayer({ currentStation }: GardenContentLayerProps) 
     <div className="garden-content-layer">
       <StationThreeVoices       isActive={currentStation === 0} />
       <StationLivingGraph       isActive={currentStation === 1} />
-      <StationLamplight         isActive={currentStation === 2} />
+      <StationConnections         isActive={currentStation === 2} />
       <StationScriptureMargin   isActive={currentStation === 3} />
       <StationSevenPapers       isActive={currentStation === 4} />
       <StationTierPath          isActive={currentStation === 5} />

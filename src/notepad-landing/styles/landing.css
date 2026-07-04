@@ -432,43 +432,61 @@
   }
 }
 
-.lamplight {
+.connections {
   background: var(--np-bg-paper);
 }
 
-.lamplight-content {
+.connections-content {
   max-width: 1100px;
   margin: 0 auto;
 }
 
-.lamplight-content > .body.lamplight-body {
+.connections-content > .body.connections-body {
   max-width: 620px;
   margin-top: 1rem;
 }
 
-.lamplight-supporting {
+.connections-supporting {
   max-width: 620px;
 }
 
-.lamplight-actions {
+.connections-actions {
   margin-top: 2.2rem;
 }
 
-/* CTA sits on light parchment in the Lamplight section — ink-on-light variant */
-.section.lamplight .cta-primary,
-.notepad-landing .garden-station--lamplight .cta-primary {
+/* CTA sits on light parchment in the Connections section — ink-on-light variant */
+.section.connections .cta-primary,
+.notepad-landing .garden-station--connections .cta-primary {
   border-color: var(--np-ink-warm);
   color: var(--np-ink);
 }
 
-.section.lamplight .cta-primary:hover,
-.notepad-landing .garden-station--lamplight .cta-primary:hover {
+.section.connections .cta-primary:hover,
+.notepad-landing .garden-station--connections .cta-primary:hover {
   background: var(--np-ink-warm);
   color: var(--np-bg-paper);
 }
 
-.notepad-landing .garden-station--lamplight .cta-primary {
+.notepad-landing .garden-station--connections .cta-primary {
   margin-top: 2rem;
+}
+
+/* Connections video in the PRM / no-WebGPU fallback — left-aligned under the copy */
+.connections-media {
+  width: 100%;
+  max-width: 620px;
+  margin: 2rem 0 0;
+}
+
+.connections-feature-video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(102, 84, 79, 0.14);
+  box-shadow: 0 18px 48px -20px rgba(60, 46, 38, 0.45);
+  background: var(--np-bg-paper-cool);
 }
 
 .scripture-margin {
@@ -852,7 +870,7 @@
   object-fit: cover;
 
   width: 100%;
-  aspect-ratio: 2 / 1;
+  aspect-ratio: 16 / 9;
   display: block;
   background: transparent;
   -webkit-mask-image: radial-gradient(ellipse 95% 92% at 50% 50%, #000 60%, transparent 100%);
@@ -908,6 +926,42 @@
   background: transparent;
   -webkit-mask-image: radial-gradient(ellipse 95% 92% at 50% 50%, #000 60%, transparent 100%);
           mask-image: radial-gradient(ellipse 95% 92% at 50% 50%, #000 60%, transparent 100%);
+}
+
+/* Connections two-column pair (text left, video right — same shape as Living Graph) */
+.notepad-landing .garden-station--connections .garden-station-pair {
+  width: 100%;
+  max-width: min(1280px, 90vw);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
+}
+
+.notepad-landing .garden-station--connections .garden-station-content--left {
+  margin-left: 0;
+  max-width: 640px;
+  justify-self: end;
+}
+
+.notepad-landing .connections-video-wrap {
+  width: 100%;
+  max-width: 640px;
+  justify-self: start;
+}
+
+/* Framed as a crisp screen card (matching the Three Voices clip) rather than a
+   soft ambient loop: it shows real UI that otherwise washes out against the
+   cream paper. The card border + shadow replace the old radial edge mask. */
+.notepad-landing .connections-video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(102, 84, 79, 0.14);
+  box-shadow: 0 18px 48px -20px rgba(60, 46, 38, 0.45);
+  background: var(--np-bg-paper-cool);
 }
 
 /* Seven Papers two-column pair (same shape as Living Graph; cinematic 16:9, feathered) */
@@ -1018,7 +1072,7 @@
   line-height: 1.7;
 }
 
-.notepad-landing .lamplight-cards {
+.notepad-landing .connections-cards {
   list-style: none;
   padding: 0;
   display: grid;
@@ -1213,6 +1267,32 @@
   .notepad-landing .living-graph-video-wrap {
     justify-self: center;
     max-width: 90vw;
+  }
+  .notepad-landing .garden-station--connections .garden-station-pair {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  /* Promote the copy block and CTA out of the content wrapper so the demo video
+     (their sibling wrap) can sit between them — copy → video → CTA — instead of
+     the video being buried under the CTA. Desktop keeps the wrapper and its
+     side-by-side grid untouched (this only applies at ≤768px). */
+  .notepad-landing .garden-station--connections .garden-station-content--left {
+    display: contents;
+  }
+  .notepad-landing .garden-station--connections .connections-copy {
+    justify-self: center;
+    max-width: 90vw;
+    order: 1;
+  }
+  .notepad-landing .garden-station--connections .connections-video-wrap {
+    justify-self: center;
+    max-width: 90vw;
+    order: 2;
+  }
+  .notepad-landing .garden-station--connections .cta-primary {
+    justify-self: start;
+    margin-top: 0;
+    order: 3;
   }
   .notepad-landing .garden-station--scripture-margin .garden-station-pair {
     grid-template-columns: 1fr;

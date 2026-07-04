@@ -1,7 +1,8 @@
 // src/notepad-landing/sections/garden-scene/stations/01-three-voices.tsx
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { copy } from '../../../data/copy';
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
+import { useActiveVideoPlayback } from '../../../hooks/use-active-video-playback';
 
 interface Props { isActive: boolean }
 
@@ -10,20 +11,7 @@ export function StationThreeVoices({ isActive }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
 
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (prefersReducedMotion) {
-      v.pause();
-      return;
-    }
-    if (isActive) {
-      void v.play().catch(() => { /* iOS may reject; poster stays visible */ });
-    } else {
-      v.pause();
-      v.currentTime = 0;
-    }
-  }, [isActive, prefersReducedMotion]);
+  useActiveVideoPlayback(videoRef, isActive, prefersReducedMotion);
 
   return (
     <article
