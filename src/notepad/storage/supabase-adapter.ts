@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Note, Folder } from '../types';
 import type { StorageAdapter } from './adapter';
 import { countWordsFromTipTapJSON } from '../utils/tiptap-text';
+import { removeRecordingsForNote } from '../recordings/recordings-client';
 
 /**
  * StorageAdapter backed by Supabase PostgreSQL.
@@ -114,6 +115,9 @@ export class SupabaseStorageAdapter implements StorageAdapter {
   async deleteNote(id: string): Promise<void> {
     const { error } = await this.#client.from('notes').delete().eq('id', id);
     if (error) throw error;
+    // DB rows cascade; storage objects don't. Best-effort — never blocks
+    // deletion (removeRecordingsForNote never throws). Spec §1.
+    await removeRecordingsForNote(this.#userId, id);
   }
 
   async duplicateNote(id: string): Promise<Note> {
