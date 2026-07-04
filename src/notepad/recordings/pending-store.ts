@@ -104,7 +104,11 @@ async function withStore<T>(
 }
 
 const idbBackend: PendingBackend = {
-  put: (record) => withStore('readwrite', (store) => promisifyRequest(store.put(record))),
+  put: (record) =>
+    withStore('readwrite', async (store) => {
+      // store.put resolves the generated key; the contract is void, so drop it.
+      await promisifyRequest(store.put(record));
+    }),
   delete: (recordingId) =>
     withStore('readwrite', (store) => promisifyRequest(store.delete(recordingId))),
   loadByUser: (userId) =>
