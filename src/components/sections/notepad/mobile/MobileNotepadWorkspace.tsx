@@ -27,6 +27,7 @@ import { TranscriptionReview } from '../../../../notepad/components/Transcriptio
 import type { TranscriptionResult } from '../../../../notepad/scan/types';
 import type { MobileTab } from './types';
 import { loadEnum, saveEnum, KEY_MOBILE_TAB } from '../../../../notepad/session/session-storage';
+import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 
 type ScanStage = null | 'capture' | { review: TranscriptionResult };
 
@@ -222,6 +223,7 @@ export function MobileNotepadWorkspace() {
         )}
       </div>
 
+      <RecordingsDock variant="mobile" onOpenNote={handleOpenNote} />
       <MobileTabBar active={effectiveTab} onSelect={handleSelectTab} />
 
       <MobileMoreSheet

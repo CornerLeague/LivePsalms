@@ -36,6 +36,7 @@ import { useSelectionAnchor, detectDoubleTap } from '../editor/use-selection-anc
 import { formatTag } from '../utils/tags';
 import { useAccountProfile } from '../../auth/context/useAccountProfile';
 import { emptyStateMessage } from '../utils/empty-state-message';
+import { RecordingsStrip } from '../recordings/RecordingsStrip';
 import type { Note } from '../types';
 
 export interface NotepadEditorProps {
@@ -518,6 +519,9 @@ export function NotepadEditor({
           >
             {formatDate(activeNote.createdAt)}
           </div>
+
+          {/* Voice recordings — satellite data, not part of the TipTap doc */}
+          <RecordingsStrip noteId={activeNote.id} />
 
           {/* Tags */}
           {activeNote.tags.length > 0 && (

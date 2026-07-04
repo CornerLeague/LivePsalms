@@ -96,7 +96,7 @@ export function HeaderDesktop({ showNav = true, darkText = false, onNavTrigger }
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  const isHome = location.pathname === '/';
+  const isHome = location.pathname === '/home';
 
   // Hot-path DOM applier. Reads the current progress and mutates inline
   // styles + aria attributes on each nav-item wrapper and on the burger.

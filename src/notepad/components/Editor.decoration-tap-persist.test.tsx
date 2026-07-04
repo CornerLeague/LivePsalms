@@ -38,6 +38,7 @@ vi.mock('../editor/use-verse-tooltip', () => ({
 }));
 vi.mock('@tiptap/react', () => ({ EditorContent: () => <div data-testid="editor-content" /> }));
 vi.mock('../../auth/context/useAccountProfile', () => ({ useAccountProfile: () => ({ profile: null }) }));
+vi.mock('../recordings/RecordingsStrip', () => ({ RecordingsStrip: () => null }));
 // The decoration body renders an <img> only when getStyleAsset returns an asset,
 // so provide one for any id (DecorationItem early-returns null otherwise).
 vi.mock('../styles/manifest', () => ({

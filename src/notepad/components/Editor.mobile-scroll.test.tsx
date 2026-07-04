@@ -37,6 +37,7 @@ vi.mock('../editor/use-verse-tooltip', () => ({
 }));
 vi.mock('@tiptap/react', () => ({ EditorContent: () => <div data-testid="editor-content" /> }));
 vi.mock('../../auth/context/useAccountProfile', () => ({ useAccountProfile: () => ({ profile: null }) }));
+vi.mock('../recordings/RecordingsStrip', () => ({ RecordingsStrip: () => null }));
 vi.mock('../decorations/DecorationLayer', () => ({ DecorationLayer: () => null }));
 vi.mock('../decorations/useDecorations', () => ({ useDecorations: () => ({ decorations: [], applyDecoration: vi.fn() }) }));
 vi.mock('../decorations/DecorationTray', () => ({ DecorationTray: () => null }));

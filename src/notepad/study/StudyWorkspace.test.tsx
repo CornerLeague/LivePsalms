@@ -7,6 +7,10 @@ vi.mock('./panes/ApparatusRail', () => ({ ApparatusRail: () => <div>rail</div> }
 vi.mock('./panes/StudySidePanel', () => ({ StudySidePanel: () => <div>panel</div> }));
 vi.mock('./StudyModeToggle', () => ({ StudyModeToggle: () => <div>toggle</div> }));
 vi.mock('@/notepad/components/NotepadAuthControls', () => ({ NotepadAuthControls: () => <div>auth</div> }));
+vi.mock('@/notepad/recordings/RecordingsDock', () => ({ RecordingsDock: () => <div>recordings-dock</div> }));
+vi.mock('@/notepad/context/useNoteCollection', () => ({
+  useNoteCollection: () => ({ notes: [], activeNote: null, collection: { openNote: vi.fn() } }),
+}));
 // The StudyReader mock reports its (unchanged) passage from an effect on EVERY
 // render — the exact shape that previously caused "Maximum update depth exceeded".
 // If StudyWorkspace's handler isn't stable + guarded, render() throws here.

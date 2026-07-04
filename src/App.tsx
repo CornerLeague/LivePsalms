@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
-import { Routes, Route, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { decideHeroIntro, persistIntroPlayed } from '@/components/sections/hero-intro-gate';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -26,6 +26,7 @@ import { RouteTransitionProvider } from '@/transitions/RouteTransitionContext';
 import { LoadingOverlayContext } from '@/hooks/loading-overlay-context';
 import { ThemeProvider } from '@/notepad/theme/ThemeProvider';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
+import { RecordingsAudioProvider } from '@/notepad/recordings/audio-context';
 import { NotepadCompatRedirect } from '@/routing/NotepadCompatRedirect';
 import './App.css';
 
@@ -109,7 +110,7 @@ function App() {
     if (decision.persistFlag) {
       persistIntroPlayed(window.sessionStorage);
     }
-    const isInitiallyOnHome = window.location.pathname === '/';
+    const isInitiallyOnHome = window.location.pathname === '/home';
     return {
       homeIntroPlays: isInitiallyOnHome && decision.playIntro,
       prefersReducedMotion,
@@ -197,7 +198,7 @@ function App() {
     [transition],
   );
 
-  const handleExitComplete = useCallback(() => transition.completeExit('/'), [transition]);
+  const handleExitComplete = useCallback(() => transition.completeExit('/home'), [transition]);
 
   // Map the four-state status onto SplitTransition's three-state phase prop.
   // `exiting` is the text-fade pre-overlay phase, during which the overlay is hidden.
@@ -236,6 +237,16 @@ function App() {
           {dockMounted && <Header darkText={isDetailPage || isPurposePage} showNav={headerVisible} onNavTrigger={handleNavTrigger} />}
           {dockMounted && <MobileBottomDock onNavTrigger={handleNavTrigger} />}
 
+          {/* ONE app-wide RecordingsAudioProvider, hoisted above <Routes> so
+              in-app navigation out of the notebook (e.g. study logo → '/') never
+              unmounts the voice-recording session — a pending/failed upload (its
+              Blob in pendingRef) survives the route change and stays retryable
+              (greptile P1, bar i). It sits under <AuthProvider> so
+              useAuthSession() resolves, and is mounted EAGERLY (not lazy) so it
+              does not stall every route behind Suspense. The Header/MobileBottomDock
+              above don't use it and stay outside. Per-layout mounts were removed
+              from NotepadRoutes.tsx to keep exactly one owner (one pendingRef). */}
+          <RecordingsAudioProvider>
           <Suspense
             fallback={
               <div
@@ -246,8 +257,13 @@ function App() {
             }
           >
           <Routes>
+            {/* livepsalms.com now lands on the Notebook. The former marketing
+                home is preserved at /home (reachable by direct URL); the
+                hero-intro gate, purpose-page exit, and header isHome flag all
+                key off /home so it still renders correctly there. */}
+            <Route path="/" element={<Navigate to="/notebook" replace />} />
             <Route
-              path="/"
+              path="/home"
               element={
                 <main>
                   <WaterRipple
@@ -305,6 +321,7 @@ function App() {
             />
           </Routes>
           </Suspense>
+          </RecordingsAudioProvider>
 
           {!hideFooter && <FinalReflectionCta />}
         </div>

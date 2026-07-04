@@ -57,8 +57,8 @@ describe('<GardenScene /> — PRM mode (prm=true)', () => {
   it('renders all seven section components from FallbackStack', () => {
     renderScene(true);
     // Each fallback section has a known heading from data/copy.ts
-    expect(screen.getByRole('heading', { name: /you wrote it down\. find it anytime\./i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /three kinds of writing\. one thread running through them\./i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /psalm 119 calls the word a lamp to your feet/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /we make taking notes effortless/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /most apps wait for you to type\. this one already knows\./i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /open any passage\. study it with your own notes in hand/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /a page that actually looks like yours/i })).toBeInTheDocument();

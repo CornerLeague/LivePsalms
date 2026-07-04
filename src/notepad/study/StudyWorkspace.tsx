@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { useAuthSession } from '@/auth/context/useAuthSession';
+import { useNoteCollection } from '@/notepad/context/useNoteCollection';
 import { ApparatusRail } from './panes/ApparatusRail';
 import { StudyReader } from './panes/StudyReader';
 import { StudySidePanel } from './panes/StudySidePanel';
@@ -10,6 +11,7 @@ import { StudyModeToggle } from './StudyModeToggle';
 import { NotepadAuthControls } from '@/notepad/components/NotepadAuthControls';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 import { useEnsureStudyFolder } from './useEnsureStudyFolder';
+import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 import './study-theme.css';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileStudyWorkspace } from './mobile/MobileStudyWorkspace';
@@ -33,6 +35,7 @@ export function DesktopStudyWorkspace() {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
   const navigate = useNavigate();
+  const { collection } = useNoteCollection();
   useEnsureStudyFolder();
   const [passage, setPassage] = useState<{ book: string; chapter: number }>({ book: 'jhn', chapter: 1 });
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
@@ -184,6 +187,7 @@ export function DesktopStudyWorkspace() {
           </aside>
         )}
       </div>
+      <RecordingsDock variant="desktop" onOpenNote={(id) => collection.openNote(id)} />
     </div>
   );
 }

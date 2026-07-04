@@ -48,6 +48,7 @@ vi.mock('../editor/use-verse-tooltip', () => ({
 }));
 vi.mock('@tiptap/react', () => ({ EditorContent: () => <div data-testid="editor-content" /> }));
 vi.mock('../../auth/context/useAccountProfile', () => ({ useAccountProfile: () => ({ profile: null }) }));
+vi.mock('../recordings/RecordingsStrip', () => ({ RecordingsStrip: () => null }));
 vi.mock('../styles/manifest', () => ({
   STYLE_ASSETS: [],
   getStyleAsset: (id: string) => ({ id, category: 'arrow', thumbUrl: 't', displayUrl: `/d/${id}.webp`, aspectRatio: 2 }),
