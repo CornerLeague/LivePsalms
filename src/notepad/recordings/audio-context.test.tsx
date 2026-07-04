@@ -2,6 +2,7 @@
 // src/notepad/recordings/audio-context.test.tsx
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, act } from '@testing-library/react';
+import { MemoryRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import {
   audioReducer,
   initialAudioState,
@@ -15,8 +16,16 @@ import { installMediaFakes, FakeAudio, FakeMediaRecorder } from './fakes';
 import type { NoteRecording } from './recordings-client';
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
+// Mutable current-user holder so the cross-user test can flip `user.id` in place
+// (mirrors AuthSession's useSyncExternalStore update with no remount). Defaults
+// to user-1 for every other test.
+const auth = vi.hoisted(() => ({ userId: 'user-1' as string | null }));
 vi.mock('@/auth/context/useAuthSession', () => ({
-  useAuthSession: () => ({ user: { id: 'user-1' }, adapter: null, session: null }),
+  useAuthSession: () => ({
+    user: auth.userId ? { id: auth.userId } : null,
+    adapter: null,
+    session: null,
+  }),
 }));
 const client = vi.hoisted(() => ({
   uploadRecording: vi.fn(),
@@ -109,6 +118,7 @@ describe('RecordingsAudioProvider', () => {
   let fakes: ReturnType<typeof installMediaFakes>;
 
   beforeEach(() => {
+    auth.userId = 'user-1';
     vi.useFakeTimers();
     fakes = installMediaFakes();
     client.uploadRecording.mockResolvedValue(rec);
@@ -407,5 +417,187 @@ describe('RecordingsAudioProvider', () => {
       expect.any(Function),
     );
     expect(stopTrack).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Hoist + hardening mitigations (PR #73 greptile P1, bar i) ─────────────
+
+  // Harness that mounts the provider at the ROOT (outside the router, as in
+  // App.tsx) and exposes navigate(), so route changes never unmount it.
+  let navigate: ReturnType<typeof useNavigate>;
+  function RouterCapture() {
+    // Test-only harness (see Capture above): capture hook + navigate into outer
+    // vars so act() blocks can drive them. Intentional reassignment is safe here.
+    // eslint-disable-next-line react-hooks/globals -- see comment above
+    ctx = useRecordingsAudio();
+    // eslint-disable-next-line react-hooks/globals -- see comment above
+    navigate = useNavigate();
+    return <div data-testid="notebook">notebook</div>;
+  }
+  function mountRooted(initial = '/notebook') {
+    render(
+      <RecordingsAudioProvider>
+        <MemoryRouter initialEntries={[initial]}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/notebook" replace />} />
+            <Route path="/notebook" element={<RouterCapture />} />
+            <Route path="/notebook/study" element={<div data-testid="study">study</div>} />
+          </Routes>
+        </MemoryRouter>
+      </RecordingsAudioProvider>,
+    );
+  }
+
+  it('original-gap: a failed session survives navigate-out-and-back and stays retryable with the same blob', async () => {
+    client.uploadRecording.mockRejectedValueOnce(new Error('offline'));
+    mountRooted();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording(); // onstop populates pendingRef, runUpload begins → rejects
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('failed');
+
+    // Navigate OUT to '/' (redirects to /notebook) and back — the root provider
+    // must NOT unmount, so the failed session persists.
+    await act(async () => { navigate('/notebook/study'); });
+    await act(async () => { navigate('/notebook'); });
+    expect(ctx.recorder?.status).toBe('failed');
+
+    // Retry re-invokes uploadRecording with the SAME blob/noteId (no re-record).
+    client.uploadRecording.mockClear();
+    client.uploadRecording.mockResolvedValueOnce(rec);
+    await act(async () => {
+      ctx.retryUpload();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(client.uploadRecording).toHaveBeenCalledTimes(1);
+    expect(client.uploadRecording).toHaveBeenCalledWith(
+      expect.objectContaining({ noteId: 'note-1', userId: 'user-1', blob: expect.any(Blob) }),
+      expect.any(Function),
+    );
+    expect(ctx.recorder).toBeNull();
+    expect(ctx.savedVersion).toBe(1);
+    // Exactly one capture session ever existed — one provider, no remount.
+    expect(FakeMediaRecorder.instances).toHaveLength(1);
+  });
+
+  it('single-instance: navigating between notebook routes preserves reducer identity (no remount)', async () => {
+    mountRooted();
+    await act(async () => {
+      ctx.stopRecording(); // no-op, just anchor a render
+      await Promise.resolve();
+    });
+    // Drive a successful upload so savedVersion bumps to a distinctive value.
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.savedVersion).toBe(1);
+    expect(ctx.recorder).toBeNull();
+
+    // Navigate away and back; a remount would reset savedVersion to 0.
+    await act(async () => { navigate('/notebook/study'); });
+    await act(async () => { navigate('/notebook'); });
+    expect(ctx.savedVersion).toBe(1);
+  });
+
+  it('re-entrant guard: double-firing retryUpload in one act uploads exactly once', async () => {
+    client.uploadRecording.mockRejectedValueOnce(new Error('offline'));
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('failed');
+
+    client.uploadRecording.mockClear();
+    client.uploadRecording.mockResolvedValue(rec);
+    // Two synchronous clicks before stateRef flips to 'uploading'.
+    await act(async () => {
+      ctx.retryUpload();
+      ctx.retryUpload();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(client.uploadRecording).toHaveBeenCalledTimes(1);
+  });
+
+  it('cross-user: flipping user.id in place clears the pending session, fires no upload, and disarms beforeunload', async () => {
+    client.uploadRecording.mockRejectedValueOnce(new Error('offline'));
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+    const { rerender } = render(
+      <RecordingsAudioProvider>
+        <Capture />
+      </RecordingsAudioProvider>,
+    );
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('failed'); // pending payload for user-1
+
+    client.uploadRecording.mockClear();
+    // Sign out → different user signs in, all WITHOUT unmounting the provider.
+    auth.userId = 'user-2';
+    await act(async () => {
+      rerender(
+        <RecordingsAudioProvider>
+          <Capture />
+        </RecordingsAudioProvider>,
+      );
+      await Promise.resolve();
+    });
+
+    // (i) the departing user's session is cleared …
+    expect(ctx.recorder).toBeNull();
+    // (ii) … and even a stray retry uploads NOTHING under the new user.
+    act(() => ctx.retryUpload());
+    expect(client.uploadRecording).not.toHaveBeenCalled();
+    // (iv) the beforeunload guard was torn down once captureActive went false.
+    expect(removeSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function));
+    removeSpy.mockRestore();
+  });
+
+  it('cross-user: an ACTIVE recording for the departing user stops the mic (no orphaned hot stream) and fires no upload', async () => {
+    const { rerender } = render(
+      <RecordingsAudioProvider>
+        <Capture />
+      </RecordingsAudioProvider>,
+    );
+    await act(async () => { await ctx.startRecording('note-1'); });
+    expect(ctx.mode).toBe('recording');
+    const stream = FakeMediaRecorder.instances[0].stream as unknown as {
+      getTracks: () => { stop: () => void }[];
+    };
+    const stopTrack = vi.fn();
+    stream.getTracks = () => [{ stop: stopTrack }];
+    const recorder = FakeMediaRecorder.instances[0];
+
+    client.uploadRecording.mockClear();
+    auth.userId = 'user-2';
+    await act(async () => {
+      rerender(
+        <RecordingsAudioProvider>
+          <Capture />
+        </RecordingsAudioProvider>,
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Mic stopped (via cancelRecording → recorder.stop → teardown), session gone.
+    expect(recorder.stop).toHaveBeenCalled();
+    expect(stopTrack).toHaveBeenCalled();
+    expect(ctx.recorder).toBeNull();
+    // Cancelled capture must NOT upload the previous user's audio.
+    expect(client.uploadRecording).not.toHaveBeenCalled();
   });
 });

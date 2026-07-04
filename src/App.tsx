@@ -26,6 +26,7 @@ import { RouteTransitionProvider } from '@/transitions/RouteTransitionContext';
 import { LoadingOverlayContext } from '@/hooks/loading-overlay-context';
 import { ThemeProvider } from '@/notepad/theme/ThemeProvider';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
+import { RecordingsAudioProvider } from '@/notepad/recordings/audio-context';
 import { NotepadCompatRedirect } from '@/routing/NotepadCompatRedirect';
 import './App.css';
 
@@ -236,6 +237,16 @@ function App() {
           {dockMounted && <Header darkText={isDetailPage || isPurposePage} showNav={headerVisible} onNavTrigger={handleNavTrigger} />}
           {dockMounted && <MobileBottomDock onNavTrigger={handleNavTrigger} />}
 
+          {/* ONE app-wide RecordingsAudioProvider, hoisted above <Routes> so
+              in-app navigation out of the notebook (e.g. study logo → '/') never
+              unmounts the voice-recording session — a pending/failed upload (its
+              Blob in pendingRef) survives the route change and stays retryable
+              (greptile P1, bar i). It sits under <AuthProvider> so
+              useAuthSession() resolves, and is mounted EAGERLY (not lazy) so it
+              does not stall every route behind Suspense. The Header/MobileBottomDock
+              above don't use it and stay outside. Per-layout mounts were removed
+              from NotepadRoutes.tsx to keep exactly one owner (one pendingRef). */}
+          <RecordingsAudioProvider>
           <Suspense
             fallback={
               <div
@@ -310,6 +321,7 @@ function App() {
             />
           </Routes>
           </Suspense>
+          </RecordingsAudioProvider>
 
           {!hideFooter && <FinalReflectionCta />}
         </div>

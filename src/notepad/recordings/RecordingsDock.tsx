@@ -2,7 +2,7 @@
 // Docked recorder/playback bar (spec §3). Renders null when idle — mounted as
 // a shrink-0 flex footer in each workspace (desktop <main>; mobile above
 // MobileTabBar), so visible content shrinks instead of being covered.
-import { Pause, Play, RotateCcw, RotateCw, Square, X } from 'lucide-react';
+import { Loader2, Pause, Play, RotateCcw, RotateCw, Square, X } from 'lucide-react';
 import { useRecordingsAudio } from './audio-context';
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
@@ -41,6 +41,7 @@ export function RecordingsDock({
   const {
     mode, recorder, track, positionSec, speed,
     pauseRecording, resumeRecording, stopRecording, cancelRecording,
+    retryUpload, discardRecording,
     togglePlayback, seekTo, skipBy, setSpeed, closeDock,
   } = useRecordingsAudio();
 
@@ -65,6 +66,74 @@ export function RecordingsDock({
         )}
         <IconButton label="Save recording" onClick={stopRecording}><Square size={15} /></IconButton>
         <IconButton label="Discard recording" onClick={cancelRecording}><X size={15} /></IconButton>
+      </div>
+    );
+  }
+
+  // Always-reachable uploading/failed surface (spec: note-agnostic). The strip's
+  // pending chip only shows on the OWNING note, so a session started in note A is
+  // UI-unreachable if the user returns to a different active note, note A was
+  // deleted, or there is no active note. The dock renders app-wide, so this
+  // branch guarantees a pending/failed upload is always visible + recoverable.
+  // Active playback takes precedence (checked first) so we never hide the player.
+  const pending =
+    !track && recorder && (recorder.status === 'uploading' || recorder.status === 'failed')
+      ? recorder
+      : null;
+  if (pending) {
+    const openNote = onOpenNote && (
+      <button
+        type="button"
+        aria-label="Open note"
+        onClick={() => onOpenNote(pending.noteId)}
+        className="text-[11px] underline underline-offset-2 shrink-0"
+        style={{ color: 'var(--silica)' }}
+      >
+        Open note
+      </button>
+    );
+    return (
+      <div
+        data-testid="recordings-dock"
+        className={`shrink-0 flex items-center gap-3 ${variant === 'mobile' ? 'px-3' : 'px-4'} py-2`}
+        style={barStyle}
+      >
+        {pending.status === 'uploading' ? (
+          <>
+            <Loader2 aria-hidden size={15} className="animate-spin" />
+            <span className="text-[12px]">Uploading recording…</span>
+            <span className="text-[11px] tabular-nums" style={{ color: 'var(--silica)' }}>
+              {Math.round(pending.uploadProgress * 100)}%
+            </span>
+            <div className="flex-1" />
+            {openNote}
+          </>
+        ) : (
+          <>
+            <span aria-hidden className="w-2 h-2 rounded-full shrink-0" style={{ background: '#c0392b' }} />
+            <span className="text-[12px]" style={{ color: '#c0392b' }}>Upload failed</span>
+            <div className="flex-1" />
+            {openNote}
+            <button
+              type="button"
+              aria-label="Retry upload"
+              onClick={retryUpload}
+              className="text-[11px] underline underline-offset-2 shrink-0"
+              style={{ color: 'var(--deep-umber)' }}
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              aria-label="Discard failed recording"
+              onClick={discardRecording}
+              className="text-[11px] underline underline-offset-2 shrink-0"
+              style={{ color: 'var(--silica)' }}
+            >
+              Discard
+            </button>
+          </>
+        )}
       </div>
     );
   }

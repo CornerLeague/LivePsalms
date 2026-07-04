@@ -186,7 +186,20 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
   } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRetriedRef = useRef(false);
+  // Synchronous re-entrancy claim for uploads: stateRef.current.recorder only
+  // flips to 'uploading' after the RECORD_STOP dispatch is committed, so a
+  // double-clicked Retry (RecordingsStrip.tsx) could fire two concurrent
+  // uploadRecording() on the same recordingId in the render-lag window. Mirrors
+  // acquiringRef's claim-before-await idiom; cleared in BOTH .then and .catch.
+  const uploadingRef = useRef(false);
   const stateRef = useRef(state);
+  // The provider is now hoisted to the app root (App.tsx) and never unmounts on
+  // navigation, so it persists across sign-out→sign-in (AuthSession flips `user`
+  // in place via useSyncExternalStore, no remount). userRef gives the upload
+  // callbacks the CURRENT user id without a stale closure, so a pending payload
+  // from user A is never uploaded under user B's session (see the cross-user
+  // effect below and the re-checks in runUpload/retryUpload).
+  const userRef = useRef(user);
   // Refs must not be written during render (react-hooks/refs); commit the
   // latest state to the ref right after render instead. Callbacks below only
   // read stateRef.current when invoked later, never during this render, so
@@ -194,6 +207,9 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const clearTick = () => {
     if (tickRef.current) clearInterval(tickRef.current);
@@ -203,14 +219,26 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
   const runUpload = useCallback(() => {
     const pending = pendingRef.current;
     if (!pending) return;
+    // Defense in depth against a cross-user race: if the active user changed
+    // (sign-out→sign-in) and the cross-user effect hasn't cleared this payload
+    // yet, refuse to upload user A's audio into user B's session. Discard-only —
+    // the guard effect owns clearing the reducer state.
+    if (pending.userId !== userRef.current?.id) {
+      pendingRef.current = null;
+      return;
+    }
+    if (uploadingRef.current) return; // synchronous re-entrancy claim
+    uploadingRef.current = true;
     uploadRecording(pending, (fraction) =>
       dispatch({ type: 'UPLOAD_PROGRESS', progress: fraction }),
     )
       .then(() => {
+        uploadingRef.current = false;
         pendingRef.current = null;
         dispatch({ type: 'UPLOAD_DONE' });
       })
       .catch((err: unknown) => {
+        uploadingRef.current = false;
         dispatch({ type: 'UPLOAD_FAILED', error: err instanceof Error ? err.message : 'upload failed' });
         toast.error('Recording upload failed — retry from the note.');
       });
@@ -319,6 +347,16 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
 
   const retryUpload = useCallback(() => {
     if (stateRef.current.recorder?.status !== 'failed') return;
+    // Cross-user re-check before we flip the reducer back to 'uploading': if the
+    // pending payload belongs to a different user than the current session,
+    // discard rather than upload under the wrong identity (mirrors runUpload).
+    const pending = pendingRef.current;
+    if (!pending || pending.userId !== userRef.current?.id) {
+      pendingRef.current = null;
+      dispatch({ type: 'RECORDER_CLEAR' });
+      return;
+    }
+    if (uploadingRef.current) return; // a retry is already in flight
     dispatch({ type: 'RECORD_STOP' }); // back to uploading
     runUpload();
   }, [runUpload]);
@@ -335,6 +373,36 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
       stopRecording();
     }
   }, [state.recorder?.status, state.recorder?.elapsedSec, stopRecording]);
+
+  // Cross-user safety (MANDATORY). Because the provider is hoisted to the app
+  // root it survives sign-out→sign-in: AuthSession flips `user` in place with NO
+  // remount, so the salvage-on-unmount effect does NOT fire on this transition.
+  // Any recorder session belonging to the departing user must be torn down here
+  // — never carried into, uploaded under, or shown to the next user. A live mic
+  // is stopped via cancelRecording() (sets cancelledRef so onstop DISCARDS
+  // instead of salvaging into the wrong account and releases the stream), so no
+  // orphaned hot mic survives the identity change.
+  const prevUserIdRef = useRef(user?.id ?? null);
+  useEffect(() => {
+    const prevId = prevUserIdRef.current;
+    const nextId = user?.id ?? null;
+    if (prevId === nextId) return;
+    prevUserIdRef.current = nextId;
+    // Only act when a session from the departing user is present. A pending
+    // payload (uploading/failed) is keyed by userId; an in-flight capture has
+    // no payload yet but its recorder belongs to the previous identity.
+    const pending = pendingRef.current;
+    const hasStaleSession =
+      (pending && pending.userId !== nextId) || (!pending && stateRef.current.recorder != null);
+    if (!hasStaleSession) return;
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      cancelRecording(); // stop mic + discard (no salvage into the wrong user)
+    }
+    pendingRef.current = null;
+    uploadingRef.current = false;
+    dispatch({ type: 'RECORDER_CLEAR' });
+  }, [user?.id, cancelRecording]);
 
   // ── Playback ────────────────────────────────────────────────────────
   const ensureAudio = useCallback((): HTMLAudioElement => {
@@ -435,11 +503,12 @@ export function RecordingsAudioProvider({ children }: { children: ReactNode }) {
     [closeDock],
   );
 
-  // Provider-unmount safety net: internal paths (onstop, beforeunload,
-  // teardownCapture) already clean up in every normal flow, but nothing
-  // guarded an unmount mid-recording/mid-playback (tests, route-based trees,
-  // in-app navigation out of the notebook layout). A bare teardownCapture()
-  // here would silently discard an in-flight capture: it stops the stream
+  // Provider-unmount safety net. With the provider hoisted to the app root
+  // (App.tsx), in-app navigation no longer unmounts it — this cleanup now fires
+  // only on real app teardown (full page unload/close) and in tests. Kept as
+  // belt-and-suspenders: internal paths (onstop, beforeunload, teardownCapture)
+  // already clean up in every normal flow, but a bare teardownCapture() on any
+  // remaining unmount would silently discard an in-flight capture: it stops the stream
   // and nulls mediaRecorderRef WITHOUT ever calling recorder.stop(), so
   // onstop never fires and the chunks in chunksRef are lost.
   //

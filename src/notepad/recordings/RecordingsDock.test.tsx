@@ -116,4 +116,85 @@ describe('RecordingsDock', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Go to note' }));
     expect(onOpenNote).toHaveBeenCalledWith('note-1');
   });
+
+  // ── Note-agnostic uploading/failed surface (PR #73, adversarial "lost real
+  //    session" gap: a session started in note A must stay recoverable app-wide,
+  //    even when the active note is different, deleted, or absent). ──────────
+
+  it('shows an uploading progress bar app-wide (independent of active note)', async () => {
+    // Never-resolving upload so the session parks in "uploading".
+    client.uploadRecording.mockReturnValue(new Promise(() => {}));
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('uploading');
+    expect(screen.getByTestId('recordings-dock')).toBeInTheDocument();
+    expect(screen.getByText('Uploading recording…')).toBeInTheDocument();
+  });
+
+  it('failed upload: dock exposes Retry / Discard / Open note reachable from any note', async () => {
+    client.uploadRecording.mockRejectedValueOnce(new Error('offline'));
+    const onOpenNote = mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('failed');
+
+    // The dock (which renders app-wide, regardless of which note is active)
+    // surfaces the full recovery affordance.
+    expect(screen.getByText('Upload failed')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open note' }));
+    expect(onOpenNote).toHaveBeenCalledWith('note-1');
+
+    // Retry re-uploads the same session; on success the dock clears.
+    client.uploadRecording.mockResolvedValueOnce(rec);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Retry upload' }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder).toBeNull();
+    expect(screen.queryByTestId('recordings-dock')).toBeNull();
+  });
+
+  it('failed upload: Discard from the dock clears the session without re-uploading', async () => {
+    client.uploadRecording.mockRejectedValueOnce(new Error('offline'));
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('failed');
+
+    client.uploadRecording.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard failed recording' }));
+    expect(ctx.recorder).toBeNull();
+    expect(screen.queryByTestId('recordings-dock')).toBeNull();
+    // Discard must not resurrect the upload.
+    act(() => ctx.retryUpload());
+    expect(client.uploadRecording).not.toHaveBeenCalled();
+  });
+
+  it('active playback takes precedence over a pending upload in the dock', async () => {
+    client.uploadRecording.mockReturnValue(new Promise(() => {})); // parks in uploading
+    mount();
+    await act(async () => { await ctx.startRecording('note-1'); });
+    await act(async () => {
+      ctx.stopRecording();
+      await Promise.resolve();
+    });
+    expect(ctx.recorder?.status).toBe('uploading');
+    // Start playback of a saved recording — the player bar must win.
+    await act(async () => { await ctx.playRecording(rec); });
+    expect(screen.getByRole('slider', { name: 'Seek' })).toBeInTheDocument();
+    expect(screen.queryByText('Uploading recording…')).toBeNull();
+  });
 });

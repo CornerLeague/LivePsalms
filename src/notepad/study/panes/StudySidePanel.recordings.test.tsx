@@ -7,9 +7,9 @@
 // mock NotepadEditor entirely, so neither exercises the real
 // RecordingsStrip/useRecordingsAudio wiring and neither would have caught
 // this crash. This file renders the REAL RecordingsStrip (unmocked) under
-// the same RecordingsAudioProvider the layout now supplies (see
-// src/auth/username/NotepadRoutes.tsx), so a regression in provider
-// placement fails here.
+// the same RecordingsAudioProvider the app now supplies once at the root (see
+// src/App.tsx, hoisted above <Routes>), so a regression in provider placement
+// fails here.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { RecordingsAudioProvider } from '../../recordings/audio-context';
