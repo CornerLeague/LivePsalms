@@ -7,7 +7,7 @@ import { useActiveVideoPlayback } from '../../../hooks/use-active-video-playback
 interface Props { isActive: boolean }
 
 export function StationScriptureMargin({ isActive }: Props) {
-  const { eyebrow, h2, body, supporting } = copy.section05;
+  const { eyebrow, h2, body } = copy.section05;
   const videoRef = useRef<HTMLVideoElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -24,7 +24,6 @@ export function StationScriptureMargin({ isActive }: Props) {
           <p className="eyebrow">{eyebrow}</p>
           <h2>{h2}</h2>
           <p className="body">{body}</p>
-          <p className="supporting">{supporting}</p>
         </div>
         <div className="scripture-margin-video-wrap">
           <video
@@ -35,7 +34,7 @@ export function StationScriptureMargin({ isActive }: Props) {
             muted
             loop
             playsInline
-            aria-label="Personal Bible study inside the Notepad — opening a passage, searching to a verse, and asking about it with your own notes in hand."
+            aria-label="Lamplight, the biblical AI in Live Psalms — asking Lamplight Study about a passage while reading, and Lamplight writing a personal devotion from your own notes."
           >
             <source src="/notepad-bible-study-video.webm" type="video/webm" />
             <source src="/notepad-bible-study-video.mp4"  type="video/mp4"  />

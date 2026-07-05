@@ -18,8 +18,8 @@ export function FallbackStack({ prm }: FallbackStackProps) {
       <LivingGraph prm={prm} />
       <Connections prm={prm} />
       <ScriptureMargin prm={prm} />
-      <SevenPapers prm={prm} />
       <TierPath />
+      <SevenPapers prm={prm} />
       <TrustImport />
     </>
   );

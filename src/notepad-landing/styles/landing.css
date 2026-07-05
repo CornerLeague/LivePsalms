@@ -507,7 +507,7 @@
 
 .scripture-margin-feature-video {
   width: 100%;
-  aspect-ratio: 2 / 1;
+  aspect-ratio: 16 / 9;
   display: block;
   object-fit: cover;
   border-radius: 12px;
@@ -553,16 +553,6 @@
 .tier-path-content {
   max-width: 700px;
   margin: 0 auto;
-}
-
-.tier-pullquote {
-  font-family: var(--np-script);
-  font-size: clamp(2.8rem, 6vw, 4.8rem);
-  line-height: 1.1;
-  color: var(--np-ink);
-  margin: 2.4rem 0 2rem;
-  padding-left: 2rem;
-  border: none;
 }
 
 /* ─── Section 08: Trust / Import ─────────────────────────────────── */
@@ -920,12 +910,13 @@
 
 .notepad-landing .scripture-margin-video {
   width: 100%;
-  aspect-ratio: 2 / 1;
+  aspect-ratio: 16 / 9;
   display: block;
   object-fit: cover;
-  background: transparent;
-  -webkit-mask-image: radial-gradient(ellipse 95% 92% at 50% 50%, #000 60%, transparent 100%);
-          mask-image: radial-gradient(ellipse 95% 92% at 50% 50%, #000 60%, transparent 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(102, 84, 79, 0.14);
+  box-shadow: 0 18px 48px -20px rgba(60, 46, 38, 0.45);
+  background: var(--np-bg-paper-cool);
 }
 
 /* Connections two-column pair (text left, video right — same shape as Living Graph) */
@@ -996,9 +987,7 @@
           mask-image: radial-gradient(ellipse 95% 92% at 50% 50%, #000 60%, transparent 100%);
 }
 
-/* Tier Path two-column pair — image left, copy right.
-   Verse echo: the image's anchor verse (Psalm 27:1) sits across the gap
-   from the section's pullquote (Zechariah 4:10). */
+/* Audio Presence two-column pair — video left, copy right. */
 .notepad-landing .garden-station--tier-path .garden-station-pair {
   width: 100%;
   max-width: min(1280px, 90vw);
@@ -1015,18 +1004,21 @@
   text-align: left;
 }
 
-.notepad-landing .tier-path-image-wrap {
+.notepad-landing .tier-path-video-wrap {
   width: 100%;
-  max-width: 460px;
+  max-width: 560px;
   justify-self: end;
 }
 
-.notepad-landing .tier-path-image {
+.notepad-landing .tier-path-video {
   width: 100%;
-  height: auto;
+  aspect-ratio: 16 / 9;
   display: block;
-  -webkit-mask-image: radial-gradient(ellipse 96% 94% at 50% 50%, #000 65%, transparent 100%);
-          mask-image: radial-gradient(ellipse 96% 94% at 50% 50%, #000 65%, transparent 100%);
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(102, 84, 79, 0.14);
+  box-shadow: 0 18px 48px -20px rgba(60, 46, 38, 0.45);
+  background: var(--np-bg-paper-cool);
 }
 
 .notepad-landing .garden-station .eyebrow {
@@ -1144,16 +1136,6 @@
 .notepad-landing .tier-name {
   font-family: var(--np-display);
   font-size: 18px;
-}
-
-.notepad-landing .tier-pullquote {
-  font-family: var(--np-display);
-  font-style: italic;
-  font-size: clamp(18px, 2vw, 22px);
-  border-left: 2px solid var(--np-ink-soft);
-  padding-left: 16px;
-  margin: 24px 0;
-  color: var(--np-ink-mid);
 }
 
 .notepad-landing .trust-lines {
@@ -1290,7 +1272,7 @@
     order: 2;
   }
   .notepad-landing .garden-station--connections .cta-primary {
-    justify-self: start;
+    justify-self: center;
     margin-top: 0;
     order: 3;
   }
@@ -1327,12 +1309,9 @@
     max-width: 90vw;
     text-align: center;
   }
-  .notepad-landing .garden-station--tier-path .tier-pullquote {
-    text-align: left;
-  }
-  .notepad-landing .tier-path-image-wrap {
+  .notepad-landing .tier-path-video-wrap {
     justify-self: center;
-    max-width: min(360px, 80vw);
+    max-width: min(420px, 80vw);
   }
   .notepad-landing .closing-cta-secondary {
     display: none;

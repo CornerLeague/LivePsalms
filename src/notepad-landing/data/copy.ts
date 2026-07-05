@@ -23,6 +23,7 @@ export const copy = {
       'Type /verse and the passage drops right into your note.',
       'Cannot remember a reference but you know the words, just type /lookup and the phrase and it finds the verse for you.',
       'Your notes file themselves into the right place on their own.',
+      'Bring in your current notes, whether handwritten or living on another app, with ease.',
     ] as const,
   },
   section04: {
@@ -34,22 +35,19 @@ export const copy = {
     cta: 'Open your notebook →',
   },
   section05: {
-    eyebrow: '— PERSONAL BIBLE STUDY —',
-    h2: 'Open any passage. Study it with your own notes in hand. Take your studies deeper.',
-    body: 'All 66 books, search straight to any verse. Ask about the passage and the answer draws on what you’ve already written about it, every reference cited.',
-    supporting: 'Study John 10 and it brings back the times you wrote about being found.',
+    eyebrow: '— LAMPLIGHT AI —',
+    h2: 'Your own Biblical AI to help you in your walk and navigate through the Word.',
+    body: 'Lamplight Study is there for the question that comes up mid-reading. Ask it anything, broad or specific, and it helps you make theological and biblical connections, without making you leave the page to go searching for it.',
   },
   section06: {
     eyebrow: '— SPIRITUAL CANVAS —',
     h2: 'A page that actually looks like yours.',
-    body: 'Highlight in textures that read like real ink, not a flat bar. Drop hand-drawn arrows and marks anywhere on the page. Sort it into folders with their own color and icon. It should feel like your journal — because it is.',
+    body: 'Highlight in textures that read like real ink. Drop hand-drawn arrows and marks anywhere on the page. Sort it into folders with their own color and icon. Make it feel more you.',
   },
   section07: {
-    eyebrow: '— MARKED IN SCRIPTURE —',
-    h2: 'Your work counts',
-    supporting: 'Measured in scripture, never in streaks.',
-    body: 'Eight tiers from New Flame to Glory, each rooted in a verse. No shame for the day you missed — the count only climbs.',
-    pullQuote: '“Do not despise the day of small beginnings.” — Zechariah 4:10',
+    eyebrow: '— AUDIO PRESENCE —',
+    h2: 'Capture the room, not just your writing.',
+    body: 'Record a voice note, a sermon, a bible study. You shouldn’t have to choose between being present and remembering.',
   },
   section08: {
     eyebrow: '— WHAT IS YOURS, STAYS YOURS —',

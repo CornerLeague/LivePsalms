@@ -9,7 +9,7 @@ interface ScriptureMarginProps {
 export function ScriptureMargin({ prm }: ScriptureMarginProps) {
   const ref = useRef<HTMLElement>(null);
   const staged = useIntersectionStage(ref);
-  const { eyebrow, h2, body, supporting } = copy.section05;
+  const { eyebrow, h2, body } = copy.section05;
 
   return (
     <section
@@ -21,7 +21,6 @@ export function ScriptureMargin({ prm }: ScriptureMarginProps) {
         <p className="eyebrow">{eyebrow}</p>
         <h2 id="sec05-h2">{h2}</h2>
         <p className="body">{body}</p>
-        <p className="supporting">{supporting}</p>
 
         <div className="scripture-margin-media">
           <video
@@ -33,7 +32,7 @@ export function ScriptureMargin({ prm }: ScriptureMarginProps) {
             preload="metadata"
             poster="/notepad-bible-study-video-poster.jpg"
             controls={prm}
-            aria-label="Personal Bible study inside the Notepad — opening a passage, searching to a verse, and asking about it with your own notes in hand."
+            aria-label="Lamplight, the biblical AI in Live Psalms — asking Lamplight Study about a passage while reading, and Lamplight writing a personal devotion from your own notes."
           >
             <source src="/notepad-bible-study-video.webm" type="video/webm" />
             <source src="/notepad-bible-study-video.mp4" type="video/mp4" />
