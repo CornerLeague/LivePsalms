@@ -27,11 +27,11 @@ export const copy = {
     ] as const,
   },
   section04: {
-    eyebrow: '— LAMPLIGHT —',
-    h2: 'Most apps wait for you to type. This one already knows.',
-    body: 'Today’s Lamp is a single morning, afternoon, or evening card — built from your own recent notes, anchored in scripture, written for the season you’re actually in.',
-    supporting: 'Not a verse-of-the-day. A word for where you are.',
-    detail: 'It shows its work: every line names the note and the verse it came from.',
+    eyebrow: '— CONNECTIONS —',
+    h2: 'Your notes share connections just like the scriptures share connections.',
+    body: 'We show how your own notes connect with one another and within scripture.',
+    supporting: 'When you circle back to the same verse or the same theme, months or even years apart, a connection card shows you the thread and how it connects.',
+    detail: 'Over time your notebook becomes a map of what God keeps drawing you toward.',
     cta: 'Open your notebook →',
   },
   section05: {

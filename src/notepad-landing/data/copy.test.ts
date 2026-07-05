@@ -24,12 +24,12 @@ describe('notepad landing copy (locked)', () => {
     expect(copy.section09.ctaPrimary).toBe('Open your notebook →');
   });
 
-  it('Lamplight section leads with the "already knows" framing', () => {
-    expect(copy.section04.h2).toBe('Most apps wait for you to type. This one already knows.');
+  it('Connections section leads with the notes-share-connections framing', () => {
+    expect(copy.section04.h2).toBe('Your notes share connections just like the scriptures share connections.');
   });
 
-  it('Lamplight shows its work (cites the source note and verse)', () => {
-    expect(copy.section04.detail).toMatch(/names the note and the verse/);
+  it('Connections closes on the notebook-as-map idea', () => {
+    expect(copy.section04.detail).toMatch(/map of what God keeps drawing you toward/);
   });
 
   it('section 6 (spiritual canvas) leads with the canvas framing', () => {
