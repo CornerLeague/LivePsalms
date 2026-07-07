@@ -23,15 +23,21 @@ export function MarkerPath({ markers }: MarkerPathProps) {
     <section className="wm-markers" aria-label="The moments, marked">
       <p className="wm-label wm-markers__head">THE MOMENTS, MARKED</p>
       <ol className="wm-markers__list">
-        {markers.map((m, i) => (
-          <li key={i} className="wm-marker">
-            <span className="wm-marker__date wm-label">
-              {markerDate(m.date)}{m.date_end ? ` – ${markerDate(m.date_end)}` : ''}
-            </span>
-            {m.verse && <span className="wm-marker__verse wm-title">{m.verse}</span>}
-            <span className="wm-marker__phrase wm-caption">{m.phrase}</span>
-          </li>
-        ))}
+        {markers.map((m, i) => {
+          // Key the range separator off the *formatted* end date, not raw
+          // `date_end` truthiness: markerDate degrades a partial/malformed end
+          // to '', which would otherwise leave a dangling "May 12 – ".
+          const end = markerDate(m.date_end);
+          return (
+            <li key={i} className="wm-marker">
+              <span className="wm-marker__date wm-label">
+                {markerDate(m.date)}{end ? ` – ${end}` : ''}
+              </span>
+              {m.verse && <span className="wm-marker__verse wm-title">{m.verse}</span>}
+              <span className="wm-marker__phrase wm-caption">{m.phrase}</span>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
