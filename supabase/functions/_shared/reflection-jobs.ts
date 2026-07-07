@@ -3,8 +3,9 @@
 // deferred jobs from the scheduled sweep; clearReflectionJob is the on-demand mirror.
 
 import type { EdgeSupabase } from '../lamplight-generate/reflection-candidates.ts';
+import { RETRY_ATTEMPT_CAP } from './reflection-constants.ts';
 
-export const RETRY_ATTEMPT_CAP = 3; // §17 — MUST match the client reflection-constants value.
+export { RETRY_ATTEMPT_CAP } from './reflection-constants.ts';
 
 export interface ReflectionJobState {
   status: 'failed';
