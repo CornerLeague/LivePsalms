@@ -51,6 +51,7 @@ function resolveBody(step: TourStep, viewport: TourViewport): string {
   return typeof step.copy.body === 'string' ? step.copy.body : step.copy.body[viewport];
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function computeCardPosition(
   rect: Rect | null,
   placement: TourPlacement,
@@ -153,6 +154,7 @@ export function SpotlightOverlay({
   // real callback from onExitComplete. Exits are faster than entrances.
   const [exitReason, setExitReason] = useState<ExitReason | null>(null);
   const callbacksRef = useRef({ onComplete, onSkip, onSignUp });
+  // eslint-disable-next-line react-hooks/refs
   callbacksRef.current = { onComplete, onSkip, onSignUp };
 
   const [engine] = useState(() =>
