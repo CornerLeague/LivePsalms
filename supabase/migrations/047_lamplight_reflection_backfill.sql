@@ -25,7 +25,7 @@ as $$
       where a.user_id = auth.uid() and a.type = 'reflection_recap' and a.period_key = nm.period_key
     )
   order by nm.period_key desc
-  limit 12;
+  limit 12; -- 12 = BACKFILL_CAP (spec §17)
 $$;
 
 grant execute on function public.list_reflection_backfill_targets() to authenticated;
