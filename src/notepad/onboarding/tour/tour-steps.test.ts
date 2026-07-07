@@ -33,6 +33,15 @@ describe('TOUR_STEPS', () => {
     expect(TOUR_STEPS[8].copy.body).toBe(
       'A free account keeps your notes on every device — and lights Lamplight for the road ahead.',
     );
+    expect(TOUR_STEPS[3].copy.body).toBe(
+      'Type /verse to drop in a passage by reference, or /lookup to find one by the words you remember. Tap any verse to read it in place.',
+    );
+    expect(TOUR_STEPS[6].copy.body).toBe(
+      'As notes link to verses and to each other, a map takes shape — showing how God pieces your story together.',
+    );
+    expect(TOUR_STEPS[7].copy.body).toBe(
+      'A companion for the mid-reading questions, your journey reflections, scripture study plans, and much more.',
+    );
   });
 
   it('step 4 is the only step with per-viewport body copy', () => {

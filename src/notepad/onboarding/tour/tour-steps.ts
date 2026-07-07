@@ -61,7 +61,7 @@ export const TOUR_STEPS: TourStep[] = [
     placement: 'bottom',
     copy: {
       title: 'Verses become living links.',
-      body: 'Type /verse and the passage drops right into your note. Tap one to read it in place.',
+      body: 'Type /verse to drop in a passage by reference, or /lookup to find one by the words you remember. Tap any verse to read it in place.',
     },
     anchor: () => 'verse-chip',
     prepare: ensureSampleNoteOpen,
@@ -103,7 +103,7 @@ export const TOUR_STEPS: TourStep[] = [
     placement: { desktop: 'left', mobile: 'top' },
     copy: {
       title: 'Your notebook becomes a map.',
-      body: 'As notes link to verses and to each other, a map takes shape — of what God keeps drawing you toward.',
+      body: 'As notes link to verses and to each other, a map takes shape — showing how God pieces your story together.',
     },
     anchor: (viewport) => (viewport === 'desktop' ? 'studywindow-graph-tab' : 'more-sheet-graph'),
     prepare: (controls, ctx) => {
@@ -120,7 +120,7 @@ export const TOUR_STEPS: TourStep[] = [
     placement: { desktop: 'left', mobile: 'bottom' },
     copy: {
       title: 'Meet Lamplight. 🕯',
-      body: 'A companion for the mid-reading question. Ask what a verse means, where a thread leads, what to study next.',
+      body: 'A companion for the mid-reading questions, your journey reflections, scripture study plans, and much more.',
     },
     anchor: (viewport) => (viewport === 'desktop' ? 'lamplight-panel-entry' : 'header-flame'),
     // Spec §3 lists "none"; on mobile the More sheet from step 6 covers the
