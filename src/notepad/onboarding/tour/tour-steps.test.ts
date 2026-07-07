@@ -157,10 +157,15 @@ describe('TOUR_STEPS', () => {
       expect(openDecorationTray2).toHaveBeenCalledWith(true);
     });
 
-    it('step 7 desktop shows the Graph tab; mobile opens the More sheet on Graph', async () => {
+    it('step 7 desktop shows the Graph tab (and closes the decoration tray); mobile opens the More sheet on Graph', async () => {
       const desktopSetGraphOpen = vi.fn();
       const desktopSetStudyTab = vi.fn();
-      await TOUR_STEPS[7].prepare?.({ desktopSetGraphOpen, desktopSetStudyTab }, makeCtx('desktop'));
+      const openDecorationTray = vi.fn();
+      await TOUR_STEPS[7].prepare?.(
+        { desktopSetGraphOpen, desktopSetStudyTab, openDecorationTray },
+        makeCtx('desktop'),
+      );
+      expect(openDecorationTray).toHaveBeenCalledWith(false);
       expect(desktopSetGraphOpen).toHaveBeenCalledWith(true);
       expect(desktopSetStudyTab).toHaveBeenCalledWith('graph');
       const mobileOpenMoreSheet = vi.fn();
@@ -168,10 +173,10 @@ describe('TOUR_STEPS', () => {
       expect(mobileOpenMoreSheet).toHaveBeenCalledWith('graph');
     });
 
-    it('step 8 (study) switches to the editor tab on mobile so the header toggle shows; desktop is a no-op', async () => {
+    it('step 8 (study) switches to the Notes tab on mobile so the header toggle shows; desktop is a no-op', async () => {
       const mobileSetTab = vi.fn();
       await TOUR_STEPS[8].prepare?.({ mobileSetTab }, makeCtx('mobile'));
-      expect(mobileSetTab).toHaveBeenCalledWith('editor');
+      expect(mobileSetTab).toHaveBeenCalledWith('notes');
       mobileSetTab.mockClear();
       await TOUR_STEPS[8].prepare?.({ mobileSetTab }, makeCtx('desktop'));
       expect(mobileSetTab).not.toHaveBeenCalled();

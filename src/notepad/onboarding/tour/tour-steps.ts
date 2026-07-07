@@ -122,6 +122,9 @@ export const TOUR_STEPS: TourStep[] = [
     },
     anchor: (viewport) => (viewport === 'desktop' ? 'studywindow-graph-tab' : 'more-sheet-graph'),
     prepare: (controls, ctx) => {
+      // Leaving decorations: close the tray so it doesn't linger through later
+      // steps (desktop tidiness; no-op on mobile where the tray isn't visible).
+      controls.openDecorationTray?.(false);
       if (ctx.viewport === 'desktop') {
         controls.desktopSetGraphOpen?.(true);
         controls.desktopSetStudyTab?.('graph');
@@ -139,10 +142,11 @@ export const TOUR_STEPS: TourStep[] = [
     },
     anchor: () => 'study-toggle',
     // Point + describe only — the tour never enters Study (that route unmounts
-    // the tour host). Mobile switches to the editor tab so the header toggle is
-    // on-screen; desktop toggle is always in the header.
+    // the tour host). Mobile switches to the Notes tab so the header toggle is
+    // on-screen — MobileNotepadWorkspace hides the StudyModeToggle on the editor
+    // tab; desktop toggle is always in the header.
     prepare: (controls, ctx) => {
-      if (ctx.viewport === 'mobile') controls.mobileSetTab?.('editor');
+      if (ctx.viewport === 'mobile') controls.mobileSetTab?.('notes');
     },
   },
   {
