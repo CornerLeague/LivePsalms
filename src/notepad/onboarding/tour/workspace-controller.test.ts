@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getWorkspaceControls,
   registerWorkspaceControls,
@@ -6,6 +6,8 @@ import {
 } from './workspace-controller';
 
 describe('workspace-controller registry', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('merges registered controls and removes them on unregister', () => {
     const setTab = vi.fn();
     const unregister = registerWorkspaceControls({ mobileSetTab: setTab });
@@ -61,6 +63,5 @@ describe('workspace-controller registry', () => {
     registerWorkspaceControls({ openNote: vi.fn() });
     expect(throwingListener).toHaveBeenCalledTimes(1);
     expect(secondListener).toHaveBeenCalledTimes(1);
-    vi.restoreAllMocks();
   });
 });

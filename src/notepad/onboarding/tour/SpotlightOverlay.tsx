@@ -93,14 +93,16 @@ export function computeCardPosition(
  * Same 768px breakpoint as use-mobile.ts, but guarded for environments
  * without matchMedia (jsdom) so the tour never crashes in tests.
  */
-function useTourViewport(): TourViewport {
-  const [viewport, setViewport] = useState<TourViewport>(() =>
-    typeof window !== 'undefined' &&
+function computeTourViewport(): TourViewport {
+  return typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(max-width: 767px)').matches
-      ? 'mobile'
-      : 'desktop',
-  );
+    ? 'mobile'
+    : 'desktop';
+}
+
+function useTourViewport(): TourViewport {
+  const [viewport, setViewport] = useState<TourViewport>(() => computeTourViewport());
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
     const mql = window.matchMedia('(max-width: 767px)');
@@ -160,12 +162,7 @@ export function SpotlightOverlay({
   const [engine] = useState(() =>
     createTourEngine({
       steps,
-      initialViewport:
-        typeof window !== 'undefined' &&
-        typeof window.matchMedia === 'function' &&
-        window.matchMedia('(max-width: 767px)').matches
-          ? 'mobile'
-          : 'desktop',
+      initialViewport: computeTourViewport(),
       getControls: getWorkspaceControls,
       resolveAnchor,
       onComplete: () => setExitReason((prev) => prev ?? 'complete'),
