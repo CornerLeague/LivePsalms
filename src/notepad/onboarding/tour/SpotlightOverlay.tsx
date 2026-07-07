@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, type TargetAndTransition } from 'framer-motion';
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 import { emitOnboardingEvent } from '../onboarding-events';
@@ -330,11 +330,11 @@ export function SpotlightOverlay({
     willChange: 'transform',
   };
 
-  const copyInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 };
-  const copyAnimate = reduceMotion
+  const copyInitial: TargetAndTransition = reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 };
+  const copyAnimate: TargetAndTransition = reduceMotion
     ? { opacity: 1, transition: { duration: 0.15 } }
     : { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' } };
-  const copyExit = reduceMotion
+  const copyExit: TargetAndTransition = reduceMotion
     ? { opacity: 0, transition: { duration: 0.15 } }
     : { opacity: 0, filter: 'blur(2px)', transition: { duration: 0.15 } };
 
