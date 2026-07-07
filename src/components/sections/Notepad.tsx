@@ -369,6 +369,20 @@ function NotepadOnboardingOverlay() {
         const note = await collection.createNote('root', 'devotion');
         const sample = buildTourSampleNote();
         await collection.updateNote(note.id, { title: sample.title, content: sample.content });
+        // createNote (above) already made this empty note the active note, so
+        // the desktop editor — already mounted on the content tab — hydrated
+        // ProseMirror from it while it was still blank. The editor's active-note
+        // effect watches the note id ONLY (by design: a user's own in-flight
+        // edits must not be clobbered by their own debounced save echoing back
+        // — see use-note-editor.ts), so writing the real content into that SAME
+        // id above does not re-trigger it, and neither would simply reopening
+        // the same id below. Force a genuine id transition — away and back —
+        // so the effect re-fires and re-hydrates from the now-correct content.
+        // The two calls must land in separate React commits (an id round trip
+        // batched into one commit would look like no change at all), so yield
+        // a real task between them instead of calling them back to back.
+        collection.openNote(null);
+        await new Promise((resolve) => setTimeout(resolve, 0));
         collection.openNote(note.id);
         return note.id;
       },
