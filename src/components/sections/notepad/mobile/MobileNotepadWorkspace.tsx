@@ -21,6 +21,7 @@ import { MobileNewNoteTypeSheet } from './MobileNewNoteTypeSheet';
 import { useMobileWorkspaceModel } from './useMobileWorkspaceModel';
 import type { NoteType } from '../../../../notepad/types';
 import { useHasConnections } from './useHasConnections';
+import { useArrivalDot } from '@/notepad/lamplight/arrival-badge';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { ScanCapturePanel } from '../../../../notepad/components/ScanCapturePanel';
 import { TranscriptionReview } from '../../../../notepad/components/TranscriptionReview';
@@ -82,6 +83,15 @@ export function MobileNotepadWorkspace() {
     totalNoteCount: model.totalNoteCount,
     loadNeighborNotes: model.loadNeighborNotes,
   });
+
+  // useArrivalDot requires a non-null adapter + userId (Rules of Hooks — always called);
+  // when either is absent the hook harmlessly no-ops (listReflections('') resolves empty)
+  // and showArrival stays false, so the dot never renders. Mirrors Notepad.tsx's guard.
+  const hasArrived = useArrivalDot(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (model.lamplightAdapter ?? ({ listReflections: async () => [] } as any)),
+    model.lamplightAdapter ? (model.user?.id ?? '') : '',
+  );
 
   const openSearch = useCallback(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
@@ -180,6 +190,7 @@ export function MobileNotepadWorkspace() {
             onOpenNote={handleOpenNote}
             onOpenLamplight={() => setTab('lamplight')}
             lamplightHasConnections={hasConnections}
+            lamplightHasArrived={hasArrived}
             onOpenAccount={openAccount}
             avatarUrl={profile?.avatarUrl ?? null}
           />
@@ -192,6 +203,7 @@ export function MobileNotepadWorkspace() {
             avatarUrl={profile?.avatarUrl ?? null}
             onOpenLamplight={() => setTab('lamplight')}
             lamplightHasConnections={hasConnections}
+            lamplightHasArrived={hasArrived}
             hasActiveNote={!!model.activeNote}
             onNewNote={handleNewNote}
           />

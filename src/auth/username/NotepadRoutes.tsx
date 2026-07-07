@@ -31,6 +31,34 @@ export function LegacyNotepadRoute() {
   }
 }
 
+/**
+ * /notebook/reflections(/:periodKey) — legacy entry (final-review fix, Critical 2).
+ * The Path has no local/offline mode (it's inherently a signed-in, Plus-gated server
+ * feature), so unlike LegacyNotepadRoute this never renders the editor for a
+ * signed-out user — it mirrors VanityNotepadRoute/VanityNotepadLayout's signed-out
+ * redirect instead (→ /notebook/notes), since that's this codebase's existing pattern
+ * for "no session, no private vanity-style area to show." A ready session redirects to
+ * the vanity mount WITH the :periodKey suffix preserved — the bug this fixes was that
+ * LocalNotepadLayout's own `ready` redirect (line below `LegacyNotepadRoute`) drops any
+ * nested suffix, so /notebook/reflections/2026-05 lost its periodKey on the old mount.
+ */
+export function LegacyReflectionsRedirect() {
+  const gate = useUsernameGate();
+  const { periodKey } = useParams();
+  switch (gate.kind) {
+    case 'loading':
+      return <NotepadGateSpinner />;
+    case 'signed-out':
+      return <Navigate to="/notebook/notes" replace />;
+    case 'needs-username':
+      return <UsernameClaim />;
+    case 'ready': {
+      const suffix = periodKey ? `/reflections/${periodKey}` : '/reflections';
+      return <Navigate to={`/notebook/u/${gate.username}${suffix}`} replace />;
+    }
+  }
+}
+
 /** /notebook/u/:username — private vanity editor, owner-only. */
 export function VanityNotepadRoute() {
   const gate = useUsernameGate();

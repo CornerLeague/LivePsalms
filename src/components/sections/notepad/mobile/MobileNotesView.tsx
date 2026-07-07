@@ -18,6 +18,8 @@ export interface MobileNotesViewProps {
   onOpenLamplight?: () => void;
   /** Show the gold connection dot on the flame when Lamplight has neighbors. */
   lamplightHasConnections?: boolean;
+  /** Show the gold arrival dot on the flame when a new reflection has arrived (Task 18). */
+  lamplightHasArrived?: boolean;
   /** Opens the account menu (signed in) or the sign in / sign up modal (signed out). */
   onOpenAccount?: () => void;
   /** The signed-in user's avatar URL, if they've uploaded one. */
@@ -33,6 +35,7 @@ export function MobileNotesView({
   onOpenNote,
   onOpenLamplight,
   lamplightHasConnections,
+  lamplightHasArrived,
   onOpenAccount,
   avatarUrl,
 }: MobileNotesViewProps) {
@@ -50,7 +53,11 @@ export function MobileNotesView({
           <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
-          <HeaderLamplightFlame onOpenLamplight={onOpenLamplight} lamplightHasConnections={lamplightHasConnections} />
+          <HeaderLamplightFlame
+            onOpenLamplight={onOpenLamplight}
+            lamplightHasConnections={lamplightHasConnections}
+            lamplightHasArrived={lamplightHasArrived}
+          />
           <button
             aria-label="Search notes"
             onClick={onOpenSearch}

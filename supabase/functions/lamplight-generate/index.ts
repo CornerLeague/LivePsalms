@@ -5,8 +5,16 @@
 //   - 'daily_devotion'       → real, persisted daily devotion (sub-project 4)
 //   - 'connection_card_why'  → lazy Haiku "why" generation for Connection Cards (sub-project 5)
 //
+// Dispatches on body.sweep === true (ADDITIVE — final-review fix, job-queue sweep):
+//   the 046 pg_cron job POSTs {"sweep": true} hourly to drain queued monthly_reflection
+//   jobs, exactly mirroring embed-note's `{sweep:true}` branch. See reflection-sweep.ts.
+//
 // JWT verification stays on at the platform level. The function additionally
-// requires lamplight_settings.enabled=true for the supplied user_id.
+// requires lamplight_settings.enabled=true for the supplied user_id — EXCEPT the sweep
+// branch below, which runs before user derivation (a service-role sweep call has no
+// associated auth.users row, so deriveUserId would 401 it) and instead reads user_id
+// straight off each claimed job row, same as embed-note's sweep never inspects the JWT
+// beyond the platform-level check.
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -32,8 +40,13 @@ import {
   runConnectionWhyPipeline,
   type ConnectionWhyContext,
 } from './connection-why-pipeline.ts';
+import { runMonthlyReflectionPipeline } from './monthly-reflection-pipeline.ts';
+import { buildMonthlyReflectionContext, isValidPeriodKey } from './monthly-reflection-context.ts';
+import { hasReflectionAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
+import { clearReflectionJob } from '../_shared/reflection-jobs.ts';
+import { runReflectionSweep, claimReflectionJobs } from './reflection-sweep.ts';
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
@@ -75,18 +88,60 @@ async function handleGenerate(req: Request): Promise<Response> {
   let body: {
     kind?: string;
     local_date?: string;
+    period_key?: string;
     source_note_id?: string;
     related_note_id?: string;
     translation?: string;
     stream?: boolean;
+    sweep?: boolean;
   };
   try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
+
+  const supabase = serviceClient();
+
+  // ── Sweep mode (ADDITIVE — final-review fix, job-queue sweep) ────────────
+  // Checked BEFORE deriveUserId: the 046 cron caller holds a service_role JWT, which
+  // satisfies platform-level JWT verification but has no associated auth.users row, so
+  // deriveUserId would 401 it. Mirrors embed-note's sweep branch exactly — no additional
+  // identity check beyond the platform-level one; every claimed job's user_id/period_key
+  // comes from the DB row (trusted, not caller-spoofable), never from this request.
+  if (body.sweep === true) {
+    const voyageDepsForSweep: VoyageDeps = { apiKey: voyageKey, fetch };
+    // Promo flag is user-independent — read ONCE per sweep invocation and cache it, rather
+    // than re-querying app_config per claimed job (mirrors the on-demand path's single read
+    // at ~L202-205, just hoisted above the loop since a sweep can claim several jobs). Wrapped
+    // in an async IIFE (rather than chaining .then() on the query builder directly) so the
+    // seam is a genuine Promise<boolean>, not a PostgrestFilterBuilder-derived thenable —
+    // the latter structurally mismatches ReflectionSweepDeps['loadPromoActive']'s return type.
+    const promoActiveCache: Promise<boolean> = (async () => {
+      const { data } = await supabase
+        .from('app_config').select('value').eq('key', 'lamplight_promo_active').maybeSingle();
+      return (data as { value?: unknown } | null)?.value === true;
+    })();
+    const outcomes = await runReflectionSweep({
+      supabase,
+      llm: createAnthropicAdapter({ apiKey: anthropicKey, fetch }),
+      claim: (limit) => claimReflectionJobs(supabase, limit),
+      embed: (text) => embedQuery(text, voyageDepsForSweep),
+      loadSettings: async (uid) => {
+        const { data } = await supabase
+          .from('lamplight_settings').select('enabled, timezone').eq('user_id', uid).maybeSingle();
+        if (!data) return null;
+        return { enabled: Boolean((data as { enabled?: boolean }).enabled), timezone: (data as { timezone?: string | null }).timezone ?? null };
+      },
+      loadTier: async (uid) => {
+        const { data } = await supabase
+          .from('lamplight_entitlements').select('tier').eq('user_id', uid).maybeSingle();
+        return ((data as { tier?: LamplightTier })?.tier ?? 'none') as LamplightTier;
+      },
+      loadPromoActive: () => promoActiveCache,
+    });
+    return jsonResp({ processed: outcomes.length });
+  }
 
   const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
   type Translation = typeof VALID_TRANSLATIONS[number];
   const bodyHasValidTranslation = (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '');
-
-  const supabase = serviceClient();
 
   // Identity comes from the verified JWT, never from body.user_id.
   const userId = await deriveUserId(supabase, bearerToken(req));
@@ -155,6 +210,47 @@ async function handleGenerate(req: Request): Promise<Response> {
     recordUsage: (row) => recordLamplightUsage(supabase, row),
     classifyError: classifyGenerateError,
   };
+
+  // --- monthly_reflection (Waymarks) ---
+  if (body.kind === 'monthly_reflection') {
+    const periodKey = String(body.period_key ?? '');
+    if (!isValidPeriodKey(periodKey)) return jsonResp({ error: 'bad period_key' }, 400);
+
+    // Plus gate (DESIGN DECISION 3) — added ON TOP of the opt-in gate above.
+    const [{ data: ent }, { data: promoRow }] = await Promise.all([
+      supabase.from('lamplight_entitlements').select('tier').eq('user_id', userId).maybeSingle(),
+      supabase.from('app_config').select('value').eq('key', 'lamplight_promo_active').maybeSingle(),
+    ]);
+    if (!hasReflectionAccess({ tier: (ent?.tier ?? 'none') as LamplightTier, promoActive: promoRow?.value === true })) {
+      return jsonResp({ error: 'reflections require Plus' }, 403);
+    }
+
+    const { data: settingsRow } = await supabase
+      .from('lamplight_settings').select('timezone').eq('user_id', userId).maybeSingle();
+    const timezone: string | null = settingsRow?.timezone ?? null;
+
+    const { status, response } = await runGeneration(
+      lifecycleDeps,
+      { userId, artifactKind: 'monthly_reflection' },
+      async () => {
+        const ctx = await buildMonthlyReflectionContext(supabase, {
+          userId, periodKey, timezone,
+          embed: (text) => embedQuery(text, voyageDeps),
+        });
+        const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx, userId, periodKey });
+        return { response: result, usage: result.usage };
+      },
+    );
+    // On-demand mirror of Task 8's cohort SQL exclusion: a fresh success (a NEW
+    // artifact was actually written, not a cache hit) wipes any lingering failed/
+    // deferred job row for this (user, period) so the hourly sweep can pick the
+    // period back up once the block that caused the prior deferral is gone.
+    // Additive — the branch above functioned identically without this call.
+    if (response && (response as { ok?: boolean; cached?: boolean }).ok === true && (response as { cached?: boolean }).cached === false) {
+      await clearReflectionJob(supabase, userId, periodKey);
+    }
+    return jsonResp(response, status);
+  }
 
   if (body.kind === 'smoke_test') {
     const { status, response } = await runGeneration(

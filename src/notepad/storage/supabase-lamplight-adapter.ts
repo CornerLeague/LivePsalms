@@ -15,10 +15,16 @@ import type {
   AdminJobRow,
   AdminJobCounts,
   AdminUsageRow,
+  MonthlyReflectionGenerateResult,
+  ReflectionListItem,
+  ReflectionRecord,
+  ReflectionState,
 } from './lamplight-adapter';
-import type { DailyDevotion } from './lamplight-artifacts';
+import type { DailyDevotion, ReflectionArtifact } from './lamplight-artifacts';
 import { makeStreamInvoke } from '../bible/lamplight-stream-client';
 import type { StreamInvoke } from '../bible/lamplight-stream-client';
+
+const REFLECTION_TYPE = 'reflection_recap';
 
 // Tables with a `user_id` column — deletable via `eq('user_id', userId)`.
 const LAMPLIGHT_USER_ID_TABLES = [
@@ -431,5 +437,141 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
       calls: Number(r.calls ?? 0),
       errors: Number(r.errors ?? 0),
     }));
+  }
+
+  // ── Waymarks / monthly reflections ────────────────────────────────────
+  async listReflections(userId: string): Promise<ReflectionListItem[]> {
+    const { data: rows, error } = await this.#client
+      .from('lamplight_artifacts')
+      .select('period_key, title, created_at')
+      .eq('user_id', userId)
+      .eq('type', REFLECTION_TYPE)
+      .order('period_key', { ascending: false });
+    if (error) throw error;
+    const { data: states, error: stateError } = await this.#client
+      .from('lamplight_reflection_state')
+      .select('period_key, hidden_at, annotation')
+      .eq('user_id', userId)
+      .eq('artifact_type', REFLECTION_TYPE);
+    if (stateError) throw stateError;
+    const byKey = new Map((states ?? []).map((s) => [s.period_key as string, s]));
+    return (rows ?? []).map((r) => {
+      const st = byKey.get(r.period_key as string);
+      return {
+        periodKey: r.period_key as string,
+        title: r.title as string,
+        createdAt: r.created_at as string,
+        hiddenAt: (st?.hidden_at as string | null) ?? null,
+        annotation: (st?.annotation as string | null) ?? null,
+      };
+    });
+  }
+
+  async getReflection(userId: string, periodKey: string): Promise<ReflectionRecord | null> {
+    const { data, error } = await this.#client
+      .from('lamplight_artifacts')
+      .select('period_key, title, body, created_at, saved_to_notes')
+      .eq('user_id', userId)
+      .eq('type', REFLECTION_TYPE)
+      .eq('period_key', periodKey)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      periodKey: data.period_key as string,
+      title: data.title as string,
+      artifact: data.body as ReflectionArtifact,
+      createdAt: data.created_at as string,
+      savedToNotes: (data.saved_to_notes as boolean | null) ?? false,
+    };
+  }
+
+  async generateMonthlyReflection(userId: string, periodKey: string): Promise<MonthlyReflectionGenerateResult> {
+    try {
+      // No user_id in the body (final-review rider): the edge function derives identity
+      // ONLY from the caller's bearer JWT (never body.user_id — see lamplight-generate/
+      // index.ts's own comment on this), so this field was always ignored by design.
+      // Dropping it removes a vestigial value that could misleadingly suggest the client
+      // controls whose data gets touched.
+      const { data, error } = await this.#client.functions.invoke('lamplight-generate', {
+        body: { kind: 'monthly_reflection', period_key: periodKey },
+      });
+      if (error) return { ok: false, reason: 'network' };
+      const d = data as { ok?: boolean; cached?: boolean; reason?: string } | null;
+      if (d?.ok === true) {
+        // Edge returns artifactId, not body (Task 6) → hydrate via getReflection.
+        const record = await this.getReflection(userId, periodKey);
+        if (record) return { ok: true, artifact: record.artifact, cached: d.cached === true };
+        return { ok: false, reason: 'network' };
+      }
+      if (d?.ok === false && (d.reason === 'no_notes' || d.reason === 'validators_failed')) {
+        return { ok: false, reason: d.reason };
+      }
+      return { ok: false, reason: 'network' };
+    } catch {
+      return { ok: false, reason: 'network' };
+    }
+  }
+
+  async getReflectionState(userId: string, artifactType: string, periodKey: string): Promise<ReflectionState | null> {
+    const { data, error } = await this.#client
+      .from('lamplight_reflection_state')
+      .select('hidden_at, annotation, annotation_updated_at')
+      .eq('user_id', userId)
+      .eq('artifact_type', artifactType)
+      .eq('period_key', periodKey)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      hiddenAt: (data.hidden_at as string | null) ?? null,
+      annotation: (data.annotation as string | null) ?? null,
+      annotationUpdatedAt: (data.annotation_updated_at as string | null) ?? null,
+    };
+  }
+
+  async setReflectionHidden(userId: string, artifactType: string, periodKey: string, hidden: boolean): Promise<void> {
+    const { error } = await this.#client
+      .from('lamplight_reflection_state')
+      .upsert(
+        { user_id: userId, artifact_type: artifactType, period_key: periodKey, hidden_at: hidden ? new Date().toISOString() : null },
+        { onConflict: 'user_id,artifact_type,period_key' },
+      );
+    if (error) throw error;
+  }
+
+  async setReflectionAnnotation(userId: string, artifactType: string, periodKey: string, text: string | null): Promise<void> {
+    const { error } = await this.#client
+      .from('lamplight_reflection_state')
+      .upsert(
+        {
+          user_id: userId,
+          artifact_type: artifactType,
+          period_key: periodKey,
+          annotation: text,
+          annotation_updated_at: text ? new Date().toISOString() : null,
+        },
+        { onConflict: 'user_id,artifact_type,period_key' },
+      );
+    if (error) throw error;
+  }
+
+  async listBackfillTargets(userId: string): Promise<string[]> {
+    // The RPC is auth.uid()-scoped (Task 9) and ignores this param at the SQL
+    // layer; it's kept for interface symmetry with the fake adapter.
+    void userId;
+    const { data, error } = await this.#client.rpc('list_reflection_backfill_targets');
+    if (error) throw error;
+    return (data ?? []).map((r: { period_key: string }) => r.period_key);
+  }
+
+  async setReflectionSavedToNotes(userId: string, periodKey: string, saved: boolean): Promise<void> {
+    const { error } = await this.#client
+      .from('lamplight_artifacts')
+      .update({ saved_to_notes: saved })
+      .eq('user_id', userId)
+      .eq('type', REFLECTION_TYPE)
+      .eq('period_key', periodKey);
+    if (error) throw error;
   }
 }

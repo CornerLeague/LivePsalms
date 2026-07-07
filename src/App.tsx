@@ -45,8 +45,17 @@ const LocalNotepadLayout = lazy(() =>
 const VanityNotepadLayout = lazy(() =>
   import('@/auth/username/NotepadRoutes').then((m) => ({ default: m.VanityNotepadLayout })),
 );
+const LegacyReflectionsRedirect = lazy(() =>
+  import('@/auth/username/NotepadRoutes').then((m) => ({ default: m.LegacyReflectionsRedirect })),
+);
 const NotepadWorkspace = lazy(() =>
   import('@/components/sections/Notepad').then((m) => ({ default: m.NotepadWorkspace })),
+);
+const WaymarksReflectionsRoute = lazy(() =>
+  import('@/notepad/components/waymarks/waymarks-routes').then((m) => ({ default: m.WaymarksReflectionsRoute })),
+);
+const WaymarksPeriodDetailRoute = lazy(() =>
+  import('@/notepad/components/waymarks/waymarks-routes').then((m) => ({ default: m.WaymarksPeriodDetailRoute })),
 );
 const StudyWorkspace = lazy(() =>
   import('@/notepad/study/StudyWorkspace').then((m) => ({ default: m.StudyWorkspace })),
@@ -285,9 +294,19 @@ function App() {
               <Route index element={<NotepadWorkspace />} />
               <Route path="study" element={<StudyWorkspace />} />
             </Route>
+            {/* Legacy /notebook/reflections(/:periodKey) — final-review fix (Critical 2):
+                these are REDIRECTS only now, never a mount point. The Path has no local/
+                offline mode, so it never lived under LocalNotepadLayout's signed-out
+                Outlet in practice; that mount's `ready` branch also dropped the
+                :periodKey suffix on redirect. LegacyReflectionsRedirect preserves the
+                suffix and sends a signed-in reader to the vanity mount below. */}
+            <Route path="/notebook/reflections" element={<LegacyReflectionsRedirect />} />
+            <Route path="/notebook/reflections/:periodKey" element={<LegacyReflectionsRedirect />} />
             <Route path="/notebook/u/:username" element={<VanityNotepadLayout />}>
               <Route index element={<NotepadWorkspace />} />
               <Route path="study" element={<StudyWorkspace />} />
+              <Route path="reflections" element={<WaymarksReflectionsRoute />} />
+              <Route path="reflections/:periodKey" element={<WaymarksPeriodDetailRoute />} />
             </Route>
             {/* Backward-compat: old /notepad* links (bookmarks + already-sent
                 auth emails) redirect to their /notebook* equivalents, search +

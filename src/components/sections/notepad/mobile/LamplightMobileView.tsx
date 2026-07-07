@@ -5,6 +5,7 @@ import { ConnectionCardsPanel } from '../../../../notepad/components/lamplight/C
 import type { LamplightAdapter } from '../../../../notepad/storage/lamplight-adapter';
 import type { Note } from '../../../../notepad/types';
 import { Segmented } from './Segmented';
+import { useArrivalDot, ArrivalDot } from '../../../../notepad/lamplight/arrival-badge';
 
 type LampSegment = 'today' | 'connections';
 
@@ -26,10 +27,12 @@ export function LamplightMobileView({
   onOpenNote,
 }: LamplightMobileViewProps) {
   const [segment, setSegment] = useState<LampSegment>('today');
+  // userId may be null (signed out); the hook harmlessly no-ops via listReflections('').
+  const showArrival = useArrivalDot(lamplightAdapter, userId ?? '');
 
   return (
     <div className="lamplight-mobile-view flex flex-col h-full min-h-0" style={{ background: 'var(--alabaster)' }}>
-      <div className="shrink-0 px-4 pt-3 pb-2">
+      <div className="shrink-0 px-4 pt-3 pb-2 flex items-center">
         <Segmented<LampSegment>
           options={[
             { value: 'today', label: "Today's Lamp" },
@@ -38,6 +41,7 @@ export function LamplightMobileView({
           value={segment}
           onChange={setSegment}
         />
+        {showArrival && <ArrivalDot />}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">

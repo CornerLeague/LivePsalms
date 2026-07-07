@@ -19,6 +19,7 @@ import { ConnectionCardsStrip } from '@/notepad/components/lamplight/ConnectionC
 import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-adapter';
 import { useLamplightSettings } from '@/notepad/hooks/useLamplightSettings';
 import { useLamplightEmbeddingTrigger } from '@/notepad/hooks/useLamplightEmbeddingTrigger';
+import { useArrivalDot, ArrivalDot } from '@/notepad/lamplight/arrival-badge';
 import { supabase } from '@/lib/supabase';
 import { makeStreamInvoke } from '@/notepad/bible/lamplight-stream-client';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -70,6 +71,15 @@ function DesktopNotepadWorkspace() {
     userId: lamplightAdapter ? (user?.id ?? null) : null,
     invoke: (name, options) => supabase!.functions.invoke(name, options),
   });
+
+  // useArrivalDot requires a non-null adapter + userId (Rules of Hooks — always called);
+  // when either is absent the hook harmlessly no-ops (listReflections('') resolves empty)
+  // and showArrival stays false, so the dot never renders.
+  const showArrival = useArrivalDot(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (lamplightAdapter ?? ({ listReflections: async () => [] } as any)),
+    lamplightAdapter ? (user?.id ?? '') : '',
+  );
 
   const actions = useNotepadActions();
   const { notes, activeNote, collection } = useNoteCollection();
@@ -222,6 +232,7 @@ function DesktopNotepadWorkspace() {
               }}
             >
               🕯 Lamplight
+              {showArrival && <ArrivalDot />}
               {activeTab === 'lamplight' && (
                 <div
                   className="absolute bottom-0 left-5 right-5 h-px"

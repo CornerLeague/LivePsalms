@@ -1,0 +1,118 @@
+/* Waymarks — The Path. Palette + type locked to §13.5 (mirrors src/index.css tokens). */
+.wm-root {
+  --wm-plaster: #F0ECE8;
+  --wm-umber: #3A3426;
+  --wm-gold: #C49A78;
+  --wm-silica: #8A8B90;
+  --wm-hairline: #CECCCA;
+  --wm-stone-1: #DCCFBF;
+  --wm-stone-2: #D3C6B4;
+  --wm-stone-3: #CBBBA5;
+  --wm-stone-stroke: #A89A87;
+  --wm-letter: #FAF7F3;
+  --wm-serif: 'Cormorant Garamond', Georgia, serif;
+  --wm-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --wm-caption: Georgia, 'Times New Roman', serif;
+
+  position: relative;
+  min-height: 100%;
+  padding: 2.5rem 1.25rem 4rem;
+  background: var(--wm-plaster);
+  color: var(--wm-umber);
+  font-family: var(--wm-sans);
+  overflow-x: hidden;
+}
+@media (prefers-color-scheme: dark) {
+  .wm-root {
+    --wm-plaster: #0a0a0a;
+    --wm-umber: #efedee;
+    --wm-gold: #c4b5a0;
+    --wm-silica: #7d7e83;
+    --wm-hairline: #2a2622;
+    --wm-stone-1: #2a2620;
+    --wm-stone-2: #322d26;
+    --wm-stone-3: #3a342c;
+    --wm-stone-stroke: #6b6153;
+    --wm-letter: #141210;
+  }
+}
+/* Fine grain over the whole surface — paper in light, stone in dark. */
+.wm-root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.wm-root > * { position: relative; } /* keep content above the grain */
+
+.wm-title { font-family: var(--wm-serif); font-style: italic; font-weight: 500; line-height: 1.15; }
+.wm-label { font-family: var(--wm-sans); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.72rem; color: var(--wm-silica); }
+.wm-caption { font-family: var(--wm-caption); font-style: italic; color: var(--wm-silica); }
+
+.wm-path { list-style: none; margin: 2rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 1.75rem; }
+.wm-year { font-family: var(--wm-serif); font-style: italic; font-size: 1.25rem; color: var(--wm-silica); border-top: 1px solid var(--wm-hairline); padding-top: 1rem; }
+.wm-path__node { display: flex; }
+.wm-stone-link { display: inline-flex; flex-direction: column; align-items: center; gap: 0.35rem; text-decoration: none; color: inherit; }
+.wm-stone { display: block; }
+.wm-stone__seal { opacity: 0.22; animation: wm-seal-pulse 6s ease-in-out infinite; }
+
+.wm-hidden { margin-top: 3rem; border-top: 1px solid var(--wm-hairline); padding-top: 1rem; }
+.wm-hidden__toggle { background: none; border: none; cursor: pointer; padding: 0.25rem 0; }
+.wm-hidden__list { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.wm-locked { max-width: 32rem; margin: 0 auto; text-align: center; }
+.wm-locked__title { font-size: 2rem; margin: 0.5rem 0 1rem; }
+.wm-locked__body { font-size: 1.05rem; line-height: 1.6; display: block; margin-bottom: 2rem; }
+.wm-locked__example { list-style: none; display: flex; justify-content: center; gap: 0.5rem; padding: 0; margin: 0 0 2rem; }
+.wm-locked__node { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+.wm-locked__cta { display: inline-block; color: var(--wm-gold); text-decoration: none; border-bottom: 1px solid var(--wm-gold); padding-bottom: 2px; }
+
+@keyframes wm-seal-pulse { 0%, 100% { opacity: 0.22; } 50% { opacity: 0.34; } }
+@keyframes wm-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.wm-fade { animation: wm-fade-in 0.6s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .wm-stone__seal { animation: none; }
+  .wm-fade { animation: none; }
+}
+
+/* ── Detail (the opened stone) ─────────────────────────────────────────────── */
+.wm-detail { max-width: 40rem; margin: 0 auto; }
+.wm-back { display: inline-block; margin-bottom: 1.5rem; color: var(--wm-silica); text-decoration: none; }
+.wm-back:hover { color: var(--wm-umber); }
+.wm-detail__status { margin-top: 3rem; text-align: center; }
+.wm-detail__actions { margin-top: 1rem; display: flex; gap: 1rem; justify-content: center; align-items: center; }
+.wm-detail__retry { background: none; border: 1px solid var(--wm-hairline); border-radius: 999px; padding: 0.4rem 1.1rem; cursor: pointer; color: var(--wm-umber); font: inherit; }
+
+/* Opening ceremony — a tappable seal cover. */
+.wm-seal-cover { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin: 3rem auto 0; background: none; border: none; cursor: pointer; padding: 1.5rem; }
+.wm-seal-cover:hover .wm-stone__seal { opacity: 0.4; }
+
+/* The letter. */
+.wm-letter { background: var(--wm-letter); border: 1px solid var(--wm-hairline); border-radius: 4px; padding: 2.5rem 2rem; }
+.wm-letter__title { font-size: 1.9rem; margin: 0 0 1.5rem; }
+.wm-letter__body { font-size: 1.05rem; line-height: 1.7; margin: 0 0 1.1rem; }
+.wm-annotation { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--wm-hairline); }
+.wm-annotation__text { font-size: 1rem; line-height: 1.6; margin: 0.35rem 0 0; }
+
+/* The markers. */
+.wm-markers { margin-top: 2.5rem; }
+.wm-markers__head { margin: 0 0 1rem; }
+.wm-markers__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.5rem; }
+.wm-marker { display: flex; flex-direction: column; gap: 0.35rem; border-left: 2px solid var(--wm-hairline); padding-left: 1rem; }
+.wm-marker__date { color: var(--wm-silica); }
+.wm-marker__verse { font-size: 1.2rem; }
+.wm-marker__phrase { font-size: 1rem; }
+
+/* Affordances — static in Task 16, wired in Task 17. */
+.wm-annotate { margin-top: 2.5rem; border: 1px dashed var(--wm-hairline); border-radius: 4px; padding: 1.1rem 1.25rem; }
+.wm-annotate__prompt { display: block; }
+.wm-detail__footer { margin-top: 1.5rem; text-align: center; }
+
+/* ── Wired affordances (Task 17) ───────────────────────────────────────────── */
+.wm-annotate__input { display: block; width: 100%; margin-top: 0.6rem; padding: 0.6rem 0.7rem; border: 1px solid var(--wm-hairline); border-radius: 4px; background: var(--wm-letter); color: var(--wm-umber); font: inherit; resize: vertical; }
+.wm-annotate__actions { margin-top: 0.6rem; display: flex; justify-content: flex-end; }
+.wm-annotate__save, .wm-detail__save, .wm-detail__hide { background: none; border: none; padding: 0.3rem 0.4rem; cursor: pointer; color: var(--wm-umber); font: inherit; }
+.wm-detail__save:disabled { color: var(--wm-silica); cursor: default; }
+.wm-linkbtn { background: none; border: none; padding: 0; cursor: pointer; color: var(--wm-gold); font: inherit; }

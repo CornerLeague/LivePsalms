@@ -42,7 +42,7 @@ export interface ConnectionCardThresholds {
   minSimilarity: number;
 }
 
-import type { DailyDevotion } from './lamplight-artifacts';
+import type { DailyDevotion, ReflectionArtifact } from './lamplight-artifacts';
 
 export type DailyDevotionGenerateResult =
   | { ok: true; artifact: DailyDevotion; cached: boolean }
@@ -54,6 +54,44 @@ export type DailyDevotionStreamEvent =
   | { kind: 'refining' }
   | { kind: 'done'; artifact: DailyDevotion; cached: boolean }
   | { kind: 'error'; reason: 'no_notes' | 'validators_failed' | 'network' };
+
+export type MonthlyReflectionGenerateResult =
+  | { ok: true; artifact: ReflectionArtifact; cached: boolean }
+  | { ok: false; reason: 'no_notes' | 'validators_failed' | 'network' };
+
+// Forward-compat with a future streaming backend (buffered fallback covers MVP). Mirrors
+// DailyDevotionStreamEvent; stage names track the reflection pipeline (notes → candidates → composing).
+export type MonthlyReflectionStreamEvent =
+  | { kind: 'stage'; stage: 'notes' | 'candidates' | 'composing' }
+  | { kind: 'piece'; field: keyof ReflectionArtifact; value: unknown }
+  | { kind: 'refining' }
+  | { kind: 'done'; artifact: ReflectionArtifact; cached: boolean }
+  | { kind: 'error'; reason: 'no_notes' | 'validators_failed' | 'network' };
+
+// The Path row (list view). hiddenAt/annotation are LEFT-JOINed from lamplight_reflection_state.
+export interface ReflectionListItem {
+  periodKey: string;   // 'YYYY-MM'
+  title: string;
+  createdAt: string;   // ISO
+  hiddenAt: string | null;    // null = visible; non-null → The Path omits the stone (Task 17)
+  annotation: string | null;  // the user's words, if any
+}
+
+// The letter view (detail). savedToNotes rides on the artifact row (lamplight_artifacts).
+export interface ReflectionRecord {
+  periodKey: string;
+  title: string;
+  artifact: ReflectionArtifact;
+  createdAt: string;
+  savedToNotes: boolean;
+}
+
+// Satellite state, natural-keyed (user_id, artifact_type, period_key). Never written by generation.
+export interface ReflectionState {
+  hiddenAt: string | null;
+  annotation: string | null;
+  annotationUpdatedAt: string | null;
+}
 
 export interface ConnectionNeighbor {
   relatedNoteId: string;
@@ -117,6 +155,37 @@ export interface LamplightAdapter {
   adminRequeueJob(jobId: string): Promise<AdminJobRow>;
   adminRequeueAllFailed(kind?: string, limit?: number): Promise<number>;
   adminUsageTop(windowDays: number, limit?: number): Promise<AdminUsageRow[]>;
+
+  // ── Waymarks / monthly reflections ──────────────────────────────────────────
+  listReflections(userId: string): Promise<ReflectionListItem[]>;
+  getReflection(userId: string, periodKey: string): Promise<ReflectionRecord | null>;
+  generateMonthlyReflection(userId: string, periodKey: string): Promise<MonthlyReflectionGenerateResult>;
+  streamMonthlyReflection?(
+    userId: string,
+    periodKey: string,
+    onEvent: (event: MonthlyReflectionStreamEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void>;
+  getReflectionState(
+    userId: string,
+    artifactType: string,
+    periodKey: string,
+  ): Promise<ReflectionState | null>;
+  setReflectionHidden(
+    userId: string,
+    artifactType: string,
+    periodKey: string,
+    hidden: boolean,
+  ): Promise<void>;
+  setReflectionAnnotation(
+    userId: string,
+    artifactType: string,
+    periodKey: string,
+    text: string | null,
+  ): Promise<void>;
+  listBackfillTargets(userId: string): Promise<string[]>; // period_keys with notes-but-no-artifact, newest-first
+  /** Flip the artifact-row saved_to_notes flag (client-owned; no artifactType — it lives on the artifact, not the satellite state). */
+  setReflectionSavedToNotes(userId: string, periodKey: string, saved: boolean): Promise<void>;
 }
 
 export interface AdminJobFilters {

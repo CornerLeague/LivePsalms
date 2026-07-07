@@ -19,6 +19,8 @@ export interface MobileEditorViewProps {
   onOpenLamplight?: () => void;
   /** Show the gold connection dot on the flame when Lamplight has neighbors. */
   lamplightHasConnections?: boolean;
+  /** Show the gold arrival dot on the flame when a new reflection has arrived (Task 18). */
+  lamplightHasArrived?: boolean;
   /** Whether a note is currently displayed in the editor. */
   hasActiveNote: boolean;
   /** Create a new note (used by the empty-state FAB). */
@@ -32,6 +34,7 @@ export function MobileEditorView({
   avatarUrl,
   onOpenLamplight,
   lamplightHasConnections,
+  lamplightHasArrived,
   hasActiveNote,
   onNewNote,
 }: MobileEditorViewProps) {
@@ -50,7 +53,11 @@ export function MobileEditorView({
           <img src="/logo-icon.png" alt="LivePsalms" className="notepad-nav-logo h-7 w-auto object-contain" />
         </button>
         <div className="flex items-center gap-1">
-          <HeaderLamplightFlame onOpenLamplight={onOpenLamplight} lamplightHasConnections={lamplightHasConnections} />
+          <HeaderLamplightFlame
+            onOpenLamplight={onOpenLamplight}
+            lamplightHasConnections={lamplightHasConnections}
+            lamplightHasArrived={lamplightHasArrived}
+          />
           <ThemeToggle className="w-9 h-9" />
         <button
           aria-label="Account"
