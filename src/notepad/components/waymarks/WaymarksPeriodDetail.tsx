@@ -108,7 +108,11 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
     } catch {
       return; // insert failed — leave the flag unset so the button stays live for retry
     }
-    await adapter.setReflectionSavedToNotes(userId, periodKey, true);
+    try {
+      await adapter.setReflectionSavedToNotes(userId, periodKey, true);
+    } catch {
+      return; // flag write failed — keep the button live; the connector's dedupe keeps the retry from duplicating the note
+    }
     setSavedToNotes(true);
   };
 

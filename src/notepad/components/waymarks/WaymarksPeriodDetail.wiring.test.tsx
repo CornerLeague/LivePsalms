@@ -115,6 +115,25 @@ describe('WaymarksPeriodDetail (wired affordances)', () => {
     expect((await a.getReflectionState('u', 'reflection_recap', '2026-05'))?.hiddenAt).not.toBeNull();
   });
 
+  it('save to notes: stays unsaved when the flag write fails after the insert, so retry stays live', async () => {
+    const a = new FakeLamplightAdapter();
+    seedReady(a);
+    const setSaved = vi.spyOn(a, 'setReflectionSavedToNotes').mockRejectedValue(new Error('flag write failed'));
+    const onSaveToNotes = vi.fn();
+    renderWired(a, onSaveToNotes);
+    await waitFor(() => expect(screen.getByText(artifact.title)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Save to notes' }));
+    await waitFor(() => expect(setSaved).toHaveBeenCalledTimes(1));
+    // The rejection must be caught (no unhandled rejection escaping the void'd onClick)
+    // and must not flip the local flag — the button stays live so a retry can persist
+    // it (the connector's dedupe keeps that retry from duplicating the note).
+    expect(screen.getByRole('button', { name: 'Save to notes' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save to notes' }));
+    await waitFor(() => expect(setSaved).toHaveBeenCalledTimes(2));
+    expect(onSaveToNotes).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: 'Save to notes' })).toBeEnabled();
+  });
+
   it('hide: stays on the letter when the hide write fails, so retry stays live', async () => {
     const a = new FakeLamplightAdapter();
     seedReady(a);

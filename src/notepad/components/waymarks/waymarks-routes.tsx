@@ -4,7 +4,7 @@ import { SupabaseLamplightAdapter } from '../../storage/supabase-lamplight-adapt
 import { useLamplightEntitlement } from '../../hooks/useLamplightEntitlement'; // seam (item 9)
 import { useAuthSession } from '@/auth/context/useAuthSession';   // the signed-in user id — mirrors Notepad.tsx's source (seam)
 import { useNoteCollection } from '@/notepad/context/useNoteCollection'; // note-collection seam — SAME hook Notepad.tsx:322 uses
-import type { ReflectionRecord } from '../../storage/lamplight-adapter';
+import { buildSaveToNotesHandler } from './save-to-notes';
 import { WaymarksReflections } from './WaymarksReflections';
 import { WaymarksPeriodDetail } from './WaymarksPeriodDetail';
 
@@ -37,23 +37,9 @@ export function WaymarksPeriodDetailRoute() {
   const { collection } = useNoteCollection();
   if (!adapter || !userId) return null; // logged-out / no client → mirror Notepad's null-guard
 
-  // Save-to-notes seam: reuse Notepad's existing note-create path, then write the letter into
-  // the new note. The adapter flag-flip (setReflectionSavedToNotes) is owned + tested in Task 17;
-  // this insert reuses existing collection code.
-  const handleSaveToNotes = async (record: ReflectionRecord) => {
-    const note = await collection.createNote('root', 'devotion');
-    const content = JSON.stringify({
-      type: 'doc',
-      content: [
-        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: record.title }] },
-        ...record.artifact.letter
-          .split('\n\n')
-          .filter((p) => p.length > 0)
-          .map((p) => ({ type: 'paragraph', content: [{ type: 'text', text: p }] })),
-      ],
-    });
-    await collection.updateNote(note.id, { title: record.title, content });
-  };
+  // Save-to-notes seam — handler extracted to save-to-notes.ts so it's testable without
+  // this module's @/lib/supabase import. Recreated per render like the old inline version.
+  const handleSaveToNotes = buildSaveToNotesHandler(collection);
 
   return (
     <WaymarksPeriodDetail
