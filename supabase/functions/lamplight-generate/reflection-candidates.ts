@@ -3,7 +3,7 @@
 // neighbours (decision 14). Output is DISPLAY refs (the allowlist contract) —
 // the OSIS↔display conversion is the load-bearing internal detail.
 
-import type { MonthNote, ReflectionCandidate } from '../prompts/monthly-reflection.ts';
+import type { MonthNote, ReflectionCandidate } from './prompts/monthly-reflection.ts';
 import { osisRefToDisplay } from '../_shared/bible-books.ts';
 import { parseRefToIds } from '../_shared/verse-verify.ts';
 import { CANDIDATE_POOL_MAX } from '../_shared/reflection-constants.ts';
