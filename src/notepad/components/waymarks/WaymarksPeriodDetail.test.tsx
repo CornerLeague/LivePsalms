@@ -113,6 +113,22 @@ describe('WaymarksPeriodDetail (the opened stone)', () => {
     expect(screen.getByRole('link', { name: '← The Path' })).toBeInTheDocument();
   });
 
+  it('degrades to the empty-month copy (no crash) when the stored artifact has no letter', async () => {
+    // Reproduces the production crash: a row whose body is an empty/partial JSON
+    // object hydrates to an artifact with letter === undefined. Pre-fix, the ready
+    // branch rendered <ReflectionLetter> → artifact.letter.split() → TypeError, which
+    // blanked the whole route. It must show "Nothing was written here." instead.
+    setReducedMotion(true); // skip the seal ceremony → render the letter branch directly
+    const a = new FakeLamplightAdapter();
+    a.__seedReflection('u', {
+      periodKey: '2026-05', title: '',
+      artifact: {} as ReflectionArtifact,
+      createdAt: '2026-05-31T09:00:00.000Z', savedToNotes: false,
+    });
+    renderDetail(a);
+    await waitFor(() => expect(screen.getByText('Nothing was written here.')).toBeInTheDocument());
+  });
+
   it('shows the retry affordance when the stone is not ready', async () => {
     const a = new FakeLamplightAdapter();
     a.__queueReflectionResult({ ok: false, reason: 'network' }); // → phase 'unavailable' | 'error'

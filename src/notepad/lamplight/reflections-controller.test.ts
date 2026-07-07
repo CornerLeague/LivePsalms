@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ReflectionsController, type ReflectionsDeps, type ReflectionsState } from './reflections-controller';
 import type { ReflectionRecord } from '../storage/lamplight-adapter';
+import type { ReflectionArtifact } from '../storage/lamplight-artifacts';
 
 const rec = (periodKey: string): ReflectionRecord => ({
   periodKey, title: 'T', artifact: { title: 'T', letter: 'L', markers: [] },
@@ -21,6 +22,22 @@ describe('ReflectionsController', () => {
     await vi.waitFor(() => expect(c.getSnapshot().phase).toBe('ready'));
     expect(seen.map((s) => s.phase)).toContain('retrieving');
     expect(deps.generate).not.toHaveBeenCalled();
+  });
+
+  it('treats a content-less existing artifact (empty body) as empty, not ready', async () => {
+    // Production's adapter casts data.body → ReflectionArtifact, so an empty {} row
+    // hydrates to an artifact whose `letter` is undefined. Emitting 'ready' for it
+    // hands the detail view an artifact with no letter → artifact.letter.split()
+    // TypeError → blank route. It must degrade to 'empty' ("Nothing was written here.").
+    const emptyRow: ReflectionRecord = {
+      periodKey: '2026-03', title: '', artifact: {} as ReflectionArtifact,
+      createdAt: '2026-03-01T00:00:00.000Z', savedToNotes: false,
+    };
+    const deps: ReflectionsDeps = { getExisting: vi.fn().mockResolvedValue(emptyRow), generate: vi.fn(), listBackfillTargets: vi.fn() };
+    const c = new ReflectionsController(deps);
+    c.setInputs({ userId: 'u', periodKey: '2026-03', autoGenerate: true });
+    await vi.waitFor(() => expect(c.getSnapshot().phase).toBe('empty'));
+    expect(deps.generate).not.toHaveBeenCalled(); // an existing (if empty) row is not regenerated
   });
 
   it('generates then re-reads to ready when none exists and autoGenerate is on', async () => {

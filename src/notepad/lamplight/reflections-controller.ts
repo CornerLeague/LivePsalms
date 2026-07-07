@@ -1,7 +1,17 @@
 import { Observable } from '../collection/observable';
 import type { MonthlyReflectionGenerateResult, ReflectionRecord } from '../storage/lamplight-adapter';
+import type { ReflectionArtifact } from '../storage/lamplight-artifacts';
 
 export const BACKFILL_STATUS = 'Gathering the months behind you…'; // §13.6 verbatim (non-numeric progress)
+
+// A reflection is only renderable if it actually has letter prose. The adapter
+// casts data.body → ReflectionArtifact, so a stored row with an empty/partial
+// body (`{}`) yields an artifact whose `letter` is undefined. Such a row is not
+// a "ready" reflection — the detail view would crash on artifact.letter.split().
+// Treat it like no_notes: nothing was written here.
+function hasReflectionContent(artifact: ReflectionArtifact | null | undefined): boolean {
+  return typeof artifact?.letter === 'string' && artifact.letter.trim().length > 0;
+}
 
 export type ReflectionsState =
   | { phase: 'idle' }
@@ -90,7 +100,10 @@ export class ReflectionsController extends Observable<ReflectionsState> {
     }
     if (this.isStale(gen)) return;
     if (existing) {
-      this.emit(gen, { phase: 'ready', record: existing });
+      // An existing row with no letter (empty/partial body) is not renderable —
+      // degrade to the same "Nothing was written here." copy as no_notes rather
+      // than emitting 'ready' and handing the detail view a letter-less artifact.
+      this.emit(gen, hasReflectionContent(existing.artifact) ? { phase: 'ready', record: existing } : { phase: 'empty' });
       return;
     }
     if (!(autoGenerate || startRequested)) {
