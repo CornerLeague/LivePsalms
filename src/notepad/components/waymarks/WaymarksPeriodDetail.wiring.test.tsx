@@ -114,4 +114,21 @@ describe('WaymarksPeriodDetail (wired affordances)', () => {
     await waitFor(() => expect(screen.getByText('PATH')).toBeInTheDocument());
     expect((await a.getReflectionState('u', 'reflection_recap', '2026-05'))?.hiddenAt).not.toBeNull();
   });
+
+  it('hide: stays on the letter when the hide write fails, so retry stays live', async () => {
+    const a = new FakeLamplightAdapter();
+    seedReady(a);
+    const setHidden = vi.spyOn(a, 'setReflectionHidden').mockRejectedValue(new Error('hide write failed'));
+    renderWired(a);
+    await waitFor(() => expect(screen.getByText(artifact.title)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Hide this stone' }));
+    await waitFor(() => expect(setHidden).toHaveBeenCalledTimes(1));
+    // The rejection must be caught (no unhandled rejection escaping the void'd
+    // onClick) and must not navigate — the letter stays up with the button live.
+    expect(screen.queryByText('PATH')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide this stone' }));
+    await waitFor(() => expect(setHidden).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('PATH')).not.toBeInTheDocument();
+    expect(screen.getByText(artifact.title)).toBeInTheDocument();
+  });
 });

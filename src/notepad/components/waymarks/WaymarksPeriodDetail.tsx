@@ -89,7 +89,11 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
     setAnnotation(s?.annotation ?? null); // null-guard: getReflectionState → ReflectionState | null
   };
   const hide = async () => {
-    await adapter.setReflectionHidden(userId, 'reflection_recap', periodKey, true);
+    try {
+      await adapter.setReflectionHidden(userId, 'reflection_recap', periodKey, true);
+    } catch {
+      return; // hide write failed — stay on the letter so the button stays live for retry
+    }
     navigate('..'); // relative — resolves to the reflections index under whichever mount rendered this route
   };
   const saveToNotes = async () => {
