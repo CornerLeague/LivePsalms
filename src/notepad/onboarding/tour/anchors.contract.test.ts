@@ -32,8 +32,10 @@ describe('tour anchors contract — step ↔ token lists (drift fails CI)', () =
       'editor-page',
       'verse-chip',
       'editor-bible-panel',
-      'highlight-toolbar',
+      'editor-page',
+      'decoration-tray',
       'studywindow-graph-tab',
+      'study-toggle',
       'lamplight-panel-entry',
       null,
     ]);
@@ -46,8 +48,10 @@ describe('tour anchors contract — step ↔ token lists (drift fails CI)', () =
       'editor-page',
       'verse-chip',
       'mobile-bible-reader',
-      'highlight-toolbar',
+      'editor-page',
+      'decoration-tray',
       'more-sheet-graph',
+      'study-toggle',
       'header-flame',
       null,
     ]);

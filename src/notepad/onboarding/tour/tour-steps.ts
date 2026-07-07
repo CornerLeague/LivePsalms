@@ -93,10 +93,25 @@ export const TOUR_STEPS: TourStep[] = [
       title: 'Mark what speaks to you.',
       body: 'Highlight in textures that read like real ink.',
     },
-    anchor: () => 'highlight-toolbar',
+    anchor: () => 'editor-page',
     // "Return to editor" (spec §3): mobile switches back to the editor tab;
     // desktop is a no-op beyond reusing the still-open sample note.
     prepare: ensureSampleNoteOpen,
+  },
+  {
+    id: 'decorations',
+    placement: { desktop: 'top', mobile: 'top' },
+    copy: {
+      title: 'Decorate the page.',
+      body: 'Drop in stickers, shapes, and marks to make a page feel like yours.',
+    },
+    anchor: () => 'decoration-tray',
+    // Open the decorations tray (idempotent note-ensure first, so the editor is
+    // mounted and the tray has a note to attach to), then reveal it.
+    prepare: async (controls, ctx) => {
+      await ensureSampleNoteOpen(controls, ctx);
+      controls.openDecorationTray?.(true);
+    },
   },
   {
     id: 'graph-map',
@@ -113,6 +128,21 @@ export const TOUR_STEPS: TourStep[] = [
       } else {
         controls.mobileOpenMoreSheet?.('graph');
       }
+    },
+  },
+  {
+    id: 'study',
+    placement: { desktop: 'bottom', mobile: 'bottom' },
+    copy: {
+      title: 'Go deeper in Study.',
+      body: 'Flip to Study for close reading — the original Hebrew and Greek behind each verse, word-by-word meanings, and the roots underneath.',
+    },
+    anchor: () => 'study-toggle',
+    // Point + describe only — the tour never enters Study (that route unmounts
+    // the tour host). Mobile switches to the editor tab so the header toggle is
+    // on-screen; desktop toggle is always in the header.
+    prepare: (controls, ctx) => {
+      if (ctx.viewport === 'mobile') controls.mobileSetTab?.('editor');
     },
   },
   {
