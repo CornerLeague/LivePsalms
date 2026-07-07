@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { createTourEngine, type TourEngineDeps, type TourStep } from './tour-engine';
 
