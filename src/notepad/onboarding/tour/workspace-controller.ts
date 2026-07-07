@@ -25,7 +25,15 @@ const registry: WorkspaceControls = {};
 const listeners = new Set<() => void>();
 
 function notify(): void {
-  for (const listener of listeners) listener();
+  for (const listener of listeners) {
+    try {
+      listener();
+    } catch (err) {
+      // Never break callers; surface a dev-only warning so a throwing
+      // listener isn't fully invisible during development.
+      if (import.meta.env?.DEV) console.warn('[workspace-controller] listener threw:', err);
+    }
+  }
 }
 
 /**

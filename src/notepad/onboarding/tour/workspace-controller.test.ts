@@ -49,4 +49,18 @@ describe('workspace-controller registry', () => {
     registerWorkspaceControls({ openNote: vi.fn() })();
     expect(listener).toHaveBeenCalledTimes(2);
   });
+
+  it('continues notifying remaining listeners even if one throws', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const throwingListener = vi.fn(() => {
+      throw new Error('listener error');
+    });
+    const secondListener = vi.fn();
+    subscribeWorkspaceControls(throwingListener);
+    subscribeWorkspaceControls(secondListener);
+    registerWorkspaceControls({ openNote: vi.fn() });
+    expect(throwingListener).toHaveBeenCalledTimes(1);
+    expect(secondListener).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+  });
 });
