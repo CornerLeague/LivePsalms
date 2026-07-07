@@ -49,7 +49,11 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
   }, [adapter, userId]);
 
   const restore = useCallback(async (periodKey: string) => {
-    await adapter.setReflectionHidden(userId, 'reflection_recap', periodKey, false);
+    try {
+      await adapter.setReflectionHidden(userId, 'reflection_recap', periodKey, false);
+    } catch {
+      return; // unhide write failed — keep the stone in the hidden list so the button stays live for retry
+    }
     await reload();
   }, [adapter, userId, reload]);
 
