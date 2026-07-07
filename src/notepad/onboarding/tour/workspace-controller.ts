@@ -14,6 +14,8 @@ export interface WorkspaceControls {
   openNote?: (id: string) => void;
   /** Viewport-specific auth entry: desktop navigates to /login, mobile opens MobileAuthModal. */
   openAuth?: () => void;
+  /** Opens/closes the decorations tray in the active editor (both viewports). */
+  openDecorationTray?: (open: boolean) => void;
   /** Desktop workspace. */
   desktopSetGraphOpen?: (open: boolean) => void;
   desktopSetStudyTab?: (tab: StudyWindowTab) => void;

@@ -20,7 +20,7 @@ export function StudyModeToggle() {
     textDecoration: 'none',
   });
   return (
-    <div role="tablist" aria-label="Notepad mode" style={{ display: 'flex', gap: 2 }}>
+    <div role="tablist" aria-label="Notepad mode" data-tour="study-toggle" style={{ display: 'flex', gap: 2 }}>
       <Link to={base} aria-current={isStudy ? undefined : 'page'} style={segStyle(!isStudy)}>Journal</Link>
       <Link to={`${base}/study`} aria-current={isStudy ? 'page' : undefined} style={segStyle(isStudy)}>Study</Link>
     </div>

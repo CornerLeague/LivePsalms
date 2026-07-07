@@ -20,6 +20,8 @@ const TOKEN_SOURCES: Record<string, string> = {
   'mobile-bible-reader': 'src/components/sections/notepad/mobile/MobileNotepadWorkspace.tsx',
   'more-sheet-graph': 'src/components/sections/notepad/mobile/MobileMoreSheet.tsx',
   'header-flame': 'src/components/sections/notepad/mobile/HeaderLamplightFlame.tsx',
+  'study-toggle': 'src/notepad/study/StudyModeToggle.tsx',
+  'decoration-tray': 'src/notepad/decorations/DecorationTray.tsx',
 };
 
 describe('tour anchors contract — step ↔ token lists (drift fails CI)', () => {
