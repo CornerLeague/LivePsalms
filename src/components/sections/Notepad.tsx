@@ -48,6 +48,7 @@ function DesktopNotepadWorkspace() {
       // includes a signup mode) — resolved open item 1; MobileAuthModal is
       // mobile-only.
       openAuth: () => navigate('/login'),
+      desktopSetActiveTab: (tab) => setActiveTab(tab),
     });
   }, [navigate]);
 

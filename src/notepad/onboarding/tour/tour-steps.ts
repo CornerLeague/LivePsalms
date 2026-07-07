@@ -15,8 +15,12 @@ async function ensureSampleNoteOpen(
     controls.openNote?.(ctx.sampleNoteId);
   }
   // Mobile: the editor tab only sticks once a note is active (effectiveTab
-  // guard in MobileNotepadWorkspace), so switch tabs after opening.
+  // guard in MobileNotepadWorkspace), so switch tabs after opening. Desktop:
+  // activeTab is session-persisted, so a returning user whose last tab was
+  // backlinks/info/lamplight would have the editor (and its data-tour
+  // anchors) unmounted on replay — force the content tab to keep it mounted.
   if (ctx.viewport === 'mobile') controls.mobileSetTab?.('editor');
+  else controls.desktopSetActiveTab?.('content');
 }
 
 export const TOUR_STEPS: TourStep[] = [

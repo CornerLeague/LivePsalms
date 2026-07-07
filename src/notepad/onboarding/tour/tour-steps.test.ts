@@ -113,6 +113,15 @@ describe('TOUR_STEPS', () => {
       }
     });
 
+    it('steps 2, 3, 5 activate the desktop content tab so the editor anchors mount', async () => {
+      for (const index of [2, 3, 5]) {
+        const openNote = vi.fn();
+        const desktopSetActiveTab = vi.fn();
+        await TOUR_STEPS[index].prepare?.({ openNote, desktopSetActiveTab }, makeCtx('desktop', 'sample-1'));
+        expect(desktopSetActiveTab).toHaveBeenCalledWith('content');
+      }
+    });
+
     it('step 4 desktop opens the study pane on Bible; mobile switches tabs', async () => {
       const desktopSetGraphOpen = vi.fn();
       const desktopSetStudyTab = vi.fn();

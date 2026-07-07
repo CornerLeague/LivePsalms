@@ -6,6 +6,7 @@
 export type MobileWorkspaceTab = 'notes' | 'editor' | 'lamplight' | 'bible';
 export type StudyWindowTab = 'bible' | 'graph';
 export type MoreSheetSegment = 'backlinks' | 'info' | 'graph';
+export type DesktopEditorTab = 'content' | 'backlinks' | 'info' | 'lamplight';
 
 export interface WorkspaceControls {
   /** Shared — registered by NotepadOnboardingOverlay (mounted on both viewports). */
@@ -16,6 +17,7 @@ export interface WorkspaceControls {
   /** Desktop workspace. */
   desktopSetGraphOpen?: (open: boolean) => void;
   desktopSetStudyTab?: (tab: StudyWindowTab) => void;
+  desktopSetActiveTab?: (tab: DesktopEditorTab) => void;
   /** Mobile workspace. */
   mobileSetTab?: (tab: MobileWorkspaceTab) => void;
   mobileOpenMoreSheet?: (segment: MoreSheetSegment) => void;
