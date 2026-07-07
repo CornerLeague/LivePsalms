@@ -30,6 +30,11 @@ function monthLabel(periodKey: string): string {
 }
 const yearOf = (periodKey: string) => periodKey.slice(0, 4);
 
+// Same key WaymarksPeriodDetail writes (Task 16 `wm-opened:<periodKey>`); duplicated 2-line read.
+function hasBeenOpened(periodKey: string): boolean {
+  try { return localStorage.getItem(`wm-opened:${periodKey}`) === '1'; } catch { return false; }
+}
+
 type Row =
   | { type: 'year'; year: string }
   | { type: 'stone'; item: ReflectionListItem; index: number };
@@ -120,6 +125,7 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
                   label={monthLabel(row.item.periodKey)}
                   rotation={rotationFor(row.item.periodKey)}
                   fillVar={STONE_FILLS[row.index % STONE_FILLS.length]}
+                  sealed={row.index === 0 && !hasBeenOpened(row.item.periodKey)}
                 />
                 <span className="wm-caption">{monthLabel(row.item.periodKey)}</span>
               </Link>

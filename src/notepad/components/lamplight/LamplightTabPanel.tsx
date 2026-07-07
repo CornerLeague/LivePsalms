@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import type { LamplightAdapter } from '../../storage/lamplight-adapter';
 import { useLamplightSettings } from '../../hooks/useLamplightSettings';
@@ -70,12 +71,17 @@ export function LamplightTabPanel({ lamplightAdapter, autoGenerate = true }: Lam
   const localDate = new Date().toLocaleDateString('en-CA');
   const firstName = sanitizeFirstName(firstNameOf(user));
   return (
-    <TodaysLampCard
-      adapter={lamplightAdapter}
-      userId={user.id}
-      localDate={localDate}
-      firstName={firstName}
-      autoGenerate={autoGenerate}
-    />
+    <div>
+      <Link to="/notebook/reflections" className="wm-label" style={{ display: 'inline-block', marginBottom: '0.75rem', color: '#C49A78', textDecoration: 'none' }}>
+        Your path of months is here →
+      </Link>
+      <TodaysLampCard
+        adapter={lamplightAdapter}
+        userId={user.id}
+        localDate={localDate}
+        firstName={firstName}
+        autoGenerate={autoGenerate}
+      />
+    </div>
   );
 }
