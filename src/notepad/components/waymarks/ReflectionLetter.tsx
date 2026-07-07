@@ -9,7 +9,9 @@ export interface ReflectionLetterProps {
 
 // The letter is prose with blank-line paragraph breaks; split on 2+ newlines.
 export function ReflectionLetter({ artifact, annotation }: ReflectionLetterProps) {
-  const paragraphs = artifact.letter.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  // Defense-in-depth: the controller gates content-less artifacts to phase 'empty',
+  // but a letter-less artifact must never blank the route even if one slips through.
+  const paragraphs = (artifact.letter ?? '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   const hasAnnotation = typeof annotation === 'string' && annotation.trim().length > 0;
   return (
     <article className="wm-letter">
