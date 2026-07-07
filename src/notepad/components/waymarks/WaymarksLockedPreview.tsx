@@ -24,7 +24,7 @@ export function WaymarksLockedPreview() {
           ))}
         </ul>
         {/* Upgrade affordance — confirm the app's Plus-upgrade route during execution (seam). */}
-        <a className="wm-locked__cta wm-label" href="/settings/lamplight">See your own months marked</a>
+        <a className="wm-locked__cta wm-label" href="/profile">See your own months marked</a>
       </div>
     </div>
   );
