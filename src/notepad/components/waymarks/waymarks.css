@@ -76,3 +76,36 @@
   .wm-stone__seal { animation: none; }
   .wm-fade { animation: none; }
 }
+
+/* ── Detail (the opened stone) ─────────────────────────────────────────────── */
+.wm-detail { max-width: 40rem; margin: 0 auto; }
+.wm-back { display: inline-block; margin-bottom: 1.5rem; color: var(--wm-silica); text-decoration: none; }
+.wm-back:hover { color: var(--wm-umber); }
+.wm-detail__status { margin-top: 3rem; text-align: center; }
+.wm-detail__actions { margin-top: 1rem; display: flex; gap: 1rem; justify-content: center; align-items: center; }
+.wm-detail__retry { background: none; border: 1px solid var(--wm-hairline); border-radius: 999px; padding: 0.4rem 1.1rem; cursor: pointer; color: var(--wm-umber); font: inherit; }
+
+/* Opening ceremony — a tappable seal cover. */
+.wm-seal-cover { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin: 3rem auto 0; background: none; border: none; cursor: pointer; padding: 1.5rem; }
+.wm-seal-cover:hover .wm-stone__seal { opacity: 0.4; }
+
+/* The letter. */
+.wm-letter { background: var(--wm-letter); border: 1px solid var(--wm-hairline); border-radius: 4px; padding: 2.5rem 2rem; }
+.wm-letter__title { font-size: 1.9rem; margin: 0 0 1.5rem; }
+.wm-letter__body { font-size: 1.05rem; line-height: 1.7; margin: 0 0 1.1rem; }
+.wm-annotation { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--wm-hairline); }
+.wm-annotation__text { font-size: 1rem; line-height: 1.6; margin: 0.35rem 0 0; }
+
+/* The markers. */
+.wm-markers { margin-top: 2.5rem; }
+.wm-markers__head { margin: 0 0 1rem; }
+.wm-markers__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.5rem; }
+.wm-marker { display: flex; flex-direction: column; gap: 0.35rem; border-left: 2px solid var(--wm-hairline); padding-left: 1rem; }
+.wm-marker__date { color: var(--wm-silica); }
+.wm-marker__verse { font-size: 1.2rem; }
+.wm-marker__phrase { font-size: 1rem; }
+
+/* Affordances — static in Task 16, wired in Task 17. */
+.wm-annotate { margin-top: 2.5rem; border: 1px dashed var(--wm-hairline); border-radius: 4px; padding: 1.1rem 1.25rem; }
+.wm-annotate__prompt { display: block; }
+.wm-detail__footer { margin-top: 1.5rem; text-align: center; }
