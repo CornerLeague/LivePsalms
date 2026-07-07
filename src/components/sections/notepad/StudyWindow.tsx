@@ -59,7 +59,7 @@ export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lampl
         <button data-tour="editor-bible-panel" role="tab" aria-selected={tab === 'bible'} onClick={() => setTab('bible')} style={tabStyle(tab === 'bible')}>
           BIBLE
         </button>
-        <button role="tab" aria-selected={tab === 'graph'} onClick={() => setTab('graph')} style={tabStyle(tab === 'graph')}>
+        <button data-tour="studywindow-graph-tab" role="tab" aria-selected={tab === 'graph'} onClick={() => setTab('graph')} style={tabStyle(tab === 'graph')}>
           GRAPH
         </button>
       </div>

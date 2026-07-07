@@ -26,9 +26,10 @@ export interface BibleStudyPaneProps {
   lamplightAdapter: LamplightAdapter | null;
   invoke: InvokeFn;
   streamInvoke?: StreamInvoke;
+  dataTour?: string;
 }
 
-export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: BibleStudyPaneProps) {
+export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke, dataTour }: BibleStudyPaneProps) {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
   const [chatOpen, setChatOpen] = useState(false);
@@ -95,7 +96,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke }: Bible
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div data-tour={dataTour} className="flex flex-col h-full">
       <div className="flex flex-col items-end gap-1 px-3 py-2 shrink-0">
         <button
           onClick={() => { if (!chatDisabled) setChatOpen((o) => !o); }}

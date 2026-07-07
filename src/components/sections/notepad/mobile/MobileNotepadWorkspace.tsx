@@ -228,6 +228,7 @@ export function MobileNotepadWorkspace() {
         )}
         {effectiveTab === 'bible' && (
           <BibleStudyPane
+            dataTour="mobile-bible-reader"
             lamplightAdapter={model.lamplightAdapter}
             invoke={model.invoke}
             streamInvoke={model.streamInvoke}

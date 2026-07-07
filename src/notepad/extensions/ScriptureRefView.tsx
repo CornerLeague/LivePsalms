@@ -97,7 +97,7 @@ export function ScriptureRefNodeView(props: NodeViewProps) {
   const activeTranslation = prefs?.translation ?? options.translation;
 
   return (
-    <NodeViewWrapper as="span" className="scripture-ref">
+    <NodeViewWrapper as="span" className="scripture-ref" data-tour="verse-chip">
       <ScriptureRefCard
         attrs={attrs}
         online={online}

@@ -452,6 +452,7 @@ export function NotepadEditor({
       {/* Scrollable content area */}
       <div
         data-testid="editor-scroll"
+        data-tour="editor-page"
         style={{
           flex: 1,
           overflowY: 'auto',

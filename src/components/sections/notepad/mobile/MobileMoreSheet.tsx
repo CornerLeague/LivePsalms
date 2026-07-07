@@ -94,14 +94,16 @@ export function MobileMoreSheet({ open, onClose, onOpenNote }: MobileMoreSheetPr
                 onPeekNote={(id) => setPeeked({ id, kind: 'note' })}
               />
             ) : (
-              <GraphPane
-                graphOpen
-                embedded
-                focusNodeId={focusId}
-                expanded={false}
-                onToggleExpand={() => {}}
-                onNodePeek={(n) => setPeeked({ id: n.id, kind: n.type === 'scripture' ? 'scripture' : 'note' })}
-              />
+              <div data-tour="more-sheet-graph" className="h-full min-h-0">
+                <GraphPane
+                  graphOpen
+                  embedded
+                  focusNodeId={focusId}
+                  expanded={false}
+                  onToggleExpand={() => {}}
+                  onNodePeek={(n) => setPeeked({ id: n.id, kind: n.type === 'scripture' ? 'scripture' : 'note' })}
+                />
+              </div>
             )
           )}
         </div>
