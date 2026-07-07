@@ -5,8 +5,16 @@
 //   - 'daily_devotion'       → real, persisted daily devotion (sub-project 4)
 //   - 'connection_card_why'  → lazy Haiku "why" generation for Connection Cards (sub-project 5)
 //
+// Dispatches on body.sweep === true (ADDITIVE — final-review fix, job-queue sweep):
+//   the 046 pg_cron job POSTs {"sweep": true} hourly to drain queued monthly_reflection
+//   jobs, exactly mirroring embed-note's `{sweep:true}` branch. See reflection-sweep.ts.
+//
 // JWT verification stays on at the platform level. The function additionally
-// requires lamplight_settings.enabled=true for the supplied user_id.
+// requires lamplight_settings.enabled=true for the supplied user_id — EXCEPT the sweep
+// branch below, which runs before user derivation (a service-role sweep call has no
+// associated auth.users row, so deriveUserId would 401 it) and instead reads user_id
+// straight off each claimed job row, same as embed-note's sweep never inspects the JWT
+// beyond the platform-level check.
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -38,6 +46,7 @@ import { hasReflectionAccess, type LamplightTier } from '../_shared/entitlement.
 import { recordLamplightUsage } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
 import { clearReflectionJob } from '../_shared/reflection-jobs.ts';
+import { runReflectionSweep, claimReflectionJobs } from './reflection-sweep.ts';
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
@@ -84,14 +93,37 @@ async function handleGenerate(req: Request): Promise<Response> {
     related_note_id?: string;
     translation?: string;
     stream?: boolean;
+    sweep?: boolean;
   };
   try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
+
+  const supabase = serviceClient();
+
+  // ── Sweep mode (ADDITIVE — final-review fix, job-queue sweep) ────────────
+  // Checked BEFORE deriveUserId: the 046 cron caller holds a service_role JWT, which
+  // satisfies platform-level JWT verification but has no associated auth.users row, so
+  // deriveUserId would 401 it. Mirrors embed-note's sweep branch exactly — no additional
+  // identity check beyond the platform-level one; every claimed job's user_id/period_key
+  // comes from the DB row (trusted, not caller-spoofable), never from this request.
+  if (body.sweep === true) {
+    const voyageDepsForSweep: VoyageDeps = { apiKey: voyageKey, fetch };
+    const outcomes = await runReflectionSweep({
+      supabase,
+      llm: createAnthropicAdapter({ apiKey: anthropicKey, fetch }),
+      claim: (limit) => claimReflectionJobs(supabase, limit),
+      embed: (text) => embedQuery(text, voyageDepsForSweep),
+      loadTimezone: async (uid) => {
+        const { data } = await supabase
+          .from('lamplight_settings').select('timezone').eq('user_id', uid).maybeSingle();
+        return (data?.timezone as string | null) ?? null;
+      },
+    });
+    return jsonResp({ processed: outcomes.length });
+  }
 
   const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
   type Translation = typeof VALID_TRANSLATIONS[number];
   const bodyHasValidTranslation = (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '');
-
-  const supabase = serviceClient();
 
   // Identity comes from the verified JWT, never from body.user_id.
   const userId = await deriveUserId(supabase, bearerToken(req));

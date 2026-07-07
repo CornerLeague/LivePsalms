@@ -1,6 +1,16 @@
 -- Waymarks scheduled generation (§8, §11): pick each Plus user whose local month just
--- closed and who has notes there but no reflection yet, and POST the generate function
--- once per hour. Idempotent — the upsert + not-exists guards make re-firing safe.
+-- closed and who has notes there but no reflection yet, enqueue a lamplight_jobs row per
+-- cohort member, and sweep-post the generate function once per hour to drain the queue.
+-- Idempotent — the ON CONFLICT + not-exists guards make re-firing safe.
+--
+-- FINAL-REVIEW FIX (job-queue sweep, mirrors 011's embedding_refresh architecture): the
+-- original version of this file POSTed `{kind, user_id, period_key}` straight at a raw
+-- Edge Function URL per cohort row — a dead path, because (a) the vault secret it read
+-- was embed-note's URL, whose contract is `{job_id}`/`{sweep:true}` and 400s anything
+-- else, and (b) even repointed at lamplight-generate, that function derives identity
+-- ONLY from the caller's bearer JWT (never body.user_id), so a service-role sweep call
+-- has no user and gets 401. The fix below enqueues jobs instead of calling per-user, then
+-- fires ONE `{"sweep":true}` POST — exactly how 011 drains embedding_refresh.
 
 -- 1. Cohort selector -------------------------------------------------------------
 create or replace function public.select_monthly_reflection_cohort()
@@ -14,7 +24,11 @@ as $$
     select e.user_id, coalesce(s.timezone, 'UTC') as tz
     from lamplight_entitlements e
     left join lamplight_settings s on s.user_id = e.user_id
-    where e.tier = 'plus'
+    -- roll-up 7 (final-review rider): never sweep a user who has opted out of
+    -- Lamplight entirely — coalesce false so a missing settings row (not yet
+    -- opted in) also excludes them, matching 008's `enabled boolean not null
+    -- default false` (opt-in is off until the user explicitly turns it on).
+    where e.tier = 'plus' and coalesce(s.enabled, false)
   ),
   closed_month as (
     select
@@ -43,36 +57,47 @@ as $$
       and j.user_id = cm.user_id
       and j.payload->>'period_key' = cm.period_key
       and j.status = 'failed'
-      and j.attempts >= 3
+      and j.attempts >= 3 -- 3 = RETRY_ATTEMPT_CAP (spec §17)
   );
 $$;
 
 revoke execute on function public.select_monthly_reflection_cohort() from public, anon, authenticated;
 
--- 2. Hourly sweep ----------------------------------------------------------------
--- MIRROR migration 011's sweep verbatim for the vault + net.http_post idiom.
+-- 2. Hourly enqueue + sweep --------------------------------------------------------
+-- Step 1 (enqueue): turn each cohort row into a lamplight_jobs row instead of calling
+-- the user out directly. The 045 partial unique index
+-- (lamplight_jobs_active_period_uniq, arbiter columns (user_id, kind,
+-- (payload->>'period_key')) where status in ('queued','running')) dedupes concurrent
+-- or repeated cron firings for the same (user, period) — mirroring how 011's
+-- lamplight_jobs_embedding_refresh_queued_uq guards duplicate embedding_refresh enqueues.
+-- Step 2 (sweep): ONE net.http_post of {"sweep": true} to lamplight-generate, using the
+-- SAME vault + service_role_key header idiom as 011's sweep — but reading a NEW vault
+-- secret (lamplight_generate_fn_url) rather than reusing embed_fn_url, since that secret
+-- points at the embed-note function, not this one (see docs/lamplight/post-deploy-signal-layer.md).
 select cron.schedule(
   'lamplight_reflection_sweep',
   '0 * * * *',
   $cron$
-  do $$
-  declare
-    fn_url   text := (select decrypted_secret from vault.decrypted_secrets where name = 'embed_fn_url');
-    svc_key  text := (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key');
-    target   record;
-  begin
-    if fn_url is null or svc_key is null then
-      return;
-    end if;
-    for target in select * from public.select_monthly_reflection_cohort() loop
-      perform net.http_post(
-        url     := fn_url,
-        headers := jsonb_build_object('Authorization', 'Bearer ' || svc_key, 'Content-Type', 'application/json'),
-        body    := jsonb_build_object('kind', 'monthly_reflection', 'user_id', target.user_id, 'period_key', target.period_key)
-      );
-    end loop;
-  end;
-  $$;
+  insert into public.lamplight_jobs (user_id, kind, payload, status)
+  select user_id, 'monthly_reflection', jsonb_build_object('period_key', period_key), 'queued'
+  from public.select_monthly_reflection_cohort()
+  on conflict (user_id, kind, (payload->>'period_key')) where status in ('queued','running') do nothing;
+
+  with config as (
+    select
+      (select decrypted_secret from vault.decrypted_secrets where name = 'lamplight_generate_fn_url') as url,
+      (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key')           as key
+  )
+  select net.http_post(
+    url := config.url,
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || config.key,
+      'Content-Type', 'application/json'
+    ),
+    body := '{"sweep": true}'::jsonb
+  )
+  from config
+  where config.url is not null and config.key is not null;
   $cron$
 );
 

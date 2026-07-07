@@ -64,3 +64,31 @@ SUPABASE_URL=<...> SUPABASE_SERVICE_ROLE_KEY=<...> \
 
 The script enqueues `embedding_refresh` jobs; `pg_cron` drains them at 1/min,
 or invoke the function directly with `{"sweep":true}` to drain immediately.
+
+## 6. Provision the Waymarks reflection-sweep secret (after migration 046)
+
+Migration 046's hourly `lamplight_reflection_sweep` cron job needs its own vault
+secret pointing at `lamplight-generate` (NOT `embed_fn_url` — that secret points
+at the `embed-note` function and would 400 if reused here). Provision it the
+same way as step 3 above:
+
+```bash
+supabase functions deploy lamplight-generate --no-verify-jwt=false
+```
+
+Capture the deployed URL — it has the form
+`https://<project-ref>.functions.supabase.co/lamplight-generate`. Then in the
+SQL editor:
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.functions.supabase.co/lamplight-generate',
+  'lamplight_generate_fn_url'
+);
+```
+
+`service_role_key` is shared with the embedding sweep — no need to re-create
+it. Until `lamplight_generate_fn_url` exists, `lamplight_reflection_sweep` is
+a no-op (same `where config.url is not null and config.key is not null` guard
+as migration 011's sweep). Rotate it the same way as `service_role_key` (§3):
+`update vault.secrets set secret = '<new-url>' where name = 'lamplight_generate_fn_url';`
