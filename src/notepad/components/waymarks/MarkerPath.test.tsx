@@ -14,3 +14,30 @@ describe('MarkerPath (defense-in-depth)', () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+describe('MarkerPath date range', () => {
+  afterEach(cleanup);
+
+  function dateLabel(markers: Marker[]): string {
+    const { container } = render(<MarkerPath markers={markers} />);
+    return container.querySelector('.wm-marker__date')?.textContent ?? '';
+  }
+
+  it('renders a valid span with both endpoints', () => {
+    const label = dateLabel([{ date: '2026-05-12', date_end: '2026-05-18', verse: null, phrase: 'a hard week' }]);
+    expect(label).toBe('May 12 – May 18');
+  });
+
+  it('renders a single date when there is no date_end', () => {
+    const label = dateLabel([{ date: '2026-05-12', verse: null, phrase: 'one day' }]);
+    expect(label).toBe('May 12');
+  });
+
+  it('does not render a dangling separator when date_end is truthy but unformattable', () => {
+    // markerDate() degrades a partial/malformed ISO string to '' (PR #75 hardening).
+    // The separator must key off the *formatted* end, not raw `date_end` truthiness,
+    // or the label reads "May 12 – " — an unfinished-looking range.
+    const label = dateLabel([{ date: '2026-05-12', date_end: '2026-05', verse: null, phrase: 'a partial span' }]);
+    expect(label).toBe('May 12');
+  });
+});
