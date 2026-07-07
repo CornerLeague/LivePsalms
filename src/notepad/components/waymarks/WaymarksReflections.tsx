@@ -86,6 +86,8 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
     return <WaymarksLockedPreview />;
   }
 
+  const downgraded = !canAccess && visible.length > 0;
+
   const rows: Row[] = [];
   let lastYear = '';
   visible.forEach((item, index) => {
@@ -99,8 +101,13 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
       <header>
         <p className="wm-label">The Path</p>
         <h1 className="wm-title" style={{ fontSize: '2rem', margin: '0.25rem 0 0' }}>
-          The months you’ve walked
+          The months you've walked
         </h1>
+        {downgraded && (
+          <p className="wm-caption">
+            Your path is here whenever you return. New stones resume the moment you&apos;re back.
+          </p>
+        )}
         {state.phase === 'backfilling' && (
           <p className="wm-caption" aria-live="polite">{state.message}</p>
         )}
