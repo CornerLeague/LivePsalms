@@ -91,6 +91,20 @@ describe('WaymarksPeriodDetail (wired affordances)', () => {
     expect((await a.getReflection('u', '2026-05'))?.savedToNotes).toBe(true);
   });
 
+  it('save to notes: leaves the flag unset when the note insert fails, so retry stays live', async () => {
+    const a = new FakeLamplightAdapter();
+    seedReady(a);
+    const onSaveToNotes = vi.fn().mockRejectedValue(new Error('note insert failed'));
+    renderWired(a, onSaveToNotes);
+    await waitFor(() => expect(screen.getByText(artifact.title)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Save to notes' }));
+    await waitFor(() => expect(onSaveToNotes).toHaveBeenCalledTimes(1));
+    // Invariant: saved_to_notes=true must imply the note exists. A persisted flag with
+    // no note disables the button on every later visit — the letter becomes unsavable.
+    expect((await a.getReflection('u', '2026-05'))?.savedToNotes).toBe(false);
+    expect(screen.getByRole('button', { name: 'Save to notes' })).toBeEnabled();
+  });
+
   it('hides the stone and navigates back to The Path', async () => {
     const a = new FakeLamplightAdapter();
     seedReady(a);

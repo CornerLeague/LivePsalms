@@ -94,8 +94,17 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
   };
   const saveToNotes = async () => {
     if (state.phase !== 'ready') return; // narrows state.record for TS
+    // Note insert BEFORE the flag write — saved_to_notes=true must imply the note
+    // exists. Flag-first bricks the button on the next visit when the insert fails
+    // (flag persisted, no note, retry disabled). The residual failure the other way
+    // (note created, flag write fails → a retry can duplicate the note) is visible
+    // and deletable, so it's the side we accept.
+    try {
+      await onSaveToNotes?.(state.record);
+    } catch {
+      return; // insert failed — leave the flag unset so the button stays live for retry
+    }
     await adapter.setReflectionSavedToNotes(userId, periodKey, true);
-    await onSaveToNotes?.(state.record);
     setSavedToNotes(true);
   };
 
