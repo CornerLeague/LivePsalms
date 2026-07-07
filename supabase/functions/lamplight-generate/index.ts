@@ -32,6 +32,9 @@ import {
   runConnectionWhyPipeline,
   type ConnectionWhyContext,
 } from './connection-why-pipeline.ts';
+import { runMonthlyReflectionPipeline } from './monthly-reflection-pipeline.ts';
+import { buildMonthlyReflectionContext, isValidPeriodKey } from './monthly-reflection-context.ts';
+import { hasReflectionAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
@@ -75,6 +78,7 @@ async function handleGenerate(req: Request): Promise<Response> {
   let body: {
     kind?: string;
     local_date?: string;
+    period_key?: string;
     source_note_id?: string;
     related_note_id?: string;
     translation?: string;
@@ -155,6 +159,39 @@ async function handleGenerate(req: Request): Promise<Response> {
     recordUsage: (row) => recordLamplightUsage(supabase, row),
     classifyError: classifyGenerateError,
   };
+
+  // --- monthly_reflection (Waymarks) ---
+  if (body.kind === 'monthly_reflection') {
+    const periodKey = String(body.period_key ?? '');
+    if (!isValidPeriodKey(periodKey)) return jsonResp({ error: 'bad period_key' }, 400);
+
+    // Plus gate (DESIGN DECISION 3) — added ON TOP of the opt-in gate above.
+    const [{ data: ent }, { data: promoRow }] = await Promise.all([
+      supabase.from('lamplight_entitlements').select('tier').eq('user_id', userId).maybeSingle(),
+      supabase.from('app_config').select('value').eq('key', 'lamplight_promo_active').maybeSingle(),
+    ]);
+    if (!hasReflectionAccess({ tier: (ent?.tier ?? 'none') as LamplightTier, promoActive: promoRow?.value === true })) {
+      return jsonResp({ error: 'reflections require Plus' }, 403);
+    }
+
+    const { data: settingsRow } = await supabase
+      .from('lamplight_settings').select('timezone').eq('user_id', userId).maybeSingle();
+    const timezone: string | null = settingsRow?.timezone ?? null;
+
+    const { status, response } = await runGeneration(
+      lifecycleDeps,
+      { userId, artifactKind: 'monthly_reflection' },
+      async () => {
+        const ctx = await buildMonthlyReflectionContext(supabase, {
+          userId, periodKey, timezone,
+          embed: (text) => embedQuery(text, voyageDeps),
+        });
+        const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx, userId, periodKey });
+        return { response: result, usage: result.usage };
+      },
+    );
+    return jsonResp(response, status);
+  }
 
   if (body.kind === 'smoke_test') {
     const { status, response } = await runGeneration(
