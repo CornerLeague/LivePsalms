@@ -103,6 +103,16 @@ function makeCtx() {
   };
 }
 
+// Default eligible-happy-path seams: enabled+timezone settings, Plus tier, no promo.
+// Individual tests override loadSettings/loadTier/loadPromoActive to exercise the gate.
+function eligibleSeams(timezone: string | null = null) {
+  return {
+    loadSettings: async () => ({ enabled: true, timezone }),
+    loadTier: async () => 'plus' as const,
+    loadPromoActive: async () => false,
+  };
+}
+
 describe('runReflectionSweep', () => {
   it('an empty claim is a no-op — no context built, no DB writes', async () => {
     const { supabase, jobUpdates, jobDeletes } = makeSupabase();
@@ -112,7 +122,7 @@ describe('runReflectionSweep', () => {
       llm: makeAdapter([ARTIFACT, { pass: true, reasons: [] }]),
       claim,
       embed: async () => [],
-      loadTimezone: async () => null,
+      ...eligibleSeams(),
     });
     expect(outcomes).toEqual([]);
     expect(claim).toHaveBeenCalledWith(CLAIM_LIMIT);
@@ -127,12 +137,12 @@ describe('runReflectionSweep', () => {
       llm: makeAdapter([ARTIFACT, { pass: true, reasons: [] }]),
       claim: async () => [job()],
       embed: async () => [],
-      loadTimezone: async (uid) => { expect(uid).toBe('u1'); return 'America/New_York'; },
+      ...eligibleSeams('America/New_York'),
       buildContext: async (_s, args) => { expect(args).toMatchObject({ userId: 'u1', periodKey: '2026-05', timezone: 'America/New_York' }); return makeCtx(); },
     });
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0]).toMatchObject({ jobId: 'job-1', userId: 'u1', periodKey: '2026-05' });
-    expect(outcomes[0].result.ok).toBe(true);
+    expect(outcomes[0].result?.ok).toBe(true);
     expect(upserts).toHaveLength(1);
     // clearReflectionJob (delete), never a status='done' update — this job kind has no
     // markDone equivalent; delete IS the success disposal (mirrors index.ts's on-demand path).
@@ -147,7 +157,7 @@ describe('runReflectionSweep', () => {
       llm: makeAdapter([ARTIFACT]),
       claim: async () => [job()],
       embed: async () => [],
-      loadTimezone: async () => null,
+      ...eligibleSeams(),
       buildContext: async () => makeCtx(),
     });
     expect(outcomes[0].result).toEqual({ ok: true, cached: true, artifactId: 'existing-1', usage: null });
@@ -162,7 +172,7 @@ describe('runReflectionSweep', () => {
       llm: makeAdapter([ARTIFACT]),
       claim: async () => [job({ attempts: 1 })],
       embed: async () => [],
-      loadTimezone: async () => null,
+      ...eligibleSeams(),
       buildContext: async () => null, // empty month
     });
     expect(outcomes[0].result).toEqual({ ok: false, reason: 'no_notes', usage: null });
@@ -179,7 +189,7 @@ describe('runReflectionSweep', () => {
       llm: makeAdapter([tooShort]),
       claim: async () => [job({ attempts: 2 })], // this failure pushes attempts to 3 = RETRY_ATTEMPT_CAP → deferred
       embed: async () => [],
-      loadTimezone: async () => null,
+      ...eligibleSeams(),
       buildContext: async () => makeCtx(),
     });
     expect(outcomes[0].result).toEqual({ ok: false, reason: 'validators_failed', usage: { status: 'error', model_used: 'claude-sonnet-4-6', error_code: 'validators_failed' } });
@@ -187,18 +197,22 @@ describe('runReflectionSweep', () => {
     expect(jobDeletes).toHaveLength(0);
   });
 
-  it('a malformed job (no period_key in payload) is routed to the ledger without building context', async () => {
+  it('a malformed job (no period_key in payload) is routed to the ledger without checking eligibility or building context', async () => {
     const { supabase, jobUpdates } = makeSupabase();
     const buildContext = vi.fn();
+    const loadSettings = vi.fn();
     const outcomes = await runReflectionSweep({
       supabase,
       llm: makeAdapter([ARTIFACT]),
       claim: async () => [job({ payload: {} })],
       embed: async () => [],
-      loadTimezone: async () => null,
+      loadSettings,
+      loadTier: async () => 'plus',
+      loadPromoActive: async () => false,
       buildContext,
     });
     expect(outcomes[0]).toMatchObject({ periodKey: '', result: { ok: false, reason: 'no_notes' } });
+    expect(loadSettings).not.toHaveBeenCalled();
     expect(buildContext).not.toHaveBeenCalled();
     expect(jobUpdates).toEqual([{ status: 'failed', attempts: 1 }]);
   });
@@ -212,7 +226,7 @@ describe('runReflectionSweep', () => {
       llm: makeAdapter([ARTIFACT, { pass: true, reasons: [] }, ARTIFACT, { pass: true, reasons: [] }]),
       claim: async () => [job({ id: 'job-1', user_id: 'u1' }), job({ id: 'job-2', user_id: 'u2', payload: { period_key: '2026-06' } })],
       embed: async () => [],
-      loadTimezone: async () => null,
+      ...eligibleSeams(),
       buildContext: async (_s, args) => ({ ...makeCtx(), periodKey: args.periodKey }),
     });
     expect(outcomes.map((o) => [o.jobId, o.userId, o.periodKey])).toEqual([
@@ -220,5 +234,99 @@ describe('runReflectionSweep', () => {
       ['job-2', 'u2', '2026-06'],
     ]);
     expect(jobDeletes).toHaveLength(2);
+  });
+
+  // ── Eligibility re-check at claim time (Greptile P1 fix) ──────────────────────────
+  describe('eligibility re-check', () => {
+    it('enabled=false → clearReflectionJob called, pipeline NOT called, outcome skipped:"ineligible"', async () => {
+      const { supabase, jobDeletes, jobUpdates, upserts } = makeSupabase();
+      const buildContext = vi.fn();
+      const outcomes = await runReflectionSweep({
+        supabase,
+        llm: makeAdapter([ARTIFACT, { pass: true, reasons: [] }]),
+        claim: async () => [job()],
+        embed: async () => [],
+        loadSettings: async () => ({ enabled: false, timezone: 'America/New_York' }),
+        loadTier: async () => 'plus',
+        loadPromoActive: async () => false,
+        buildContext,
+      });
+      expect(outcomes).toEqual([{ jobId: 'job-1', userId: 'u1', periodKey: '2026-05', result: null, skipped: 'ineligible' }]);
+      expect(buildContext).not.toHaveBeenCalled();
+      expect(upserts).toHaveLength(0);
+      // Disposal is clearReflectionJob (DELETE), not recordReflectionJobFailure (UPDATE) —
+      // ineligibility is not an error, so no attempt-ledger increment.
+      expect(jobDeletes).toEqual([[['user_id', 'u1'], ['kind', 'monthly_reflection'], ['payload->>period_key', '2026-05']]]);
+      expect(jobUpdates).toHaveLength(0);
+    });
+
+    it('tier="none", promo=false → same skip (downgraded-off-promo user)', async () => {
+      const { supabase, jobDeletes } = makeSupabase();
+      const buildContext = vi.fn();
+      const outcomes = await runReflectionSweep({
+        supabase,
+        llm: makeAdapter([ARTIFACT, { pass: true, reasons: [] }]),
+        claim: async () => [job()],
+        embed: async () => [],
+        loadSettings: async () => ({ enabled: true, timezone: null }),
+        loadTier: async () => 'none',
+        loadPromoActive: async () => false,
+        buildContext,
+      });
+      expect(outcomes[0]).toMatchObject({ skipped: 'ineligible', result: null });
+      expect(buildContext).not.toHaveBeenCalled();
+      expect(jobDeletes).toHaveLength(1);
+    });
+
+    it('tier="none", promo=TRUE → pipeline RUNS (promo grants access, mirroring hasReflectionAccess)', async () => {
+      const { supabase, jobDeletes, upserts } = makeSupabase();
+      const outcomes = await runReflectionSweep({
+        supabase,
+        llm: makeAdapter([ARTIFACT, { pass: true, reasons: [] }]),
+        claim: async () => [job()],
+        embed: async () => [],
+        loadSettings: async () => ({ enabled: true, timezone: null }),
+        loadTier: async () => 'none',
+        loadPromoActive: async () => true,
+        buildContext: async () => makeCtx(),
+      });
+      expect(outcomes[0].skipped).toBeUndefined();
+      expect(outcomes[0].result?.ok).toBe(true);
+      expect(upserts).toHaveLength(1);
+      expect(jobDeletes).toHaveLength(1); // success disposal, not the ineligibility disposal
+    });
+
+    it('tier="plus", enabled=true → pipeline runs (happy path through the new seams)', async () => {
+      const { supabase, upserts } = makeSupabase();
+      const outcomes = await runReflectionSweep({
+        supabase,
+        llm: makeAdapter([ARTIFACT, { pass: true, reasons: [] }]),
+        claim: async () => [job()],
+        embed: async () => [],
+        ...eligibleSeams('America/New_York'),
+        buildContext: async () => makeCtx(),
+      });
+      expect(outcomes[0].skipped).toBeUndefined();
+      expect(outcomes[0].result?.ok).toBe(true);
+      expect(upserts).toHaveLength(1);
+    });
+
+    it('no settings row at all (never opted in) → skipped:"ineligible", not a crash on null', async () => {
+      const { supabase, jobDeletes } = makeSupabase();
+      const buildContext = vi.fn();
+      const outcomes = await runReflectionSweep({
+        supabase,
+        llm: makeAdapter([ARTIFACT]),
+        claim: async () => [job()],
+        embed: async () => [],
+        loadSettings: async () => null,
+        loadTier: async () => 'plus',
+        loadPromoActive: async () => false,
+        buildContext,
+      });
+      expect(outcomes[0]).toMatchObject({ skipped: 'ineligible', result: null });
+      expect(buildContext).not.toHaveBeenCalled();
+      expect(jobDeletes).toHaveLength(1);
+    });
   });
 });

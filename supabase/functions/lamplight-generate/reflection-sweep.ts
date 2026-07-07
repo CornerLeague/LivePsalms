@@ -18,6 +18,7 @@ import { buildMonthlyReflectionContext } from './monthly-reflection-context.ts';
 import type { MonthlyReflectionContext } from './prompts/monthly-reflection.ts';
 import { runMonthlyReflectionPipeline, type MonthlyReflectionPipelineResult } from './monthly-reflection-pipeline.ts';
 import { recordReflectionJobFailure, clearReflectionJob } from '../_shared/reflection-jobs.ts';
+import { hasReflectionAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import type { EdgeSupabase } from './reflection-candidates.ts';
 
 // CLAIM_LIMIT mirrors embed-note's CLAIM_LIMIT (index.ts) — max jobs drained per invocation,
@@ -40,8 +41,19 @@ export interface ReflectionSweepDeps {
   claim: ClaimReflectionJobsFn;
   /** Real embedQuery(text, voyageDeps); injected so tests never touch Voyage. */
   embed: (text: string) => Promise<number[]>;
-  /** Reads lamplight_settings.timezone for the job's user_id. Injected for tests. */
-  loadTimezone: (userId: string) => Promise<string | null>;
+  /**
+   * Reads lamplight_settings (enabled + timezone) for the job's user_id in one row —
+   * replaces the old loadTimezone-only seam (defect fix — eligibility re-check at claim
+   * time). Null when no settings row exists (never opted in).
+   */
+  loadSettings: (userId: string) => Promise<{ enabled: boolean; timezone: string | null } | null>;
+  /** Reads lamplight_entitlements.tier for the job's user_id; 'none' when no row. */
+  loadTier: (userId: string) => Promise<LamplightTier>;
+  /**
+   * Reads app_config's lamplight_promo_active flag. User-independent — index.ts's sweep
+   * wiring reads this ONCE per invocation and passes a dep that returns the cached value.
+   */
+  loadPromoActive: () => Promise<boolean>;
   /**
    * Defaults to the real buildMonthlyReflectionContext (production wiring — index.ts never
    * overrides this). Tests inject a fake so the sweep LOOP is exercised without needing a
@@ -58,11 +70,21 @@ export interface ReflectionSweepJobOutcome {
   jobId: string;
   userId: string;
   periodKey: string;
-  result: MonthlyReflectionPipelineResult;
+  result: MonthlyReflectionPipelineResult | null;
+  /** Set when the job was skipped for ineligibility (claim-time re-check) rather than run. */
+  skipped?: 'ineligible';
 }
 
 // Claims up to `limit` queued monthly_reflection jobs via the RPC and runs each to
 // completion, disposing of the job row per outcome:
+//   - ineligible (settings.enabled is false, OR hasReflectionAccess is false) →
+//     clearReflectionJob (DELETE, not a failure record). Eligibility was only enforced at
+//     ENQUEUE time (046 cohort); a user who downgrades or opts out between enqueue and claim
+//     must be re-checked here too, mirroring the on-demand path's enabled gate (index.ts
+//     ~L162-168) and Plus/promo gate (~L200-207 via hasReflectionAccess). Ineligibility is
+//     not an error — deferring via the failure ledger would wrongly block the month if the
+//     user later re-qualifies. After deletion, a re-qualified user is simply re-enqueued by
+//     the cohort next hour (no artifact exists yet) — correct.
 //   - ok (fresh success OR cache hit) → clearReflectionJob (the SAME disposal the on-demand
 //     path in index.ts uses for a fresh success; a cache hit here means a concurrent path
 //     already finished the period, so clearing is equally correct — there is nothing left
@@ -91,7 +113,21 @@ export async function runReflectionSweep(deps: ReflectionSweepDeps): Promise<Ref
       continue;
     }
 
-    const timezone = await deps.loadTimezone(userId);
+    // Eligibility re-check at claim time (Greptile P1 fix): 046's enqueue-time cohort filter
+    // (tier='plus' and settings.enabled) can go stale between enqueue and claim — a lingering
+    // queued row (failed sweep POST, or a resurrected retry under the retry-cap fix) must not
+    // bypass the same gates the on-demand path enforces. Mirrors index.ts exactly: enabled
+    // gate first, then hasReflectionAccess (promo → all, else tier==='plus').
+    const settings = await deps.loadSettings(userId);
+    const tier = await deps.loadTier(userId);
+    const promoActive = await deps.loadPromoActive();
+    if (!settings?.enabled || !hasReflectionAccess({ tier, promoActive })) {
+      await clearReflectionJob(deps.supabase, userId, periodKey);
+      outcomes.push({ jobId: job.id, userId, periodKey, result: null, skipped: 'ineligible' });
+      continue;
+    }
+
+    const timezone = settings?.timezone ?? null;
     const buildContext = deps.buildContext ?? buildMonthlyReflectionContext;
     const ctx = await buildContext(deps.supabase, {
       userId, periodKey, timezone, embed: deps.embed,

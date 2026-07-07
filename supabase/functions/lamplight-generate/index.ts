@@ -107,16 +107,34 @@ async function handleGenerate(req: Request): Promise<Response> {
   // comes from the DB row (trusted, not caller-spoofable), never from this request.
   if (body.sweep === true) {
     const voyageDepsForSweep: VoyageDeps = { apiKey: voyageKey, fetch };
+    // Promo flag is user-independent — read ONCE per sweep invocation and cache it, rather
+    // than re-querying app_config per claimed job (mirrors the on-demand path's single read
+    // at ~L202-205, just hoisted above the loop since a sweep can claim several jobs). Wrapped
+    // in an async IIFE (rather than chaining .then() on the query builder directly) so the
+    // seam is a genuine Promise<boolean>, not a PostgrestFilterBuilder-derived thenable —
+    // the latter structurally mismatches ReflectionSweepDeps['loadPromoActive']'s return type.
+    const promoActiveCache: Promise<boolean> = (async () => {
+      const { data } = await supabase
+        .from('app_config').select('value').eq('key', 'lamplight_promo_active').maybeSingle();
+      return (data as { value?: unknown } | null)?.value === true;
+    })();
     const outcomes = await runReflectionSweep({
       supabase,
       llm: createAnthropicAdapter({ apiKey: anthropicKey, fetch }),
       claim: (limit) => claimReflectionJobs(supabase, limit),
       embed: (text) => embedQuery(text, voyageDepsForSweep),
-      loadTimezone: async (uid) => {
+      loadSettings: async (uid) => {
         const { data } = await supabase
-          .from('lamplight_settings').select('timezone').eq('user_id', uid).maybeSingle();
-        return (data?.timezone as string | null) ?? null;
+          .from('lamplight_settings').select('enabled, timezone').eq('user_id', uid).maybeSingle();
+        if (!data) return null;
+        return { enabled: Boolean((data as { enabled?: boolean }).enabled), timezone: (data as { timezone?: string | null }).timezone ?? null };
       },
+      loadTier: async (uid) => {
+        const { data } = await supabase
+          .from('lamplight_entitlements').select('tier').eq('user_id', uid).maybeSingle();
+        return ((data as { tier?: LamplightTier })?.tier ?? 'none') as LamplightTier;
+      },
+      loadPromoActive: () => promoActiveCache,
     });
     return jsonResp({ processed: outcomes.length });
   }

@@ -65,11 +65,22 @@ revoke execute on function public.select_monthly_reflection_cohort() from public
 
 -- 2. Hourly enqueue + sweep --------------------------------------------------------
 -- Step 1 (enqueue): turn each cohort row into a lamplight_jobs row instead of calling
--- the user out directly. The 045 partial unique index
--- (lamplight_jobs_active_period_uniq, arbiter columns (user_id, kind,
--- (payload->>'period_key')) where status in ('queued','running')) dedupes concurrent
--- or repeated cron firings for the same (user, period) — mirroring how 011's
--- lamplight_jobs_embedding_refresh_queued_uq guards duplicate embedding_refresh enqueues.
+-- the user out directly. RETRY-CAP FIX (controller-found): a plain INSERT created a
+-- FRESH row every hour for a persistently-failing (user, period) — the 045 partial
+-- unique index (lamplight_jobs_active_period_uniq, arbiter columns (user_id, kind,
+-- (payload->>'period_key')) where status in ('queued','running')) only dedupes
+-- queued/running duplicates, so it never blocked a new INSERT against an existing
+-- `failed` row, and attempts on that new row always started at 0 — the ledger's
+-- RETRY_ATTEMPT_CAP (spec §17) could never be reached. Fixed by resurrecting a failed
+-- sub-cap row IN PLACE (status -> 'queued', attempts preserved) instead of inserting a
+-- duplicate, so attempts genuinely accumulates 1->2->3 across hourly cycles; only a
+-- (user, period) with NO existing job row (first-ever enqueue, or the row was already
+-- cleared by a success/ineligibility disposal) gets a fresh INSERT. Data-modifying CTEs
+-- share one snapshot, so the INSERT cannot see the UPDATE's effect — hence the explicit
+-- `not exists resurrected` anti-join AND the `not exists failed-row` guard (the latter
+-- also covers failed-at-cap rows the cohort somehow still selected — belt only, the
+-- cohort already excludes those). The 045 arbiter clause stays: it still guards
+-- queued/running duplicates across concurrent cron firings, same as before.
 -- Step 2 (sweep): ONE net.http_post of {"sweep": true} to lamplight-generate, using the
 -- SAME vault + service_role_key header idiom as 011's sweep — but reading a NEW vault
 -- secret (lamplight_generate_fn_url) rather than reusing embed_fn_url, since that secret
@@ -78,9 +89,32 @@ select cron.schedule(
   'lamplight_reflection_sweep',
   '0 * * * *',
   $cron$
+  with cohort as (
+    select user_id, period_key from public.select_monthly_reflection_cohort()
+  ),
+  resurrected as (
+    -- A failed sub-cap row is re-queued IN PLACE (attempts preserved) so the ledger
+    -- accumulates 1->2->3 across hourly cycles; at 3 (= RETRY_ATTEMPT_CAP, spec §17) the
+    -- cohort's deferred exclusion stops selecting this (user, period) entirely.
+    update public.lamplight_jobs j
+       set status = 'queued'
+      from cohort c
+     where j.user_id = c.user_id
+       and j.kind = 'monthly_reflection'
+       and j.payload->>'period_key' = c.period_key
+       and j.status = 'failed'
+       and j.attempts < 3 -- 3 = RETRY_ATTEMPT_CAP (spec §17)
+    returning j.user_id, j.payload->>'period_key' as period_key
+  )
   insert into public.lamplight_jobs (user_id, kind, payload, status)
-  select user_id, 'monthly_reflection', jsonb_build_object('period_key', period_key), 'queued'
-  from public.select_monthly_reflection_cohort()
+  select c.user_id, 'monthly_reflection', jsonb_build_object('period_key', c.period_key), 'queued'
+    from cohort c
+   where not exists (select 1 from resurrected r
+                      where r.user_id = c.user_id and r.period_key = c.period_key)
+     and not exists (select 1 from public.lamplight_jobs j
+                      where j.user_id = c.user_id and j.kind = 'monthly_reflection'
+                        and j.payload->>'period_key' = c.period_key
+                        and j.status = 'failed')
   on conflict (user_id, kind, (payload->>'period_key')) where status in ('queued','running') do nothing;
 
   with config as (
