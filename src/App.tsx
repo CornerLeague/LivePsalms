@@ -48,6 +48,12 @@ const VanityNotepadLayout = lazy(() =>
 const NotepadWorkspace = lazy(() =>
   import('@/components/sections/Notepad').then((m) => ({ default: m.NotepadWorkspace })),
 );
+const WaymarksReflectionsRoute = lazy(() =>
+  import('@/notepad/components/waymarks/waymarks-routes').then((m) => ({ default: m.WaymarksReflectionsRoute })),
+);
+const WaymarksPeriodDetailRoute = lazy(() =>
+  import('@/notepad/components/waymarks/waymarks-routes').then((m) => ({ default: m.WaymarksPeriodDetailRoute })),
+);
 const StudyWorkspace = lazy(() =>
   import('@/notepad/study/StudyWorkspace').then((m) => ({ default: m.StudyWorkspace })),
 );
@@ -284,6 +290,10 @@ function App() {
             <Route path="/notebook/notes" element={<LocalNotepadLayout />}>
               <Route index element={<NotepadWorkspace />} />
               <Route path="study" element={<StudyWorkspace />} />
+            </Route>
+            <Route path="/notebook/reflections" element={<LocalNotepadLayout />}>
+              <Route index element={<WaymarksReflectionsRoute />} />
+              <Route path=":periodKey" element={<WaymarksPeriodDetailRoute />} />
             </Route>
             <Route path="/notebook/u/:username" element={<VanityNotepadLayout />}>
               <Route index element={<NotepadWorkspace />} />
