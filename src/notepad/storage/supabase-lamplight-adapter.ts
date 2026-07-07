@@ -488,8 +488,13 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
 
   async generateMonthlyReflection(userId: string, periodKey: string): Promise<MonthlyReflectionGenerateResult> {
     try {
+      // No user_id in the body (final-review rider): the edge function derives identity
+      // ONLY from the caller's bearer JWT (never body.user_id — see lamplight-generate/
+      // index.ts's own comment on this), so this field was always ignored by design.
+      // Dropping it removes a vestigial value that could misleadingly suggest the client
+      // controls whose data gets touched.
       const { data, error } = await this.#client.functions.invoke('lamplight-generate', {
-        body: { kind: 'monthly_reflection', user_id: userId, period_key: periodKey },
+        body: { kind: 'monthly_reflection', period_key: periodKey },
       });
       if (error) return { ok: false, reason: 'network' };
       const d = data as { ok?: boolean; cached?: boolean; reason?: string } | null;

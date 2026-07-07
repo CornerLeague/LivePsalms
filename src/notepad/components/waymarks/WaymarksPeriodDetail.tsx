@@ -11,7 +11,13 @@ import type { LamplightAdapter, ReflectionRecord } from '../../storage/lamplight
 export interface WaymarksPeriodDetailProps {
   adapter: LamplightAdapter;
   userId: string;
-  /** Accepted for connector parity; the detail body never gates on it (decision 1). */
+  /**
+   * The detail BODY never gates on this (decision 1) — a downgraded reader can still
+   * open an already-generated stone. It gates ONLY autoGenerate (final-review rider):
+   * without this, a downgraded user following a stale deep link to a month that was
+   * never generated would fire a guaranteed-403 generate call and see misleading retry
+   * copy ("Try again") for a request that can never succeed while access is off.
+   */
   canAccess: boolean;
   /** Save-to-notes seam: the connector inserts the letter as a note (Notepad's collection.createNote). */
   onSaveToNotes?: (record: ReflectionRecord) => void | Promise<void>;
@@ -41,10 +47,10 @@ function markOpened(periodKey: string): void {
   try { localStorage.setItem(openedKey(periodKey), '1'); } catch { /* private mode — ceremony just replays */ }
 }
 
-export function WaymarksPeriodDetail({ adapter, userId, onSaveToNotes }: WaymarksPeriodDetailProps) {
+export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes }: WaymarksPeriodDetailProps) {
   const { periodKey = '' } = useParams();
   const reduce = usePrefersReducedMotion();
-  const { state, retry } = useReflections({ adapter, userId, periodKey });
+  const { state, retry } = useReflections({ adapter, userId, periodKey, autoGenerate: canAccess });
   const [opened, setOpened] = useState(() => hasBeenOpened(periodKey));
   const [annotation, setAnnotation] = useState<string | null>(null);
 
@@ -84,7 +90,7 @@ export function WaymarksPeriodDetail({ adapter, userId, onSaveToNotes }: Waymark
   };
   const hide = async () => {
     await adapter.setReflectionHidden(userId, 'reflection_recap', periodKey, true);
-    navigate('/notebook/reflections');
+    navigate('..'); // relative — resolves to the reflections index under whichever mount rendered this route
   };
   const saveToNotes = async () => {
     if (state.phase !== 'ready') return; // narrows state.record for TS
@@ -94,7 +100,7 @@ export function WaymarksPeriodDetail({ adapter, userId, onSaveToNotes }: Waymark
   };
 
   const back = (
-    <Link to="/notebook/reflections" className="wm-back wm-label">← The Path</Link>
+    <Link to=".." className="wm-back wm-label">← The Path</Link>
   );
 
   // Non-ready phases (§13.6 copy). retrieving/generating/refining stream a quiet caption.

@@ -124,7 +124,7 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
               style={{ marginLeft: `${((row.index % 5) - 2) * 16}px` }} // gentle meander
             >
               <Link
-                to={`/notebook/reflections/${row.item.periodKey}`}
+                to={row.item.periodKey}
                 className="wm-stone-link"
                 aria-label={`${monthLabel(row.item.periodKey)}${row.item.annotation ? ', annotated' : ''}`}
               >

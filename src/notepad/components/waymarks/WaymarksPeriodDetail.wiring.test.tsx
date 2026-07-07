@@ -29,7 +29,10 @@ function setReducedMotion(matches: boolean) {
   })) as unknown as typeof window.matchMedia;
 }
 
-// Detail route + a sentinel Path route so we can assert navigation on hide.
+// Detail route + a sentinel Path route so we can assert navigation on hide. Nested under
+// a shared parent (mirrors the real app: both live under /notebook/u/:username in App.tsx),
+// NOT flat siblings — hide()'s relative navigate('..') resolves against route NESTING, so
+// a flat-sibling scaffold has no parent for '..' to resolve to ("No routes matched" at '/').
 const renderWired = (
   a: FakeLamplightAdapter,
   onSaveToNotes?: (r: ReflectionRecord) => void | Promise<void>,
@@ -38,11 +41,13 @@ const renderWired = (
   render(
     <MemoryRouter initialEntries={[`/notebook/reflections/${periodKey}`]}>
       <Routes>
-        <Route path="/notebook/reflections" element={<div>PATH</div>} />
-        <Route
-          path="/notebook/reflections/:periodKey"
-          element={<WaymarksPeriodDetail adapter={a} userId="u" canAccess onSaveToNotes={onSaveToNotes} />}
-        />
+        <Route path="/notebook/reflections">
+          <Route index element={<div>PATH</div>} />
+          <Route
+            path=":periodKey"
+            element={<WaymarksPeriodDetail adapter={a} userId="u" canAccess onSaveToNotes={onSaveToNotes} />}
+          />
+        </Route>
       </Routes>
     </MemoryRouter>,
   );

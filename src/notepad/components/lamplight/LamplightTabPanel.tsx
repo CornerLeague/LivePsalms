@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuthSession } from '@/auth/context/useAuthSession';
+import { useAccountProfile } from '@/auth/context/useAccountProfile';
 import type { LamplightAdapter } from '../../storage/lamplight-adapter';
 import { useLamplightSettings } from '../../hooks/useLamplightSettings';
 import { useLamplightEntitlement } from '../../hooks/useLamplightEntitlement';
@@ -19,6 +20,13 @@ export interface LamplightTabPanelProps {
 export function LamplightTabPanel({ lamplightAdapter, autoGenerate = true }: LamplightTabPanelProps) {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
+  // Vanity-aware link target — the same seam useUsernameGate/NotepadRoutes.tsx uses.
+  // Falls back to the legacy /notebook/reflections path (now a correct redirect, not
+  // a dead end) while the profile is still loading, so the link is never broken.
+  const { profile } = useAccountProfile();
+  const pathToReflections = profile?.username
+    ? `/notebook/u/${profile.username}/reflections`
+    : '/notebook/reflections';
 
   const settingsState = useLamplightSettings({ adapter: lamplightAdapter, userId });
   const entitlementState = useLamplightEntitlement({ adapter: lamplightAdapter, userId });
@@ -72,7 +80,23 @@ export function LamplightTabPanel({ lamplightAdapter, autoGenerate = true }: Lam
   const firstName = sanitizeFirstName(firstNameOf(user));
   return (
     <div>
-      <Link to="/notebook/reflections" className="wm-label" style={{ display: 'inline-block', marginBottom: '0.75rem', color: '#C49A78', textDecoration: 'none' }}>
+      {/* No .wm-label class here (final-review rider): that class's custom properties
+          (--wm-silica, --wm-sans) are scoped to .wm-root and only load with the lazy
+          waymarks route chunk — outside it, .wm-label falls back to unstyled text.
+          The literal styles below reproduce its typographic rule set locally. */}
+      <Link
+        to={pathToReflections}
+        style={{
+          display: 'inline-block',
+          marginBottom: '0.75rem',
+          color: '#C49A78',
+          textDecoration: 'none',
+          textTransform: 'uppercase',
+          letterSpacing: '0.14em',
+          fontSize: '0.72rem',
+          fontFamily: 'Outfit, sans-serif',
+        }}
+      >
         Your path of months is here →
       </Link>
       <TodaysLampCard

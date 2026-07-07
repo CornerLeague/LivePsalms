@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { WaymarksPeriodDetail } from './WaymarksPeriodDetail';
@@ -119,5 +119,29 @@ describe('WaymarksPeriodDetail (the opened stone)', () => {
     renderDetail(a);
     await waitFor(() => expect(screen.getByText("This one isn't ready yet. Try again.")).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  // Final-review rider: a downgraded reader following a stale deep link to a month that
+  // was never generated must not fire a guaranteed-403 generate call (and its misleading
+  // "Try again" copy for a request that can never succeed while access is off).
+  it('does NOT auto-generate when canAccess is false and no reflection exists yet', async () => {
+    const a = new FakeLamplightAdapter();
+    const generateSpy = vi.spyOn(a, 'generateMonthlyReflection');
+    renderDetail(a, '2026-05', false);
+    // No seeded reflection and no queued result — if autoGenerate were still hardcoded
+    // true, the controller would call generate() and (with nothing queued) resolve the
+    // FakeLamplightAdapter's default { ok: false, reason: 'network' }, landing on the
+    // misleading retry copy this rider exists to prevent.
+    await waitFor(() => expect(screen.queryByText('Turning to this month…')).not.toBeInTheDocument());
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText("This one isn't ready yet. Try again.")).not.toBeInTheDocument();
+  });
+
+  it('DOES auto-generate when canAccess is true and no reflection exists yet (control case)', async () => {
+    const a = new FakeLamplightAdapter();
+    const generateSpy = vi.spyOn(a, 'generateMonthlyReflection');
+    a.__queueReflectionResult({ ok: false, reason: 'no_notes' });
+    renderDetail(a, '2026-05', true);
+    await waitFor(() => expect(generateSpy).toHaveBeenCalledWith('u', '2026-05'));
   });
 });

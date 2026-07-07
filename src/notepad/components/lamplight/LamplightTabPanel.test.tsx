@@ -10,7 +10,17 @@ vi.mock('@/auth/context/useAuthSession', () => ({
 }));
 import { useAuthSession } from '@/auth/context/useAuthSession';
 
+// LamplightTabPanel now reads the username (final-review fix, Critical 2) to build a
+// vanity-aware link to The Path. Mocked the same way useAuthSession is above, rather
+// than wrapping every render in a real AuthProvider — this file already exercises the
+// component in isolation from AuthProvider entirely.
+vi.mock('@/auth/context/useAccountProfile', () => ({
+  useAccountProfile: vi.fn(),
+}));
+import { useAccountProfile } from '@/auth/context/useAccountProfile';
+
 const useAuthSessionMock = useAuthSession as unknown as ReturnType<typeof vi.fn>;
+const useAccountProfileMock = useAccountProfile as unknown as ReturnType<typeof vi.fn>;
 
 function renderPanel(adapter: FakeLamplightAdapter) {
   return render(
@@ -23,6 +33,7 @@ function renderPanel(adapter: FakeLamplightAdapter) {
 afterEach(() => {
   cleanup();
   useAuthSessionMock.mockReset();
+  useAccountProfileMock.mockReset();
 });
 
 describe('LamplightTabPanel', () => {
@@ -31,6 +42,7 @@ describe('LamplightTabPanel', () => {
   beforeEach(() => {
     adapter = new FakeLamplightAdapter();
     useAuthSessionMock.mockReturnValue({ user: null });
+    useAccountProfileMock.mockReturnValue({ profile: { username: 'reader1' } });
   });
 
   it('shows SignInGate for anonymous users', async () => {
@@ -77,6 +89,32 @@ describe('LamplightTabPanel', () => {
     renderPanel(adapter);
     await waitFor(() => {
       expect(screen.getByText(/A quiet test greeting/)).toBeInTheDocument();
+    });
+    // Final-review fix (Critical 2): the invitation link targets the vanity mount, not
+    // the legacy /notebook/reflections path that used to strand every signed-in reader.
+    expect(screen.getByRole('link', { name: /your path of months is here/i }))
+      .toHaveAttribute('href', '/notebook/u/reader1/reflections');
+  });
+
+  it('falls back to the legacy /notebook/reflections link while the username has not loaded yet', async () => {
+    useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
+    useAccountProfileMock.mockReturnValue({ profile: null });
+    await adapter.upsertSettings('user-1', {
+      enabled: true,
+      consentDecidedAt: new Date().toISOString(),
+    });
+    const today = new Date().toLocaleDateString('en-CA');
+    adapter.__seedDailyDevotion('user-1', today, {
+      opening: 'A quiet test greeting.',
+      scripture: { ref: 'Psalm 23:4', text: 'Even though I walk through the valley…' },
+      reflection: 'Test reflection.',
+      prompt: 'Test prompt.',
+      note_citations: [{ note_id: 'n1', reason: 'test recurrence' }],
+    });
+    renderPanel(adapter);
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: /your path of months is here/i }))
+        .toHaveAttribute('href', '/notebook/reflections');
     });
   });
 
