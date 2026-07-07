@@ -11,6 +11,10 @@ import type {
   AdminJobRow,
   AdminJobCounts,
   AdminUsageRow,
+  MonthlyReflectionGenerateResult,
+  ReflectionListItem,
+  ReflectionRecord,
+  ReflectionState,
 } from './lamplight-adapter';
 import type { DailyDevotion } from './lamplight-artifacts';
 
@@ -283,5 +287,75 @@ export class FakeLamplightAdapter implements LamplightAdapter {
       .map(([userId, agg]) => ({ userId, email: null, ...agg }))
       .sort((a, b) => (b.tokensIn + b.tokensOut) - (a.tokensIn + a.tokensOut))
       .slice(0, limit ?? 50);
+  }
+
+  // ── Waymarks / monthly reflections ──────────────────────────────────────
+  reflections = new Map<string, ReflectionRecord>();            // `${userId}:${periodKey}`
+  reflectionStates = new Map<string, ReflectionState>();        // `${userId}:${artifactType}:${periodKey}`
+  backfillTargets = new Map<string, string[]>();                // userId → period_keys
+  queuedReflectionResults: MonthlyReflectionGenerateResult[] = [];
+
+  __queueReflectionResult(result: MonthlyReflectionGenerateResult): void {
+    this.queuedReflectionResults.push(result);
+  }
+  __seedReflection(userId: string, record: ReflectionRecord): void {
+    this.reflections.set(`${userId}:${record.periodKey}`, record);
+  }
+  __setBackfillTargets(userId: string, periodKeys: string[]): void {
+    this.backfillTargets.set(userId, periodKeys);
+  }
+
+  async listReflections(userId: string): Promise<ReflectionListItem[]> {
+    const items: ReflectionListItem[] = [];
+    for (const [key, rec] of this.reflections) {
+      if (!key.startsWith(`${userId}:`)) continue;
+      const st = this.reflectionStates.get(`${userId}:reflection_recap:${rec.periodKey}`) ?? null;
+      items.push({
+        periodKey: rec.periodKey,
+        title: rec.title,
+        createdAt: rec.createdAt,
+        hiddenAt: st?.hiddenAt ?? null,
+        annotation: st?.annotation ?? null,
+      });
+    }
+    return items.sort((x, y) => (x.periodKey < y.periodKey ? 1 : -1)); // newest-first
+  }
+
+  async getReflection(userId: string, periodKey: string): Promise<ReflectionRecord | null> {
+    return this.reflections.get(`${userId}:${periodKey}`) ?? null;
+  }
+
+  async generateMonthlyReflection(userId: string, periodKey: string): Promise<MonthlyReflectionGenerateResult> {
+    const result = this.queuedReflectionResults.shift() ?? { ok: false as const, reason: 'network' as const };
+    if (result.ok) {
+      this.reflections.set(`${userId}:${periodKey}`, {
+        periodKey,
+        title: result.artifact.title,
+        artifact: result.artifact,
+        createdAt: `${periodKey}-01T12:00:00.000Z`,
+        savedToNotes: false,
+      });
+    }
+    return result;
+  }
+
+  async getReflectionState(userId: string, artifactType: string, periodKey: string): Promise<ReflectionState | null> {
+    return this.reflectionStates.get(`${userId}:${artifactType}:${periodKey}`) ?? null;
+  }
+
+  async setReflectionHidden(userId: string, artifactType: string, periodKey: string, hidden: boolean): Promise<void> {
+    const key = `${userId}:${artifactType}:${periodKey}`;
+    const prev = this.reflectionStates.get(key) ?? { hiddenAt: null, annotation: null, annotationUpdatedAt: null };
+    this.reflectionStates.set(key, { ...prev, hiddenAt: hidden ? `${periodKey}-15T00:00:00.000Z` : null });
+  }
+
+  async setReflectionAnnotation(userId: string, artifactType: string, periodKey: string, text: string | null): Promise<void> {
+    const key = `${userId}:${artifactType}:${periodKey}`;
+    const prev = this.reflectionStates.get(key) ?? { hiddenAt: null, annotation: null, annotationUpdatedAt: null };
+    this.reflectionStates.set(key, { ...prev, annotation: text, annotationUpdatedAt: text ? `${periodKey}-16T00:00:00.000Z` : null });
+  }
+
+  async listBackfillTargets(userId: string): Promise<string[]> {
+    return this.backfillTargets.get(userId) ?? [];
   }
 }
