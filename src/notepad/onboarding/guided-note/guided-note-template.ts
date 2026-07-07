@@ -32,7 +32,12 @@ export function buildTourSampleNote(): { title: string; content: string } {
         content: [
           {
             type: 'text',
-            text: 'Grace shows up before we ask. This page keeps coming back to one verse:',
+            text: 'Grace shows up before we ask.',
+            marks: [{ type: 'styleHighlight', attrs: { swatchId: 'highlight-01' } }],
+          },
+          {
+            type: 'text',
+            text: ' This page keeps coming back to one verse:',
           },
         ],
       },

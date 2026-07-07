@@ -3,7 +3,9 @@ import { TOUR_SAMPLE_NOTE_TITLE, buildTourSampleNote } from './guided-note-templ
 
 interface DocNode {
   type: string;
+  text?: string;
   attrs?: Record<string, unknown>;
+  marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
   content?: DocNode[];
 }
 
@@ -29,5 +31,15 @@ describe('buildTourSampleNote', () => {
       translation: 'BSB',
       text: 'For God so loved the world…',
     });
+  });
+
+  it('pre-seeds exactly one styleHighlight run (swatch highlight-01) for the highlights step', () => {
+    const doc = JSON.parse(buildTourSampleNote().content) as DocNode;
+    const marks = (doc.content ?? [])
+      .flatMap((p) => p.content ?? [])
+      .flatMap((node) => node.marks ?? []);
+    const highlights = marks.filter((m) => m.type === 'styleHighlight');
+    expect(highlights).toHaveLength(1);
+    expect(highlights[0].attrs).toEqual({ swatchId: 'highlight-01' });
   });
 });
