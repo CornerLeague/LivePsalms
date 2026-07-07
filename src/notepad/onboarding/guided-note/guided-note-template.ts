@@ -13,3 +13,56 @@ export function buildGuidedNote(): { title: string; content: string } {
   };
   return { title: 'Your first study note', content: JSON.stringify(doc) };
 }
+
+export const TOUR_SAMPLE_NOTE_TITLE = 'A guided study (sample)';
+
+/**
+ * The sample study note the tour creates and drives (locked decision 6: kept
+ * after the tour, explicit sample marker in the title — idempotent reuse
+ * detects it by this exact title). The scriptureRef node makes step 3's
+ * verse-chip anchor guaranteed-present. `content` is a stringified TipTap doc,
+ * same contract as buildGuidedNote().
+ */
+export function buildTourSampleNote(): { title: string; content: string } {
+  const doc = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'Grace shows up before we ask. This page keeps coming back to one verse:',
+          },
+        ],
+      },
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'scriptureRef',
+            attrs: {
+              osis: 'jhn.3.16',
+              book: 'John',
+              chapter: 3,
+              verseStart: 16,
+              verseEnd: null,
+              translation: 'BSB',
+              text: 'For God so loved the world…',
+            },
+          },
+        ],
+      },
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'Love that gives first. What would it look like to trust that this week?',
+          },
+        ],
+      },
+    ],
+  };
+  return { title: TOUR_SAMPLE_NOTE_TITLE, content: JSON.stringify(doc) };
+}
