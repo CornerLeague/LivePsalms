@@ -15,7 +15,10 @@ export function decideOnboardingActions(input: OnboardingStateInput): Onboarding
 
   if (!input.signedIn) {
     if (!input.anonTourDone) {
-      return [{ kind: 'start-tour' }, { kind: 'show-get-started' }];
+      // Tour owns the screen while it runs — the get-started checklist stays
+      // hidden until the tour is completed or skipped (both set anonTourDone),
+      // at which point the branch below surfaces it.
+      return [{ kind: 'start-tour' }];
     }
     if (input.anon?.dismissed) return [];
     return [{ kind: 'show-get-started' }];
