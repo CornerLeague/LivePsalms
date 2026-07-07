@@ -184,6 +184,8 @@ export interface LamplightAdapter {
     text: string | null,
   ): Promise<void>;
   listBackfillTargets(userId: string): Promise<string[]>; // period_keys with notes-but-no-artifact, newest-first
+  /** Flip the artifact-row saved_to_notes flag (client-owned; no artifactType — it lives on the artifact, not the satellite state). */
+  setReflectionSavedToNotes(userId: string, periodKey: string, saved: boolean): Promise<void>;
 }
 
 export interface AdminJobFilters {

@@ -358,4 +358,10 @@ export class FakeLamplightAdapter implements LamplightAdapter {
   async listBackfillTargets(userId: string): Promise<string[]> {
     return this.backfillTargets.get(userId) ?? [];
   }
+
+  async setReflectionSavedToNotes(userId: string, periodKey: string, saved: boolean): Promise<void> {
+    const key = `${userId}:${periodKey}`;
+    const rec = this.reflections.get(key);
+    if (rec) this.reflections.set(key, { ...rec, savedToNotes: saved });
+  }
 }

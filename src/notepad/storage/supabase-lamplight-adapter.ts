@@ -559,4 +559,14 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
     if (error) throw error;
     return (data ?? []).map((r: { period_key: string }) => r.period_key);
   }
+
+  async setReflectionSavedToNotes(userId: string, periodKey: string, saved: boolean): Promise<void> {
+    const { error } = await this.#client
+      .from('lamplight_artifacts')
+      .update({ saved_to_notes: saved })
+      .eq('user_id', userId)
+      .eq('type', REFLECTION_TYPE)
+      .eq('period_key', periodKey);
+    if (error) throw error;
+  }
 }

@@ -109,3 +109,10 @@
 .wm-annotate { margin-top: 2.5rem; border: 1px dashed var(--wm-hairline); border-radius: 4px; padding: 1.1rem 1.25rem; }
 .wm-annotate__prompt { display: block; }
 .wm-detail__footer { margin-top: 1.5rem; text-align: center; }
+
+/* ── Wired affordances (Task 17) ───────────────────────────────────────────── */
+.wm-annotate__input { display: block; width: 100%; margin-top: 0.6rem; padding: 0.6rem 0.7rem; border: 1px solid var(--wm-hairline); border-radius: 4px; background: var(--wm-letter); color: var(--wm-umber); font: inherit; resize: vertical; }
+.wm-annotate__actions { margin-top: 0.6rem; display: flex; justify-content: flex-end; }
+.wm-annotate__save, .wm-detail__save, .wm-detail__hide { background: none; border: none; padding: 0.3rem 0.4rem; cursor: pointer; color: var(--wm-umber); font: inherit; }
+.wm-detail__save:disabled { color: var(--wm-silica); cursor: default; }
+.wm-linkbtn { background: none; border: none; padding: 0; cursor: pointer; color: var(--wm-gold); font: inherit; }

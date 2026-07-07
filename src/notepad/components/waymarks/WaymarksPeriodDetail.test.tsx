@@ -66,7 +66,8 @@ describe('WaymarksPeriodDetail (the opened stone)', () => {
     expect(screen.getByText('Ps 27:14')).toBeInTheDocument();
     // The affordances render as static copy (Task 17 wires them).
     expect(screen.getByText('＋ Add your words.')).toBeInTheDocument();
-    expect(screen.getByText('Save to notes · Hide this stone')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save to notes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hide this stone' })).toBeInTheDocument();
     // Opened is persisted so the ceremony never replays.
     expect(localStorage.getItem('wm-opened:2026-05')).toBe('1');
   });
@@ -96,7 +97,10 @@ describe('WaymarksPeriodDetail (the opened stone)', () => {
     localStorage.setItem('wm-opened:2026-05', '1');
     renderDetail(a);
     await waitFor(() => expect(screen.getByText('Your words')).toBeInTheDocument());
-    expect(screen.getByText('I remember the drive.')).toBeInTheDocument();
+    // Scoped to the aside (implicit 'complementary' role): Task 17's wired textarea
+    // pre-populates its draft from the same annotation, so an unscoped text query is
+    // ambiguous (matches the aside's <p> and the textarea's rendered value alike).
+    expect(screen.getByRole('complementary', { name: 'Your words' })).toHaveTextContent('I remember the drive.');
     // The original letter is still present alongside it.
     expect(screen.getByText(artifact.title)).toBeInTheDocument();
   });

@@ -1,18 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import './waymarks.css';
 import { Stone } from './Stone';
 import { ReflectionLetter } from './ReflectionLetter';
 import { MarkerPath } from './MarkerPath';
 import { useReflections } from '../../hooks/useReflections';
 import { usePrefersReducedMotion } from '../../../hooks/use-prefers-reduced-motion'; // seam (item 10) — real path, not the brief's stale one
-import type { LamplightAdapter } from '../../storage/lamplight-adapter';
+import type { LamplightAdapter, ReflectionRecord } from '../../storage/lamplight-adapter';
 
 export interface WaymarksPeriodDetailProps {
   adapter: LamplightAdapter;
   userId: string;
   /** Accepted for connector parity; the detail body never gates on it (decision 1). */
   canAccess: boolean;
+  /** Save-to-notes seam: the connector inserts the letter as a note (Notepad's collection.createNote). */
+  onSaveToNotes?: (record: ReflectionRecord) => void | Promise<void>;
 }
 
 const MONTHS = [
@@ -39,7 +41,7 @@ function markOpened(periodKey: string): void {
   try { localStorage.setItem(openedKey(periodKey), '1'); } catch { /* private mode — ceremony just replays */ }
 }
 
-export function WaymarksPeriodDetail({ adapter, userId }: WaymarksPeriodDetailProps) {
+export function WaymarksPeriodDetail({ adapter, userId, onSaveToNotes }: WaymarksPeriodDetailProps) {
   const { periodKey = '' } = useParams();
   const reduce = usePrefersReducedMotion();
   const { state, retry } = useReflections({ adapter, userId, periodKey });
@@ -55,6 +57,41 @@ export function WaymarksPeriodDetail({ adapter, userId }: WaymarksPeriodDetailPr
     })();
     return () => { alive = false; };
   }, [adapter, userId, periodKey]);
+
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState('');
+  const [savedToNotes, setSavedToNotes] = useState(false);
+
+  // Keep the textarea in sync with the loaded annotation; reflect the persisted saved flag.
+  // Both are synchronous derived-state resets driven by async-loaded values (annotation
+  // from the satellite-state effect above, state.record from useReflections) — there's no
+  // external system to subscribe to here, just re-deriving local UI state when its source changes.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDraft(annotation ?? '');
+  }, [annotation]);
+  useEffect(() => {
+    if (state.phase === 'ready') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSavedToNotes(state.record.savedToNotes);
+    }
+  }, [state]);
+
+  const saveAnnotation = async () => {
+    await adapter.setReflectionAnnotation(userId, 'reflection_recap', periodKey, draft.trim() || null);
+    const s = await adapter.getReflectionState(userId, 'reflection_recap', periodKey);
+    setAnnotation(s?.annotation ?? null); // null-guard: getReflectionState → ReflectionState | null
+  };
+  const hide = async () => {
+    await adapter.setReflectionHidden(userId, 'reflection_recap', periodKey, true);
+    navigate('/notebook/reflections');
+  };
+  const saveToNotes = async () => {
+    if (state.phase !== 'ready') return; // narrows state.record for TS
+    await adapter.setReflectionSavedToNotes(userId, periodKey, true);
+    await onSaveToNotes?.(state.record);
+    setSavedToNotes(true);
+  };
 
   const back = (
     <Link to="/notebook/reflections" className="wm-back wm-label">← The Path</Link>
@@ -117,13 +154,35 @@ export function WaymarksPeriodDetail({ adapter, userId }: WaymarksPeriodDetailPr
         <ReflectionLetter artifact={artifact} annotation={annotation} />
         <MarkerPath markers={artifact.markers} />
 
-        {/* Static in Task 16 — Task 17 replaces this region with the annotate textarea. */}
-        <div className="wm-annotate wm-annotate--static">
+        <div className="wm-annotate">
           <span className="wm-annotate__prompt wm-caption">＋ Add your words.</span>
+          <textarea
+            className="wm-annotate__input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            aria-label="Your words"
+            placeholder="A line for yourself, kept beside the letter."
+          />
+          <div className="wm-annotate__actions">
+            <button type="button" className="wm-annotate__save wm-label" onClick={() => void saveAnnotation()}>
+              Save your words
+            </button>
+          </div>
         </div>
-        {/* Static in Task 16 — Task 17 wires Save / Hide to the adapter. */}
-        <footer className="wm-detail__footer">
-          <span className="wm-label">Save to notes · Hide this stone</span>
+        <footer className="wm-detail__footer wm-detail__actions">
+          <button
+            type="button"
+            className="wm-detail__save wm-label"
+            onClick={() => void saveToNotes()}
+            disabled={savedToNotes}
+          >
+            {savedToNotes ? 'Saved to notes' : 'Save to notes'}
+          </button>
+          <span aria-hidden="true">·</span>
+          <button type="button" className="wm-detail__hide wm-label" onClick={() => void hide()}>
+            Hide this stone
+          </button>
         </footer>
       </div>
     </div>

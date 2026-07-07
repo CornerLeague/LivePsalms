@@ -43,6 +43,11 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
     setItems(await adapter.listReflections(userId));
   }, [adapter, userId]);
 
+  const restore = useCallback(async (periodKey: string) => {
+    await adapter.setReflectionHidden(userId, 'reflection_recap', periodKey, false);
+    await reload();
+  }, [adapter, userId, reload]);
+
   // Async fetch-on-mount; setItems lands after the await, not synchronously in the effect body.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void reload(); }, [reload]);
@@ -138,7 +143,14 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
               {hidden.map((item) => (
                 <li key={item.periodKey} className="wm-hidden__item wm-caption">
                   {monthLabel(item.periodKey)}
-                  {/* Task 17 adds the "Restore this stone." action here. */}
+                  {' '}
+                  <button
+                    type="button"
+                    className="wm-linkbtn wm-label"
+                    onClick={() => void restore(item.periodKey)}
+                  >
+                    Restore this stone.
+                  </button>
                 </li>
               ))}
             </ul>
