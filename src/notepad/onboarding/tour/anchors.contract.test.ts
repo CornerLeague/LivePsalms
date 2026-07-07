@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { TOUR_STEPS } from './tour-steps';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TOUR_ANCHOR_TOKENS } from './tour-steps';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../../..');
@@ -22,14 +22,32 @@ const TOKEN_SOURCES: Record<string, string> = {
   'header-flame': 'src/components/sections/notepad/mobile/HeaderLamplightFlame.tsx',
 };
 
-/** Guards against drift between TOUR_STEPS selectors and the data-tour values
- *  added to the workspace. Update both together. */
-describe('tour anchor contract', () => {
-  it('every step targets a known data-tour token', () => {
-    const tokens = TOUR_STEPS.map((s) => s.anchor.replace('[data-tour="', '').replace('"]', ''));
-    expect(tokens).toEqual([
-      'new-note-sidebar-button', 'editor-bible-panel', 'highlight-toolbar',
-      'graph-toggle-button', 'lamplight-panel-entry',
+describe('tour anchors contract — step ↔ token lists (drift fails CI)', () => {
+  it('desktop tokens, in step order', () => {
+    expect(TOUR_ANCHOR_TOKENS.desktop).toEqual([
+      null,
+      'new-note-sidebar-button',
+      'editor-page',
+      'verse-chip',
+      'editor-bible-panel',
+      'highlight-toolbar',
+      'studywindow-graph-tab',
+      'lamplight-panel-entry',
+      null,
+    ]);
+  });
+
+  it('mobile tokens, in step order', () => {
+    expect(TOUR_ANCHOR_TOKENS.mobile).toEqual([
+      null,
+      'mobile-new-note-fab',
+      'editor-page',
+      'verse-chip',
+      'mobile-bible-reader',
+      'highlight-toolbar',
+      'more-sheet-graph',
+      'header-flame',
+      null,
     ]);
   });
 });

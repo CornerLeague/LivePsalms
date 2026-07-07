@@ -5,7 +5,9 @@ import { useOnboarding } from './useOnboarding';
 import { ChecklistPanel } from './checklist/ChecklistPanel';
 import { GET_STARTED_ITEMS } from './checklist/get-started-items';
 import { JOURNEY_ITEMS } from './checklist/journey-items';
-import { SpotlightTour } from './tour/SpotlightTour';
+import { SpotlightOverlay } from './tour/SpotlightOverlay';
+import { TOUR_STEPS } from './tour/tour-steps';
+import { getWorkspaceControls } from './tour/workspace-controller';
 import { isJourneyComplete } from './onboarding-state';
 import type { AccountProgress, AnonProgress } from './onboarding-types';
 
@@ -113,7 +115,7 @@ export interface OnboardingSurfacesProps {
  * checklist / guided-note offer surfaces based on the decided `actions`.
  * Renders nothing when there are no actions.
  *
- * The full-screen SpotlightTour is portaled to document.body so it is never
+ * The full-screen SpotlightOverlay is portaled to document.body so it is never
  * trapped inside whatever positioned/stacking-context wrapper hosts this
  * component (e.g. the workspace's `fixed bottom-4 right-4 z-[90]` shell). The
  * remaining checklist/offer surfaces render inline within that wrapper.
@@ -139,23 +141,23 @@ export function OnboardingSurfaces({ onStartGuidedNote }: OnboardingSurfacesProp
     <>
       {actions.map((action) => {
         switch (action.kind) {
-          case 'start-tour': {
-            const tour = (
-              <SpotlightTour
+          case 'start-tour':
+            return createPortal(
+              <SpotlightOverlay
+                steps={TOUR_STEPS}
                 onComplete={markTourDone}
                 onSkip={markTourDone}
-                // TODO: wire to the real signup/welcome route once a clean
-                // navigation handle is available here; no-op keeps the tour
-                // self-contained without inventing a route.
-                onSignUp={() => {}}
-              />
+                onSignUp={() => {
+                  // Fixes the old onSignUp no-op TODO (spec §3 step 8): finish the tour,
+                  // then open the viewport's auth surface via the registry (desktop →
+                  // /login route, mobile → MobileAuthModal).
+                  markTourDone();
+                  getWorkspaceControls().openAuth?.();
+                }}
+              />,
+              document.body,
+              'start-tour',
             );
-            // Portal to body so the fixed full-screen tour escapes any parent
-            // stacking context. Guard for non-DOM (SSR) environments.
-            return typeof document !== 'undefined'
-              ? createPortal(tour, document.body, 'start-tour')
-              : null;
-          }
 
           case 'show-get-started':
             return (
