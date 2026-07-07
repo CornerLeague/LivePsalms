@@ -37,6 +37,7 @@ import { buildMonthlyReflectionContext, isValidPeriodKey } from './monthly-refle
 import { hasReflectionAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
+import { clearReflectionJob } from '../_shared/reflection-jobs.ts';
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
@@ -190,6 +191,14 @@ async function handleGenerate(req: Request): Promise<Response> {
         return { response: result, usage: result.usage };
       },
     );
+    // On-demand mirror of Task 8's cohort SQL exclusion: a fresh success (a NEW
+    // artifact was actually written, not a cache hit) wipes any lingering failed/
+    // deferred job row for this (user, period) so the hourly sweep can pick the
+    // period back up once the block that caused the prior deferral is gone.
+    // Additive — the branch above functioned identically without this call.
+    if (response && (response as { ok?: boolean; cached?: boolean }).ok === true && (response as { cached?: boolean }).cached === false) {
+      await clearReflectionJob(supabase, userId, periodKey);
+    }
     return jsonResp(response, status);
   }
 
