@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useReflections } from './useReflections';
 import { FakeLamplightAdapter } from '../storage/fake-lamplight-adapter';
+import { ReflectionsController } from '../lamplight/reflections-controller';
 import type { ReflectionArtifact } from '../storage/lamplight-artifacts';
 
 const artifact: ReflectionArtifact = {
@@ -52,21 +53,18 @@ describe('useReflections', () => {
     expect(await adapter.listReflections('u')).toHaveLength(2); // both months now have artifact rows
   });
 
-  it('unmount: dispose is called and subsequent emissions do not reach React state', async () => {
-    const adapter = new FakeLamplightAdapter();
-    adapter.__seedReflection('u', {
-      periodKey: '2026-05', title: artifact.title, artifact,
-      createdAt: '2026-05-01T12:00:00.000Z', savedToNotes: false,
-    });
-    const { result, unmount } = renderHook(() => useReflections({ adapter, userId: 'u', periodKey: '2026-05' }));
-    await waitFor(() => expect(result.current.state.phase).toBe('ready'));
-
-    const initialState = result.current.state;
-    unmount();
-
-    // After unmount, the controller is disposed. Attempt to emit a new state by calling an action.
-    // Since the subscription is cleaned up, no new state should reach React.
-    // We verify this by checking that no new listeners were re-subscribed.
-    expect(result.current.state).toEqual(initialState);
+  it('unmount calls dispose on the controller', () => {
+    const disposeSpy = vi.spyOn(ReflectionsController.prototype, 'dispose');
+    try {
+      const adapter = new FakeLamplightAdapter();
+      const { unmount } = renderHook(() =>
+        useReflections({ adapter, userId: 'u1', periodKey: null, autoGenerate: false }),
+      );
+      expect(disposeSpy).not.toHaveBeenCalled();
+      unmount();
+      expect(disposeSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      disposeSpy.mockRestore();
+    }
   });
 });
