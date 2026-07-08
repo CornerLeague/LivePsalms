@@ -24,7 +24,7 @@ export interface QuotaConfig {
   global: number;                  // all-kinds daily ceiling
 }
 
-const GENERATION_KINDS = ['smoke_test', 'daily_devotion', 'connection_card_why', 'bible_chat'];
+const GENERATION_KINDS = ['smoke_test', 'daily_devotion', 'connection_card_why', 'bible_chat', 'etymology_insight'];
 const TRANSCRIPTION_KINDS = ['note_transcription'];
 const STUDY_KINDS = ['bible_study'];
 
