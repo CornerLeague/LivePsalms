@@ -10,6 +10,7 @@ import type {
   DailyDevotionStreamEvent,
   ConnectionNeighbor,
   ConnectionWhyResult,
+  EtymologyInsightResult,
   ConnectionCardThresholds,
   AdminJobFilters,
   AdminJobRow,
@@ -280,6 +281,26 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
           ok: false,
           reason: d.reason as 'no_embedding' | 'validators_failed' | 'not_neighbor',
         };
+      }
+      return { ok: false, reason: 'network' };
+    } catch {
+      return { ok: false, reason: 'network' };
+    }
+  }
+
+  async generateEtymologyInsight(strongs: string, verseId: string): Promise<EtymologyInsightResult> {
+    try {
+      const { data, error } = await this.#client.functions.invoke('etymology-insight', {
+        body: { strongs, verse_id: verseId },
+      });
+      if (error) return { ok: false, reason: 'network' };
+      if (!data || typeof data !== 'object') return { ok: false, reason: 'network' };
+      const d = data as Record<string, unknown>;
+      if (d.ok === true && typeof d.body === 'string') {
+        return { ok: true, body: d.body, cached: !!d.cached };
+      }
+      if (d.ok === false && d.reason === 'no_entry') {
+        return { ok: false, reason: 'no_entry' };
       }
       return { ok: false, reason: 'network' };
     } catch {

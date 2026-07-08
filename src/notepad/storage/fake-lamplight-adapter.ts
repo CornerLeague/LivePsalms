@@ -6,6 +6,7 @@ import type {
   DailyDevotionGenerateResult,
   ConnectionNeighbor,
   ConnectionWhyResult,
+  EtymologyInsightResult,
   ConnectionCardThresholds,
   AdminJobFilters,
   AdminJobRow,
@@ -199,6 +200,20 @@ export class FakeLamplightAdapter implements LamplightAdapter {
     const why = `Fake connection between ${sourceNoteId} and ${relatedNoteId}.`;
     this.connectionWhyCache.set(key, why);
     return { ok: true, why, cached: false };
+  }
+
+  // Etymology insight: seeded read hits + a configurable generate() outcome.
+  etymologyInsights = new Map<string, string>(); // key = `${strongs}:${verseId}` → body
+  etymologyGenerateResult: EtymologyInsightResult = { ok: true, body: 'Fake insight.', cached: false };
+  generateEtymologyInsightCalls: Array<{ strongs: string; verseId: string }> = [];
+
+  __seedEtymologyInsight(strongs: string, verseId: string, body: string): void {
+    this.etymologyInsights.set(`${strongs}:${verseId}`, body);
+  }
+
+  async generateEtymologyInsight(strongs: string, verseId: string): Promise<EtymologyInsightResult> {
+    this.generateEtymologyInsightCalls.push({ strongs, verseId });
+    return this.etymologyGenerateResult;
   }
 
   async isLamplightAdmin(): Promise<boolean> {
