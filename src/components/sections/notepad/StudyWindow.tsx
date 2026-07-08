@@ -7,6 +7,7 @@ import type { InvokeFn } from '@/notepad/bible/lamplight-chat-client';
 import type { StreamInvoke } from '@/notepad/bible/lamplight-stream-client';
 import { GraphPane } from './GraphPane';
 import { loadEnum, saveEnum, KEY_STUDY_TAB } from '@/notepad/session/session-storage';
+import { registerWorkspaceControls } from '@/notepad/onboarding/tour/workspace-controller';
 
 type StudyTab = 'bible' | 'graph';
 
@@ -24,6 +25,12 @@ export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lampl
   const [tab, setTab] = useState<StudyTab>(() =>
     loadEnum<StudyTab>(KEY_STUDY_TAB, ['bible', 'graph'], 'bible'),
   );
+
+  useEffect(() => {
+    return registerWorkspaceControls({
+      desktopSetStudyTab: (next) => setTab(next),
+    });
+  }, []);
 
   useEffect(() => {
     saveEnum(KEY_STUDY_TAB, tab);
@@ -59,7 +66,7 @@ export function StudyWindow({ graphOpen, expanded = false, onToggleExpand, lampl
         <button data-tour="editor-bible-panel" role="tab" aria-selected={tab === 'bible'} onClick={() => setTab('bible')} style={tabStyle(tab === 'bible')}>
           BIBLE
         </button>
-        <button role="tab" aria-selected={tab === 'graph'} onClick={() => setTab('graph')} style={tabStyle(tab === 'graph')}>
+        <button data-tour="studywindow-graph-tab" role="tab" aria-selected={tab === 'graph'} onClick={() => setTab('graph')} style={tabStyle(tab === 'graph')}>
           GRAPH
         </button>
       </div>

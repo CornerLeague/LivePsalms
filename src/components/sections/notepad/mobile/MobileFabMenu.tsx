@@ -131,6 +131,7 @@ export function MobileFabMenu({ onNewNote, onScanNote, onUploadFiles }: MobileFa
 
         <button
           type="button"
+          data-tour="mobile-new-note-fab"
           aria-label={open ? 'Close menu' : 'New note menu'}
           aria-expanded={open}
           disabled={busy}

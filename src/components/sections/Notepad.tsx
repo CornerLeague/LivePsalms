@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen, WifiOff } from 'lucide-react';
 import { NotepadProvider } from '@/notepad/context/NotepadProvider';
 import { useAuthSession } from '@/auth/context/useAuthSession';
@@ -27,7 +28,8 @@ import { MobileNotepadWorkspace } from './notepad/mobile/MobileNotepadWorkspace'
 import { loadEnum, saveEnum, KEY_EDITOR_TAB } from '@/notepad/session/session-storage';
 import { OnboardingProvider } from '@/notepad/onboarding/OnboardingProvider';
 import { OnboardingSurfaces } from '@/notepad/onboarding/OnboardingSurfaces';
-import { buildGuidedNote } from '@/notepad/onboarding/guided-note/guided-note-template';
+import { buildGuidedNote, TOUR_SAMPLE_NOTE_TITLE, buildTourSampleNote } from '@/notepad/onboarding/guided-note/guided-note-template';
+import { registerWorkspaceControls } from '@/notepad/onboarding/tour/workspace-controller';
 import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 
 function DesktopNotepadWorkspace() {
@@ -37,6 +39,18 @@ function DesktopNotepadWorkspace() {
   const [activeTab, setActiveTab] = useState<'content' | 'backlinks' | 'info' | 'lamplight'>(() =>
     loadEnum(KEY_EDITOR_TAB, ['content', 'backlinks', 'info', 'lamplight'] as const, 'content'),
   );
+
+  const navigate = useNavigate();
+  useEffect(() => {
+    return registerWorkspaceControls({
+      desktopSetGraphOpen: (open) => setGraphOpen(open),
+      // Desktop auth entry is the /login route (LoginPage → AuthCard, which
+      // includes a signup mode) — resolved open item 1; MobileAuthModal is
+      // mobile-only.
+      openAuth: () => navigate('/login'),
+      desktopSetActiveTab: (tab) => setActiveTab(tab),
+    });
+  }, [navigate]);
 
   useEffect(() => {
     saveEnum(KEY_EDITOR_TAB, activeTab);
@@ -326,7 +340,10 @@ function DesktopNotepadWorkspace() {
  * never disturbs the existing workspace layout.
  */
 function NotepadOnboardingOverlay() {
-  const { collection } = useNoteCollection();
+  const { collection, notes } = useNoteCollection();
+  const notesRef = useRef(notes);
+  // eslint-disable-next-line react-hooks/refs
+  notesRef.current = notes;
 
   const createGuidedNote = useCallback(async () => {
     try {
@@ -337,6 +354,40 @@ function NotepadOnboardingOverlay() {
     } catch (err) {
       console.warn('[Notepad] createGuidedNote failed:', err);
     }
+  }, [collection]);
+
+  useEffect(() => {
+    return registerWorkspaceControls({
+      // Idempotent (spec §6): an existing sample note is detected by its exact
+      // locked title and reused — Back/replay/viewport-switch never duplicates.
+      createSampleNote: async () => {
+        const existing = notesRef.current.find((note) => note.title === TOUR_SAMPLE_NOTE_TITLE);
+        if (existing) {
+          collection.openNote(existing.id);
+          return existing.id;
+        }
+        const note = await collection.createNote('root', 'devotion');
+        const sample = buildTourSampleNote();
+        await collection.updateNote(note.id, { title: sample.title, content: sample.content });
+        // createNote (above) already made this empty note the active note, so
+        // the desktop editor — already mounted on the content tab — hydrated
+        // ProseMirror from it while it was still blank. The editor's active-note
+        // effect watches the note id ONLY (by design: a user's own in-flight
+        // edits must not be clobbered by their own debounced save echoing back
+        // — see use-note-editor.ts), so writing the real content into that SAME
+        // id above does not re-trigger it, and neither would simply reopening
+        // the same id below. Force a genuine id transition — away and back —
+        // so the effect re-fires and re-hydrates from the now-correct content.
+        // The two calls must land in separate React commits (an id round trip
+        // batched into one commit would look like no change at all), so yield
+        // a real task between them instead of calling them back to back.
+        collection.openNote(null);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        collection.openNote(note.id);
+        return note.id;
+      },
+      openNote: (id) => collection.openNote(id),
+    });
   }, [collection]);
 
   return (

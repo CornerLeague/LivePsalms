@@ -14,7 +14,7 @@ import { MobileNotesView } from './MobileNotesView';
 import { MobileEditorView } from './MobileEditorView';
 import { LamplightMobileView } from './LamplightMobileView';
 import { BibleStudyPane } from '@/notepad/bible/BibleStudyPane';
-import { MobileMoreSheet } from './MobileMoreSheet';
+import { MobileMoreSheet, type DetailSegment } from './MobileMoreSheet';
 import { MobileAuthModal } from './MobileAuthModal';
 import { MobileAccountSheet } from './MobileAccountSheet';
 import { MobileNewNoteTypeSheet } from './MobileNewNoteTypeSheet';
@@ -29,6 +29,7 @@ import type { TranscriptionResult } from '../../../../notepad/scan/types';
 import type { MobileTab } from './types';
 import { loadEnum, saveEnum, KEY_MOBILE_TAB } from '../../../../notepad/session/session-storage';
 import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
+import { registerWorkspaceControls } from '@/notepad/onboarding/tour/workspace-controller';
 
 type ScanStage = null | 'capture' | { review: TranscriptionResult };
 
@@ -44,10 +45,30 @@ export function MobileNotepadWorkspace() {
     loadEnum<MobileTab>(KEY_MOBILE_TAB, ['notes', 'editor', 'lamplight', 'bible'], 'notes'),
   );
   const [moreOpen, setMoreOpen] = useState(false);
+  const [moreSheetSegment, setMoreSheetSegment] = useState<DetailSegment | undefined>(undefined);
   const [authOpen, setAuthOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [newTypeOpen, setNewTypeOpen] = useState(false);
   const [scan, setScan] = useState<ScanStage>(null);
+
+  // Registers this workspace's imperative controls so the onboarding tour can
+  // drive it (spec §2.2). mobileSetTab mirrors handleSelectTab's semantics —
+  // closing the more-sheet on any tab switch — and both paths clear the
+  // tour's segment override so a later manual open starts fresh.
+  useEffect(() => {
+    return registerWorkspaceControls({
+      mobileSetTab: (nextTab) => {
+        setMoreOpen(false);
+        setMoreSheetSegment(undefined);
+        setTab(nextTab);
+      },
+      mobileOpenMoreSheet: (segment) => {
+        setMoreSheetSegment(segment);
+        setMoreOpen(true);
+      },
+      openAuth: () => setAuthOpen(true),
+    });
+  }, []);
 
   // While 'editor' is the stored tab but no note is active yet (notes still
   // loading, or the note no longer exists), render the notes list instead of an
@@ -228,6 +249,7 @@ export function MobileNotepadWorkspace() {
         )}
         {effectiveTab === 'bible' && (
           <BibleStudyPane
+            dataTour="mobile-bible-reader"
             lamplightAdapter={model.lamplightAdapter}
             invoke={model.invoke}
             streamInvoke={model.streamInvoke}
@@ -240,8 +262,12 @@ export function MobileNotepadWorkspace() {
 
       <MobileMoreSheet
         open={moreOpen}
-        onClose={() => setMoreOpen(false)}
+        onClose={() => {
+          setMoreOpen(false);
+          setMoreSheetSegment(undefined);
+        }}
         onOpenNote={handleOpenNote}
+        initialSegment={moreSheetSegment}
       />
 
       <MobileAuthModal open={authOpen} onClose={() => setAuthOpen(false)} />

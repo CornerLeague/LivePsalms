@@ -1,5 +1,5 @@
 // src/components/sections/notepad/mobile/MobileMoreSheet.tsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { WifiOff, Wifi } from 'lucide-react';
 import { BacklinksPanel } from '../../../../notepad/components/BacklinksPanel';
 import { InfoPanel } from '../../../../notepad/components/InfoPanel';
@@ -11,15 +11,16 @@ import { useReferenceGraph } from '../../../../notepad/context/useReferenceGraph
 import { useOnlineStatus } from '../../../../notepad/hooks/useOnlineStatus';
 import { Segmented } from './Segmented';
 
-type DetailSegment = 'backlinks' | 'info' | 'graph';
+export type DetailSegment = 'backlinks' | 'info' | 'graph';
 
 export interface MobileMoreSheetProps {
   open: boolean;
   onClose: () => void;
   onOpenNote: (id: string) => void;
+  initialSegment?: DetailSegment;
 }
 
-export function MobileMoreSheet({ open, onClose, onOpenNote }: MobileMoreSheetProps) {
+export function MobileMoreSheet({ open, onClose, onOpenNote, initialSegment }: MobileMoreSheetProps) {
   const [segment, setSegment] = useState<DetailSegment>('backlinks');
   const [peeked, setPeeked] = useState<PeekTarget | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -45,6 +46,17 @@ export function MobileMoreSheet({ open, onClose, onOpenNote }: MobileMoreSheetPr
     setPeeked(null);
     setSegment(next);
   };
+
+  // Applies initialSegment on the open flip (false -> true) only, so the tour
+  // can force a segment on open without fighting the user's manual selection
+  // afterward. Runs every render (no dependency array) — cheap, and avoids
+  // stale-closure/dependency-array lint churn for a ref-gated one-shot.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (open && !wasOpen.current && initialSegment) handleSegment(initialSegment);
+    wasOpen.current = open;
+  });
 
   if (!open) return null;
 
@@ -94,14 +106,16 @@ export function MobileMoreSheet({ open, onClose, onOpenNote }: MobileMoreSheetPr
                 onPeekNote={(id) => setPeeked({ id, kind: 'note' })}
               />
             ) : (
-              <GraphPane
-                graphOpen
-                embedded
-                focusNodeId={focusId}
-                expanded={false}
-                onToggleExpand={() => {}}
-                onNodePeek={(n) => setPeeked({ id: n.id, kind: n.type === 'scripture' ? 'scripture' : 'note' })}
-              />
+              <div data-tour="more-sheet-graph" className="h-full min-h-0">
+                <GraphPane
+                  graphOpen
+                  embedded
+                  focusNodeId={focusId}
+                  expanded={false}
+                  onToggleExpand={() => {}}
+                  onNodePeek={(n) => setPeeked({ id: n.id, kind: n.type === 'scripture' ? 'scripture' : 'note' })}
+                />
+              </div>
             )
           )}
         </div>

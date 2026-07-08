@@ -15,11 +15,11 @@ describe('decideOnboardingActions', () => {
   });
 
   describe('signed out (anonymous lane)', () => {
-    it('first visit: starts tour and shows get-started', () => {
+    it('first visit: starts the tour only (get-started stays hidden until the tour ends)', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: false, eligibleForJourney: false,
         anonTourDone: false, anon: null, account: null,
-      })).toEqual([{ kind: 'start-tour' }, { kind: 'show-get-started' }]);
+      })).toEqual([{ kind: 'start-tour' }]);
     });
     it('tour done, checklist active: shows get-started only', () => {
       expect(decideOnboardingActions({

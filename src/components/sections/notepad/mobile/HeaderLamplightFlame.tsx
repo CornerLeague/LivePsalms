@@ -15,6 +15,7 @@ export function HeaderLamplightFlame({
   return (
     <button
       aria-label="Lamplight"
+      data-tour="header-flame"
       onClick={onOpenLamplight}
       className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
       style={{ color: '#b8843a' }}

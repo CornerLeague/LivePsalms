@@ -1,7 +1,8 @@
 // src/notepad/onboarding/onboarding-types.ts
 export type OnboardingEvent =
   | 'note-created' | 'verse-linked' | 'highlight-created' | 'scan-completed'
-  | 'folder-created' | 'graph-visited' | 'lamplight-connection' | 'search-used';
+  | 'folder-created' | 'graph-visited' | 'lamplight-connection' | 'search-used'
+  | 'tour-step-skipped';
 
 export type AnonItemId = 'write-first-note' | 'link-verse' | 'highlight' | 'create-account';
 export type JourneyItemId =

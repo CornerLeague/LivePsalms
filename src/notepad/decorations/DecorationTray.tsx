@@ -28,6 +28,7 @@ export function DecorationTray({ assets, onPlace, onClose }: Props) {
     <div
       role="dialog"
       aria-label="Decorations"
+      data-tour="decoration-tray"
       style={{
         position: 'absolute', left: 0, right: 0, bottom: 0,
         background: 'var(--plaster)', borderTop: '1px solid var(--pale-stone)',

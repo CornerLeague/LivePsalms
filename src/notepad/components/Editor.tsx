@@ -37,6 +37,7 @@ import { formatTag } from '../utils/tags';
 import { useAccountProfile } from '../../auth/context/useAccountProfile';
 import { emptyStateMessage } from '../utils/empty-state-message';
 import { RecordingsStrip } from '../recordings/RecordingsStrip';
+import { registerWorkspaceControls } from '../onboarding/tour/workspace-controller';
 import type { Note } from '../types';
 
 export interface NotepadEditorProps {
@@ -98,6 +99,11 @@ export function NotepadEditor({
   const decorationsApi = useDecorations(activeNote, updateNote);
   const [selectedDecoration, setSelectedDecoration] = useState<string | null>(null);
   const [trayOpen, setTrayOpen] = useState(false);
+  useEffect(() => {
+    return registerWorkspaceControls({
+      openDecorationTray: (open) => setTrayOpen(open),
+    });
+  }, []);
   // When the bottom toolbar is active and a decoration is selected, the
   // contextual DecorationToolbar takes the toolbar slot in place of the
   // formatting toolbar (mobile-only — desktop keeps its on-canvas action bar).
@@ -452,6 +458,7 @@ export function NotepadEditor({
       {/* Scrollable content area */}
       <div
         data-testid="editor-scroll"
+        data-tour="editor-page"
         style={{
           flex: 1,
           overflowY: 'auto',

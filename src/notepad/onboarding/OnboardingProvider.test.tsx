@@ -29,9 +29,9 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('OnboardingProvider', () => {
-  it('signed-out first visit yields start-tour + show-get-started', async () => {
+  it('signed-out first visit yields start-tour only (get-started stays hidden during the tour)', async () => {
     render(<OnboardingProvider><Probe /></OnboardingProvider>);
-    await waitFor(() => expect(screen.getByTestId('actions').textContent).toBe('start-tour,show-get-started'));
+    await waitFor(() => expect(screen.getByTestId('actions').textContent).toBe('start-tour'));
   });
 
   it('reportOnboardingEvent(note-created) marks the anon checklist item', async () => {
