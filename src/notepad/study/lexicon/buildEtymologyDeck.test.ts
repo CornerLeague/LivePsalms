@@ -58,8 +58,29 @@ describe('buildEtymologyDeck', () => {
     expect(cards.filter((c) => c.kind === 'lexical' && c.starred)).toHaveLength(4);
   });
 
+  it('tiebreak: at the 4-star boundary, lower position wins the last star (position asc)', () => {
+    // 5 lexical cards; studyValue tie (8) among positions 2..5, boundary cuts at the 4th star.
+    const words: InterlinearWord[] = [
+      { position: 1, original: 'w', transliteration: 't', strongs: 'H201', morph: 'HNc', gloss: 'g' },
+      { position: 2, original: 'w', transliteration: 't', strongs: 'H202', morph: 'HNc', gloss: 'g' },
+      { position: 3, original: 'w', transliteration: 't', strongs: 'H203', morph: 'HNc', gloss: 'g' },
+      { position: 4, original: 'w', transliteration: 't', strongs: 'H204', morph: 'HNc', gloss: 'g' },
+      { position: 5, original: 'w', transliteration: 't', strongs: 'H205', morph: 'HNc', gloss: 'g' },
+    ];
+    const sv: Record<string, number> = { H201: 10, H202: 8, H203: 8, H204: 8, H205: 8 };
+    const entries = new Map<string, EtymologyEntry>(
+      words.map((w) => [w.strongs as string, entry(w.strongs as string, sv[w.strongs as string])]),
+    );
+    const { cards } = buildEtymologyDeck(words, entries);
+    const starredPositions = cards
+      .filter((c) => c.kind === 'lexical' && c.starred)
+      .map((c) => c.position);
+    expect(starredPositions).toEqual([1, 2, 3, 4]); // position-5 tie-loser excluded
+  });
+
   it('a verse of only function words yields no lexical card (panel-activation gate is false)', () => {
-    const { cards } = buildEtymologyDeck([NOT], new Map());
+    const { cards, firstStarredIndex } = buildEtymologyDeck([NOT], new Map());
     expect(cards.some((c) => c.kind === 'lexical')).toBe(false);
+    expect(firstStarredIndex).toBe(0); // no starred lexical card → findIndex -1 → contract returns 0
   });
 });
