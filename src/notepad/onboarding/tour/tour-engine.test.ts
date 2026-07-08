@@ -177,4 +177,43 @@ describe('createTourEngine', () => {
     expect(viewports).toEqual(['desktop', 'mobile']);
     expect(engine.getState().viewport).toBe('mobile');
   });
+
+  it('re-runs the advanced step (not the prior one) when a viewport change follows next()', async () => {
+    // Regression guard for the "resize replays stale step" race: next() calls
+    // runStep synchronously, so state.stepIndex is already advanced before the
+    // viewport change reads it. The re-run must target the advanced step for
+    // the new viewport — the tour must not jump back to the prior step.
+    const prepared: Array<{ id: string; viewport: string }> = [];
+    const steps = [
+      makeStep({
+        id: 'first',
+        prepare: (_controls, ctx) => {
+          prepared.push({ id: 'first', viewport: ctx.viewport });
+        },
+      }),
+      makeStep({
+        id: 'second',
+        prepare: (_controls, ctx) => {
+          prepared.push({ id: 'second', viewport: ctx.viewport });
+        },
+      }),
+    ];
+    const engine = createTourEngine(makeDeps(steps));
+    engine.start();
+    await flush();
+
+    // Tightest possible interleave: advance, then the resize fires in the same
+    // tick before any awaited work settles.
+    engine.next();
+    engine.setViewport('mobile');
+    await flush();
+
+    expect(engine.getState()).toMatchObject({ stepIndex: 1, viewport: 'mobile' });
+    // Final prepare is the advanced step re-run for mobile — never 'first'.
+    expect(prepared).toEqual([
+      { id: 'first', viewport: 'desktop' },
+      { id: 'second', viewport: 'desktop' },
+      { id: 'second', viewport: 'mobile' },
+    ]);
+  });
 });
