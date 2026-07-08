@@ -33,12 +33,13 @@ export function useEtymologyVerseInsight(
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
-    if (strongs == null || verseId == null || !supabase) {
-      return;
-    }
     let cancelled = false;
 
     (async () => {
+      if (strongs == null || verseId == null || !supabase) {
+        setInsight(null); setLoading(false); setError(null);
+        return;
+      }
       setLoading(true);
       setError(null);
       setInsight(null);

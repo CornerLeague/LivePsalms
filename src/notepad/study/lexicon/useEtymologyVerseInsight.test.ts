@@ -63,4 +63,17 @@ describe('useEtymologyVerseInsight', () => {
     expect(result.current.insight).toBeNull();
     expect(result.current.error).toBe('network');
   });
+
+  it('clears a stale insight when re-rendered with invalid (null) args', async () => {
+    maybeSingle.mockImplementation(() => Promise.resolve({ data: { body: 'A shared insight.' }, error: null }));
+    const adapter = { generateEtymologyInsight: vi.fn() };
+    const { result, rerender } = renderHook(
+      ({ s, v }: { s: string | null; v: string | null }) => useEtymologyVerseInsight(s, v, adapter),
+      { initialProps: { s: 'H7462' as string | null, v: 'psa.23.1' as string | null } },
+    );
+    await waitFor(() => expect(result.current.insight).toEqual({ body: 'A shared insight.' }));
+    await act(async () => { rerender({ s: null, v: null }); });
+    await waitFor(() => expect(result.current.insight).toBeNull());
+    expect(result.current.error).toBeNull();
+  });
 });
