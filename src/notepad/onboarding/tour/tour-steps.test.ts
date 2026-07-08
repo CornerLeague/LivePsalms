@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TourRunContext } from './tour-engine';
 import { TOUR_ANCHOR_TOKENS, TOUR_STEPS } from './tour-steps';
+import type { WorkspaceControls } from './workspace-controller';
 
 function makeCtx(viewport: 'desktop' | 'mobile', sampleNoteId: string | null = null): TourRunContext {
   return { viewport, sampleNoteId };
@@ -155,6 +156,24 @@ describe('TOUR_STEPS', () => {
       );
       expect(mobileSetTab).toHaveBeenCalledWith('editor');
       expect(openDecorationTray2).toHaveBeenCalledWith(true);
+    });
+
+    it('step 6 (decorations) waits for a late-registering tray control (viewport-remount race)', async () => {
+      // Across a 768px workspace remount the Editor's openDecorationTray control
+      // is briefly absent from the registry (the old editor's unmount deleted it;
+      // the new editor's mount effect has not re-registered it yet). prepare must
+      // poll the live registry rather than read it once — otherwise the open
+      // silently no-ops and the decoration-tray anchor never renders. `controls`
+      // is the same object reference prepare holds, mirroring the live registry.
+      const openDecorationTray = vi.fn();
+      const controls: WorkspaceControls = { openNote: vi.fn() };
+      const pending = TOUR_STEPS[6].prepare?.(controls, makeCtx('desktop', 'sample-1'));
+      // Register the control a tick later (well within the poll budget), after
+      // the synchronous prepare body has already read it as undefined once.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      controls.openDecorationTray = openDecorationTray;
+      await pending;
+      expect(openDecorationTray).toHaveBeenCalledWith(true);
     });
 
     it('step 7 desktop shows the Graph tab (and closes the decoration tray); mobile opens the More sheet on Graph', async () => {

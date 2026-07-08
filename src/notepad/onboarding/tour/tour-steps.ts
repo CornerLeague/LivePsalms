@@ -110,6 +110,16 @@ export const TOUR_STEPS: TourStep[] = [
     // mounted and the tray has a note to attach to), then reveal it.
     prepare: async (controls, ctx) => {
       await ensureSampleNoteOpen(controls, ctx);
+      // openDecorationTray registers on Editor mount (Editor.tsx) and is deleted
+      // on unmount. After a 768px viewport remount the new Editor's mount effect
+      // may not have re-registered it yet, so the imperative open would silently
+      // no-op and the decoration-tray anchor would never render (resolver then
+      // times out → the step is skipped). Poll the live registry briefly for the
+      // control; the anchor resolver's own ~2s budget covers the tray render once
+      // it fires. Normal forward flow exits at i=0 (control already present).
+      for (let i = 0; i < 20 && !controls.openDecorationTray; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
       controls.openDecorationTray?.(true);
     },
   },
