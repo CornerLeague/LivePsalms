@@ -101,7 +101,7 @@ const navBtn: React.CSSProperties = { minWidth: 44, minHeight: 44, display: 'inl
 
 function LexicalCard({ card, verseId, userId, adapter }: { card: Extract<EtymologyDeckCard, { kind: 'lexical' }>; verseId: string; userId: string | null; adapter: LamplightAdapter | null }) {
   const { entry, word } = card;
-  const { hasAccess } = useLamplightEntitlement({ adapter: adapter as LamplightAdapter, userId: adapter ? userId : null });
+  const { hasAccess } = useLamplightEntitlement({ adapter, userId: adapter ? userId : null });
   const { insight, generating, error, generate } = useEtymologyVerseInsight(card.strongs, verseId, adapter);
   const canGenerate = hasAccess('inline');
 

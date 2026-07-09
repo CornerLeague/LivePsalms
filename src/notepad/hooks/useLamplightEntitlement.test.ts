@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { FakeLamplightAdapter } from '../storage/fake-lamplight-adapter';
 import { useLamplightEntitlement } from './useLamplightEntitlement';
@@ -90,5 +90,19 @@ describe('useLamplightEntitlement', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
       expect(result.current.hasAccess('chat')).toBe(true);
     }
+  });
+
+  it('fails closed without touching the adapter or logging when adapter is null', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // userId is intentionally non-null here: the guard must key off `adapter`
+    // being null, not piggyback on callers always nulling out userId too.
+    const { result } = renderHook(() => useLamplightEntitlement({ adapter: null, userId: 'user-1' }));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.promoActive).toBe(false);
+    expect(result.current.tier).toBe('none');
+    expect(result.current.hasAccess('today')).toBe(false);
+    expect(result.current.hasAccess('chat')).toBe(false);
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });
