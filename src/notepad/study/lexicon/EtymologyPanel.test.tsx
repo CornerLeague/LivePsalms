@@ -41,14 +41,22 @@ describe('EtymologyPanel', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('is collapsed by default (spec §5)', () => {
+    render(<EtymologyPanel {...props} />);
+    expect(screen.getByRole('button', { name: /etymology/i })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/to tend, graze/)).not.toBeInTheDocument();
+  });
+
   it('shows a skeleton while entries load', () => {
     useReviewedEtymologyEntries.mockReturnValue({ entries: new Map(), loading: true, error: null });
     render(<EtymologyPanel {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
     expect(screen.getByTestId('etymology-skeleton')).toBeInTheDocument();
   });
 
   it('renders the lexical card: root, the narrated development, and an Ask button', () => {
     render(<EtymologyPanel {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
     expect(screen.getByText(/to tend, graze/)).toBeInTheDocument();
     expect(screen.getByText(/tending a flock/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /ask lamplight about this verse/i })).toBeInTheDocument();
@@ -57,6 +65,7 @@ describe('EtymologyPanel', () => {
   it('renders an existing insight inline instead of the Ask button', () => {
     useEtymologyVerseInsight.mockReturnValue({ insight: { body: 'A shared, pre-generated insight.' }, loading: false, error: null, generating: false, generate: vi.fn() });
     render(<EtymologyPanel {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
     expect(screen.getByText('A shared, pre-generated insight.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /ask lamplight/i })).not.toBeInTheDocument();
   });
@@ -65,12 +74,14 @@ describe('EtymologyPanel', () => {
     const generate = vi.fn();
     useEtymologyVerseInsight.mockReturnValue({ insight: null, loading: false, error: null, generating: false, generate });
     render(<EtymologyPanel {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
     fireEvent.click(screen.getByRole('button', { name: /ask lamplight about this verse/i }));
     expect(generate).toHaveBeenCalled();
   });
 
   it('RTL nav: left chevron advances to the next (leftward) card', async () => {
     render(<EtymologyPanel {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
     expect(screen.getByText(/word 1 of 2/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /next word/i }));
     await waitFor(() => expect(screen.getByText(/word 2 of 2/i)).toBeInTheDocument());
@@ -80,6 +91,7 @@ describe('EtymologyPanel', () => {
 
   it('shows a swipe hint on mobile', () => {
     render(<EtymologyPanel {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
     expect(screen.getByText(/swipe/i)).toBeInTheDocument();
   });
 });

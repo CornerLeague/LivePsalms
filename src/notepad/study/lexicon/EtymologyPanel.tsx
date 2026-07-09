@@ -23,7 +23,7 @@ export interface EtymologyPanelProps {
 }
 
 export function EtymologyPanel({ verseId, reference, userId, adapter }: EtymologyPanelProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
   const { words } = useVerseLexicon(verseId);
 
