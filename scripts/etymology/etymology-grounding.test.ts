@@ -30,4 +30,18 @@ describe('validateGroundedNarration (anti-hallucination, spec §9)', () => {
     expect(res.unsupported).not.toContain('Strong');
     expect(res.ok).toBe(true);
   });
+  it('does not flag an ordinary capitalized word that opens the narration', () => {
+    // Real seed false-positive (H3068 יְהֹוָה): "Formed from the root…" — a
+    // sentence-initial verb is grammar, not an invented proper noun.
+    const res = validateGroundedNarration('Formed from the root that means to tend and graze.', rec);
+    expect(res.unsupported).not.toContain('Formed');
+    expect(res.ok).toBe(true);
+  });
+  it('does not flag an ordinary capitalized word that opens a later sentence', () => {
+    // Real seed false-positive (H430 אֱלֹהִים): "…plural form. Alongside kin…" —
+    // a capital following a sentence boundary is grammar, not a proper noun.
+    const res = validateGroundedNarration('The sense is pastoral. Alongside it, the shepherd image grew.', rec);
+    expect(res.unsupported).not.toContain('Alongside');
+    expect(res.ok).toBe(true);
+  });
 });
