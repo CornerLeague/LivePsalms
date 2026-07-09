@@ -55,7 +55,8 @@ export async function buildEtymologyInsightOutcome(
       development: entry.development,
       related: entry.related,
     });
-  } catch {
+  } catch (err) {
+    console.error('[etymology-insight] generate failed', err);
     // No row, no usage → no quota spent (spec §8). Client falls back to Ask + retry.
     return { response: { ok: false, reason: 'generation_failed' }, usage: null };
   }

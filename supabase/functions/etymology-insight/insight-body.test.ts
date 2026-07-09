@@ -28,14 +28,17 @@ describe('buildEtymologyInsightOutcome', () => {
     expect(out).toEqual({ response: { ok: false, reason: 'no_entry' }, usage: null });
   });
 
-  it('on model failure inserts NOTHING and spends NO quota (usage null)', async () => {
+  it('on model failure inserts NOTHING, spends NO quota (usage null), and logs the failure', async () => {
     const insertInsight = vi.fn();
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const out = await buildEtymologyInsightOutcome(
       makeDeps({ generate: async () => { throw new Error('model 500'); }, insertInsight }),
       args,
     );
     expect(out).toEqual({ response: { ok: false, reason: 'generation_failed' }, usage: null });
     expect(insertInsight).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('on success inserts once and records ok usage (cached:false)', async () => {
