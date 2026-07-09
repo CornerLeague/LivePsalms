@@ -7,6 +7,7 @@ import { isFunctionWord, buildEtymologyDeck, type EtymologyDeckCard } from './bu
 import { useReviewedEtymologyEntries } from './useReviewedEtymologyEntries';
 import { useEtymologyVerseInsight } from './useEtymologyVerseInsight';
 import { useLamplightEntitlement } from '@/notepad/hooks/useLamplightEntitlement';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { SignInGate } from '@/notepad/components/lamplight/SignInGate';
 import { PaywallCard } from '@/notepad/components/lamplight/PaywallCard';
 import type { LamplightAdapter } from '../../storage/lamplight-adapter';
@@ -23,6 +24,7 @@ export interface EtymologyPanelProps {
 
 export function EtymologyPanel({ verseId, reference, userId, adapter }: EtymologyPanelProps) {
   const [open, setOpen] = useState(true);
+  const isMobile = useIsMobile();
   const { words } = useVerseLexicon(verseId);
 
   const lexicalKeys = useMemo(
@@ -81,6 +83,8 @@ export function EtymologyPanel({ verseId, reference, userId, adapter }: Etymolog
                 : <FunctionCard card={current} />}
 
               <DeckStrip cards={cards} currentIndex={currentIndex} onSelect={setCurrentIndex} />
+
+              {isMobile && <p style={{ fontSize: 10, color: 'var(--silica)', margin: '6px 0 0' }}>Swipe the strip to move through the verse.</p>}
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
                 <button type="button" aria-label="next word" onClick={goNext} disabled={currentIndex >= cards.length - 1}

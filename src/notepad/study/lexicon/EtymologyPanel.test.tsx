@@ -12,6 +12,7 @@ vi.mock('./useVerseLexicon', () => ({ useVerseLexicon: (...a: unknown[]) => useV
 vi.mock('./useReviewedEtymologyEntries', () => ({ useReviewedEtymologyEntries: (...a: unknown[]) => useReviewedEtymologyEntries(...a) }));
 vi.mock('./useEtymologyVerseInsight', () => ({ useEtymologyVerseInsight: (...a: unknown[]) => useEtymologyVerseInsight(...a) }));
 vi.mock('@/notepad/hooks/useLamplightEntitlement', () => ({ useLamplightEntitlement: () => ({ isLoading: false, tier: 'plus', promoActive: false, hasAccess }) }));
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => true }));
 
 import { EtymologyPanel } from './EtymologyPanel';
 import type { EtymologyEntry } from './buildEtymologyDeck';
@@ -75,5 +76,10 @@ describe('EtymologyPanel', () => {
     await waitFor(() => expect(screen.getByText(/word 2 of 2/i)).toBeInTheDocument());
     expect(screen.getByText(/grammar/i)).toBeInTheDocument(); // the particle card, no Ask
     expect(screen.queryByRole('button', { name: /ask lamplight/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a swipe hint on mobile', () => {
+    render(<EtymologyPanel {...props} />);
+    expect(screen.getByText(/swipe/i)).toBeInTheDocument();
   });
 });
