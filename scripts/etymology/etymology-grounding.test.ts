@@ -25,4 +25,9 @@ describe('validateGroundedNarration (anti-hallucination, spec §9)', () => {
     expect(res.ok).toBe(false);
     expect(res.unsupported).toContain('Akkadian');
   });
+  it('does not flag "Strong" when the narration cites its own Strong\'s source', () => {
+    const res = validateGroundedNarration("This root appears under Strong's numbering as a primitive verb.", rec);
+    expect(res.unsupported).not.toContain('Strong');
+    expect(res.ok).toBe(true);
+  });
 });

@@ -33,7 +33,7 @@ const LANGUAGE_OR_PROPER = /\b([A-Z][a-z]{3,})\b/g;
 const ALLOWED_SENTENCE_STARTERS = new Set(['From', 'The', 'It', 'This', 'A', 'An', 'In', 'Its', 'When', 'Here', 'Both', 'As']);
 
 export function validateGroundedNarration(development: string, record: GroundingRecord): { ok: boolean; unsupported: string[] } {
-  const haystack = [record.lemma, record.root, record.rootGloss, record.bdbGloss, ...record.related.flatMap((r) => [r.word, r.gloss])].join(' ').toLowerCase();
+  const haystack = [record.lemma, record.root, record.rootGloss, record.bdbGloss, record.source, ...record.related.flatMap((r) => [r.word, r.gloss])].join(' ').toLowerCase();
   const unsupported: string[] = [];
   for (const m of development.matchAll(LANGUAGE_OR_PROPER)) {
     const term = m[1];
