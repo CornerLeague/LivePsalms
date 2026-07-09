@@ -20,8 +20,9 @@ export interface UseReviewedEtymologyEntriesResult {
 }
 
 // Etymology entries are immutable reference data — one fetch per strongs suffices
-// for the whole session, no matter how many verses reference it.
-const cache = new Map<string, EtymologyEntry>();
+// for the whole session, no matter how many verses reference it. A `null` value
+// is a known-miss sentinel (no reviewed row) so absent keys are not re-queried.
+const cache = new Map<string, EtymologyEntry | null>();
 
 function mapRow(r: EtymologyRow): EtymologyEntry {
   return {
@@ -87,8 +88,16 @@ export function useReviewedEtymologyEntries(strongsKeys: string[]): UseReviewedE
         setError(qErr.message);
         setEntries(buildFromCache());
       } else {
+        const returned = new Set<string>();
         for (const row of (data ?? []) as EtymologyRow[]) {
           cache.set(row.strongs, mapRow(row));
+          returned.add(row.strongs);
+        }
+        // Cache known-misses as a null sentinel so repeat verse navigation does
+        // not re-fire the batch query for strongs with no reviewed row. Safe:
+        // seeding/proofing is offline, so `reviewed` never flips mid-session.
+        for (const k of missing) {
+          if (!returned.has(k)) cache.set(k, null);
         }
         setEntries(buildFromCache());
       }

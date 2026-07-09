@@ -59,4 +59,21 @@ describe('useReviewedEtymologyEntries', () => {
     expect(from).not.toHaveBeenCalled();
     expect(result.current.entries.size).toBe(0);
   });
+
+  it('caches known-misses so repeat navigation does not re-query absent keys', async () => {
+    // A strongs with no reviewed row returns []. The miss must be remembered so
+    // navigating back to the same token does not re-fire the batch query.
+    setResult({ data: [], error: null });
+    eq.mockImplementation(() => Promise.resolve({ data: [], error: null }));
+    const first = renderHook(() => useReviewedEtymologyEntries(['H9999']));
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    expect(from).toHaveBeenCalled();
+    first.unmount();
+
+    from.mockClear();
+    const second = renderHook(() => useReviewedEtymologyEntries(['H9999']));
+    await waitFor(() => expect(second.result.current.loading).toBe(false));
+    expect(from).not.toHaveBeenCalled();
+    expect(second.result.current.entries.size).toBe(0);
+  });
 });
