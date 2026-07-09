@@ -1,5 +1,5 @@
 // src/notepad/study/StudyWorkspace.tsx
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { useAuthSession } from '@/auth/context/useAuthSession';
@@ -15,6 +15,8 @@ import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 import './study-theme.css';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileStudyWorkspace } from './mobile/MobileStudyWorkspace';
+import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-adapter';
+import { supabase } from '@/lib/supabase';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
 
@@ -34,6 +36,10 @@ const railBtnStyle: React.CSSProperties = {
 export function DesktopStudyWorkspace() {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
+  const lamplightAdapter = useMemo(
+    () => (supabase ? new SupabaseLamplightAdapter(supabase) : null),
+    [],
+  );
   const navigate = useNavigate();
   const { collection } = useNoteCollection();
   useEnsureStudyFolder();
@@ -126,7 +132,7 @@ export function DesktopStudyWorkspace() {
               </button>
             </div>
             <div style={{ flex: '1 1 0%', overflow: 'auto' }}>
-              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} />
+              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
             </div>
           </aside>
         )}
