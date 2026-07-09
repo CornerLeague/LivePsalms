@@ -12,10 +12,11 @@ function useWaymarksConnection() {
   const adapter = useMemo(() => (supabase ? new SupabaseLamplightAdapter(supabase) : null), []);
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
-  // useLamplightEntitlement requires a non-null adapter; pass userId=null to skip the fetch
-  // when Supabase isn't configured, mirroring Notepad.tsx's DesktopNotepadWorkspace guard.
+  // useLamplightEntitlement accepts a null adapter directly and fails closed;
+  // pass userId=null too when Supabase isn't configured, mirroring Notepad.tsx's
+  // DesktopNotepadWorkspace guard.
   const { hasAccess } = useLamplightEntitlement({
-    adapter: adapter as NonNullable<typeof adapter>,
+    adapter,
     userId: adapter ? userId : null,
   });
   return { adapter, userId, canAccess: hasAccess('reflections') };

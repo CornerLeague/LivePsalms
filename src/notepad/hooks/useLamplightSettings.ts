@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import type { LamplightAdapter, LamplightSettings } from '../storage/lamplight-adapter';
 
 export interface UseLamplightSettingsArgs {
-  adapter: LamplightAdapter;
+  adapter: LamplightAdapter | null;
   userId: string | null;
 }
 
@@ -36,7 +36,10 @@ export function useLamplightSettings({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!userId) {
+      if (!adapter || !userId) {
+        // No adapter wired (logged-out / adapter-not-wired reads are a first-class
+        // case) — fail closed without touching the adapter, same as the no-userId
+        // branch below.
         if (!cancelled) {
           setSettings(null);
           setIsLoading(false);
@@ -61,7 +64,7 @@ export function useLamplightSettings({
   }, [adapter, userId]);
 
   const refetch = useCallback(async () => {
-    if (!userId) {
+    if (!adapter || !userId) {
       setSettings(null);
       setIsLoading(false);
       return;
@@ -80,7 +83,7 @@ export function useLamplightSettings({
 
   const upsert = useCallback(
     async (patch: Partial<Omit<LamplightSettings, 'userId' | 'createdAt' | 'updatedAt'>>) => {
-      if (!userId) return;
+      if (!adapter || !userId) return;
       try {
         const next = await adapter.upsertSettings(userId, patch);
         if (mountedRef.current) setSettings(next);
@@ -93,7 +96,7 @@ export function useLamplightSettings({
   );
 
   const deleteAll = useCallback(async () => {
-    if (!userId) return;
+    if (!adapter || !userId) return;
     try {
       await adapter.deleteAllUserData(userId);
       if (mountedRef.current) setSettings(null);

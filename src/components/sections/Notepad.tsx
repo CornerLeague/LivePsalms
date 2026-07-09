@@ -68,11 +68,10 @@ function DesktopNotepadWorkspace() {
     []
   );
 
-  // useLamplightSettings requires a non-null adapter. When Supabase is not
-  // configured, lamplightAdapter is null — pass userId=null to skip the fetch.
+  // useLamplightSettings accepts a null adapter directly and fails closed. When
+  // Supabase is not configured, lamplightAdapter is null — pass userId=null too.
   const { settings: lamplightSettings } = useLamplightSettings({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    adapter: lamplightAdapter as any,
+    adapter: lamplightAdapter,
     userId: lamplightAdapter ? (user?.id ?? null) : null,
   });
 

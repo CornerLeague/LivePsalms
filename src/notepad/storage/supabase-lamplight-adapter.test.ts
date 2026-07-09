@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseLamplightAdapter } from './supabase-lamplight-adapter';
 
@@ -772,5 +772,32 @@ describe('SupabaseLamplightAdapter — admin jobs', () => {
       finishedAt: null,
       error: null,
     });
+  });
+});
+
+describe('SupabaseLamplightAdapter.generateEtymologyInsight', () => {
+  function clientWith(invokeResult: { data: unknown; error: unknown }) {
+    const invoke = vi.fn().mockResolvedValue(invokeResult);
+    const client = {
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
+      functions: { invoke },
+    };
+    return { client, invoke };
+  }
+
+  it('maps a successful edge-fn response to { ok:true, body, cached }', async () => {
+    const { client, invoke } = clientWith({ data: { ok: true, body: 'Insight.', cached: false }, error: null });
+    const adapter = new SupabaseLamplightAdapter(client as never);
+    const res = await adapter.generateEtymologyInsight('H7462', 'psa.23.1');
+    expect(invoke).toHaveBeenCalledWith('etymology-insight', { body: { strongs: 'H7462', verse_id: 'psa.23.1' } });
+    expect(res).toEqual({ ok: true, body: 'Insight.', cached: false });
+  });
+
+  it('maps a no_entry failure through, and a transport error to network', async () => {
+    const noEntry = new SupabaseLamplightAdapter(clientWith({ data: { ok: false, reason: 'no_entry' }, error: null }).client as never);
+    expect(await noEntry.generateEtymologyInsight('H1', 'psa.23.1')).toEqual({ ok: false, reason: 'no_entry' });
+
+    const boom = new SupabaseLamplightAdapter(clientWith({ data: null, error: { message: 'boom' } }).client as never);
+    expect(await boom.generateEtymologyInsight('H1', 'psa.23.1')).toEqual({ ok: false, reason: 'network' });
   });
 });

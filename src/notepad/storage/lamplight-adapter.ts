@@ -102,6 +102,10 @@ export type ConnectionWhyResult =
   | { ok: true; why: string; cached: boolean }
   | { ok: false; reason: 'no_embedding' | 'validators_failed' | 'not_neighbor' | 'network' };
 
+export type EtymologyInsightResult =
+  | { ok: true; body: string; cached: boolean }
+  | { ok: false; reason: 'no_entry' | 'network' };
+
 export interface LamplightAdapter {
   getSettings(userId: string): Promise<LamplightSettings | null>;
   upsertSettings(
@@ -149,6 +153,9 @@ export interface LamplightAdapter {
   hasNoteEmbedding(noteId: string): Promise<boolean>;
   /** Invokes lamplight-generate Edge Function with kind='connection_card_why'. */
   generateConnectionWhy(sourceNoteId: string, relatedNoteId: string): Promise<ConnectionWhyResult>;
+  /** Invokes the etymology-insight Edge Function to generate + persist the shared
+   *  per-(word, verse) insight. Reads are done directly against the DB, not here. */
+  generateEtymologyInsight(strongs: string, verseId: string): Promise<EtymologyInsightResult>;
   isLamplightAdmin(): Promise<boolean>;
   adminListJobs(filters: AdminJobFilters): Promise<AdminJobRow[]>;
   adminJobCounts(sinceIso: string): Promise<AdminJobCounts>;

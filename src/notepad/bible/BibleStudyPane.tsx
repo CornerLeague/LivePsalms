@@ -70,8 +70,8 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke, dataTou
   );
 
   // Hooks are always called (Rules of Hooks); they no-op on a null adapter/user.
-  const settings = useLamplightSettings({ adapter: lamplightAdapter as LamplightAdapter, userId: lamplightAdapter ? userId : null });
-  const entitlement = useLamplightEntitlement({ adapter: lamplightAdapter as LamplightAdapter, userId: lamplightAdapter ? userId : null });
+  const settings = useLamplightSettings({ adapter: lamplightAdapter, userId: lamplightAdapter ? userId : null });
+  const entitlement = useLamplightEntitlement({ adapter: lamplightAdapter, userId: lamplightAdapter ? userId : null });
 
   const lamplightOn = settings.settings?.enabled === true;
   // Only block a SIGNED-IN user who has loaded settings with Lamplight off. Signed-out

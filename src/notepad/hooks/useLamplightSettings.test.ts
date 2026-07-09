@@ -74,4 +74,15 @@ describe('useLamplightSettings', () => {
     expect(result.current.settings).toBeNull();
     errorSpy.mockRestore();
   });
+
+  it('fails closed without touching the adapter or logging when adapter is null', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // userId is intentionally non-null here: the guard must key off `adapter`
+    // being null, not piggyback on callers always nulling out userId too.
+    const { result } = renderHook(() => useLamplightSettings({ adapter: null, userId: 'user-1' }));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.settings).toBeNull();
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
 });

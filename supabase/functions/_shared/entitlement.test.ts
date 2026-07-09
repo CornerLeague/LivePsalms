@@ -1,6 +1,6 @@
 // supabase/functions/_shared/entitlement.test.ts
 import { describe, it, expect } from 'vitest';
-import { hasChatAccess, hasReflectionAccess } from './entitlement.ts';
+import { hasChatAccess, hasReflectionAccess, hasInlineInsightAccess } from './entitlement.ts';
 
 describe('hasChatAccess', () => {
   it('grants when an active promo is on, regardless of tier', () => {
@@ -27,5 +27,14 @@ describe('hasReflectionAccess', () => {
   it('denies Lite and None outside a promo', () => {
     expect(hasReflectionAccess({ tier: 'lite', promoActive: false })).toBe(false);
     expect(hasReflectionAccess({ tier: 'none', promoActive: false })).toBe(false);
+  });
+});
+
+describe('hasInlineInsightAccess', () => {
+  it('grants Plus, and anyone during a promo; denies lite/none otherwise', () => {
+    expect(hasInlineInsightAccess({ tier: 'plus', promoActive: false })).toBe(true);
+    expect(hasInlineInsightAccess({ tier: 'none', promoActive: true })).toBe(true);
+    expect(hasInlineInsightAccess({ tier: 'lite', promoActive: false })).toBe(false);
+    expect(hasInlineInsightAccess({ tier: 'none', promoActive: false })).toBe(false);
   });
 });

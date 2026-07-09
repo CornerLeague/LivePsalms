@@ -39,8 +39,7 @@ export function useMobileWorkspaceModel(): MobileWorkspaceModel {
   );
 
   const { settings: lamplightSettings } = useLamplightSettings({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    adapter: lamplightAdapter as any,
+    adapter: lamplightAdapter,
     userId: lamplightAdapter ? (user?.id ?? null) : null,
   });
 

@@ -17,6 +17,10 @@ vi.mock('../regionmap/RegionMapBlock', () => ({
   RegionMapBlock: (props: { book: string }) => { regionMapBlock(props); return <div data-testid="region-map-block" />; },
 }));
 
+vi.mock('../lexicon/EtymologyPanel', () => ({
+  EtymologyPanel: (props: Record<string, unknown>) => <div data-testid="etymology" data-verse={String(props.verseId)} data-user={String(props.userId)} />,
+}));
+
 import { ApparatusRail } from './ApparatusRail';
 
 describe('ApparatusRail', () => {
@@ -77,5 +81,15 @@ describe('ApparatusRail original-language panel', () => {
     });
     render(<ApparatusRail book="jhn" chapter={3} selectedVerse={null} />);
     expect(screen.getByRole('heading', { level: 2, name: 'John' })).toBeTruthy();
+  });
+});
+
+describe('ApparatusRail etymology panel', () => {
+  it('mounts EtymologyPanel with the OSIS verseId and threaded userId', () => {
+    useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
+    render(<ApparatusRail book="psa" chapter={23} selectedVerse={1} userId="u1" adapter={null} />);
+    const panel = screen.getByTestId('etymology');
+    expect(panel).toHaveAttribute('data-verse', 'psa.23.1');
+    expect(panel).toHaveAttribute('data-user', 'u1');
   });
 });

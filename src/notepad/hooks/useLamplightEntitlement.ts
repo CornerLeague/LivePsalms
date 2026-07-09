@@ -4,7 +4,7 @@ import type { LamplightAdapter, LamplightTier } from '../storage/lamplight-adapt
 export type LamplightFeature = 'today' | 'weekly' | 'reflections' | 'inline' | 'chat';
 
 export interface UseLamplightEntitlementArgs {
-  adapter: LamplightAdapter;
+  adapter: LamplightAdapter | null;
   userId: string | null;
 }
 
@@ -39,6 +39,16 @@ export function useLamplightEntitlement({
     let cancelled = false;
     (async () => {
       setIsLoading(true);
+      if (!adapter) {
+        // No adapter wired (logged-out / adapter-not-wired reads are a first-class
+        // case) — fail closed without touching the adapter. Mirrors the catch
+        // branch's end state below, minus the throw and the console.error.
+        if (cancelled || !mountedRef.current) return;
+        setPromoActive(false);
+        setTier('none');
+        setIsLoading(false);
+        return;
+      }
       try {
         const [promo, ent] = await Promise.all([
           adapter.getPromoConfig(),

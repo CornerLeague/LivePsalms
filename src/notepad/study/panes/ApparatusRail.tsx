@@ -2,7 +2,9 @@
 import { useApparatus, type CrossRefView } from '../useApparatus';
 import { bookByAbbrev } from '@/notepad/bible/bible-books';
 import { OriginalLanguagePanel } from '../lexicon/OriginalLanguagePanel';
+import { EtymologyPanel } from '../lexicon/EtymologyPanel';
 import { RegionMapBlock } from '../regionmap/RegionMapBlock';
+import type { LamplightAdapter } from '@/notepad/storage/lamplight-adapter';
 
 function refLabel(x: CrossRefView): string {
   const name = bookByAbbrev(x.to_book)?.name ?? x.to_book;
@@ -14,9 +16,11 @@ export interface ApparatusRailProps {
   book: string;
   chapter: number;
   selectedVerse?: number | null;
+  userId?: string | null;
+  adapter?: LamplightAdapter | null;
 }
 
-export function ApparatusRail({ book, chapter, selectedVerse = null }: ApparatusRailProps) {
+export function ApparatusRail({ book, chapter, selectedVerse = null, userId = null, adapter = null }: ApparatusRailProps) {
   const { book: ctx, crossRefs, loading, error } = useApparatus(book, chapter);
 
   const bookName = bookByAbbrev(book)?.name ?? book;
@@ -26,6 +30,7 @@ export function ApparatusRail({ book, chapter, selectedVerse = null }: Apparatus
   return (
     <div style={{ padding: 16, fontFamily: 'Outfit, sans-serif' }}>
       <OriginalLanguagePanel verseId={verseId} reference={reference} />
+      <EtymologyPanel verseId={verseId} reference={reference} userId={userId} adapter={adapter} />
 
       {loading && <div style={{ color: 'var(--silica)' }}>Loading study context…</div>}
       {error && (

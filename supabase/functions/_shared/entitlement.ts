@@ -16,3 +16,11 @@ export function hasReflectionAccess(args: { tier: LamplightTier; promoActive: bo
   if (args.promoActive) return true;
   return args.tier === 'plus';
 }
+
+// Inline verse insights (Etymology Study) are a Plus feature; an active promo
+// opens them to all, exactly like hasChatAccess/hasReflectionAccess. Mirrors the
+// client's useLamplightEntitlement 'inline' branch so server and UI agree.
+export function hasInlineInsightAccess(args: { tier: LamplightTier; promoActive: boolean }): boolean {
+  if (args.promoActive) return true;
+  return args.tier === 'plus';
+}

@@ -6,7 +6,7 @@ const env = (map: Record<string, string>) => ({ get: (k: string) => map[k] });
 describe('resolveQuotaLimits', () => {
   it('returns the default config when no env overrides are set', () => {
     const cfg = resolveQuotaLimits(env({}));
-    expect(cfg.generation.kinds).toEqual(['smoke_test', 'daily_devotion', 'connection_card_why', 'bible_chat']);
+    expect(cfg.generation.kinds).toEqual(['smoke_test', 'daily_devotion', 'connection_card_why', 'bible_chat', 'etymology_insight']);
     expect(cfg.generation.perUser).toEqual({ none: 10, lite: 50, plus: 200 });
     expect(cfg.transcription.kinds).toEqual(['note_transcription']);
     expect(cfg.transcription.perUser).toEqual({ none: 5, lite: 20, plus: 50 });

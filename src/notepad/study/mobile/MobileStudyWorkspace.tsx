@@ -1,5 +1,5 @@
 // src/notepad/study/mobile/MobileStudyWorkspace.tsx
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
@@ -13,12 +13,18 @@ import { MobileStudyEditorView } from './MobileStudyEditorView';
 import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 import type { MobileStudyTab } from './types';
 import { loadEnum, saveEnum, KEY_MOBILE_STUDY_TAB } from '@/notepad/session/session-storage';
+import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-adapter';
+import { supabase } from '@/lib/supabase';
 import '../study-theme.css';
 
 export function MobileStudyWorkspace() {
   const navigate = useNavigate();
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
+  const lamplightAdapter = useMemo(
+    () => (supabase ? new SupabaseLamplightAdapter(supabase) : null),
+    [],
+  );
   const { activeNote, collection } = useNoteCollection();
   useEnsureStudyFolder();
 
@@ -86,7 +92,7 @@ export function MobileStudyWorkspace() {
               <StudySidePanel book={passage.book} chapter={passage.chapter} userId={userId} />
             </div>
             <div style={{ height: '100%', display: tab === 'context' ? 'block' : 'none', overflow: 'auto' }}>
-              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} />
+              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
             </div>
           </>
         )}
