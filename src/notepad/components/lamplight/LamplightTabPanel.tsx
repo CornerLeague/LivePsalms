@@ -80,25 +80,6 @@ export function LamplightTabPanel({ lamplightAdapter, autoGenerate = true }: Lam
   const firstName = sanitizeFirstName(firstNameOf(user));
   return (
     <div>
-      {/* No .wm-label class here (final-review rider): that class's custom properties
-          (--wm-silica, --wm-sans) are scoped to .wm-root and only load with the lazy
-          waymarks route chunk — outside it, .wm-label falls back to unstyled text.
-          The literal styles below reproduce its typographic rule set locally. */}
-      <Link
-        to={pathToReflections}
-        style={{
-          display: 'inline-block',
-          marginBottom: '0.75rem',
-          color: '#C49A78',
-          textDecoration: 'none',
-          textTransform: 'uppercase',
-          letterSpacing: '0.14em',
-          fontSize: '0.72rem',
-          fontFamily: 'Outfit, sans-serif',
-        }}
-      >
-        Your path of months is here →
-      </Link>
       <TodaysLampCard
         adapter={lamplightAdapter}
         userId={user.id}
@@ -106,6 +87,25 @@ export function LamplightTabPanel({ lamplightAdapter, autoGenerate = true }: Lam
         firstName={firstName}
         autoGenerate={autoGenerate}
       />
+      {/* Panel-level navigation to the full reflections timeline — persistent
+          across every TodaysLampCard phase (idle, generating, ready, error). */}
+      <div
+        className="flex justify-center pb-6"
+        style={{ background: 'var(--alabaster)' }}
+      >
+        <Link
+          to={pathToReflections}
+          className="px-5 py-2.5 rounded-full text-sm cursor-pointer"
+          style={{
+            border: '1px solid var(--pale-stone)',
+            color: 'var(--deep-umber)',
+            fontFamily: 'Outfit, sans-serif',
+            textDecoration: 'none',
+          }}
+        >
+          Your Reflections
+        </Link>
+      </div>
     </div>
   );
 }

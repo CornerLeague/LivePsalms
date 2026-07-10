@@ -9,7 +9,7 @@ export function WaymarksLockedPreview() {
   return (
     <div className="wm-root">
       <div className="wm-locked">
-        <p className="wm-label">The Path</p>
+        <p className="wm-label">Waymarks</p>
         <h1 className="wm-title wm-locked__title">A path made of the months you’ve kept</h1>
         <p className="wm-locked__body wm-caption">
           Each month you write, Lamplight sets down a stone — a quiet letter about where you walked

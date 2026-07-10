@@ -90,15 +90,14 @@ describe('LamplightTabPanel', () => {
     await waitFor(() => {
       expect(screen.getByText(/A quiet test greeting/)).toBeInTheDocument();
     });
-    // Final-review fix (Critical 2): the invitation link targets the vanity mount, not
-    // the legacy /notebook/reflections path that used to strand every signed-in reader.
-    expect(screen.getByRole('link', { name: /your path of months is here/i }))
-      .toHaveAttribute('href', '/notebook/u/reader1/reflections');
   });
 
-  it('falls back to the legacy /notebook/reflections link while the username has not loaded yet', async () => {
+  // The "Your Reflections" CTA is a panel-level navigation affordance rendered by
+  // LamplightTabPanel below <TodaysLampCard>, so it stays reachable in every card
+  // phase — including after today's lamp has generated (the ready phase), which is
+  // where the earlier idle-only placement used to hide it.
+  it('keeps the "Your Reflections" link visible after today\'s lamp is generated', async () => {
     useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
-    useAccountProfileMock.mockReturnValue({ profile: null });
     await adapter.upsertSettings('user-1', {
       enabled: true,
       consentDecidedAt: new Date().toISOString(),
@@ -112,10 +111,41 @@ describe('LamplightTabPanel', () => {
       note_citations: [{ note_id: 'n1', reason: 'test recurrence' }],
     });
     renderPanel(adapter);
-    await waitFor(() => {
-      expect(screen.getByRole('link', { name: /your path of months is here/i }))
-        .toHaveAttribute('href', '/notebook/reflections');
+    // The devotion renders (ready phase) and the reflections CTA remains reachable.
+    expect(await screen.findByText(/A quiet test greeting/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Your Reflections' }))
+      .toHaveAttribute('href', '/notebook/u/reader1/reflections');
+  });
+
+  it('shows the "Your Reflections" link in the idle phase as well', async () => {
+    useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
+    await adapter.upsertSettings('user-1', {
+      enabled: true,
+      consentDecidedAt: new Date().toISOString(),
     });
+    render(
+      <MemoryRouter>
+        <LamplightTabPanel lamplightAdapter={adapter} autoGenerate={false} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('link', { name: 'Your Reflections' }))
+      .toHaveAttribute('href', '/notebook/u/reader1/reflections');
+  });
+
+  it('falls back to the legacy /notebook/reflections href while the username has not loaded yet', async () => {
+    useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
+    useAccountProfileMock.mockReturnValue({ profile: null });
+    await adapter.upsertSettings('user-1', {
+      enabled: true,
+      consentDecidedAt: new Date().toISOString(),
+    });
+    render(
+      <MemoryRouter>
+        <LamplightTabPanel lamplightAdapter={adapter} autoGenerate={false} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('link', { name: 'Your Reflections' }))
+      .toHaveAttribute('href', '/notebook/reflections');
   });
 
   it('shows PaywallCard for opted-in users when promo is off and tier=none', async () => {

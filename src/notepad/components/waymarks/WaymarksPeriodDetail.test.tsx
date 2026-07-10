@@ -110,7 +110,7 @@ describe('WaymarksPeriodDetail (the opened stone)', () => {
     a.__queueReflectionResult({ ok: false, reason: 'no_notes' }); // → controller phase 'empty'
     renderDetail(a);
     await waitFor(() => expect(screen.getByText('Nothing was written here.')).toBeInTheDocument());
-    expect(screen.getByRole('link', { name: '← The Path' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '← Waymarks' })).toBeInTheDocument();
   });
 
   it('degrades to the empty-month copy (no crash) when the stored artifact has no letter', async () => {
