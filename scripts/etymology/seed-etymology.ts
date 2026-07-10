@@ -137,33 +137,53 @@ function buildDevelopmentUser(rec: GroundingRecord): string {
   );
 }
 
+// Anthropic transient statuses worth retrying: 429 rate-limit, 529 overloaded.
+// A full corpus run makes hundreds of back-to-back calls; without backoff a burst
+// of 429s would drop a large fraction of rows into `skipped` instead of seeding them.
+const RETRYABLE_STATUS = new Set([429, 529]);
+const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+export interface NarrateOptions {
+  maxRetries?: number;
+  sleepImpl?: (ms: number) => Promise<void>;
+}
+
 export async function narrateDevelopment(
   rec: GroundingRecord,
   apiKey: string,
   fetchImpl: typeof fetch = fetch,
+  opts: NarrateOptions = {},
 ): Promise<string> {
-  const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 400,
-      system: DEVELOPMENT_SYSTEM,
-      tools: [DEVELOPMENT_TOOL],
-      tool_choice: { type: 'tool', name: 'emit_development' },
-      messages: [{ role: 'user', content: buildDevelopmentUser(rec) }],
-    }),
-  });
-  if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
-  const json = (await res.json()) as { content?: Array<{ type: string; input?: { body?: string } }> };
-  const tool = json.content?.find((b) => b.type === 'tool_use');
-  const body = tool?.input?.body;
-  if (!body) throw new Error('no emit_development tool_use in response');
-  return body.trim();
+  const maxRetries = opts.maxRetries ?? 5;
+  const sleepImpl = opts.sleepImpl ?? defaultSleep;
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 400,
+        system: DEVELOPMENT_SYSTEM,
+        tools: [DEVELOPMENT_TOOL],
+        tool_choice: { type: 'tool', name: 'emit_development' },
+        messages: [{ role: 'user', content: buildDevelopmentUser(rec) }],
+      }),
+    });
+    if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
+      await sleepImpl(Math.min(500 * 2 ** attempt, 8000)); // 0.5s,1s,2s,4s,8s
+      continue;
+    }
+    if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
+    const json = (await res.json()) as { content?: Array<{ type: string; input?: { body?: string } }> };
+    const tool = json.content?.find((b) => b.type === 'tool_use');
+    const body = tool?.input?.body;
+    if (!body) throw new Error('no emit_development tool_use in response');
+    return body.trim();
+  }
 }
 
 // ── enumeration ──
@@ -194,11 +214,24 @@ function requireEnv(name: string): string {
   return v;
 }
 
+// Parse --limit=N. A malformed value (--limit=abc, --limit=, --limit=0, --limit=-3,
+// --limit=2.5) throws rather than silently seeding the whole corpus — an unbounded
+// run spends Anthropic tokens an operator meant to cap.
+export function parseLimit(argv: string[]): number {
+  const limitArg = argv.find((a) => a.startsWith('--limit='));
+  if (!limitArg) return Infinity;
+  const raw = limitArg.split('=')[1];
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`--limit must be a positive integer, got: ${JSON.stringify(raw)}`);
+  }
+  return n;
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const dryRun = argv.includes('--dry-run');
-  const limitArg = argv.find((a) => a.startsWith('--limit='));
-  const limit = limitArg ? Number(limitArg.split('=')[1]) : Infinity;
+  const limit = parseLimit(argv);
 
   const supabase = createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_SERVICE_ROLE_KEY'), {
     auth: { persistSession: false },
@@ -258,17 +291,22 @@ async function main(): Promise<void> {
     };
     if (dryRun) {
       console.log(JSON.stringify({ strongs, lemma: row.lemma, root: row.root, study_value: count, development }, null, 2));
+      written++;
     } else {
-      const { error } = await supabase
+      // ignoreDuplicates → ON CONFLICT DO NOTHING; .select() returns only the rows
+      // actually inserted, so `written` counts new rows (0 on a full re-run) instead
+      // of every attempted upsert.
+      const { data, error } = await supabase
         .from('bible_etymology')
-        .upsert(row, { onConflict: 'strongs', ignoreDuplicates: true });
+        .upsert(row, { onConflict: 'strongs', ignoreDuplicates: true })
+        .select('strongs');
       if (error) {
         console.error(`upsert ${strongs} failed: ${error.message}`);
         skipped++;
         continue;
       }
+      written += data?.length ?? 0;
     }
-    written++;
   }
   console.log(`Done. ${dryRun ? 'would-write' : 'wrote'}=${written}, skipped=${skipped}, flagged=${flagged}`);
 }

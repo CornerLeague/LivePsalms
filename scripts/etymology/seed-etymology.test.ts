@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { stripNiqqud, extractRootStrongs, buildLexicon, type OsHebrewEntry } from './seed-etymology';
+import {
+  stripNiqqud,
+  extractRootStrongs,
+  buildLexicon,
+  parseLimit,
+  narrateDevelopment,
+  type OsHebrewEntry,
+} from './seed-etymology';
 import { buildGroundingRecord } from './etymology-grounding';
 
 describe('stripNiqqud', () => {
@@ -55,5 +62,71 @@ describe('buildLexicon', () => {
   it('produces entries consumable by buildGroundingRecord', () => {
     const rec = buildGroundingRecord('H7462', buildLexicon(dict));
     expect(rec).toMatchObject({ strongs: 'H7462', root: 'רעה', source: "Strong's + BDB" });
+  });
+});
+
+describe('parseLimit', () => {
+  it('defaults to Infinity when no --limit flag is present', () => {
+    expect(parseLimit(['--dry-run'])).toBe(Infinity);
+  });
+  it('parses a positive integer limit', () => {
+    expect(parseLimit(['--dry-run', '--limit=5'])).toBe(5);
+  });
+  it('throws on a non-numeric value instead of silently seeding everything', () => {
+    expect(() => parseLimit(['--limit=abc'])).toThrow(/--limit/);
+  });
+  it('throws on an empty value', () => {
+    expect(() => parseLimit(['--limit='])).toThrow(/--limit/);
+  });
+  it('throws on zero or a negative value', () => {
+    expect(() => parseLimit(['--limit=0'])).toThrow(/--limit/);
+    expect(() => parseLimit(['--limit=-3'])).toThrow(/--limit/);
+  });
+  it('throws on a non-integer value', () => {
+    expect(() => parseLimit(['--limit=2.5'])).toThrow(/--limit/);
+  });
+});
+
+describe('narrateDevelopment (retry on 429)', () => {
+  const dict: Record<string, OsHebrewEntry> = {
+    H7462: { lemma: 'רָעָה', derivation: 'a primitive root', strongs_def: 'to tend, graze', kjv_def: 'feed' },
+  };
+  const toolResponse = {
+    ok: true,
+    status: 200,
+    json: async () => ({ content: [{ type: 'tool_use', input: { body: 'Formed from the root, meaning to tend.' } }] }),
+    text: async () => '',
+  } as unknown as Response;
+
+  it('retries after a 429 (rate limit) and returns the narration', async () => {
+    let calls = 0;
+    const sleeps: number[] = [];
+    const fetchImpl = (async () => {
+      calls++;
+      if (calls === 1) {
+        return { ok: false, status: 429, text: async () => 'rate limited', json: async () => ({}) } as unknown as Response;
+      }
+      return toolResponse;
+    }) as unknown as typeof fetch;
+
+    const rec = buildGroundingRecord('H7462', buildLexicon(dict));
+    const body = await narrateDevelopment(rec, 'key', fetchImpl, {
+      sleepImpl: async (ms: number) => {
+        sleeps.push(ms);
+      },
+    });
+
+    expect(body).toBe('Formed from the root, meaning to tend.');
+    expect(calls).toBe(2);
+    expect(sleeps).toHaveLength(1);
+  });
+
+  it('throws on a non-retryable error status', async () => {
+    const fetchImpl = (async () =>
+      ({ ok: false, status: 400, text: async () => 'bad request', json: async () => ({}) }) as unknown as Response) as unknown as typeof fetch;
+    const rec = buildGroundingRecord('H7462', buildLexicon(dict));
+    await expect(
+      narrateDevelopment(rec, 'key', fetchImpl, { sleepImpl: async () => {} }),
+    ).rejects.toThrow(/anthropic 400/);
   });
 });
