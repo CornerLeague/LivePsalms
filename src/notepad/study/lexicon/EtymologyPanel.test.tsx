@@ -34,11 +34,24 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 const props = { verseId: 'psa.23.1', reference: 'Psalm 23:1', userId: 'u1', adapter: null };
 
 describe('EtymologyPanel', () => {
-  it('renders null when no lexical card exists (out-of-scope verse)', () => {
+  it('renders the header + empty-state when no lexical card exists (out-of-scope verse)', () => {
     useVerseLexicon.mockReturnValue({ words: [words[1]], language: 'hebrew', loading: false, error: null });
     useReviewedEtymologyEntries.mockReturnValue({ entries: new Map(), loading: false, error: null });
-    const { container } = render(<EtymologyPanel {...props} />);
-    expect(container).toBeEmptyDOMElement();
+    render(<EtymologyPanel {...props} />);
+    const header = screen.getByRole('button', { name: /etymology/i });
+    expect(header).toBeInTheDocument();
+    fireEvent.click(header);
+    expect(screen.getByText('No etymology available for this verse.')).toBeInTheDocument();
+    expect(screen.queryByText(/traditional, often speculative/i)).not.toBeInTheDocument();
+  });
+
+  it('renders the header + prompt when no verse is selected', () => {
+    render(<EtymologyPanel {...props} verseId={null} />);
+    const header = screen.getByRole('button', { name: /etymology/i });
+    expect(header).toBeInTheDocument();
+    fireEvent.click(header);
+    expect(screen.getByText('Tap a verse in the reader to see its etymology.')).toBeInTheDocument();
+    expect(screen.queryByText(/traditional, often speculative/i)).not.toBeInTheDocument();
   });
 
   it('is collapsed by default (spec §5)', () => {
