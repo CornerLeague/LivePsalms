@@ -14,6 +14,8 @@ import type { LamplightAdapter } from '../../storage/lamplight-adapter';
 
 const label: React.CSSProperties = { fontSize: 12, letterSpacing: '0.12em', color: 'var(--silica)' };
 const verified: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--verified-teal, #2C7A6B)' };
+const muted: React.CSSProperties = { fontSize: 12, color: 'var(--silica)', margin: 0 };
+const disclaimer: React.CSSProperties = { fontSize: 11, color: 'var(--silica)', lineHeight: 1.5, margin: '0 0 10px' };
 
 export interface EtymologyPanelProps {
   verseId: string | null;
@@ -50,12 +52,14 @@ export function EtymologyPanel({ verseId, reference, userId, adapter }: Etymolog
   }
 
   const hasLexical = cards.some((c) => c.kind === 'lexical');
-  if (verseId == null) return null;
-  if (!loading && !hasLexical) return null; // panel-activation gate (spec §7)
 
-  const goNext = () => setCurrentIndex((i) => Math.min(i + 1, cards.length - 1)); // RTL: leftward
+  // Clamp to a valid index. The section's onKeyDown/goNext is reachable in empty states now that the
+  // panel always renders; on an empty deck `cards.length - 1` is -1, so guard the floor at 0 and clamp
+  // the read — otherwise a mistimed ArrowLeft during a verse's load window makes `current` cards[-1]
+  // (undefined) and crashes the card render once entries arrive.
+  const goNext = () => setCurrentIndex((i) => Math.min(i + 1, Math.max(cards.length - 1, 0))); // RTL: leftward
   const goPrev = () => setCurrentIndex((i) => Math.max(i - 1, 0));
-  const current = cards[currentIndex];
+  const current = cards[Math.min(Math.max(currentIndex, 0), Math.max(cards.length - 1, 0))];
 
   return (
     <section
@@ -74,10 +78,22 @@ export function EtymologyPanel({ verseId, reference, userId, adapter }: Etymolog
 
       {open && (
         <div style={{ marginTop: 10 }}>
-          {loading && <div data-testid="etymology-skeleton" style={{ height: 120, background: 'var(--cream, #F4F1EA)', borderRadius: 8 }} />}
+          {verseId == null && (
+            <p style={{ ...muted, fontStyle: 'italic' }}>Tap a verse in the reader to see its etymology.</p>
+          )}
 
-          {!loading && current && (
+          {verseId != null && loading && (
+            <div data-testid="etymology-skeleton" style={{ height: 120, background: 'var(--cream, #F4F1EA)', borderRadius: 8 }} />
+          )}
+
+          {verseId != null && !loading && !hasLexical && (
+            <p style={muted}>No etymology available for this verse.</p>
+          )}
+
+          {verseId != null && !loading && hasLexical && (
             <>
+              <p style={disclaimer}>All etymological notes here reflect traditional, often speculative lexicon explanations and do not claim to represent settled historical-linguistic conclusions.</p>
+
               {current.kind === 'lexical'
                 ? <LexicalCard card={current} verseId={verseId} userId={userId} adapter={adapter} />
                 : <FunctionCard card={current} />}
