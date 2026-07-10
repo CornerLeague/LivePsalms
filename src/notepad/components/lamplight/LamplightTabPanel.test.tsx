@@ -92,10 +92,32 @@ describe('LamplightTabPanel', () => {
     });
   });
 
-  // The "Your Reflections" secondary CTA now lives under the primary button in the idle
-  // intro (TodaysLampIntro), so these href-derivation checks render the card in its idle
-  // phase (autoGenerate=false, nothing cached) rather than seeding today's devotion.
-  it('threads the vanity-aware reflections href into the idle CTA', async () => {
+  // The "Your Reflections" CTA is a panel-level navigation affordance rendered by
+  // LamplightTabPanel below <TodaysLampCard>, so it stays reachable in every card
+  // phase — including after today's lamp has generated (the ready phase), which is
+  // where the earlier idle-only placement used to hide it.
+  it('keeps the "Your Reflections" link visible after today\'s lamp is generated', async () => {
+    useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
+    await adapter.upsertSettings('user-1', {
+      enabled: true,
+      consentDecidedAt: new Date().toISOString(),
+    });
+    const today = new Date().toLocaleDateString('en-CA');
+    adapter.__seedDailyDevotion('user-1', today, {
+      opening: 'A quiet test greeting.',
+      scripture: { ref: 'Psalm 23:4', text: 'Even though I walk through the valley…' },
+      reflection: 'Test reflection.',
+      prompt: 'Test prompt.',
+      note_citations: [{ note_id: 'n1', reason: 'test recurrence' }],
+    });
+    renderPanel(adapter);
+    // The devotion renders (ready phase) and the reflections CTA remains reachable.
+    expect(await screen.findByText(/A quiet test greeting/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Your Reflections' }))
+      .toHaveAttribute('href', '/notebook/u/reader1/reflections');
+  });
+
+  it('shows the "Your Reflections" link in the idle phase as well', async () => {
     useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
     await adapter.upsertSettings('user-1', {
       enabled: true,

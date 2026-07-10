@@ -1,13 +1,11 @@
-import { Link } from 'react-router-dom';
 import { todaysLampIntro } from '../../lamplight/lamplight-copy';
 
 export interface TodaysLampIntroProps {
   firstName: string | null;
   onStart: () => void;
-  reflectionsHref?: string;
 }
 
-export function TodaysLampIntro({ firstName, onStart, reflectionsHref }: TodaysLampIntroProps) {
+export function TodaysLampIntro({ firstName, onStart }: TodaysLampIntroProps) {
   return (
     <div
       className="flex flex-col items-center justify-center min-h-[420px] px-6 text-center"
@@ -38,20 +36,6 @@ export function TodaysLampIntro({ firstName, onStart, reflectionsHref }: TodaysL
       >
         Show Me Today's Lamp
       </button>
-      {reflectionsHref && (
-        <Link
-          to={reflectionsHref}
-          className="mt-3 px-5 py-2.5 rounded-full text-sm cursor-pointer"
-          style={{
-            border: '1px solid var(--pale-stone)',
-            color: 'var(--deep-umber)',
-            fontFamily: 'Outfit, sans-serif',
-            textDecoration: 'none',
-          }}
-        >
-          Your Reflections
-        </Link>
-      )}
     </div>
   );
 }
