@@ -53,9 +53,13 @@ export function EtymologyPanel({ verseId, reference, userId, adapter }: Etymolog
 
   const hasLexical = cards.some((c) => c.kind === 'lexical');
 
-  const goNext = () => setCurrentIndex((i) => Math.min(i + 1, cards.length - 1)); // RTL: leftward
+  // Clamp to a valid index. The section's onKeyDown/goNext is reachable in empty states now that the
+  // panel always renders; on an empty deck `cards.length - 1` is -1, so guard the floor at 0 and clamp
+  // the read — otherwise a mistimed ArrowLeft during a verse's load window makes `current` cards[-1]
+  // (undefined) and crashes the card render once entries arrive.
+  const goNext = () => setCurrentIndex((i) => Math.min(i + 1, Math.max(cards.length - 1, 0))); // RTL: leftward
   const goPrev = () => setCurrentIndex((i) => Math.max(i - 1, 0));
-  const current = cards[currentIndex];
+  const current = cards[Math.min(Math.max(currentIndex, 0), Math.max(cards.length - 1, 0))];
 
   return (
     <section

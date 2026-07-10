@@ -119,4 +119,29 @@ describe('EtymologyPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
     expect(screen.getByText(/swipe/i)).toBeInTheDocument();
   });
+
+  // Regression: arrow-keying while the deck is momentarily empty (verse selected, words/entries
+  // still loading in) must not drive currentIndex negative and crash the card render once entries
+  // arrive. The section's onKeyDown is reachable in every state now that the panel always renders.
+  it('survives ArrowLeft on an empty deck, then renders the card when entries load', () => {
+    // Phase 1: verse selected but deck empty → "No etymology available" state.
+    useVerseLexicon.mockReturnValue({ words: [], language: 'hebrew', loading: false, error: null });
+    useReviewedEtymologyEntries.mockReturnValue({ entries: new Map(), loading: false, error: null });
+    const { rerender } = render(<EtymologyPanel {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
+    expect(screen.getByText('No etymology available for this verse.')).toBeInTheDocument();
+
+    // ArrowLeft (→ goNext) on the section while cards is empty — the pre-fix crash driver.
+    const section = screen.getByRole('button', { name: /etymology/i }).closest('section') as HTMLElement;
+    fireEvent.keyDown(section, { key: 'ArrowLeft' });
+
+    // Phase 2: this verse's word + entry arrive; first card is a starred lexical, so firstStarredIndex
+    // stays 0 and resetKey is unchanged (the reset never fires). Must render the card, not read cards[-1].
+    useVerseLexicon.mockReturnValue({ words: [words[0]], language: 'hebrew', loading: false, error: null });
+    useReviewedEtymologyEntries.mockReturnValue({ entries: new Map([['H7462', shepherdEntry]]), loading: false, error: null });
+    rerender(<EtymologyPanel {...props} />);
+
+    expect(screen.getByText(/to tend, graze/)).toBeInTheDocument();
+    expect(screen.getByText(/word 1 of 1/i)).toBeInTheDocument();
+  });
 });
