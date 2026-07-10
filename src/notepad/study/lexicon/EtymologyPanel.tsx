@@ -15,6 +15,7 @@ import type { LamplightAdapter } from '../../storage/lamplight-adapter';
 const label: React.CSSProperties = { fontSize: 12, letterSpacing: '0.12em', color: 'var(--silica)' };
 const verified: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--verified-teal, #2C7A6B)' };
 const muted: React.CSSProperties = { fontSize: 12, color: 'var(--silica)', margin: 0 };
+const disclaimer: React.CSSProperties = { fontSize: 11, color: 'var(--silica)', lineHeight: 1.5, margin: '0 0 10px' };
 
 export interface EtymologyPanelProps {
   verseId: string | null;
@@ -87,6 +88,8 @@ export function EtymologyPanel({ verseId, reference, userId, adapter }: Etymolog
 
           {verseId != null && !loading && hasLexical && (
             <>
+              <p style={disclaimer}>All etymological notes here reflect traditional, often speculative lexicon explanations and do not claim to represent settled historical-linguistic conclusions.</p>
+
               {current.kind === 'lexical'
                 ? <LexicalCard card={current} verseId={verseId} userId={userId} adapter={adapter} />
                 : <FunctionCard card={current} />}

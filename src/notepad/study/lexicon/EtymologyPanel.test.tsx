@@ -67,6 +67,18 @@ describe('EtymologyPanel', () => {
     expect(screen.getByTestId('etymology-skeleton')).toBeInTheDocument();
   });
 
+  it('shows the disclaimer verbatim, above the first card, when etymology exists', () => {
+    render(<EtymologyPanel {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
+    const disclaimer = screen.getByText(
+      'All etymological notes here reflect traditional, often speculative lexicon explanations and do not claim to represent settled historical-linguistic conclusions.',
+    );
+    expect(disclaimer).toBeInTheDocument();
+    // DOM order: the card (its root gloss) must follow the disclaimer.
+    const card = screen.getByText(/to tend, graze/);
+    expect(disclaimer.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('renders the lexical card: root, the narrated development, and an Ask button', () => {
     render(<EtymologyPanel {...props} />);
     fireEvent.click(screen.getByRole('button', { name: /etymology/i }));
