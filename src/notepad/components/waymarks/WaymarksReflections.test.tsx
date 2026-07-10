@@ -20,8 +20,8 @@ const renderPath = (a: FakeLamplightAdapter, canAccess = true) =>
     </MemoryRouter>,
   );
 
-describe('WaymarksReflections (The Path)', () => {
-  it('renders visible stones newest-first with plain year dividers', async () => {
+describe('WaymarksReflections (Waymarks)', () => {
+  it('renders visible stones oldest-first with plain year dividers', async () => {
     const a = new FakeLamplightAdapter();
     seed(a, 'u', '2025-11'); seed(a, 'u', '2026-01'); seed(a, 'u', '2026-05');
     renderPath(a);
@@ -30,8 +30,8 @@ describe('WaymarksReflections (The Path)', () => {
     expect(screen.getByText('2025')).toBeInTheDocument();
     const may = screen.getByText('May 2026');
     const jan = screen.getByText('January 2026');
-    // newest-first: May 2026 appears before January 2026 in document order
-    expect(may.compareDocumentPosition(jan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // oldest-first: January 2026 appears before May 2026 in document order
+    expect(jan.compareDocumentPosition(may) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('omits hidden stones from the walk but reveals them under "Hidden stones"', async () => {

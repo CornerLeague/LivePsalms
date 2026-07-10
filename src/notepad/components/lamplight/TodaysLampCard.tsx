@@ -12,15 +12,16 @@ export interface TodaysLampCardProps {
   localDate: string;
   firstName: string | null;
   autoGenerate?: boolean;
+  reflectionsHref?: string;
 }
 
 export function TodaysLampCard({
-  adapter, userId, localDate, firstName, autoGenerate = true,
+  adapter, userId, localDate, firstName, autoGenerate = true, reflectionsHref,
 }: TodaysLampCardProps) {
   const { state, start, retry } = useTodaysLamp({ adapter, userId, localDate, autoGenerate });
   const prefersReducedMotion = usePrefersReducedMotion();
 
-  if (state.phase === 'idle')        return <TodaysLampIntro firstName={firstName} onStart={start} />;
+  if (state.phase === 'idle')        return <TodaysLampIntro firstName={firstName} onStart={start} reflectionsHref={reflectionsHref} />;
   if (state.phase === 'retrieving') return <TodaysLampLoading stage={state.stage} firstName={firstName} />;
   if (state.phase === 'generating' || state.phase === 'refining') {
     return (

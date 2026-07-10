@@ -41,4 +41,23 @@ describe('WaymarksReflections newest-stone seal (decision 12)', () => {
     await waitFor(() => expect(screen.getByText('May 2026')).toBeInTheDocument());
     expect(container.querySelectorAll('.wm-stone__seal')).toHaveLength(0);
   });
+
+  it('keeps the seal on the newest stone even though it now renders last (ascending walk)', async () => {
+    const a = new FakeLamplightAdapter();
+    seed(a, '2026-04'); seed(a, '2026-05');
+    const { container } = render(
+      <MemoryRouter>
+        <WaymarksReflections adapter={a} userId="u" canAccess />
+      </MemoryRouter>,
+    );
+    // Scope to this render's own container: this file has no afterEach cleanup, so a global
+    // screen.getByText('May 2026') would collide with sibling tests' leftover DOM ("found multiple").
+    await waitFor(() => expect(container.querySelectorAll('svg.wm-stone')).toHaveLength(2));
+    // Stones render oldest → newest, so April precedes May in document order.
+    const labels = [...container.querySelectorAll('svg.wm-stone')].map((s) => s.getAttribute('aria-label'));
+    expect(labels).toEqual(['April 2026', 'May 2026']);
+    // The single seal belongs to the newest stone (May), not the first-rendered one.
+    const sealedLabel = container.querySelector('.wm-stone__seal')?.closest('svg.wm-stone')?.getAttribute('aria-label');
+    expect(sealedLabel).toBe('May 2026');
+  });
 });

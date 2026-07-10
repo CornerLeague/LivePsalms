@@ -92,9 +92,14 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
 
   const downgraded = !canAccess && visible.length > 0;
 
+  // Chronological ascending (May before June): lexicographic sort is chronological for
+  // YYYY-MM keys. The user asked for the order they walked the months — oldest → newest.
+  const walked = [...visible].sort((a, b) => a.periodKey.localeCompare(b.periodKey));
+  const newestKey = walked.length ? walked[walked.length - 1].periodKey : null;
+
   const rows: Row[] = [];
   let lastYear = '';
-  visible.forEach((item, index) => {
+  walked.forEach((item, index) => {
     const y = yearOf(item.periodKey);
     if (y !== lastYear) { rows.push({ type: 'year', year: y }); lastYear = y; }
     rows.push({ type: 'stone', item, index });
@@ -103,7 +108,7 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
   return (
     <div className="wm-root">
       <header>
-        <p className="wm-label">The Path</p>
+        <p className="wm-label">Waymarks</p>
         <h1 className="wm-title" style={{ fontSize: '2rem', margin: '0.25rem 0 0' }}>
           The months you've walked
         </h1>
@@ -117,7 +122,7 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
         )}
       </header>
 
-      <ol className="wm-path" aria-label="Your reflections, newest first">
+      <ol className="wm-path" aria-label="Your reflections, in the order you walked them">
         {rows.map((row) =>
           row.type === 'year' ? (
             <li key={`year-${row.year}`} className="wm-year" aria-hidden="true">{row.year}</li>
@@ -125,7 +130,7 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
             <li
               key={row.item.periodKey}
               className="wm-path__node"
-              style={{ marginLeft: `${((row.index % 5) - 2) * 16}px` }} // gentle meander
+              style={{ transform: `translateX(${((row.index % 5) - 2) * 16}px)` }} // gentle meander (layout-neutral)
             >
               <Link
                 to={row.item.periodKey}
@@ -136,7 +141,7 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
                   label={monthLabel(row.item.periodKey)}
                   rotation={rotationFor(row.item.periodKey)}
                   fillVar={STONE_FILLS[row.index % STONE_FILLS.length]}
-                  sealed={row.index === 0 && !hasBeenOpened(row.item.periodKey)}
+                  sealed={row.item.periodKey === newestKey && !hasBeenOpened(row.item.periodKey)}
                 />
                 <span className="wm-caption">{monthLabel(row.item.periodKey)}</span>
               </Link>

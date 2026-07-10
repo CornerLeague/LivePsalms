@@ -90,32 +90,40 @@ describe('LamplightTabPanel', () => {
     await waitFor(() => {
       expect(screen.getByText(/A quiet test greeting/)).toBeInTheDocument();
     });
-    // Final-review fix (Critical 2): the invitation link targets the vanity mount, not
-    // the legacy /notebook/reflections path that used to strand every signed-in reader.
-    expect(screen.getByRole('link', { name: /your path of months is here/i }))
+  });
+
+  // The "Your Reflections" secondary CTA now lives under the primary button in the idle
+  // intro (TodaysLampIntro), so these href-derivation checks render the card in its idle
+  // phase (autoGenerate=false, nothing cached) rather than seeding today's devotion.
+  it('threads the vanity-aware reflections href into the idle CTA', async () => {
+    useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
+    await adapter.upsertSettings('user-1', {
+      enabled: true,
+      consentDecidedAt: new Date().toISOString(),
+    });
+    render(
+      <MemoryRouter>
+        <LamplightTabPanel lamplightAdapter={adapter} autoGenerate={false} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('link', { name: 'Your Reflections' }))
       .toHaveAttribute('href', '/notebook/u/reader1/reflections');
   });
 
-  it('falls back to the legacy /notebook/reflections link while the username has not loaded yet', async () => {
+  it('falls back to the legacy /notebook/reflections href while the username has not loaded yet', async () => {
     useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
     useAccountProfileMock.mockReturnValue({ profile: null });
     await adapter.upsertSettings('user-1', {
       enabled: true,
       consentDecidedAt: new Date().toISOString(),
     });
-    const today = new Date().toLocaleDateString('en-CA');
-    adapter.__seedDailyDevotion('user-1', today, {
-      opening: 'A quiet test greeting.',
-      scripture: { ref: 'Psalm 23:4', text: 'Even though I walk through the valley…' },
-      reflection: 'Test reflection.',
-      prompt: 'Test prompt.',
-      note_citations: [{ note_id: 'n1', reason: 'test recurrence' }],
-    });
-    renderPanel(adapter);
-    await waitFor(() => {
-      expect(screen.getByRole('link', { name: /your path of months is here/i }))
-        .toHaveAttribute('href', '/notebook/reflections');
-    });
+    render(
+      <MemoryRouter>
+        <LamplightTabPanel lamplightAdapter={adapter} autoGenerate={false} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('link', { name: 'Your Reflections' }))
+      .toHaveAttribute('href', '/notebook/reflections');
   });
 
   it('shows PaywallCard for opted-in users when promo is off and tier=none', async () => {

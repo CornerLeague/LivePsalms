@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import { useAccountProfile } from '@/auth/context/useAccountProfile';
 import type { LamplightAdapter } from '../../storage/lamplight-adapter';
@@ -80,31 +79,13 @@ export function LamplightTabPanel({ lamplightAdapter, autoGenerate = true }: Lam
   const firstName = sanitizeFirstName(firstNameOf(user));
   return (
     <div>
-      {/* No .wm-label class here (final-review rider): that class's custom properties
-          (--wm-silica, --wm-sans) are scoped to .wm-root and only load with the lazy
-          waymarks route chunk — outside it, .wm-label falls back to unstyled text.
-          The literal styles below reproduce its typographic rule set locally. */}
-      <Link
-        to={pathToReflections}
-        style={{
-          display: 'inline-block',
-          marginBottom: '0.75rem',
-          color: '#C49A78',
-          textDecoration: 'none',
-          textTransform: 'uppercase',
-          letterSpacing: '0.14em',
-          fontSize: '0.72rem',
-          fontFamily: 'Outfit, sans-serif',
-        }}
-      >
-        Your path of months is here →
-      </Link>
       <TodaysLampCard
         adapter={lamplightAdapter}
         userId={user.id}
         localDate={localDate}
         firstName={firstName}
         autoGenerate={autoGenerate}
+        reflectionsHref={pathToReflections}
       />
     </div>
   );

@@ -15,12 +15,16 @@
   --wm-caption: Georgia, 'Times New Roman', serif;
 
   position: relative;
-  min-height: 100%;
+  /* Own scroll container: /notebook/u/* app-shell lock pins html/body overflow:hidden
+     (index.css .app-shell-locked), so this route must scroll itself. 100dvh is mobile-safe. */
+  height: 100dvh;
   padding: 2.5rem 1.25rem 4rem;
   background: var(--wm-plaster);
   color: var(--wm-umber);
   font-family: var(--wm-sans);
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 @media (prefers-color-scheme: dark) {
   .wm-root {
@@ -53,7 +57,7 @@
 
 .wm-path { list-style: none; margin: 2rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 1.75rem; }
 .wm-year { font-family: var(--wm-serif); font-style: italic; font-size: 1.25rem; color: var(--wm-silica); border-top: 1px solid var(--wm-hairline); padding-top: 1rem; }
-.wm-path__node { display: flex; }
+.wm-path__node { display: flex; justify-content: center; }
 .wm-stone-link { display: inline-flex; flex-direction: column; align-items: center; gap: 0.35rem; text-decoration: none; color: inherit; }
 .wm-stone { display: block; }
 .wm-stone__seal { opacity: 0.22; animation: wm-seal-pulse 6s ease-in-out infinite; }

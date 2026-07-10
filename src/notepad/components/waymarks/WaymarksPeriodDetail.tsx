@@ -117,7 +117,7 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
   };
 
   const back = (
-    <Link to=".." className="wm-back wm-label">← The Path</Link>
+    <Link to=".." className="wm-back wm-label">← Waymarks</Link>
   );
 
   // Non-ready phases (§13.6 copy). retrieving/generating/refining stream a quiet caption.
