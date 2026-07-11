@@ -81,6 +81,8 @@
     --mid-section-scrim-opacity: 1; /* Tunable knob for mid-section legibility scrim (0 = no scrim) */
     --pale-stone: #CECCCA;
     --warm-sand: #BCB3A3;
+    --reflections-cta-bg: #9A7B5A;   /* Your Reflections CTA — warm brown on light */
+    --reflections-cta-fg: #FAF7F3;   /* cream text */
     /* Floating mobile bottom dock — height (h-11 = 44px) + outer pb minimum
        + iOS home-indicator safe-area + 1rem breathing buffer. Drives the
        mobile-only padding-bottom on the App wrapper so content never sits
@@ -172,6 +174,8 @@
     --silica: #8d8478;                /* muted text/icons */
     --pale-stone: rgba(255, 255, 255, 0.10); /* hairlines */
     --warm-sand: #c4b5a0;             /* active/hover, blockquote rule */
+    --reflections-cta-bg: #C4B5A0;   /* Your Reflections CTA — tan on dark */
+    --reflections-cta-fg: #2A2620;   /* near-black text */
     --alabaster: #14120f;             /* lamplight empty bg */
     --cream: #0e0e0e;                 /* Study desk bg (var(--cream,#F4F1EA) fallback) */
     --lamplight-accent: #c4b5a0;      /* scripture gold (study overrides to indigo) */

@@ -1,11 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Check, Bookmark, EyeOff } from 'lucide-react';
 import './waymarks.css';
-import { Stone } from './Stone';
 import { ReflectionLetter } from './ReflectionLetter';
 import { MarkerPath } from './MarkerPath';
 import { useReflections } from '../../hooks/useReflections';
-import { usePrefersReducedMotion } from '../../../hooks/use-prefers-reduced-motion'; // seam (item 10) — real path, not the brief's stale one
 import type { LamplightAdapter, ReflectionRecord } from '../../storage/lamplight-adapter';
 
 export interface WaymarksPeriodDetailProps {
@@ -23,35 +22,16 @@ export interface WaymarksPeriodDetailProps {
   onSaveToNotes?: (record: ReflectionRecord) => void | Promise<void>;
 }
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-function monthLabel(periodKey: string): string {
-  const [y, m] = periodKey.split('-');
-  return `${MONTHS[Number(m) - 1] ?? ''} ${y}`;
-}
-function rotationFor(periodKey: string): number {
-  let h = 0;
-  for (const ch of periodKey) h = (h * 31 + ch.charCodeAt(0)) % 1000;
-  return (h % 11) - 5;
-}
-
-// "Opened" has no DB column (decision 4) — persist it in localStorage so the seal
-// ceremony plays exactly once per stone.
+// "Opened" has no DB column (decision 4) — persist it in localStorage so the newest-stone
+// shimmer cue on the list (WaymarksReflections) clears once the letter has been viewed.
 const openedKey = (periodKey: string) => `wm-opened:${periodKey}`;
-function hasBeenOpened(periodKey: string): boolean {
-  try { return localStorage.getItem(openedKey(periodKey)) === '1'; } catch { return false; }
-}
 function markOpened(periodKey: string): void {
-  try { localStorage.setItem(openedKey(periodKey), '1'); } catch { /* private mode — ceremony just replays */ }
+  try { localStorage.setItem(openedKey(periodKey), '1'); } catch { /* private mode — cue just persists */ }
 }
 
 export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes }: WaymarksPeriodDetailProps) {
   const { periodKey = '' } = useParams();
-  const reduce = usePrefersReducedMotion();
   const { state, retry } = useReflections({ adapter, userId, periodKey, autoGenerate: canAccess });
-  const [opened, setOpened] = useState(() => hasBeenOpened(periodKey));
   const [annotation, setAnnotation] = useState<string | null>(null);
 
   // Load the satellite annotation state (§17 aside) once we know the period.
@@ -82,6 +62,15 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
       setSavedToNotes(state.record.savedToNotes);
     }
   }, [state]);
+  // Clear the newest-stone shimmer cue once the letter is actually viewed.
+  // Guard on the ready record's OWN periodKey: React Router reuses this component
+  // across a :periodKey change, so a stone→stone nav can leave the store holding the
+  // previous month's ready record while periodKey is already the new month — marking
+  // the destination opened before its letter loads. Only mark when the record matches
+  // the route (dep is the whole `state` so the fresh-month ready swap re-triggers it).
+  useEffect(() => {
+    if (state.phase === 'ready' && state.record.periodKey === periodKey) markOpened(periodKey);
+  }, [state, periodKey]);
 
   const saveAnnotation = async () => {
     await adapter.setReflectionAnnotation(userId, 'reflection_recap', periodKey, draft.trim() || null);
@@ -148,28 +137,6 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
 
   const { artifact } = state.record;
 
-  // Opening ceremony (decision 9): seal cover until broken, unless reduced motion.
-  if (!opened && !reduce) {
-    return (
-      <div className="wm-root wm-detail">
-        {back}
-        <button
-          type="button"
-          className="wm-seal-cover"
-          aria-label="Break the seal"
-          onClick={() => { markOpened(periodKey); setOpened(true); }}
-        >
-          {/* Stone's own aria-label ("May 2026") would otherwise concatenate into this
-              button's accessible name via the accname algorithm; the explicit aria-label
-              above pins it to exactly "Break the seal". The visible span is hidden from
-              the a11y tree to avoid double-announcement. */}
-          <Stone label={monthLabel(periodKey)} rotation={rotationFor(periodKey)} sealed />
-          <span className="wm-label" aria-hidden="true">Break the seal</span>
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="wm-root wm-detail">
       {back}
@@ -188,23 +155,38 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
             placeholder="A line for yourself, kept beside the letter."
           />
           <div className="wm-annotate__actions">
-            <button type="button" className="wm-annotate__save wm-label" onClick={() => void saveAnnotation()}>
-              Save your words
+            <button
+              type="button"
+              className="wm-circle wm-circle--primary wm-annotate__save"
+              aria-label="Save your words"
+              onClick={() => void saveAnnotation()}
+            >
+              <span className="wm-circle__disc" aria-hidden="true"><Check size={18} strokeWidth={1.5} /></span>
+              <span className="wm-circle__label" aria-hidden="true">Save your words</span>
             </button>
           </div>
         </div>
         <footer className="wm-detail__footer wm-detail__actions">
           <button
             type="button"
-            className="wm-detail__save wm-label"
+            className="wm-circle wm-detail__save"
+            aria-label={savedToNotes ? 'Saved to notes' : 'Save to notes'}
             onClick={() => void saveToNotes()}
             disabled={savedToNotes}
           >
-            {savedToNotes ? 'Saved to notes' : 'Save to notes'}
+            <span className="wm-circle__disc" aria-hidden="true">
+              {savedToNotes ? <Check size={18} strokeWidth={1.5} /> : <Bookmark size={18} strokeWidth={1.5} />}
+            </span>
+            <span className="wm-circle__label" aria-hidden="true">{savedToNotes ? 'Saved to notes' : 'Save to notes'}</span>
           </button>
-          <span aria-hidden="true">·</span>
-          <button type="button" className="wm-detail__hide wm-label" onClick={() => void hide()}>
-            Hide this stone
+          <button
+            type="button"
+            className="wm-circle wm-detail__hide"
+            aria-label="Hide this stone"
+            onClick={() => void hide()}
+          >
+            <span className="wm-circle__disc" aria-hidden="true"><EyeOff size={18} strokeWidth={1.5} /></span>
+            <span className="wm-circle__label" aria-hidden="true">Hide this stone</span>
           </button>
         </footer>
       </div>

@@ -1,11 +1,13 @@
 import { todaysLampIntro } from '../../lamplight/lamplight-copy';
+import { ReflectionsCta } from './ReflectionsCta';
 
 export interface TodaysLampIntroProps {
   firstName: string | null;
   onStart: () => void;
+  reflectionsHref?: string;
 }
 
-export function TodaysLampIntro({ firstName, onStart }: TodaysLampIntroProps) {
+export function TodaysLampIntro({ firstName, onStart, reflectionsHref }: TodaysLampIntroProps) {
   return (
     <div
       className="flex flex-col items-center justify-center min-h-[420px] px-6 text-center"
@@ -36,6 +38,11 @@ export function TodaysLampIntro({ firstName, onStart }: TodaysLampIntroProps) {
       >
         Show Me Today's Lamp
       </button>
+      {reflectionsHref && (
+        <div className="mt-3">
+          <ReflectionsCta href={reflectionsHref} />
+        </div>
+      )}
     </div>
   );
 }
