@@ -1,5 +1,5 @@
 // src/notepad/study/mobile/MobileStudyWorkspace.tsx
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
@@ -12,7 +12,8 @@ import { StudyTabBar } from './StudyTabBar';
 import { MobileStudyEditorView } from './MobileStudyEditorView';
 import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 import type { MobileStudyTab } from './types';
-import { loadEnum, saveEnum, KEY_MOBILE_STUDY_TAB } from '@/notepad/session/session-storage';
+import { saveBiblePassage } from '@/notepad/session/session-storage';
+import { loadInitialPassage } from '@/notepad/bible/initial-passage';
 import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-adapter';
 import { supabase } from '@/lib/supabase';
 import '../study-theme.css';
@@ -28,24 +29,22 @@ export function MobileStudyWorkspace() {
   const { activeNote, collection } = useNoteCollection();
   useEnsureStudyFolder();
 
-  const [tab, setTab] = useState<MobileStudyTab>(() =>
-    loadEnum<MobileStudyTab>(KEY_MOBILE_STUDY_TAB, ['reader', 'study', 'context'], 'reader'),
-  );
-  const [passage, setPassage] = useState<{ book: string; chapter: number }>({ book: 'jhn', chapter: 1 });
+  // Always open on Reader (Study top-tab entry); the last-used sub-tab is deliberately
+  // not restored. Panes stay mounted below, so a carried journal note is preserved.
+  const [tab, setTab] = useState<MobileStudyTab>('reader');
+  const [passage, setPassage] = useState(loadInitialPassage);
   // Lifted so a verse tapped in the Reader tab feeds the Original Language panel
   // in the Context tab (desktop lifts this in StudyWorkspace; mobile omitted it,
   // so Original Language never populated here).
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
 
-  useEffect(() => {
-    saveEnum(KEY_MOBILE_STUDY_TAB, tab);
-  }, [tab]);
-
   // Stable + guarded so BibleReader's passage effect can't loop (see DesktopStudyWorkspace).
   const handlePassageChange = useCallback((ref: { book: string; chapter: number }) => {
-    setPassage((prev) =>
-      prev.book === ref.book && prev.chapter === ref.chapter ? prev : { book: ref.book, chapter: ref.chapter },
-    );
+    setPassage((prev) => {
+      if (prev.book === ref.book && prev.chapter === ref.chapter) return prev;
+      saveBiblePassage(ref);
+      return { book: ref.book, chapter: ref.chapter };
+    });
   }, []);
 
   // A note being active means the user opened it from the Notes segment: take over

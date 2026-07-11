@@ -17,6 +17,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileStudyWorkspace } from './mobile/MobileStudyWorkspace';
 import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-adapter';
 import { supabase } from '@/lib/supabase';
+import { saveBiblePassage } from '@/notepad/session/session-storage';
+import { loadInitialPassage } from '@/notepad/bible/initial-passage';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
 
@@ -43,7 +45,7 @@ export function DesktopStudyWorkspace() {
   const navigate = useNavigate();
   const { collection } = useNoteCollection();
   useEnsureStudyFolder();
-  const [passage, setPassage] = useState<{ book: string; chapter: number }>({ book: 'jhn', chapter: 1 });
+  const [passage, setPassage] = useState(loadInitialPassage);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
   // Clear the selected verse whenever the passage changes (new book/chapter).
   useEffect(() => { setSelectedVerse(null); }, [passage.book, passage.chapter]);
@@ -54,9 +56,11 @@ export function DesktopStudyWorkspace() {
   // identity (or a fresh object on every update) would re-trigger that effect
   // endlessly, so keep the callback stable AND bail when nothing actually changed.
   const handlePassageChange = useCallback((ref: { book: string; chapter: number }) => {
-    setPassage((prev) =>
-      prev.book === ref.book && prev.chapter === ref.chapter ? prev : { book: ref.book, chapter: ref.chapter },
-    );
+    setPassage((prev) => {
+      if (prev.book === ref.book && prev.chapter === ref.chapter) return prev;
+      saveBiblePassage(ref);
+      return { book: ref.book, chapter: ref.chapter };
+    });
   }, []);
 
   return (

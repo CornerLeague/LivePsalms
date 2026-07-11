@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { RotateCcw } from 'lucide-react';
 import './waymarks.css';
 import { Stone } from './Stone';
 import { WaymarksLockedPreview } from './WaymarksLockedPreview';
@@ -163,15 +164,16 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
           {showHidden && (
             <ul className="wm-hidden__list">
               {hidden.map((item) => (
-                <li key={item.periodKey} className="wm-hidden__item wm-caption">
-                  {monthLabel(item.periodKey)}
-                  {' '}
+                <li key={item.periodKey} className="wm-hidden__item">
+                  <span className="wm-caption">{monthLabel(item.periodKey)}</span>
                   <button
                     type="button"
-                    className="wm-linkbtn wm-label"
+                    className="wm-circle wm-hidden__restore"
+                    aria-label="Restore this stone."
                     onClick={() => void restore(item.periodKey)}
                   >
-                    Restore this stone.
+                    <span className="wm-circle__disc" aria-hidden="true"><RotateCcw size={18} strokeWidth={1.5} /></span>
+                    <span className="wm-circle__label" aria-hidden="true">Restore</span>
                   </button>
                 </li>
               ))}

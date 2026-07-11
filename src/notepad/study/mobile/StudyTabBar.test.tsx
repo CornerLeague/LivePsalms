@@ -13,6 +13,12 @@ describe('StudyTabBar', () => {
     expect(screen.getByRole('tab', { name: /context/i })).toBeInTheDocument();
   });
 
+  it('orders the sub-tabs Study, Reader, Context so Reader sits in the center', () => {
+    render(<StudyTabBar active="reader" onSelect={() => {}} />);
+    const labels = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(labels).toEqual(['Study', 'Reader', 'Context']);
+  });
+
   it('calls onSelect with the tapped tab id', () => {
     const onSelect = vi.fn();
     render(<StudyTabBar active="reader" onSelect={onSelect} />);

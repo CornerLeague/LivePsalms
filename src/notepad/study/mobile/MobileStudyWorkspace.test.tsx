@@ -27,6 +27,7 @@ afterEach(() => {
   cleanup();
   activeNote = null;
   openNote.mockClear();
+  localStorage.clear();
 });
 
 function renderWorkspace() {
@@ -42,6 +43,16 @@ describe('MobileStudyWorkspace', () => {
     renderWorkspace();
     expect(screen.getByText('mode-toggle')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /reader/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('always lands on the Reader tab even when Study was the last-used sub-tab, keeping the Study pane mounted', () => {
+    // Persist a prior sub-tab choice: Study. Entry should still open on Reader.
+    localStorage.setItem('psalms.session.mobileStudyTab', 'study');
+    renderWorkspace();
+    expect(screen.getByRole('tab', { name: /reader/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /study/i })).toHaveAttribute('aria-selected', 'false');
+    // Panes stay mounted (display toggle), so a carried journal note under Study is preserved.
+    expect(screen.getByText('side-panel')).toBeInTheDocument();
   });
 
   it('switches to the Context tab when tapped', () => {
