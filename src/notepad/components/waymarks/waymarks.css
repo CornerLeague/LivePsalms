@@ -26,19 +26,22 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
-@media (prefers-color-scheme: dark) {
-  .wm-root {
-    --wm-plaster: #0a0a0a;
-    --wm-umber: #efedee;
-    --wm-gold: #c4b5a0;
-    --wm-silica: #7d7e83;
-    --wm-hairline: #2a2622;
-    --wm-stone-1: #2a2620;
-    --wm-stone-2: #322d26;
-    --wm-stone-3: #3a342c;
-    --wm-stone-stroke: #6b6153;
-    --wm-letter: #141210;
-  }
+/* App theme is a `.dark` class on <html> (ThemeProvider), driven by the in-app light/dark
+   preference — NOT the OS. Key the dark palette off `.dark` so Waymarks follows the app
+   theme; `@media (prefers-color-scheme: dark)` would paint Waymarks dark for a light-mode
+   user whose OS happens to be dark. Light (above) is the primary palette per §13.5; this
+   is the secondary dark surface. */
+.dark .wm-root {
+  --wm-plaster: #0a0a0a;
+  --wm-umber: #efedee;
+  --wm-gold: #c4b5a0;
+  --wm-silica: #7d7e83;
+  --wm-hairline: #2a2622;
+  --wm-stone-1: #2a2620;
+  --wm-stone-2: #322d26;
+  --wm-stone-3: #3a342c;
+  --wm-stone-stroke: #6b6153;
+  --wm-letter: #141210;
 }
 /* Fine grain over the whole surface — paper in light, stone in dark. */
 .wm-root::before {
