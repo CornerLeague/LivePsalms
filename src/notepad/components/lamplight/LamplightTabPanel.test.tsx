@@ -92,9 +92,9 @@ describe('LamplightTabPanel', () => {
     });
   });
 
-  // The "Your Reflections" CTA is a panel-level navigation affordance rendered by
-  // LamplightTabPanel below <TodaysLampCard>, so it stays reachable in every card
-  // phase — including after today's lamp has generated (the ready phase), which is
+  // The "Your Reflections" CTA is now rendered by TodaysLampCard (idle: under the start
+  // button; every revealed phase: panel bottom), so exactly one stays reachable in every
+  // card phase — including after today's lamp has generated (the ready phase), which is
   // where the earlier idle-only placement used to hide it.
   it('keeps the "Your Reflections" link visible after today\'s lamp is generated', async () => {
     useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
@@ -113,6 +113,7 @@ describe('LamplightTabPanel', () => {
     renderPanel(adapter);
     // The devotion renders (ready phase) and the reflections CTA remains reachable.
     expect(await screen.findByText(/A quiet test greeting/)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Your Reflections' })).toHaveLength(1);
     expect(screen.getByRole('link', { name: 'Your Reflections' }))
       .toHaveAttribute('href', '/notebook/u/reader1/reflections');
   });
@@ -130,6 +131,7 @@ describe('LamplightTabPanel', () => {
     );
     expect(await screen.findByRole('link', { name: 'Your Reflections' }))
       .toHaveAttribute('href', '/notebook/u/reader1/reflections');
+    expect(screen.getAllByRole('link', { name: 'Your Reflections' })).toHaveLength(1);
   });
 
   it('falls back to the legacy /notebook/reflections href while the username has not loaded yet', async () => {

@@ -89,10 +89,6 @@
 .wm-detail__actions { margin-top: 1rem; display: flex; gap: 1rem; justify-content: center; align-items: center; }
 .wm-detail__retry { background: none; border: 1px solid var(--wm-hairline); border-radius: 999px; padding: 0.4rem 1.1rem; cursor: pointer; color: var(--wm-umber); font: inherit; }
 
-/* Opening ceremony — a tappable seal cover. */
-.wm-seal-cover { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin: 3rem auto 0; background: none; border: none; cursor: pointer; padding: 1.5rem; }
-.wm-seal-cover:hover .wm-stone__seal { opacity: 0.4; }
-
 /* The letter. */
 .wm-letter { background: var(--wm-letter); border: 1px solid var(--wm-hairline); border-radius: 4px; padding: 2.5rem 2rem; }
 .wm-letter__title { font-size: 1.9rem; margin: 0 0 1.5rem; }
@@ -117,6 +113,12 @@
 /* ── Wired affordances (Task 17) ───────────────────────────────────────────── */
 .wm-annotate__input { display: block; width: 100%; margin-top: 0.6rem; padding: 0.6rem 0.7rem; border: 1px solid var(--wm-hairline); border-radius: 4px; background: var(--wm-letter); color: var(--wm-umber); font: inherit; resize: vertical; }
 .wm-annotate__actions { margin-top: 0.6rem; display: flex; justify-content: flex-end; }
-.wm-annotate__save, .wm-detail__save, .wm-detail__hide { background: none; border: none; padding: 0.3rem 0.4rem; cursor: pointer; color: var(--wm-umber); font: inherit; }
-.wm-detail__save:disabled { color: var(--wm-silica); cursor: default; }
+/* Labeled circle actions — round icon button + small label beneath. */
+.wm-circle { display: inline-flex; flex-direction: column; align-items: center; gap: 0.4rem; background: none; border: none; padding: 0; cursor: pointer; color: var(--wm-umber); font: inherit; }
+.wm-circle__disc { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 999px; border: 1px solid var(--wm-hairline); background: transparent; color: var(--wm-umber); }
+.wm-circle--primary .wm-circle__disc { background: var(--wm-umber); border-color: var(--wm-umber); color: var(--wm-letter); }
+.wm-circle__label { font-family: var(--wm-sans); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.6rem; color: var(--wm-silica); }
+.wm-circle:disabled { cursor: default; }
+.wm-circle:disabled .wm-circle__disc { color: var(--wm-silica); }
+.wm-circle:disabled .wm-circle__label { color: var(--wm-silica); }
 .wm-linkbtn { background: none; border: none; padding: 0; cursor: pointer; color: var(--wm-gold); font: inherit; }

@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
 import { useTodaysLamp } from '../../hooks/useTodaysLamp';
 import type { LamplightAdapter } from '../../storage/lamplight-adapter';
 import type { DailyDevotion } from '../../storage/lamplight-artifacts';
 import { TodaysLampLoading } from './TodaysLampLoading';
 import { TodaysLampError } from './TodaysLampError';
 import { TodaysLampIntro } from './TodaysLampIntro';
+import { ReflectionsCta } from './ReflectionsCta';
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 
 export interface TodaysLampCardProps {
@@ -12,18 +14,25 @@ export interface TodaysLampCardProps {
   localDate: string;
   firstName: string | null;
   autoGenerate?: boolean;
+  reflectionsHref?: string;
 }
 
 export function TodaysLampCard({
-  adapter, userId, localDate, firstName, autoGenerate = true,
+  adapter, userId, localDate, firstName, autoGenerate = true, reflectionsHref,
 }: TodaysLampCardProps) {
   const { state, start, retry } = useTodaysLamp({ adapter, userId, localDate, autoGenerate });
   const prefersReducedMotion = usePrefersReducedMotion();
 
-  if (state.phase === 'idle')        return <TodaysLampIntro firstName={firstName} onStart={start} />;
-  if (state.phase === 'retrieving') return <TodaysLampLoading stage={state.stage} firstName={firstName} />;
-  if (state.phase === 'generating' || state.phase === 'refining') {
-    return (
+  // Idle owns its own CTA placement (directly under "Show Me Today's Lamp").
+  if (state.phase === 'idle') {
+    return <TodaysLampIntro firstName={firstName} onStart={start} reflectionsHref={reflectionsHref} />;
+  }
+
+  let body: ReactNode = null;
+  if (state.phase === 'retrieving') {
+    body = <TodaysLampLoading stage={state.stage} firstName={firstName} />;
+  } else if (state.phase === 'generating' || state.phase === 'refining') {
+    body = (
       <>
         {state.phase === 'refining' && (
           <p
@@ -41,15 +50,22 @@ export function TodaysLampCard({
         />
       </>
     );
+  } else if (state.phase === 'error') {
+    body = <TodaysLampError reason={state.reason} firstName={firstName} onRetry={retry} />;
+  } else if (state.phase === 'ready') {
+    body = <Devotion artifact={state.artifact} localDate={localDate} />;
   }
-  if (state.phase === 'error')      return <TodaysLampError reason={state.reason} firstName={firstName} onRetry={retry} />;
-  if (state.phase !== 'ready')                                       return null;
 
+  // Every revealed phase shows exactly one CTA, pinned to the panel bottom.
   return (
-    <Devotion
-      artifact={state.artifact}
-      localDate={localDate}
-    />
+    <>
+      {body}
+      {reflectionsHref && (
+        <div className="flex justify-center pb-6" style={{ background: 'var(--alabaster)' }}>
+          <ReflectionsCta href={reflectionsHref} />
+        </div>
+      )}
+    </>
   );
 }
 

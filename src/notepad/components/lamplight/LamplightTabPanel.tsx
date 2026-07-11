@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useAuthSession } from '@/auth/context/useAuthSession';
 import { useAccountProfile } from '@/auth/context/useAccountProfile';
 import type { LamplightAdapter } from '../../storage/lamplight-adapter';
@@ -80,32 +79,17 @@ export function LamplightTabPanel({ lamplightAdapter, autoGenerate = true }: Lam
   const firstName = sanitizeFirstName(firstNameOf(user));
   return (
     <div>
+      {/* The card owns the single "Your Reflections" CTA — placement follows the lamp
+          phase (idle: under the start button; every revealed phase: panel bottom). This
+          keeps exactly one CTA visible while avoiding a second useTodaysLamp invocation. */}
       <TodaysLampCard
         adapter={lamplightAdapter}
         userId={user.id}
         localDate={localDate}
         firstName={firstName}
         autoGenerate={autoGenerate}
+        reflectionsHref={pathToReflections}
       />
-      {/* Panel-level navigation to the full reflections timeline — persistent
-          across every TodaysLampCard phase (idle, generating, ready, error). */}
-      <div
-        className="flex justify-center pb-6"
-        style={{ background: 'var(--alabaster)' }}
-      >
-        <Link
-          to={pathToReflections}
-          className="px-5 py-2.5 rounded-full text-sm cursor-pointer"
-          style={{
-            border: '1px solid var(--pale-stone)',
-            color: 'var(--deep-umber)',
-            fontFamily: 'Outfit, sans-serif',
-            textDecoration: 'none',
-          }}
-        >
-          Your Reflections
-        </Link>
-      </div>
     </div>
   );
 }

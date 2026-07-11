@@ -53,23 +53,19 @@ describe('WaymarksPeriodDetail (the opened stone)', () => {
   // multi-render jsdom test file (e.g. SecuritySection.test.tsx, DecorationItem.test.tsx).
   afterEach(cleanup);
 
-  it('shows the seal, then reveals the letter + markers when broken', async () => {
+  it('reveals the letter and markers directly, with no seal ceremony', async () => {
     const a = new FakeLamplightAdapter();
     seedReady(a);
     renderDetail(a);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Break the seal' })).toBeInTheDocument());
-    // Letter is still sealed.
-    expect(screen.queryByText(artifact.title)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Break the seal' }));
-    expect(screen.getByText(artifact.title)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(artifact.title)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Break the seal' })).not.toBeInTheDocument();
     expect(screen.getByText('THE MOMENTS, MARKED')).toBeInTheDocument();
     expect(screen.getByText('Ps 27:14')).toBeInTheDocument();
-    // The affordances render as static copy (Task 17 wires them).
     expect(screen.getByText('＋ Add your words.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save to notes' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hide this stone' })).toBeInTheDocument();
-    // Opened is persisted so the ceremony never replays.
-    expect(localStorage.getItem('wm-opened:2026-05')).toBe('1');
+    // Opening the detail marks it opened so the list shimmer clears next visit.
+    await waitFor(() => expect(localStorage.getItem('wm-opened:2026-05')).toBe('1'));
   });
 
   it('reveals the letter directly when the stone was already opened', async () => {
@@ -81,7 +77,7 @@ describe('WaymarksPeriodDetail (the opened stone)', () => {
     expect(screen.queryByRole('button', { name: 'Break the seal' })).not.toBeInTheDocument();
   });
 
-  it('skips the ceremony under reduced motion and shows the letter directly', async () => {
+  it('shows the letter directly under reduced motion as well', async () => {
     setReducedMotion(true);
     const a = new FakeLamplightAdapter();
     seedReady(a);
@@ -118,7 +114,6 @@ describe('WaymarksPeriodDetail (the opened stone)', () => {
     // object hydrates to an artifact with letter === undefined. Pre-fix, the ready
     // branch rendered <ReflectionLetter> → artifact.letter.split() → TypeError, which
     // blanked the whole route. It must show "Nothing was written here." instead.
-    setReducedMotion(true); // skip the seal ceremony → render the letter branch directly
     const a = new FakeLamplightAdapter();
     a.__seedReflection('u', {
       periodKey: '2026-05', title: '',
