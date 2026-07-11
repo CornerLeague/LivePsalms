@@ -63,9 +63,14 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
     }
   }, [state]);
   // Clear the newest-stone shimmer cue once the letter is actually viewed.
+  // Guard on the ready record's OWN periodKey: React Router reuses this component
+  // across a :periodKey change, so a stone→stone nav can leave the store holding the
+  // previous month's ready record while periodKey is already the new month — marking
+  // the destination opened before its letter loads. Only mark when the record matches
+  // the route (dep is the whole `state` so the fresh-month ready swap re-triggers it).
   useEffect(() => {
-    if (state.phase === 'ready') markOpened(periodKey);
-  }, [state.phase, periodKey]);
+    if (state.phase === 'ready' && state.record.periodKey === periodKey) markOpened(periodKey);
+  }, [state, periodKey]);
 
   const saveAnnotation = async () => {
     await adapter.setReflectionAnnotation(userId, 'reflection_recap', periodKey, draft.trim() || null);
