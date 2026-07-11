@@ -4,6 +4,7 @@ import { navItems, NAV_TRIGGER_LABELS } from '@/data/projects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useScrollDirection } from '@/hooks/use-scroll-direction';
 import { useAdaptiveDockTheme, type DockTheme } from '@/hooks/use-adaptive-dock-theme';
+import { useKeyboardInset } from '@/components/sections/notepad/mobile/useKeyboardInset';
 import { DockHomeSparkle, type DockHomeSparkleHandle } from './DockHomeSparkle';
 
 interface MobileBottomDockProps {
@@ -49,9 +50,15 @@ export function MobileBottomDock({ onNavTrigger }: MobileBottomDockProps) {
     setSocialExpanded(false);
   }, [location.pathname]);
 
+  // Called before the `if (!isMobile) return null` early return so the hook
+  // count stays stable across a viewport resize across the breakpoint.
+  const keyboardInset = useKeyboardInset();
+
   if (!isMobile) return null;
 
-  const visible = panelOpen ? true : dir !== 'down';
+  // Hide the dock while the on-screen keyboard is up so it never covers the
+  // editor's bottom toolbar (which lifts into the dock's reserved slot).
+  const visible = panelOpen ? true : (dir !== 'down' && keyboardInset === 0);
 
   // Wrapper rather than useEffect([panelOpen]) so the social reset is
   // synchronous with the close, not deferred one render. A deferred reset

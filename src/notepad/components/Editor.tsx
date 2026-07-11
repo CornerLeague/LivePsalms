@@ -47,6 +47,9 @@ export interface NotepadEditorProps {
   toolbarPlacement?: 'top' | 'bottom';
   /** When toolbarPlacement is 'bottom', px to lift the bar above the keyboard. */
   toolbarBottomOffset?: number;
+  /** When true (mobile editor routes), reserve room for the fixed MobileBottomDock:
+   *  lift the sticky bottom toolbar above the dock and pad the content bottom. */
+  showBottomDock?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,6 +73,7 @@ export function NotepadEditor({
   onAfterSave,
   toolbarPlacement = 'top',
   toolbarBottomOffset = 0,
+  showBottomDock = false,
 }: NotepadEditorProps = {}) {
   const { notes, activeNote, collection } = useNoteCollection();
   const actions = useNotepadActions();
@@ -264,7 +268,11 @@ export function NotepadEditor({
             borderTop: isBottomToolbar ? '1px solid var(--pale-stone)' : 'none',
             fontFamily: 'Outfit, sans-serif',
             position: isBottomToolbar ? 'sticky' : undefined,
-            bottom: isBottomToolbar ? `${toolbarBottomOffset}px` : undefined,
+            bottom: isBottomToolbar
+              ? (showBottomDock
+                  ? `max(${toolbarBottomOffset}px, var(--mobile-dock-clearance))`
+                  : `${toolbarBottomOffset}px`)
+              : undefined,
             zIndex: isBottomToolbar ? 20 : undefined,
             minWidth: isBottomToolbar ? 0 : undefined,
             overflowX: isBottomToolbar ? 'auto' : undefined,
@@ -464,6 +472,9 @@ export function NotepadEditor({
           overflowY: 'auto',
           overflowX: isBottomToolbar ? 'hidden' : undefined,
           padding: isBottomToolbar ? '2rem 1.25rem' : '2rem 2.5rem',
+          ...(isBottomToolbar && showBottomDock
+            ? { paddingBottom: 'var(--mobile-dock-clearance)' }
+            : {}),
           position: 'relative',
         }}
       >

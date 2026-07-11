@@ -27,7 +27,7 @@ export function MobileStudyEditorView({ onBack }: MobileStudyEditorViewProps) {
         <ThemeToggle className="w-9 h-9" />
       </header>
       <div className="flex-1 min-h-0">
-        <NotepadEditor toolbarPlacement="bottom" toolbarBottomOffset={keyboardInset} />
+        <NotepadEditor toolbarPlacement="bottom" toolbarBottomOffset={keyboardInset} showBottomDock />
       </div>
     </div>
   );
