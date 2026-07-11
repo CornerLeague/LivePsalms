@@ -8,8 +8,8 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { id: 'reader', label: 'Reader', Icon: BookOpen },
   { id: 'study', label: 'Study', Icon: NotebookPen },
+  { id: 'reader', label: 'Reader', Icon: BookOpen },
   { id: 'context', label: 'Context', Icon: ScrollText },
 ];
 

@@ -13,10 +13,10 @@ import type { StreamInvoke } from './lamplight-stream-client';
 import { BibleReader, type PassageRef } from './BibleReader';
 import { useBiblePrefs } from './prefs/bible-prefs-context';
 import { useBibleHighlights } from './highlights/useBibleHighlights';
-import { bookByAbbrev } from './bible-books';
+import { loadInitialPassage } from './initial-passage';
 import { SplitResizeHandle } from './SplitResizeHandle';
 import { useDragResize } from './useDragResize';
-import { loadBiblePassage, saveBiblePassage } from '@/notepad/session/session-storage';
+import { saveBiblePassage } from '@/notepad/session/session-storage';
 import { supabase } from '@/lib/supabase';
 import { useScriptureFocusLists } from './focus/useScriptureFocusLists';
 import { FocusListView } from './focus/FocusListView';
@@ -33,17 +33,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke, dataTou
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
   const [chatOpen, setChatOpen] = useState(false);
-  const [passage, setPassage] = useState<PassageRef>(() => {
-    const stored = loadBiblePassage();
-    if (stored) {
-      const meta = bookByAbbrev(stored.book);
-      // Only restore when the book is real and the chapter is in range.
-      if (meta && stored.chapter >= 1 && stored.chapter <= meta.chapterCount) {
-        return { book: stored.book, chapter: stored.chapter };
-      }
-    }
-    return { book: 'jhn', chapter: 1 };
-  });
+  const [passage, setPassage] = useState<PassageRef>(loadInitialPassage);
   const splitRef = useRef<HTMLDivElement | null>(null);
   const { fraction, handleProps } = useDragResize(splitRef);
 
