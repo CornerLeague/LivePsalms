@@ -198,7 +198,12 @@ function App() {
   const isContactPage = location.pathname === '/contact';
   const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
   const hideFooter = isDetailPage || isPurposePage || isNotepadAny || isLoginPage || isProfilePage || isWelcomePage || isUpdatePasswordPage || isCommunityPage || isContactPage || isLegalPage;
+  // Header + wrapper chrome stay off the notepad editor family (unchanged).
   const dockMounted = !isNotepadEditor && !isLoginPage && !isProfilePage && !isWelcomePage && !isUpdatePasswordPage;
+  // The mobile bottom dock ALSO shows on the notepad editor family (study + journal
+  // + waymarks) so users keep a way to navigate. isAppShell / the scroll lock are
+  // intentionally left unchanged.
+  const mobileDockMounted = !isLoginPage && !isProfilePage && !isWelcomePage && !isUpdatePasswordPage;
 
   useAppShellLock(isAppShell);
 
@@ -244,7 +249,7 @@ function App() {
         >
         <div className="relative" style={{ zIndex: 1 }}>
           {dockMounted && <Header darkText={isDetailPage || isPurposePage} showNav={headerVisible} onNavTrigger={handleNavTrigger} />}
-          {dockMounted && <MobileBottomDock onNavTrigger={handleNavTrigger} />}
+          {mobileDockMounted && <MobileBottomDock onNavTrigger={handleNavTrigger} />}
 
           {/* ONE app-wide RecordingsAudioProvider, hoisted above <Routes> so
               in-app navigation out of the notebook (e.g. study logo → '/') never

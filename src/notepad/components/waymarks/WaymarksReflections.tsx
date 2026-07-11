@@ -77,6 +77,7 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
   if (items === null) {
     return (
       <div className="wm-root">
+        <Link to=".." className="wm-back wm-label">← Notebook</Link>
         <p className="wm-caption">Finding your path…</p>
       </div>
     );
@@ -108,6 +109,7 @@ export function WaymarksReflections({ adapter, userId, canAccess }: WaymarksRefl
 
   return (
     <div className="wm-root">
+      <Link to=".." className="wm-back wm-label">← Notebook</Link>
       <header>
         <p className="wm-label">Waymarks</p>
         <h1 className="wm-title" style={{ fontSize: '2rem', margin: '0.25rem 0 0' }}>

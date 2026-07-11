@@ -65,6 +65,16 @@ describe('NotepadEditor toolbarPlacement', () => {
     expect(bar.style.bottom).toBe('120px');
   });
 
+  it('lifts the bottom toolbar above the dock clearance when showBottomDock is set', () => {
+    const { container } = render(
+      <NotepadEditor toolbarPlacement="bottom" toolbarBottomOffset={0} showBottomDock />,
+    );
+    const toolbar = container.querySelector('[data-toolbar-placement="bottom"]') as HTMLElement;
+    expect(toolbar).toBeTruthy();
+    expect(toolbar.style.bottom).toContain('--mobile-dock-clearance');
+    expect(toolbar.style.bottom).toContain('max(');
+  });
+
   it('does NOT fire the verse handler on content tap in top placement (desktop unchanged)', () => {
     const { getByTestId } = render(<NotepadEditor />);
     fireEvent.click(getByTestId('editor-content').parentElement as HTMLElement);
