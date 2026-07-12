@@ -84,7 +84,7 @@ export function MobileEditorView({
           onAfterSave={onAfterSave}
           toolbarPlacement="bottom"
           toolbarBottomOffset={keyboardInset}
-          showBottomDock
+          showBottomDock={false}
         />
       </div>
       {!hasActiveNote && <MobileNewNoteFab onClick={onNewNote} />}
