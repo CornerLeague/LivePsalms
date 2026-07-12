@@ -89,9 +89,6 @@ const WelcomePage = lazy(() =>
 const AdminLamplightPage = lazy(() =>
   import('@/admin/AdminLamplightPage').then((m) => ({ default: m.AdminLamplightPage })),
 );
-const PurposeStack = lazy(() =>
-  import('@/components/sections/PurposeStack').then((m) => ({ default: m.PurposeStack })),
-);
 const PurposeDetail = lazy(() =>
   import('@/components/sections/PurposeDetail').then((m) => ({ default: m.PurposeDetail })),
 );
@@ -172,15 +169,14 @@ function App() {
 
   const { status, color, transition } = useRouteTransition(projects);
 
-  // Shared curtain-navigation trigger for the deeply-nested pills (handoff,
-  // /purpose). Wired to the same beginNavigation the home grid uses.
+  // Shared curtain-navigation trigger for the deeply-nested NextDevotionHandoff
+  // pill. Wired to the same beginNavigation the home grid uses.
   const routeTransitionValue = useMemo(
     () => ({ beginCurtainNavigation: transition.beginNavigation }),
     [transition],
   );
 
   const isDetailPage = location.pathname.startsWith('/purpose/');
-  const isPurposePage = location.pathname === '/purpose';
   const isNotepadLanding = location.pathname === '/notebook';
   const isNotepadEditor =
     location.pathname.startsWith('/notebook/notes') ||
@@ -199,7 +195,7 @@ function App() {
   const isCommunityPage = location.pathname === '/community';
   const isContactPage = location.pathname === '/contact';
   const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
-  const hideFooter = isDetailPage || isPurposePage || isNotepadAny || isLoginPage || isProfilePage || isWelcomePage || isUpdatePasswordPage || isCommunityPage || isContactPage || isLegalPage;
+  const hideFooter = isDetailPage || isNotepadAny || isLoginPage || isProfilePage || isWelcomePage || isUpdatePasswordPage || isCommunityPage || isContactPage || isLegalPage;
   // Header + wrapper chrome stay off the notepad editor family (unchanged).
   const dockMounted = !isNotepadEditor && !isLoginPage && !isProfilePage && !isWelcomePage && !isUpdatePasswordPage;
   // The mobile bottom dock ALSO shows on the notepad editor family (study + journal
@@ -260,7 +256,7 @@ function App() {
           }}
         >
         <div className="relative" style={{ zIndex: 1 }}>
-          {dockMounted && <Header darkText={isDetailPage || isPurposePage} showNav={headerVisible} onNavTrigger={handleNavTrigger} />}
+          {dockMounted && <Header darkText={isDetailPage} showNav={headerVisible} onNavTrigger={handleNavTrigger} />}
           {mobileDockMounted && <MobileBottomDock onNavTrigger={handleNavTrigger} />}
 
           {/* ONE app-wide RecordingsAudioProvider, hoisted above <Routes> so
@@ -341,10 +337,6 @@ function App() {
             <Route path="/welcome" element={<WelcomePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/admin/lamplight" element={<AdminLamplightPage />} />
-            <Route
-              path="/purpose"
-              element={<PurposeStack projects={projects} />}
-            />
             <Route
               path="/purpose/:projectId"
               element={
