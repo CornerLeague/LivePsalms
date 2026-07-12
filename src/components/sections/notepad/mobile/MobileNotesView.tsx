@@ -4,6 +4,7 @@ import { NotepadSidebar } from '../../../../notepad/components/Sidebar';
 import { MobileFabMenu } from './MobileFabMenu';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 import { HeaderLamplightFlame } from './HeaderLamplightFlame';
+import { NotesMenu } from '@/components/notes-menu/NotesMenu';
 
 export interface MobileNotesViewProps {
   onExit: () => void;
@@ -24,6 +25,8 @@ export interface MobileNotesViewProps {
   onOpenAccount?: () => void;
   /** The signed-in user's avatar URL, if they've uploaded one. */
   avatarUrl?: string | null;
+  /** Fires the loading overlay on site-nav taps (parity with the old dock). */
+  onNavTrigger?: () => void;
 }
 
 export function MobileNotesView({
@@ -38,6 +41,7 @@ export function MobileNotesView({
   lamplightHasArrived,
   onOpenAccount,
   avatarUrl,
+  onNavTrigger,
 }: MobileNotesViewProps) {
   return (
     <div className="relative flex flex-col h-full min-h-0" style={{ background: 'var(--notepad-page-bg)' }}>
@@ -67,6 +71,7 @@ export function MobileNotesView({
             <Search size={18} />
           </button>
           <ThemeToggle className="w-9 h-9" />
+          <NotesMenu className="w-9 h-9 rounded-full" iconSize={18} onNavTrigger={onNavTrigger} />
           <button
             aria-label="Account"
             onClick={onOpenAccount}

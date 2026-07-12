@@ -20,6 +20,8 @@ import { UploadModal } from './UploadModal';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { NotepadAuthControls } from './NotepadAuthControls';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
+import { NotesMenu } from '@/components/notes-menu/NotesMenu';
+import { useNavTrigger } from '@/hooks/nav-trigger-context';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -44,6 +46,7 @@ export function NotepadToolbar({
   const { collection } = useNoteCollection();
   const createNote = collection.createNote;
   const [uploadOpen, setUploadOpen] = useState(false);
+  const navTrigger = useNavTrigger();
 
   const handleNewNote = (type: NoteType) => {
     createNote('root', type);
@@ -210,6 +213,20 @@ export function NotepadToolbar({
               <PanelRightOpen className="w-4 h-4" style={{ color: 'var(--deep-umber)' }} />
             )}
           </button>
+
+          {/* Divider */}
+          <div
+            className="mx-2 self-stretch"
+            style={{
+              width: 1,
+              background: 'var(--pale-stone)',
+              marginTop: 10,
+              marginBottom: 10,
+            }}
+          />
+
+          {/* Site nav */}
+          <NotesMenu className="w-8 h-8 rounded" iconSize={18} onNavTrigger={navTrigger} />
 
           {/* Divider */}
           <div

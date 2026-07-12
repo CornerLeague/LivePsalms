@@ -6,6 +6,7 @@ import { useKeyboardInset } from './useKeyboardInset';
 import { MobileNewNoteFab } from './MobileNewNoteFab';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 import { HeaderLamplightFlame } from './HeaderLamplightFlame';
+import { NotesMenu } from '@/components/notes-menu/NotesMenu';
 
 export interface MobileEditorViewProps {
   /** Tapping the logo returns to the home page. */
@@ -15,6 +16,8 @@ export interface MobileEditorViewProps {
   onOpenAccount?: () => void;
   /** The signed-in user's avatar URL, if they've uploaded one. */
   avatarUrl?: string | null;
+  /** Fires the loading overlay on site-nav taps (parity with the old dock). */
+  onNavTrigger?: () => void;
   /** Opens the Lamplight view (relocated from the bottom bar to the header). */
   onOpenLamplight?: () => void;
   /** Show the gold connection dot on the flame when Lamplight has neighbors. */
@@ -32,6 +35,7 @@ export function MobileEditorView({
   onAfterSave,
   onOpenAccount,
   avatarUrl,
+  onNavTrigger,
   onOpenLamplight,
   lamplightHasConnections,
   lamplightHasArrived,
@@ -59,6 +63,7 @@ export function MobileEditorView({
             lamplightHasArrived={lamplightHasArrived}
           />
           <ThemeToggle className="w-9 h-9" />
+          <NotesMenu className="w-9 h-9 rounded-full" iconSize={18} onNavTrigger={onNavTrigger} />
         <button
           aria-label="Account"
           onClick={onOpenAccount}
@@ -79,7 +84,7 @@ export function MobileEditorView({
           onAfterSave={onAfterSave}
           toolbarPlacement="bottom"
           toolbarBottomOffset={keyboardInset}
-          showBottomDock
+          showBottomDock={false}
         />
       </div>
       {!hasActiveNote && <MobileNewNoteFab onClick={onNewNote} />}

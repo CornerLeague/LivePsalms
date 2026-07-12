@@ -24,10 +24,12 @@ import { AuthProvider } from '@/auth/context/AuthProvider';
 import { useRouteTransition } from '@/transitions/useRouteTransition';
 import { RouteTransitionProvider } from '@/transitions/RouteTransitionContext';
 import { LoadingOverlayContext } from '@/hooks/loading-overlay-context';
+import { NavTriggerContext } from '@/hooks/nav-trigger-context';
 import { ThemeProvider } from '@/notepad/theme/ThemeProvider';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
 import { RecordingsAudioProvider } from '@/notepad/recordings/audio-context';
 import { NotepadCompatRedirect } from '@/routing/NotepadCompatRedirect';
+import { isNotesWorkspaceIndexPath } from '@/routing/notes-route';
 import './App.css';
 
 // ── Route-level code splitting ───────────────────────────────────────────────
@@ -203,7 +205,16 @@ function App() {
   // The mobile bottom dock ALSO shows on the notepad editor family (study + journal
   // + waymarks) so users keep a way to navigate. isAppShell / the scroll lock are
   // intentionally left unchanged.
-  const mobileDockMounted = !isLoginPage && !isProfilePage && !isWelcomePage && !isUpdatePasswordPage;
+  // The mobile bottom dock shows across the notepad editor family (study +
+  // waymarks) so users keep a way to navigate — EXCEPT the notes workspace
+  // index, where the relocated NotesMenu (top-right hamburger) now owns site
+  // nav, so the dock is suppressed there to remove the tab-bar/pill collision.
+  const mobileDockMounted =
+    !isLoginPage &&
+    !isProfilePage &&
+    !isWelcomePage &&
+    !isUpdatePasswordPage &&
+    !isNotesWorkspaceIndexPath(location.pathname);
 
   useAppShellLock(isAppShell);
 
@@ -225,6 +236,7 @@ function App() {
       <BiblePrefsProvider>
       <RouteTransitionProvider value={routeTransitionValue}>
         <LoadingOverlayContext.Provider value={overlayPresent}>
+        <NavTriggerContext.Provider value={handleNavTrigger}>
         <div
           className={cn(
             'relative min-h-screen',
@@ -363,6 +375,7 @@ function App() {
       <div className="grain-bg" aria-hidden="true" />
 
       <HeroLoadingOverlay active={overlay.active} onCrossfadeComplete={handleOverlayGone} />
+        </NavTriggerContext.Provider>
         </LoadingOverlayContext.Provider>
     </RouteTransitionProvider>
       </BiblePrefsProvider>

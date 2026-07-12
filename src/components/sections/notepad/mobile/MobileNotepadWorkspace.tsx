@@ -30,6 +30,7 @@ import type { MobileTab } from './types';
 import { loadEnum, saveEnum, KEY_MOBILE_TAB } from '../../../../notepad/session/session-storage';
 import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
 import { registerWorkspaceControls } from '@/notepad/onboarding/tour/workspace-controller';
+import { useNavTrigger } from '@/hooks/nav-trigger-context';
 
 type ScanStage = null | 'capture' | { review: TranscriptionResult };
 
@@ -40,6 +41,7 @@ export function MobileNotepadWorkspace() {
   const { adapter, session } = useAuthSession();
   const { profile } = useAccountProfile();
   const { showMigration, dismissMigration } = useNotepadFirstLoad();
+  const navTrigger = useNavTrigger();
 
   const [tab, setTab] = useState<MobileTab>(() =>
     loadEnum<MobileTab>(KEY_MOBILE_TAB, ['notes', 'editor', 'lamplight', 'bible'], 'notes'),
@@ -214,6 +216,7 @@ export function MobileNotepadWorkspace() {
             lamplightHasArrived={hasArrived}
             onOpenAccount={openAccount}
             avatarUrl={profile?.avatarUrl ?? null}
+            onNavTrigger={navTrigger}
           />
         )}
         {effectiveTab === 'editor' && (
@@ -222,6 +225,7 @@ export function MobileNotepadWorkspace() {
             onAfterSave={model.onAfterSave}
             onOpenAccount={openAccount}
             avatarUrl={profile?.avatarUrl ?? null}
+            onNavTrigger={navTrigger}
             onOpenLamplight={() => setTab('lamplight')}
             lamplightHasConnections={hasConnections}
             lamplightHasArrived={hasArrived}
