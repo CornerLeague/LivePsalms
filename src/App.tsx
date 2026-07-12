@@ -24,6 +24,7 @@ import { AuthProvider } from '@/auth/context/AuthProvider';
 import { useRouteTransition } from '@/transitions/useRouteTransition';
 import { RouteTransitionProvider } from '@/transitions/RouteTransitionContext';
 import { LoadingOverlayContext } from '@/hooks/loading-overlay-context';
+import { NavTriggerContext } from '@/hooks/nav-trigger-context';
 import { ThemeProvider } from '@/notepad/theme/ThemeProvider';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
 import { RecordingsAudioProvider } from '@/notepad/recordings/audio-context';
@@ -225,6 +226,7 @@ function App() {
       <BiblePrefsProvider>
       <RouteTransitionProvider value={routeTransitionValue}>
         <LoadingOverlayContext.Provider value={overlayPresent}>
+        <NavTriggerContext.Provider value={handleNavTrigger}>
         <div
           className={cn(
             'relative min-h-screen',
@@ -363,6 +365,7 @@ function App() {
       <div className="grain-bg" aria-hidden="true" />
 
       <HeroLoadingOverlay active={overlay.active} onCrossfadeComplete={handleOverlayGone} />
+        </NavTriggerContext.Provider>
         </LoadingOverlayContext.Provider>
     </RouteTransitionProvider>
       </BiblePrefsProvider>
