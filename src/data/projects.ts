@@ -112,7 +112,7 @@ export const projects: Project[] = [
 ];
 
 export const navItems = [
-  { label: 'Purpose', href: '/purpose' },
+  { label: 'Purpose', href: '/home' },
   { label: 'Notebook', href: '/notebook' },
   { label: 'Community', href: '/community' },
   { label: 'Contact', href: '/contact' },
