@@ -12,7 +12,7 @@ import { loadMemorizeCards, saveMemorizeCards } from '@/notepad/session/session-
 vi.mock('@/auth/context/useAuthSession', () => ({ useAuthSession: () => ({ user: null }) }));
 vi.mock('@/lib/supabase', () => ({ supabase: null }));
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 const nc = (verse: number): NewMemorizeCard => ({ book: 'jhn', chapter: 3, verse, translation: 'BSB', text: `v${verse}` });
 
@@ -130,5 +130,70 @@ describe('useMemorizeCards (guest) — defect (y): no data loss across instances
 
     await waitFor(() => expect(screen.getByTestId('countB').textContent).toBe('2'));
     expect(screen.getByTestId('countA').textContent).toBe('2');
+  });
+});
+
+// Finding (y2): the guest branches of updateAfterAttempt/removeCard used to
+// persist + dispatch the sync CustomEvent even when the target `id` isn't in
+// the freshly-read base array -- a redundant no-op write of an unchanged
+// array. Guard: when `id` is absent from the fresh base, skip persist +
+// dispatch entirely.
+describe('useMemorizeCards (guest) — finding (y2): no-op write is skipped', () => {
+  const SEEDED: MemorizeCard[] = [
+    {
+      id: 'seed-1', book: 'jhn', chapter: 1, verse: 1, translation: 'BSB', text: 'In the beginning...',
+      mastery: 10, attempts: 1, lastPracticedAt: null, position: 0,
+    },
+  ];
+
+  function GuestHarness() {
+    const { cards, updateAfterAttempt, removeCard } = useMemorizeCards({ adapterOverride: null });
+    return (
+      <div>
+        <span data-testid="count">{cards.length}</span>
+        <button
+          onClick={() => void updateAfterAttempt('missing-id', { mastery: 100, attempts: 9, lastPracticedAt: '2026-01-01T00:00:00.000Z' })}
+        >
+          update-missing
+        </button>
+        <button onClick={() => void removeCard('missing-id')}>remove-missing</button>
+      </div>
+    );
+  }
+
+  it('updateAfterAttempt with an id not in the store does not persist or dispatch', async () => {
+    localStorage.clear();
+    saveMemorizeCards(SEEDED);
+    render(<GuestHarness />);
+
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+    await act(async () => { fireEvent.click(screen.getByText('update-missing')); });
+
+    expect(dispatchSpy).not.toHaveBeenCalled();
+    expect(setItemSpy).not.toHaveBeenCalled();
+    expect(loadMemorizeCards()).toEqual(SEEDED);
+
+    dispatchSpy.mockRestore();
+    setItemSpy.mockRestore();
+  });
+
+  it('removeCard with an id not in the store does not persist or dispatch', async () => {
+    localStorage.clear();
+    saveMemorizeCards(SEEDED);
+    render(<GuestHarness />);
+
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+    await act(async () => { fireEvent.click(screen.getByText('remove-missing')); });
+
+    expect(dispatchSpy).not.toHaveBeenCalled();
+    expect(setItemSpy).not.toHaveBeenCalled();
+    expect(loadMemorizeCards()).toEqual(SEEDED);
+
+    dispatchSpy.mockRestore();
+    setItemSpy.mockRestore();
   });
 });

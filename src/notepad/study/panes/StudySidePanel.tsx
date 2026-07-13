@@ -240,7 +240,7 @@ export function StudySidePanel({ book, chapter, userId, expanded = false, onTogg
           display: tab === 'memorize' ? 'block' : 'none',
         }}
       >
-        <MemorizePanel book={book} chapter={chapter} userId={userId} active={tab === 'memorize'} />
+        <MemorizePanel book={book} chapter={chapter} active={tab === 'memorize'} />
       </div>
     </div>
   );

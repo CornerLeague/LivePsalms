@@ -25,12 +25,12 @@ afterEach(() => { cleanup(); addCards.mockClear(); refetch.mockClear(); });
 
 describe('MemorizePanel', () => {
   it('lists a saved card with its reference', () => {
-    render(<MemorizePanel book="jhn" chapter={3} userId="u1" active />);
+    render(<MemorizePanel book="jhn" chapter={3} active />);
     expect(screen.getByText('John 3:16')).toBeInTheDocument();
   });
 
   it('adds the current passage', async () => {
-    render(<MemorizePanel book="jhn" chapter={3} userId="u1" active />);
+    render(<MemorizePanel book="jhn" chapter={3} active />);
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /add current passage/i })); });
     expect(addCards).toHaveBeenCalledWith([
       { book: 'jhn', chapter: 3, verse: 16, translation: 'BSB', text: 'For God so loved the world' },
@@ -38,9 +38,22 @@ describe('MemorizePanel', () => {
   });
 
   it('refetches when it becomes active (false -> true)', () => {
-    const { rerender } = render(<MemorizePanel book="jhn" chapter={3} userId="u1" active={false} />);
+    const { rerender } = render(<MemorizePanel book="jhn" chapter={3} active={false} />);
     refetch.mockClear();
-    rerender(<MemorizePanel book="jhn" chapter={3} userId="u1" active />);
+    rerender(<MemorizePanel book="jhn" chapter={3} active />);
     expect(refetch).toHaveBeenCalled();
+  });
+
+  // Regression anchor (finding s): the `inSession` guard
+  // (`sessionKey != null && sessionCards.length > 0`) is what stops QuizSession
+  // from mounting with 0 cards and throwing. Nothing exercised the Practice ->
+  // QuizSession mount path at all, so a future edit weakening that guard to
+  // `sessionKey != null` alone would have zero regression coverage.
+  it('clicking a group\'s Practice control mounts QuizSession for that group', () => {
+    render(<MemorizePanel book="jhn" chapter={3} active />);
+    fireEvent.click(screen.getByRole('button', { name: /practice/i }));
+    // The real QuizSession renders its "current / total" progress for the group's
+    // single card once mounted.
+    expect(screen.getByText('1 / 1')).toBeInTheDocument();
   });
 });

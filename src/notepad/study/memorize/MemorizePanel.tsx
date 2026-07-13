@@ -15,7 +15,6 @@ import { bookByAbbrev } from '@/notepad/bible/bible-books';
 export interface MemorizePanelProps {
   book: string;
   chapter: number;
-  userId: string | null;
   /** True when the Memorize tab is the visible pane. Used to refetch on activation. */
   active: boolean;
 }

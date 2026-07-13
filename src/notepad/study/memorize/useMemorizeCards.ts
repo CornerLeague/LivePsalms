@@ -138,7 +138,15 @@ export function useMemorizeCards(opts: UseMemorizeCardsOptions = {}): UseMemoriz
 
   const updateAfterAttempt = useCallback(async (id: string, update: AttemptUpdate) => {
     const apply = (list: MemorizeCard[]) => list.map((c) => (c.id === id ? { ...c, ...update } : c));
-    if (!adapter) { persistGuest(apply(loadMemorizeCards())); return; }
+    if (!adapter) {
+      // Guest: merge-on-read against the SAME fresh base used by the (y) fix.
+      // If `id` isn't present, the write would be a no-op -- skip persist +
+      // dispatch entirely rather than re-saving an unchanged array.
+      const base = loadMemorizeCards();
+      if (!base.some((c) => c.id === id)) return;
+      persistGuest(apply(base));
+      return;
+    }
     const prev = cards;
     setCards(apply);
     try {
@@ -152,7 +160,11 @@ export function useMemorizeCards(opts: UseMemorizeCardsOptions = {}): UseMemoriz
 
   const removeCard = useCallback(async (id: string) => {
     if (!adapter) {
-      persistGuest(loadMemorizeCards().filter((c) => c.id !== id).map((c, position) => ({ ...c, position })));
+      // Guest: same fresh-base guard as updateAfterAttempt above -- if `id`
+      // isn't present there's nothing to remove, so skip persist + dispatch.
+      const base = loadMemorizeCards();
+      if (!base.some((c) => c.id === id)) return;
+      persistGuest(base.filter((c) => c.id !== id).map((c, position) => ({ ...c, position })));
       return;
     }
     const prev = cards;
