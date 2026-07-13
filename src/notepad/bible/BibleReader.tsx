@@ -118,6 +118,16 @@ export function BibleReader({
     setPickerAnchor(null);
   }, []);
 
+  // Escape dismisses the "Add to Memorize" popover, mirroring the backdrop click.
+  useEffect(() => {
+    if (!memorizeEnabled || pickerVerse == null) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closePicker();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [memorizeEnabled, pickerVerse, closePicker]);
+
   const jumpTo = (abbrev: string, ch: number, verse: number | null = null) => {
     setBook(abbrev);
     setChapter(ch);
@@ -444,35 +454,48 @@ export function BibleReader({
           )
         )}
         {memorizeEnabled && pickerVerse != null && pickerAnchor && (
-          <div
-            style={{
-              position: 'fixed',
-              top: pickerAnchor.top,
-              left: pickerAnchor.left,
-              zIndex: 50,
-              background: 'var(--parchment, #fff)',
-              border: '1px solid var(--pale-stone)',
-              borderRadius: 8,
-              boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
-              padding: 6,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                const text = verses.find((v) => v.verse === pickerVerse)?.text ?? '';
-                onAddToMemorize?.({ book, chapter, verse: pickerVerse }, text);
-                closePicker();
-              }}
+          <>
+            <div
+              data-testid="add-to-memorize-backdrop"
+              aria-hidden="true"
+              onClick={closePicker}
               style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px',
-                border: 'none', background: 'transparent', cursor: 'pointer',
-                color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif', fontSize: 12, minHeight: 40,
+                position: 'fixed',
+                inset: 0,
+                zIndex: 49,
+                background: 'transparent',
+              }}
+            />
+            <div
+              style={{
+                position: 'fixed',
+                top: pickerAnchor.top,
+                left: pickerAnchor.left,
+                zIndex: 50,
+                background: 'var(--parchment, #fff)',
+                border: '1px solid var(--pale-stone)',
+                borderRadius: 8,
+                boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
+                padding: 6,
               }}
             >
-              Add to Memorize
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const text = verses.find((v) => v.verse === pickerVerse)?.text ?? '';
+                  onAddToMemorize?.({ book, chapter, verse: pickerVerse }, text);
+                  closePicker();
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px',
+                  border: 'none', background: 'transparent', cursor: 'pointer',
+                  color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif', fontSize: 12, minHeight: 40,
+                }}
+              >
+                Add to Memorize
+              </button>
+            </div>
+          </>
         )}
         </>)}
       </div>

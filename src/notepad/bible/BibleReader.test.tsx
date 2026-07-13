@@ -286,4 +286,38 @@ describe('BibleReader — Add to Memorize', () => {
     fireEvent.click(screen.getByText(/in the beginning was the word/i));
     expect(screen.queryByRole('button', { name: /add to memorize/i })).toBeNull();
   });
+
+  it('dismisses the popover when the backdrop is clicked', async () => {
+    const onAddToMemorize = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        onAddToMemorize={onAddToMemorize}
+      />,
+    );
+    fireEvent.click(screen.getByText(/in the beginning was the word/i));
+    await screen.findByRole('button', { name: /add to memorize/i });
+
+    fireEvent.click(screen.getByTestId('add-to-memorize-backdrop'));
+
+    expect(screen.queryByRole('button', { name: /add to memorize/i })).toBeNull();
+    expect(onAddToMemorize).not.toHaveBeenCalled();
+  });
+
+  it('dismisses the popover on Escape', async () => {
+    const onAddToMemorize = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        onAddToMemorize={onAddToMemorize}
+      />,
+    );
+    fireEvent.click(screen.getByText(/in the beginning was the word/i));
+    await screen.findByRole('button', { name: /add to memorize/i });
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('button', { name: /add to memorize/i })).toBeNull();
+    expect(onAddToMemorize).not.toHaveBeenCalled();
+  });
 });
