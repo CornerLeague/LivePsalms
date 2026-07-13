@@ -10,6 +10,7 @@ import { FolderHierarchyContext } from '../../context/useFolderHierarchy';
 
 vi.mock('@/notepad/components/Editor', () => ({ NotepadEditor: () => <div>editor</div> }));
 vi.mock('./LamplightStudyPanel', () => ({ LamplightStudyPanel: () => <div>chat-panel</div> }));
+vi.mock('../memorize/MemorizePanel', () => ({ MemorizePanel: () => <div>memorize-panel</div> }));
 
 import { StudySidePanel } from './StudySidePanel';
 
@@ -105,5 +106,18 @@ describe('StudySidePanel', () => {
     render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
     expect(screen.queryByRole('button', { name: /expand panel/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /collapse panel/i })).toBeNull();
+  });
+
+  it('renders a Memorize tab, unselected by default', () => {
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
+    expect(screen.getByRole('tab', { name: /memorize/i }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('clicking the Memorize tab switches selection and shows the panel', () => {
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
+    fireEvent.click(screen.getByRole('tab', { name: /memorize/i }));
+    expect(screen.getByRole('tab', { name: /memorize/i }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('false');
+    expect(screen.getByText('memorize-panel')).toBeInTheDocument();
   });
 });

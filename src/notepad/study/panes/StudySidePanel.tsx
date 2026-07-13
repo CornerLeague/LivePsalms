@@ -12,8 +12,9 @@ import { FolderItem } from '@/notepad/sidebar/FolderItem';
 import { TreeViewStateProvider } from '@/notepad/sidebar/tree-view-state';
 import { buildFolderTreeView } from '@/notepad/sidebar/folder-tree-view';
 import { LamplightStudyPanel } from './LamplightStudyPanel';
+import { MemorizePanel } from '../memorize/MemorizePanel';
 
-type StudyTab = 'notes' | 'chat';
+type StudyTab = 'notes' | 'chat' | 'memorize';
 
 export interface StudySidePanelProps {
   book: string;
@@ -187,6 +188,9 @@ export function StudySidePanel({ book, chapter, userId, expanded = false, onTogg
           <button role="tab" aria-selected={tab === 'chat'} onClick={() => setTab('chat')} style={tabStyle(tab === 'chat')}>
             Chat
           </button>
+          <button role="tab" aria-selected={tab === 'memorize'} onClick={() => setTab('memorize')} style={tabStyle(tab === 'memorize')}>
+            Memorize
+          </button>
         </div>
         {(onToggleExpand || onCollapse) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, paddingInline: 6 }}>
@@ -227,6 +231,16 @@ export function StudySidePanel({ book, chapter, userId, expanded = false, onTogg
         }}
       >
         <LamplightStudyPanel book={book} chapter={chapter} userId={userId} />
+      </div>
+      <div
+        style={{
+          flex: '1 1 0%',
+          minHeight: 0,
+          overflow: 'auto',
+          display: tab === 'memorize' ? 'block' : 'none',
+        }}
+      >
+        <MemorizePanel book={book} chapter={chapter} userId={userId} active={tab === 'memorize'} />
       </div>
     </div>
   );
