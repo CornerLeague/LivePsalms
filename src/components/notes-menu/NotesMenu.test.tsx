@@ -85,6 +85,15 @@ describe('NotesMenu', () => {
     expect(onNavTrigger).not.toHaveBeenCalled();
   });
 
+  it('renders the Instagram link label without a trailing arrow glyph', () => {
+    renderMenu();
+    openMenu();
+    const menu = screen.getByRole('menu');
+    const link = within(menu).getByRole('menuitem', { name: 'Instagram' });
+    expect(link).toHaveTextContent('Instagram');
+    expect(link.textContent).not.toContain('↗');
+  });
+
   it('closes on Escape', () => {
     renderMenu();
     const trigger = openMenu();

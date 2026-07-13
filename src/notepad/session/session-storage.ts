@@ -13,6 +13,7 @@ const KEY_STUDY_TAB = 'psalms.session.studyTab';
 const KEY_BIBLE_PASSAGE = 'psalms.bible.passage';
 const KEY_BIBLE_TRANSLATION = 'psalms.bible.translation';
 const KEY_BIBLE_VERSE_LAYOUT = 'psalms.bible.verseLayout';
+const KEY_TEXT_SIZE = 'psalms.textSize';
 const KEY_THEME = 'psalms.session.theme';
 const KEY_MOBILE_STUDY_TAB = 'psalms.session.mobileStudyTab';
 const KEY_FOCUS_MODE = 'psalms.bible.focus.mode';
@@ -27,6 +28,7 @@ export {
   KEY_STUDY_TAB,
   KEY_BIBLE_TRANSLATION,
   KEY_BIBLE_VERSE_LAYOUT,
+  KEY_TEXT_SIZE,
   KEY_THEME,
   KEY_MOBILE_STUDY_TAB,
   KEY_FOCUS_MODE,

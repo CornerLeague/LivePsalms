@@ -20,8 +20,9 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 function Harness({ saveResult = { ok: true } as { ok: boolean; error?: string } }) {
   const [translation, setT] = useState<BibleTranslation>('BSB');
   const [verseLayout, setL] = useState<VerseLayout>('inline');
+  const textSize = 'base' as const;
   const saveGlobalPrefs = useCallback(
-    async (p: { translation: BibleTranslation; verseLayout: VerseLayout }) => {
+    async (p: { translation: BibleTranslation; verseLayout: VerseLayout; textSize: string }) => {
       saveSpy(p);
       setT(p.translation);
       setL(p.verseLayout);
@@ -32,8 +33,10 @@ function Harness({ saveResult = { ok: true } as { ok: boolean; error?: string } 
   const value = {
     translation,
     verseLayout,
+    textSize,
     setLocalTranslation: setT,
     setLocalVerseLayout: setL,
+    setLocalTextSize: vi.fn(),
     saveGlobalPrefs,
   };
   return (
@@ -56,7 +59,7 @@ describe('BibleReadingSettingsSection', () => {
     render(<Harness saveResult={{ ok: true }} />);
     fireEvent.change(screen.getByLabelText('Bible version'), { target: { value: 'KJV' } });
     fireEvent.click(screen.getByRole('button', { name: /save bible settings/i }));
-    await waitFor(() => expect(saveSpy).toHaveBeenCalledWith({ translation: 'KJV', verseLayout: 'inline' }));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledWith({ translation: 'KJV', verseLayout: 'inline', textSize: 'base' }));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Bible settings saved'));
     expect(screen.getByRole('button', { name: /save bible settings/i })).toBeDisabled();
   });
@@ -72,6 +75,6 @@ describe('BibleReadingSettingsSection', () => {
     expect(save).toBeEnabled();
     fireEvent.click(save);
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(2));
-    expect(saveSpy).toHaveBeenLastCalledWith({ translation: 'WEB', verseLayout: 'inline' });
+    expect(saveSpy).toHaveBeenLastCalledWith({ translation: 'WEB', verseLayout: 'inline', textSize: 'base' });
   });
 });

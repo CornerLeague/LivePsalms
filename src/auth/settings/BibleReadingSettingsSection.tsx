@@ -8,7 +8,10 @@ export function BibleReadingSettingsSection({
   sectionStyle,
   labelStyle,
 }: { sectionStyle?: CSSProperties; labelStyle?: CSSProperties } = {}) {
-  const { translation, verseLayout, saveGlobalPrefs } = useBiblePrefs();
+  // textSize has no dedicated control on this page yet (it's set from the reader/
+  // editor toolbar controls) — Save still round-trips the device's current value
+  // so it isn't clobbered on the profile row.
+  const { translation, verseLayout, textSize, saveGlobalPrefs } = useBiblePrefs();
 
   // Draft state — edits stay local to the form until Save. Re-seed whenever the
   // saved (global) value changes: the first-load DB seed, or a successful Save.
@@ -28,7 +31,7 @@ export function BibleReadingSettingsSection({
 
   async function handleSave() {
     setSaving(true);
-    const result = await saveGlobalPrefs({ translation: draftTranslation, verseLayout: draftLayout });
+    const result = await saveGlobalPrefs({ translation: draftTranslation, verseLayout: draftLayout, textSize });
     setSaving(false);
     if (result.ok) {
       setSaveFailed(false);
