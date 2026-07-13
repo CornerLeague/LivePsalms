@@ -59,23 +59,23 @@ const newCard = (over: Partial<typeof A> & { text?: string } = {}) => ({
   book: 'jhn', chapter: 1, verse: 1, translation: 'BSB', text: 'In the beginning...', ...over,
 });
 
-describe('SupabaseMemorizeAdapter.add — position math (P2)', () => {
-  it('starts new card positions strictly above the current max existing position (no ties)', async () => {
-    // remove() never renumbers, so a mid-deck deletion can leave gappy DB
-    // positions like 0, 2 while there are only 2 existing rows.
+describe('SupabaseMemorizeAdapter.add — server-side position allocation (050 fix)', () => {
+  it('does not send a position field on inserted rows — the DB sequence default assigns it atomically', async () => {
+    // Two concurrent signed-in writers computing `max(position)+1` client-side can
+    // read the same max and write the same position (a tie). 050 moves allocation
+    // into a DB sequence DEFAULT, so the client must never send `position` at all.
     wire({
       existing: [
-        { ...A, verse: 16, position: 0 },
-        { ...A, verse: 17, position: 2 },
+        { ...A, verse: 16 },
+        { ...A, verse: 17 },
       ],
     });
 
     await adapter().add([newCard({ verse: 20 })]);
 
     const rows = capturedRows();
-    // RED today: current code writes `seen.size` (2), tying the existing
-    // position-2 row. The fix must write 3 (max(0,2)+1).
-    expect(rows[0].position).toBe(3);
+    // RED today: current code still computes and sends `position: position++`.
+    expect(rows[0]).not.toHaveProperty('position');
   });
 });
 
@@ -96,7 +96,7 @@ describe('SupabaseMemorizeAdapter.add — upsert contract (P1)', () => {
 
 describe('SupabaseMemorizeAdapter.add — mixed batch (P1)', () => {
   it('still writes a genuinely-new card even when the batch also contains a known dupe', async () => {
-    wire({ existing: [{ ...A, position: 0 }] });
+    wire({ existing: [{ ...A }] });
 
     await adapter().add([
       { ...A, text: 'For God so loved the world...' }, // known dupe of A

@@ -62,17 +62,18 @@ export class SupabaseMemorizeAdapter implements MemorizeAdapter {
     // which can run two of these adapters at once for the same user).
     const { data: existing, error: selErr } = await this.#client
       .from('memorize_cards')
-      .select('book, chapter, verse, translation, position')
+      .select('book, chapter, verse, translation')
       .eq('user_id', this.#userId);
     if (selErr) throw selErr;
     const existingRows = (existing ?? []) as Array<
-      { book: string; chapter: number; verse: number; translation: string; position: number }
+      { book: string; chapter: number; verse: number; translation: string }
     >;
     const seen = new Set(existingRows.map(cardKey));
-    // Start strictly above the current max so a new card never ties an existing
-    // position. `remove()` never renumbers, so the DB can hold gappy positions
-    // (e.g. 0, 2) even though there are only 2 rows — `seen.size` would collide.
-    let position = existingRows.length ? Math.max(...existingRows.map((r) => r.position)) + 1 : 0;
+    // `position` is never sent from the client — 050 gives the column a
+    // `nextval(memorize_cards_position_seq)` DEFAULT, so the DB assigns it
+    // atomically per row. That closes the race where two concurrent signed-in
+    // writers could both read the same client-computed `max(position)+1` and
+    // write a tie; the sequence is monotonic across concurrent inserts.
     const rows: Array<Record<string, unknown>> = [];
     for (const c of cards) {
       const k = cardKey(c);
@@ -82,7 +83,6 @@ export class SupabaseMemorizeAdapter implements MemorizeAdapter {
         user_id: this.#userId,
         book: c.book, chapter: c.chapter, verse: c.verse,
         translation: c.translation, text: c.text,
-        position: position++,
       });
     }
     if (rows.length === 0) return [];
