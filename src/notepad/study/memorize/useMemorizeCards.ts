@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuthSession } from '@/auth/context/useAuthSession';
-import { loadMemorizeCards, saveMemorizeCards } from '@/notepad/session/session-storage';
+import { loadMemorizeCards, saveMemorizeCards, KEY_MEMORIZE_CARDS } from '@/notepad/session/session-storage';
 import { cardKey, type AttemptUpdate, type MemorizeAdapter, type MemorizeCard, type NewMemorizeCard } from './memorize-types';
 import { SupabaseMemorizeAdapter } from './supabase-memorize-adapter';
 
@@ -32,6 +32,11 @@ function newGuestId(): string {
     ? crypto.randomUUID()
     : `g-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
 }
+
+// Guest-only in-app signal: the native `storage` event fires only in OTHER
+// tabs, never in the tab that made the write, so same-tab sibling instances
+// (e.g. MemorizePanel + StudyReader) need this to learn about each other's writes.
+const MEMORIZE_CHANGED_EVENT = 'psalms:memorize-cards-changed';
 
 export function useMemorizeCards(opts: UseMemorizeCardsOptions = {}): UseMemorizeCardsResult {
   const { user } = useAuthSession();
@@ -71,17 +76,38 @@ export function useMemorizeCards(opts: UseMemorizeCardsOptions = {}): UseMemoriz
     return () => { cancelled = true; };
   }, [adapter, refreshKey]);
 
+  // Guest-only: reflect a sibling instance's write. The adapter path already
+  // syncs via the `active`-driven refetch(), so this only wires up in guest.
+  useEffect(() => {
+    if (adapter) return;
+    const reread = () => {
+      setCards(loadMemorizeCards());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === KEY_MEMORIZE_CARDS) reread();
+    };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(MEMORIZE_CHANGED_EVENT, reread);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(MEMORIZE_CHANGED_EVENT, reread);
+    };
+  }, [adapter]);
+
   const persistGuest = useCallback((next: MemorizeCard[]) => {
     setCards(next);
     saveMemorizeCards(next);
+    window.dispatchEvent(new CustomEvent(MEMORIZE_CHANGED_EVENT));
   }, []);
 
   const addCards = useCallback(async (incoming: NewMemorizeCard[]): Promise<MemorizeCard[]> => {
     if (incoming.length === 0) return [];
     if (!adapter) {
-      // Guest: de-dupe against current cards, append with fresh ids + positions.
-      const seen = new Set(cards.map(cardKey));
-      let position = cards.length;
+      // Guest: merge-on-read. Derive the next array from a FRESH store read,
+      // never the (possibly stale, across sibling instances) `cards` closure.
+      const base = loadMemorizeCards();
+      const seen = new Set(base.map(cardKey));
+      let position = base.length;
       const created: MemorizeCard[] = [];
       for (const c of incoming) {
         const k = cardKey(c);
@@ -94,7 +120,7 @@ export function useMemorizeCards(opts: UseMemorizeCardsOptions = {}): UseMemoriz
           mastery: 0, attempts: 0, lastPracticedAt: null, position: position++,
         });
       }
-      if (created.length > 0) persistGuest([...cards, ...created]);
+      if (created.length > 0) persistGuest([...base, ...created]);
       return created;
     }
     const prev = cards;
@@ -112,7 +138,7 @@ export function useMemorizeCards(opts: UseMemorizeCardsOptions = {}): UseMemoriz
 
   const updateAfterAttempt = useCallback(async (id: string, update: AttemptUpdate) => {
     const apply = (list: MemorizeCard[]) => list.map((c) => (c.id === id ? { ...c, ...update } : c));
-    if (!adapter) { persistGuest(apply(cards)); return; }
+    if (!adapter) { persistGuest(apply(loadMemorizeCards())); return; }
     const prev = cards;
     setCards(apply);
     try {
@@ -126,7 +152,7 @@ export function useMemorizeCards(opts: UseMemorizeCardsOptions = {}): UseMemoriz
 
   const removeCard = useCallback(async (id: string) => {
     if (!adapter) {
-      persistGuest(cards.filter((c) => c.id !== id).map((c, position) => ({ ...c, position })));
+      persistGuest(loadMemorizeCards().filter((c) => c.id !== id).map((c, position) => ({ ...c, position })));
       return;
     }
     const prev = cards;
