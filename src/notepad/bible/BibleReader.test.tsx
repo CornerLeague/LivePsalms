@@ -262,3 +262,28 @@ describe('BibleReader focus bridge', () => {
     expect(screen.queryByRole('button', { name: /Add .* to Quick list/i })).not.toBeInTheDocument();
   });
 });
+
+describe('BibleReader — Add to Memorize', () => {
+  it('opens an Add to Memorize action on verse tap and reports ref + text', async () => {
+    const onAddToMemorize = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        onAddToMemorize={onAddToMemorize}
+      />,
+    );
+    fireEvent.click(screen.getByText(/in the beginning was the word/i));
+    const addBtn = await screen.findByRole('button', { name: /add to memorize/i });
+    fireEvent.click(addBtn);
+    expect(onAddToMemorize).toHaveBeenCalledWith(
+      { book: 'jhn', chapter: 1, verse: 1 },
+      'In the beginning was the Word',
+    );
+  });
+
+  it('does not render the action when onAddToMemorize is absent', () => {
+    render(<BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />);
+    fireEvent.click(screen.getByText(/in the beginning was the word/i));
+    expect(screen.queryByRole('button', { name: /add to memorize/i })).toBeNull();
+  });
+});
