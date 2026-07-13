@@ -1167,6 +1167,16 @@ input[type="email"]::placeholder {
   opacity: 0.75; /* Firefox lowers placeholder opacity by default; pin it explicitly */
 }
 
+/* Global — left-align date input values (mobile Safari centers them by default,
+   unlike adjacent text inputs such as Full Name). Left-align reads correctly on
+   desktop too, so no media query is needed. */
+input[type="date"] {
+  text-align: left;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 /* ───── MobileBottomDock disclosure menu ───── */
 
 .menu-panel {
