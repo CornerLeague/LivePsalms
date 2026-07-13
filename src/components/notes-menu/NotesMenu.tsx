@@ -82,7 +82,7 @@ export function NotesMenu({ onNavTrigger, className, align = 'end', iconSize = 1
         </DropdownMenuLabel>
         <DropdownMenuItem asChild style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13 }}>
           <a href="https://instagram.com" target="_blank" rel="noopener noreferrer">
-            Instagram ↗
+            Instagram
           </a>
         </DropdownMenuItem>
       </DropdownMenuContent>
