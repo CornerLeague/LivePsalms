@@ -321,3 +321,50 @@ describe('BibleReader — Add to Memorize', () => {
     expect(onAddToMemorize).not.toHaveBeenCalled();
   });
 });
+
+describe('BibleReader text size control', () => {
+  it('defaults to base when no textSize prop is given', () => {
+    const { container } = render(
+      <BibleReader initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}} />,
+    );
+    expect(screen.getByLabelText('Text size')).toHaveTextContent('A');
+    const root = container.querySelector('[data-testid="bible-reader-root"]') as HTMLElement;
+    expect(root.style.getPropertyValue('--bible-text-scale')).toBe('1');
+  });
+
+  it('cycles base -> large on click and reports the change', () => {
+    const onTextSizeChange = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        textSize="base" onTextSizeChange={onTextSizeChange}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Text size'));
+    expect(onTextSizeChange).toHaveBeenCalledWith('large');
+  });
+
+  it('cycles xlarge -> base on click', () => {
+    const onTextSizeChange = vi.fn();
+    render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        textSize="xlarge" onTextSizeChange={onTextSizeChange}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Text size'));
+    expect(onTextSizeChange).toHaveBeenCalledWith('base');
+  });
+
+  it('shows the A++ glyph and scales the CSS custom property at xlarge', () => {
+    const { container } = render(
+      <BibleReader
+        initialBook="jhn" initialChapter={1} translation="BSB" onTranslationChange={() => {}}
+        textSize="xlarge" onTextSizeChange={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText('Text size')).toHaveTextContent('A++');
+    const root = container.querySelector('[data-testid="bible-reader-root"]') as HTMLElement;
+    expect(root.style.getPropertyValue('--bible-text-scale')).toBe('1.3');
+  });
+});

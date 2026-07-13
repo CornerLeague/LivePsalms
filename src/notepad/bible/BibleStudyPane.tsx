@@ -49,7 +49,7 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke, dataTou
     });
   }, []);
 
-  const { translation, setLocalTranslation, verseLayout, setLocalVerseLayout } = useBiblePrefs();
+  const { translation, setLocalTranslation, verseLayout, setLocalVerseLayout, textSize, setLocalTextSize } = useBiblePrefs();
 
   const focus = useScriptureFocusLists();
   const searchDeps = useMemo(() => createBrowserVerseSearchDeps(supabase, translation), [translation]);
@@ -127,6 +127,8 @@ export function BibleStudyPane({ lamplightAdapter, invoke, streamInvoke, dataTou
             onTranslationChange={setLocalTranslation}
             verseLayout={verseLayout}
             onVerseLayoutChange={setLocalVerseLayout}
+            textSize={textSize}
+            onTextSizeChange={setLocalTextSize}
             onPassageChange={handlePassageChange}
             highlightSwatchByVerse={swatchByVerse}
             onSetHighlight={setHighlight}

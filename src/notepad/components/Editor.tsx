@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { EditorContent } from '@tiptap/react';
 import { createPortal } from 'react-dom';
 import {
@@ -30,6 +30,7 @@ import { useReferenceGraph } from '../context/useReferenceGraph';
 import { useNoteEditor } from '../editor/use-note-editor';
 import { useNoteTitle } from '../editor/use-note-title';
 import { useBiblePrefs } from '../bible/prefs/bible-prefs-context';
+import { nextTextSize, TEXT_SIZE_LABEL, TEXT_SIZE_SCALE } from '../bible/text-size-types';
 import { useNoteLinkPopup } from '../editor/use-note-link-popup';
 import { useVerseTooltip } from '../editor/use-verse-tooltip';
 import { useSelectionAnchor, detectDoubleTap } from '../editor/use-selection-anchor';
@@ -85,7 +86,9 @@ export function NotepadEditor({
   // Active Bible translation from the shared BiblePrefsProvider.
   // Captured at the editor's mount and frozen onto scriptureRefs inserted via the
   // picker — see the mount-time note in useNoteEditor.
-  const { translation } = useBiblePrefs();
+  // textSize is the shared 3-level text-size preference (also driving the Bible/
+  // Study reader — see BibleReader.tsx) applied here via --editor-font-scale.
+  const { translation, textSize, setLocalTextSize } = useBiblePrefs();
 
   // The TipTap↔NotepadActions bridge for the active Note. See NoteEditor in CONTEXT.md.
   const { editor } = useNoteEditor({ activeNote, updateNote, onAfterSave, translation });
@@ -445,6 +448,18 @@ export function NotepadEditor({
           <ToolbarButton onClick={() => setTrayOpen((v) => !v)} active={trayOpen} title="Decorate" mobile={isBottomToolbar} dataTour="highlight-toolbar">
             <Sparkles size={15} />
           </ToolbarButton>
+
+          <ToolbarDivider mobile={isBottomToolbar} />
+
+          {/* Shared 3-level text-size control — same scale map as the Bible/Study reader. */}
+          <ToolbarButton
+            onClick={() => setLocalTextSize(nextTextSize(textSize))}
+            title={`Text size: ${TEXT_SIZE_LABEL[textSize]} — click to change`}
+            ariaLabel="Text size"
+            mobile={isBottomToolbar}
+          >
+            <span className="text-[11px] font-bold">{TEXT_SIZE_LABEL[textSize]}</span>
+          </ToolbarButton>
         </div>
       )}
 
@@ -622,7 +637,11 @@ export function NotepadEditor({
             // them above it (see decorationZIndex).
             style={{ flex: 1, position: 'relative', zIndex: TEXT_Z }}
           >
-            <EditorContent editor={editor} className="prose prose-sm max-w-none notepad-editor" />
+            <EditorContent
+              editor={editor}
+              className="prose prose-sm max-w-none notepad-editor"
+              style={{ ['--editor-font-scale' as string]: TEXT_SIZE_SCALE[textSize] } as CSSProperties}
+            />
           </div>
 
           {/* Interactive decoration overlay — absolutely positioned within the
@@ -843,18 +862,21 @@ interface ToolbarButtonProps {
   disabled?: boolean;
   onClick: () => void;
   title: string;
+  /** Accessible name, when it should differ from the (often dynamic) title tooltip. */
+  ariaLabel?: string;
   children: React.ReactNode;
   mobile?: boolean;
   dataTour?: string;
 }
 
-function ToolbarButton({ active, disabled, onClick, title, children, mobile, dataTour }: ToolbarButtonProps) {
+function ToolbarButton({ active, disabled, onClick, title, ariaLabel, children, mobile, dataTour }: ToolbarButtonProps) {
   return (
     <button
       data-tour={dataTour}
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={ariaLabel ?? title}
       className="flex items-center justify-center rounded transition-colors"
       style={{
         width: 30,

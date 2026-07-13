@@ -873,9 +873,16 @@ img {
 }
 
 /* TipTap Notepad Editor */
+.notepad-editor {
+  /* Shared 3-level text-size preference (see text-size-types.ts TEXT_SIZE_SCALE),
+     also applied to the Bible/Study reader via --bible-text-scale. Defaults to 1x
+     so the editor renders correctly even before the pref is wired onto the root. */
+  --editor-font-scale: 1;
+}
+
 .notepad-editor .tiptap {
   font-family: 'Outfit', sans-serif;
-  font-size: 15px;
+  font-size: calc(15px * var(--editor-font-scale, 1));
   line-height: 1.7;
   color: var(--deep-umber);
   outline: none;
@@ -891,7 +898,7 @@ img {
 
 .notepad-editor .tiptap h1 {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 1.75rem;
+  font-size: calc(1.75rem * var(--editor-font-scale, 1));
   font-weight: 300;
   margin-top: 2rem;
   margin-bottom: 0.75rem;
@@ -900,7 +907,7 @@ img {
 
 .notepad-editor .tiptap h2 {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 1.35rem;
+  font-size: calc(1.35rem * var(--editor-font-scale, 1));
   font-weight: 400;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
@@ -909,7 +916,7 @@ img {
 
 .notepad-editor .tiptap h3 {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 1.1rem;
+  font-size: calc(1.1rem * var(--editor-font-scale, 1));
   font-weight: 500;
   margin-top: 1.25rem;
   margin-bottom: 0.5rem;

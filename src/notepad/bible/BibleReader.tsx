@@ -1,5 +1,5 @@
 // src/notepad/bible/BibleReader.tsx
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, CornerDownLeft, Search, Info, WrapText, List, Rows3, ListOrdered } from 'lucide-react';
 import type { FocusList } from './focus/focus-list-types';
 import { bookByAbbrev, type BibleBook } from './bible-books';
@@ -7,6 +7,7 @@ import { searchBooks } from './book-search';
 import { useBiblePassages } from './useBiblePassages';
 import { type BibleTranslation, TRANSLATIONS, translationInfo } from './translations';
 import { type VerseLayout, nextVerseLayout, VERSE_LAYOUT_LABEL } from './bible-layout-types';
+import { type TextSize, DEFAULT_TEXT_SIZE, nextTextSize, TEXT_SIZE_LABEL, TEXT_SIZE_SCALE } from './text-size-types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { STYLE_ASSETS, getStyleAsset } from '../styles/manifest';
 import { highlightBackgroundStyle } from '../extensions/style-highlight';
@@ -59,6 +60,10 @@ export interface BibleReaderProps {
   verseLayout?: VerseLayout;
   /** Called when the user cycles the layout control. */
   onVerseLayoutChange?: (layout: VerseLayout) => void;
+  /** Shared 3-level text-size preference. Defaults to 'base'. */
+  textSize?: TextSize;
+  /** Called when the user cycles the text-size control. */
+  onTextSizeChange?: (size: TextSize) => void;
   /** Optional Scripture-focus bridge. When present, the reader shows a Focus toggle
       and can render a focus list instead of the chapter. Omitted by the Study reader. */
   focus?: BibleReaderFocusBridge;
@@ -78,6 +83,8 @@ export function BibleReader({
   verseNumberColor = 'var(--lamplight-accent)',
   verseLayout = 'inline',
   onVerseLayoutChange,
+  textSize = DEFAULT_TEXT_SIZE,
+  onTextSizeChange,
   focus,
 }: BibleReaderProps) {
   const [book, setBook] = useState(initialBook);
@@ -193,7 +200,14 @@ export function BibleReader({
   const LayoutIcon = verseLayout === 'inline' ? WrapText : verseLayout === 'lines' ? List : Rows3;
 
   return (
-    <div className="flex flex-col h-full" style={{ fontFamily: 'Outfit, sans-serif' }}>
+    <div
+      className="flex flex-col h-full"
+      data-testid="bible-reader-root"
+      style={{
+        fontFamily: 'Outfit, sans-serif',
+        ['--bible-text-scale' as string]: TEXT_SIZE_SCALE[textSize],
+      } as CSSProperties}
+    >
       {/* header */}
       <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid var(--pale-stone)' }}>
         <button
@@ -225,6 +239,15 @@ export function BibleReader({
             className="p-1.5 rounded hover:bg-black/5 transition-colors"
           >
             <LayoutIcon className="w-4 h-4" style={{ color: 'var(--deep-umber)' }} />
+          </button>
+          <button
+            aria-label="Text size"
+            title={`Text size: ${TEXT_SIZE_LABEL[textSize]} — click to change`}
+            onClick={() => onTextSizeChange?.(nextTextSize(textSize))}
+            className="px-1.5 py-1 rounded hover:bg-black/5 transition-colors text-[11px] font-bold"
+            style={{ color: 'var(--deep-umber)' }}
+          >
+            {TEXT_SIZE_LABEL[textSize]}
           </button>
           <select
             aria-label="Translation"
@@ -394,7 +417,10 @@ export function BibleReader({
           const blockMode = verseLayout !== 'inline';
           const Container = blockMode ? 'div' : 'p';
           return (
-            <Container className="text-[13px] leading-[1.9]" style={{ color: 'var(--deep-umber)' }}>
+            <Container
+              className="leading-[1.9]"
+              style={{ color: 'var(--deep-umber)', fontSize: 'calc(13px * var(--bible-text-scale, 1))' }}
+            >
               {verses.map((v) => {
                 const swatchId = highlightSwatchByVerse[v.verse];
                 const asset = swatchId ? getStyleAsset(swatchId) : undefined;
@@ -416,7 +442,12 @@ export function BibleReader({
                           }
                     }
                   >
-                    <sup className="text-[9px] font-bold mr-1" style={{ color: verseNumberColor }}>{v.verse}</sup>
+                    <sup
+                      className="font-bold mr-1"
+                      style={{ color: verseNumberColor, fontSize: 'calc(9px * var(--bible-text-scale, 1))' }}
+                    >
+                      {v.verse}
+                    </sup>
                     {v.text}{blockMode ? '' : ' '}
                   </span>
                 );
