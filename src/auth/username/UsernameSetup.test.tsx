@@ -22,6 +22,12 @@ function setup(overrides: Partial<React.ComponentProps<typeof UsernameSetup>> = 
 }
 
 describe('UsernameSetup', () => {
+  it('gives the username input Pattern-A background/text tokens for dark-mode readability', () => {
+    setup();
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveStyle({ background: 'var(--plaster)', color: 'var(--deep-umber)' });
+  });
+
   it('disables submit and shows a hint for too-short input', () => {
     setup();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'ab' } });

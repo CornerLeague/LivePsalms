@@ -82,6 +82,7 @@ export function UsernameSetup({ checkAvailable, claim, onClaimed, onSkip, skippi
             value={value}
             onChange={(e) => setValue(e.target.value)}
             className="w-full rounded-md border px-3 py-2"
+            style={{ background: 'var(--plaster)', color: 'var(--deep-umber)' }}
           />
           {status && <p className="text-sm text-mersi-dark/70">{status}</p>}
           {submitError && <p className="text-sm text-red-600">{submitError}</p>}
