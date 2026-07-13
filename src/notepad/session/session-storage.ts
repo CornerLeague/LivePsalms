@@ -1,4 +1,5 @@
 import type { FocusListItem } from '@/notepad/bible/focus/focus-list-types';
+import type { MemorizeCard } from '@/notepad/study/memorize/memorize-types';
 
 // Per-device session state persisted to localStorage so the app can return the
 // user to where they left off after a refresh or sign-out/sign-in. All reads and
@@ -17,6 +18,7 @@ const KEY_MOBILE_STUDY_TAB = 'psalms.session.mobileStudyTab';
 const KEY_FOCUS_MODE = 'psalms.bible.focus.mode';
 const KEY_FOCUS_ACTIVE_LIST = 'psalms.bible.focus.activeListId';
 const KEY_QUICK_LIST = 'psalms.bible.focus.quickList';
+const KEY_MEMORIZE_CARDS = 'psalms.memorize.cards';
 
 export {
   KEY_LAST_NOTE,
@@ -30,6 +32,7 @@ export {
   KEY_FOCUS_MODE,
   KEY_FOCUS_ACTIVE_LIST,
   KEY_QUICK_LIST,
+  KEY_MEMORIZE_CARDS,
 };
 
 function readRaw(key: string): string | null {
@@ -136,4 +139,19 @@ export function loadQuickListItems(): FocusListItem[] {
 }
 export function saveQuickListItems(items: FocusListItem[]): void {
   writeRaw(KEY_QUICK_LIST, JSON.stringify(items));
+}
+
+export function loadMemorizeCards(): MemorizeCard[] {
+  const raw = readRaw(KEY_MEMORIZE_CARDS);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as MemorizeCard[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveMemorizeCards(cards: MemorizeCard[]): void {
+  writeRaw(KEY_MEMORIZE_CARDS, JSON.stringify(cards));
 }

@@ -50,6 +50,8 @@ export interface BibleReaderProps {
   onSetHighlight?: (verse: number, swatchId: string) => void;
   /** Remove a verse highlight. */
   onRemoveHighlight?: (verse: number) => void;
+  /** Snapshot a verse into the Memorize collection (delegated to the parent). */
+  onAddToMemorize?: (ref: VerseRef, text: string) => void;
   /** Verse-number color. Defaults to the scripture-gold accent; the Study reader
       passes the body text color so the numbers read as part of the passage. */
   verseNumberColor?: string;
@@ -72,6 +74,7 @@ export function BibleReader({
   highlightSwatchByVerse = {},
   onSetHighlight,
   onRemoveHighlight,
+  onAddToMemorize,
   verseNumberColor = 'var(--lamplight-accent)',
   verseLayout = 'inline',
   onVerseLayoutChange,
@@ -87,6 +90,8 @@ export function BibleReader({
   const [pickerAnchor, setPickerAnchor] = useState<{ top: number; left: number } | null>(null);
   const [pickerQuery, setPickerQuery] = useState('');
   const highlightingEnabled = !!onSetHighlight;
+  const memorizeEnabled = !!onAddToMemorize;
+  const pickerEnabled = highlightingEnabled || memorizeEnabled;
 
   const [navOpen, setNavOpen] = useState(false);
   const [navBook, setNavBook] = useState<BibleBook | null>(null);
@@ -162,7 +167,7 @@ export function BibleReader({
   const selectVerse = (verse: number) => {
     setSelectedVerse(verse);
     onSelectVerse?.({ book, chapter, verse });
-    if (highlightingEnabled) {
+    if (pickerEnabled) {
       const rect = document.getElementById(`bible-verse-${verse}`)?.getBoundingClientRect();
       if (rect) {
         // Clamp left so a wide popover/pill stays on-screen.
@@ -437,6 +442,37 @@ export function BibleReader({
               onClose={closePicker}
             />
           )
+        )}
+        {memorizeEnabled && pickerVerse != null && pickerAnchor && (
+          <div
+            style={{
+              position: 'fixed',
+              top: pickerAnchor.top,
+              left: pickerAnchor.left,
+              zIndex: 50,
+              background: 'var(--parchment, #fff)',
+              border: '1px solid var(--pale-stone)',
+              borderRadius: 8,
+              boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
+              padding: 6,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const text = verses.find((v) => v.verse === pickerVerse)?.text ?? '';
+                onAddToMemorize?.({ book, chapter, verse: pickerVerse }, text);
+                closePicker();
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px',
+                border: 'none', background: 'transparent', cursor: 'pointer',
+                color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif', fontSize: 12, minHeight: 40,
+              }}
+            >
+              Add to Memorize
+            </button>
+          </div>
         )}
         </>)}
       </div>
