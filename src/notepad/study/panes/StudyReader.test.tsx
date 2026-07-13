@@ -1,14 +1,33 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
 const bibleReaderProps = vi.fn();
-const addCards = vi.fn().mockResolvedValue([]);
 vi.mock('@/lib/supabase', () => ({ supabase: null }));
 vi.mock('@/notepad/bible/BibleReader', () => ({
+  // Lightweight stand-in for the real BibleReader. Mirrors its documented
+  // contract (`memorizeEnabled = !!onAddToMemorize`) closely enough to
+  // verify StudyReader's wiring without pulling in the full reader/data stack.
   BibleReader: (props: Record<string, unknown>) => {
     bibleReaderProps(props);
-    return <div>reader {String(props.initialBook)}:{String(props.initialChapter)}</div>;
+    const onSelectVerse = props.onSelectVerse as ((ref: unknown) => void) | undefined;
+    const onAddToMemorize = props.onAddToMemorize as
+      | ((ref: unknown, text: string) => void)
+      | undefined;
+    const ref = { book: props.initialBook, chapter: props.initialChapter, verse: 1 };
+    return (
+      <div>
+        reader {String(props.initialBook)}:{String(props.initialChapter)}
+        <button type="button" onClick={() => onSelectVerse?.(ref)}>
+          verse 1
+        </button>
+        {onAddToMemorize && (
+          <button type="button" onClick={() => onAddToMemorize(ref, 'sample text')}>
+            Add to Memorize
+          </button>
+        )}
+      </div>
+    );
   },
 }));
 vi.mock('@/notepad/bible/useBibleTranslation', () => ({
@@ -17,17 +36,14 @@ vi.mock('@/notepad/bible/useBibleTranslation', () => ({
 vi.mock('@/auth/context/useAuthSession', () => ({
   useAuthSession: () => ({ user: null }),
 }));
-vi.mock('@/notepad/study/memorize/useMemorizeCards', () => ({
-  useMemorizeCards: () => ({ addCards }),
-}));
 
 import { StudyReader } from './StudyReader';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
 
 beforeEach(() => {
   bibleReaderProps.mockReset();
-  addCards.mockClear();
 });
+afterEach(cleanup);
 
 describe('StudyReader', () => {
   it('renders the BibleReader seeded with the open passage', () => {
@@ -51,20 +67,38 @@ describe('StudyReader onSelectVerse', () => {
     const props = bibleReaderProps.mock.calls[0][0];
     expect(props.onSelectVerse).toBe(onSelectVerse);
   });
+
+  it('still calls onSelectVerse when a verse is tapped (the study action is preserved)', () => {
+    const onSelectVerse = vi.fn();
+    render(
+      <BiblePrefsProvider>
+        <StudyReader book="jhn" chapter={3} onPassageChange={vi.fn()} onSelectVerse={onSelectVerse} />
+      </BiblePrefsProvider>,
+    );
+    fireEvent.click(screen.getByText('verse 1'));
+    expect(onSelectVerse).toHaveBeenCalledWith({ book: 'jhn', chapter: 3, verse: 1 });
+  });
 });
 
-describe('StudyReader onAddToMemorize', () => {
-  it('wires onAddToMemorize to addCards with the active translation + snapshot text', () => {
+describe('StudyReader memorize popup removal', () => {
+  it('does not show an Add to Memorize control when a verse is tapped', () => {
+    render(
+      <BiblePrefsProvider>
+        <StudyReader book="jhn" chapter={3} onPassageChange={vi.fn()} />
+      </BiblePrefsProvider>,
+    );
+    fireEvent.click(screen.getByText('verse 1'));
+    expect(screen.queryByRole('button', { name: /add to memorize/i })).toBeNull();
+    expect(screen.queryByText(/add to memorize/i)).toBeNull();
+  });
+
+  it('does not pass onAddToMemorize to BibleReader', () => {
     render(
       <BiblePrefsProvider>
         <StudyReader book="jhn" chapter={3} onPassageChange={vi.fn()} />
       </BiblePrefsProvider>,
     );
     const props = bibleReaderProps.mock.calls[0][0];
-    expect(typeof props.onAddToMemorize).toBe('function');
-    props.onAddToMemorize({ book: 'jhn', chapter: 3, verse: 16 }, 'For God so loved the world');
-    expect(addCards).toHaveBeenCalledWith([
-      { book: 'jhn', chapter: 3, verse: 16, translation: 'BSB', text: 'For God so loved the world' },
-    ]);
+    expect(props.onAddToMemorize).toBeUndefined();
   });
 });
