@@ -43,11 +43,16 @@ it is what made the user tap through notes one by one.
    no dates, which is why the server keys off content):
    - Repeat Item → **Name** → **Set Variable** `noteTitle`.
    - Repeat Item → **Body** → **Set Variable** `noteText`.
+   - Repeat Item → **Folder** → **Set Variable** `folderName`. *(Read the folder from the
+     note itself — this is defined in **both** menu branches: **Import all notes** preserves
+     each note's own Apple Notes folder, and **Choose a folder** resolves to the folder the
+     user picked. A note with no named folder yields an empty value, which the server files
+     directly under the root **Apple Notes** folder.)*
    - **Get Contents of URL** (input = `endpoint`):
      - Method: `POST`
      - Headers: `Authorization: Bearer <token>`, `Content-Type: application/json`
      - Request Body: JSON →
-       `{ "title": noteTitle, "text": noteText, "folder_name": "<folder name>" }`
+       `{ "title": noteTitle, "text": noteText, "folder_name": folderName }`
 5. **Show Notification** after the loop with a count of `created` + `unchanged`
    responses (e.g. "Imported N notes").
 
@@ -105,15 +110,21 @@ searching the action list and dragging it in, in order.
 
    4b. **Text** → insert **Repeat Item** → choose **Body** → **Set Variable** `noteText`.
 
-   4c. **Get Contents of URL**, input = the `endpoint` variable. **Show More** and set:
+   4c. **Text** → insert **Repeat Item** → choose **Folder** → **Set Variable** `folderName`.
+       This is what groups the imports, and reading it **from the note** (not from the step-3
+       menu) is what makes **Import all notes** work: every note supplies its own folder, so
+       there is no undefined value in the all-notes branch. In the **Choose a folder** branch
+       it equals the folder the user picked. A note with no named folder yields empty, and the
+       server files it directly under the root **Apple Notes** folder.
+
+   4d. **Get Contents of URL**, input = the `endpoint` variable. **Show More** and set:
        - **Method:** `POST`
        - **Headers:** `Authorization` = `Bearer ` then the `token` variable;
          `Content-Type` = `application/json`
        - **Request Body: JSON**, add fields (Type = Text): `title` = `noteTitle`,
-         `text` = `noteText`, `folder_name` = the folder name (a Text value, or reuse the
-         **Ask Each Time** folder from step 3).
+         `text` = `noteText`, `folder_name` = the `folderName` variable from 4c.
 
-   4d. *(Optional)* **Get Dictionary Value** → key `status` from the **Contents of URL**
+   4e. *(Optional)* **Get Dictionary Value** → key `status` from the **Contents of URL**
        output → **Add to Variable** `results` to tally outcomes.
 
 5. *(After End Repeat)* **Show Notification** (or **Show Result**) with the `results` count
@@ -136,8 +147,11 @@ installs it in one tap; on first run it prompts for their own token.
 
 ## Behaviour
 - Imported notes land in an auto-created **Apple Notes** folder (a named subfolder
-  when `folder_name` is sent), with `type = general`. The note's date in Psalms is its
-  import time (Apple's original dates are not available to Shortcuts).
+  when `folder_name` is sent), with `type = general`. Because the Shortcut sends each
+  note's own folder, an **Import all notes** run mirrors your Apple Notes folders as
+  subfolders under **Apple Notes**; notes with no named folder sit directly in it. The
+  note's date in Psalms is its import time (Apple's original dates are not available to
+  Shortcuts).
 - **Dedup key = SHA-256 of `title|body`** (the note's content). Re-running is safe:
   an unchanged note returns `unchanged` and is not re-inserted.
   - Two notes with the *same title AND same body* are treated as one.
