@@ -10,7 +10,9 @@ personal access token (PAT).
 2. On an iPhone, iPad, or Mac, tap **Install Shortcut** in the same panel (it opens
    the iCloud Shortcut link directly in the Shortcuts app). If Shortcuts isn't
    installed, use **Get the Shortcuts app** to install it first.
-3. On first run the Shortcut prompts for the token and stores it; paste the value.
+3. Run the Shortcut. It shows a one-tap menu — **Import all notes** or
+   **Choose a folder** — then imports everything with no per-note tapping. On the
+   first run it asks for your token; paste the value you copied.
 4. Back in the panel, the status banner confirms imports ("✅ N notes imported ·
    last import …") once a run completes.
 
@@ -19,23 +21,44 @@ personal access token (PAT).
 > The raw endpoint URL is no longer shown — it's baked into the distributed Shortcut.
 
 ## Shortcut recipe (build once, distribute as an iCloud link)
-1. **Text** action → the import endpoint:
+
+The recipe is **menu-driven and tap-free**: the user chooses scope **once**
+(all notes, or one folder) and every matching note imports with **no per-note
+picker**. Removing the old `Choose from List` per-note step is the whole point —
+it is what made the user tap through notes one by one.
+
+1. **Ask for Input** (Text) → prompt `Paste your Psalms token (psalms_pat_…)` →
+   **Set Variable** `token`. *(First-run prompt. To make repeat runs one tap, see
+   the token-storage note below.)*
+2. **Text** → the import endpoint
    `https://<project-ref>.functions.supabase.co/import-apple-note`
-   (or `${VITE_SUPABASE_URL}/functions/v1/import-apple-note`).
-2. **Find Notes** → filter to a folder the user picks (use "Ask Each Time" for the folder).
-3. **Repeat with Each** (the found notes). Inside the loop, the current note is the
-   **Repeat Item** variable; pull its details by inserting Repeat Item and tapping the
-   token to pick a detail (there is **no** "Get Details of Notes" action):
-   - Repeat Item → **Name** → set variable `noteTitle`.
-   - Repeat Item → **Body** → set variable `noteText`.
-   - **Get Contents of URL**:
+   (or `${VITE_SUPABASE_URL}/functions/v1/import-apple-note`) → **Set Variable** `endpoint`.
+3. **Choose from Menu** with two items:
+   - **Import all notes** → **Find Notes** with **no folder filter** (every note).
+   - **Choose a folder** → **Find Notes** → **Add Filter → Folder → is → Ask Each Time**
+     (the user picks one folder at run time).
+   There is **no** `Choose from List` per-note picker in either branch.
+4. **Repeat with Each** over the found notes. Inside the loop, the current note is the
+   **Repeat Item** variable (the Note type exposes **Name, Summary, Body, Folder, Tags** —
+   no dates, which is why the server keys off content):
+   - Repeat Item → **Name** → **Set Variable** `noteTitle`.
+   - Repeat Item → **Body** → **Set Variable** `noteText`.
+   - **Get Contents of URL** (input = `endpoint`):
      - Method: `POST`
-     - Headers: `Authorization: Bearer <stored token>`, `Content-Type: application/json`
+     - Headers: `Authorization: Bearer <token>`, `Content-Type: application/json`
      - Request Body: JSON →
-       `{ "title": noteTitle, "text": noteText, "folder_name": "<picked folder name>" }`
-4. (Optional) Show a final count of created/unchanged responses.
+       `{ "title": noteTitle, "text": noteText, "folder_name": "<folder name>" }`
+5. **Show Notification** after the loop with a count of `created` + `unchanged`
+   responses (e.g. "Imported N notes").
 
 The endpoint returns `{ status: "created" | "unchanged", note_id }` per note.
+
+**Token-storage note.** The steps above prompt for the token **every run** (safest for
+a link you share with others, so no one inherits your token). For your **own personal**
+copy, storing the token once is much nicer: replace step 1 (Ask for Input + Set Variable)
+with a single **Text** action holding your `psalms_pat_…` value + **Set Variable** `token`
+— no prompt on future runs. Keep the shared/distributed link on Ask-for-Input; switch only
+your personal copy to stored.
 
 > **Why no dates?** Apple Shortcuts cannot read a note's id or its creation/
 > modification dates (the Note variable only exposes Name, Summary, Body, Folder,
@@ -48,72 +71,64 @@ Build this once in the **Shortcuts app** (easiest on a Mac, also works on iPhone
 test it, then share it as an iCloud link. Each numbered step is one action you add by
 searching the action list and dragging it in, in order.
 
-**Prep:** open Shortcuts → **File ▸ New Shortcut** (Mac) or **+** (iOS). Name it
-`Import Apple Notes`. In the shortcut settings (ⓘ), turn ON **Show in Share Sheet**
-is *not* needed — this runs standalone.
+**Prep:** Shortcuts → **File ▸ New Shortcut** (Mac) or **+** (iOS). Name it
+`Import Apple Notes`. It runs standalone (Share Sheet not needed).
 
-1. **Ask for Input** (search "Ask for Input")
-   - Input type: **Text**
-   - Prompt: `Paste your Psalms token (psalms_pat_…)`
-   - Then add **Set Variable** → name it `token`.
-   *(This prompts for the token every run. To store it permanently instead, replace
-   these two with a single **Text** action holding the token and Set Variable `token` —
-   less safe but no prompt. The Ask-for-Input version is recommended for sharing.)*
+1. **Ask for Input** → Input type **Text**, prompt `Paste your Psalms token (psalms_pat_…)`.
+   Then **Set Variable** `token`.
+   *(To store the token instead of prompting: replace these two with one **Text** action
+   holding the token + **Set Variable** `token`. Recommended only for your personal copy —
+   see the token-storage note above.)*
 
-2. **Text** action → type the endpoint URL exactly:
+2. **Text** → the endpoint URL exactly:
    `https://<project-ref>.functions.supabase.co/import-apple-note`
-   Then **Set Variable** → `endpoint`.
-   *(Replace `<project-ref>` with the real Supabase project ref before sharing.)*
+   Then **Set Variable** `endpoint`. *(Replace `<project-ref>` before sharing.)*
 
-3. **Find Notes** (search "Find Notes")
-   - Tap **Add Filter** → **Folder** → **is** → choose the folder, OR tap the folder
-     value and select **Ask Each Time** so the user picks at run time.
-   - Leave **Sort by** / **Limit** off (import everything in the folder).
+3. **Choose from Menu** (search "Choose from Menu"). Set two menu items:
+   **Import all notes** and **Choose a folder**. This creates two branches — put the
+   matching **Find Notes** action inside each:
+   - Under **Import all notes** → **Find Notes** with **no filter** (all notes).
+   - Under **Choose a folder** → **Find Notes** → **Add Filter → Folder → is**, then tap the
+     folder value and pick **Ask Each Time** so the user chooses a folder at run time.
+   Leave **Sort by** / **Limit** off in both. **Do not** add a `Choose from List` action —
+   the tap-free import is the point.
 
-4. **Repeat with Each** (search "Repeat with Each"), pass it the **Notes** output from
-   step 3. Everything below goes *inside* the Repeat block (between "Repeat with Each"
-   and "End Repeat"). Inside the block, the current note is the **Repeat Item** variable.
+4. **Repeat with Each** (search "Repeat with Each"), passed the **Notes** output of the
+   branch you're in. (Simplest: end both menu branches by setting a shared `notes` variable,
+   then place one **Repeat with Each** over `notes` after the menu.) Everything below goes
+   *inside* the Repeat block. The current note is the **Repeat Item** variable.
 
-   There is **no** "Get Details of Notes" action. To read a note's fields, insert the
-   **Repeat Item** variable and click the token to choose which detail to use (the Note
-   type exposes **Name, Summary, Body, Folder, Tags** — note that **dates are not
-   available**, which is why the server keys off content, not dates).
+   There is **no** "Get Details of Notes" action. To read a field, insert **Repeat Item**
+   and click the token to choose the detail (Name, Summary, Body, Folder, Tags — **no dates**).
 
-   4a. **Text** action → insert **Repeat Item**, click the token → choose **Name** →
-       **Set Variable** `noteTitle`.
+   4a. **Text** → insert **Repeat Item** → choose **Name** → **Set Variable** `noteTitle`.
 
-   4b. **Text** action → insert **Repeat Item**, click the token → choose **Body** →
-       **Set Variable** `noteText`.
+   4b. **Text** → insert **Repeat Item** → choose **Body** → **Set Variable** `noteText`.
 
-   4c. **Get Contents of URL** (search "Get Contents of URL"), input = the `endpoint`
-       variable. Tap **Show More** and set:
+   4c. **Get Contents of URL**, input = the `endpoint` variable. **Show More** and set:
        - **Method:** `POST`
-       - **Headers:** add two —
-         - `Authorization` = `Bearer ` followed by the `token` variable
-           (type `Bearer `, then insert the variable right after the space)
-         - `Content-Type` = `application/json`
-       - **Request Body:** **JSON**, then **Add new field** for each (Type = Text):
-         - `title` (Text) = `noteTitle`
-         - `text` (Text) = `noteText`
-         - `folder_name` (Text) = the folder name (a Text value, or the folder the user
-           picked in step 3 — you can reuse an **Ask Each Time** value here)
+       - **Headers:** `Authorization` = `Bearer ` then the `token` variable;
+         `Content-Type` = `application/json`
+       - **Request Body: JSON**, add fields (Type = Text): `title` = `noteTitle`,
+         `text` = `noteText`, `folder_name` = the folder name (a Text value, or reuse the
+         **Ask Each Time** folder from step 3).
 
    4d. *(Optional)* **Get Dictionary Value** → key `status` from the **Contents of URL**
-       output, then **Add to Variable** `results` to tally outcomes.
+       output → **Add to Variable** `results` to tally outcomes.
 
-5. *(After End Repeat, optional)* **Show Notification** or **Show Result** with the
-   `results` count so the user sees how many notes were created/unchanged.
+5. *(After End Repeat)* **Show Notification** (or **Show Result**) with the `results` count
+   so the user sees how many notes were created/unchanged.
 
-**Test before sharing:** run the Shortcut against a small test folder (2–3 notes).
-First run should report `created`; an immediate re-run should report `unchanged`.
-(Editing a note's text then re-running imports it as a *new* note, because identity is
-the title+body hash — see Behaviour.) Confirm the notes appear under
-**Apple Notes › <folder>** in the Psalms notepad.
+**Test before sharing:** run against a small test folder (2–3 notes) via **Choose a folder**,
+then via **Import all notes**. First run reports `created`; an immediate re-run reports
+`unchanged`. (Editing a note's text then re-running imports it as a *new* note — identity is
+the title+body hash; see Behaviour.) Confirm the notes appear under **Apple Notes › <folder>**
+in the Psalms notepad.
 
-**Distribute:** Shortcuts → right-click the shortcut → **Share** → **Copy iCloud Link**
-(enable iCloud sharing if prompted). Put that link in the Settings → Connect Apple
-Notes copy and in the "User setup" section above. Anyone with the link installs it in
-one tap; on first run it prompts for their own token.
+**Distribute:** Shortcuts → right-click → **Share** → **Copy iCloud Link** (enable iCloud
+sharing if prompted). Put that link in the Settings → Connect Apple Notes panel constant
+(`APPLE_SHORTCUT_ICLOUD_URL`) and in the "User setup" section above. Anyone with the link
+installs it in one tap; on first run it prompts for their own token.
 
 > Note: a Shortcut is authored in Apple's GUI and lives as a `.shortcut` file in
 > iCloud, not as code in this repo. These instructions are the source of truth for
