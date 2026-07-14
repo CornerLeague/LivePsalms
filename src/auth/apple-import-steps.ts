@@ -19,7 +19,11 @@ export interface GuideStep {
 // its only signal (hasRun) is shared with `install`, so `install` carries the
 // active highlight through the whole "have token, haven't run" window and both
 // flip to `done` the instant the Shortcut first runs. Precondition (from the
-// data model): hasRun implies hasToken.
+// data model): hasRun implies hasToken. `confirm` is gated on hasRun as well as
+// importedCount so that revoking your only token after an import (which drops
+// hasToken/hasRun to false while importedCount stays > 0, since revocation
+// doesn't delete imported notes) walks the guide back to the token step instead
+// of leaving a stale green ✓ on the final step.
 export function deriveImportSteps(input: {
   hasToken: boolean;
   hasRun: boolean;
@@ -30,7 +34,7 @@ export function deriveImportSteps(input: {
   const token: StepState = hasToken ? 'done' : 'active';
   const install: StepState = hasRun ? 'done' : hasToken ? 'active' : 'upcoming';
   const run: StepState = hasRun ? 'done' : 'upcoming';
-  const confirm: StepState = importedCount > 0 ? 'done' : hasRun ? 'active' : 'upcoming';
+  const confirm: StepState = importedCount > 0 && hasRun ? 'done' : hasRun ? 'active' : 'upcoming';
 
   return [
     { id: 'token', title: 'Generate your token', state: token },
