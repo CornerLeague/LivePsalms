@@ -92,4 +92,48 @@ describe('ApplePersonalTokensSection', () => {
     fireEvent.click(screen.getByRole('button', { name: /^copy$/i }));
     expect(screen.getByText(/^copied$/i)).toBeInTheDocument();
   });
+
+  it('renders the four numbered guide steps', async () => {
+    render(<ApplePersonalTokensSection client={client} userId="u-1" />);
+    await waitFor(() => expect(screen.getByText('Generate your token')).toBeInTheDocument());
+    expect(screen.getByText('Install the Shortcut')).toBeInTheDocument();
+    expect(screen.getByText('Run it & choose your notes')).toBeInTheDocument();
+    expect(screen.getByText('Confirm your import')).toBeInTheDocument();
+  });
+
+  it('marks the token step done and install active once a token exists', async () => {
+    vi.mocked(tokens.listTokens).mockResolvedValue([
+      { id: 't1', name: 'Apple Notes Shortcut', lastUsedAt: null, createdAt: '2026-06-11T00:00:00Z' },
+    ]);
+    const { container } = render(<ApplePersonalTokensSection client={client} userId="u-1" />);
+    await waitFor(() =>
+      expect(container.querySelector('[data-step-id="token"]')).toHaveAttribute('data-step-state', 'done'),
+    );
+    expect(container.querySelector('[data-step-id="install"]')).toHaveAttribute('data-step-state', 'active');
+    expect(container.querySelector('[data-step-id="run"]')).toHaveAttribute('data-step-state', 'upcoming');
+  });
+
+  it('marks the confirm step done when notes have been imported', async () => {
+    vi.mocked(tokens.listTokens).mockResolvedValue([
+      { id: 't1', name: 'Apple Notes Shortcut', lastUsedAt: '2026-06-12T11:58:00Z', createdAt: '2026-06-11T00:00:00Z' },
+    ]);
+    vi.mocked(tokens.countImportedNotes).mockResolvedValue(3);
+    const { container } = render(<ApplePersonalTokensSection client={client} userId="u-1" />);
+    await waitFor(() =>
+      expect(container.querySelector('[data-step-id="confirm"]')).toHaveAttribute('data-step-state', 'done'),
+    );
+  });
+
+  it('shows the expandable detailed walkthrough', async () => {
+    render(<ApplePersonalTokensSection client={client} userId="u-1" />);
+    expect(screen.getByText(/see the full step-by-step/i)).toBeInTheDocument();
+    // Walkthrough-only phrasing (not present in the compact step body):
+    expect(screen.getByText(/where they land/i)).toBeInTheDocument();
+  });
+
+  it('always shows the edit-makes-a-duplicate and safe-to-re-run note', () => {
+    render(<ApplePersonalTokensSection client={client} userId="u-1" />);
+    expect(screen.getByText(/re-importing creates a/i)).toBeInTheDocument();
+    expect(screen.getByText(/run the Shortcut again anytime/i)).toBeInTheDocument();
+  });
 });
