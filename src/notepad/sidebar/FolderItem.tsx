@@ -37,9 +37,10 @@ import { useDeferredMenuAction } from './useDeferredMenuAction';
 export interface FolderItemProps {
   folder: Folder;
   /**
-   * When true (the system Study root), hide Rename + Delete and the inline
-   * "New Note Inside" action — a docked accent button in the Study pane
-   * replaces note creation at the root. Subfolders keep the full menu.
+   * When true (the system Study root), hide Rename + Delete: the app owns this
+   * folder's name and lifecycle, not the user. Note creation is unaffected —
+   * the row's + and "New Note Inside" stay, so every folder in the app takes a
+   * new note the same way. Subfolders keep the full menu.
    */
   isSystem?: boolean;
   /** Notes whose `folderId` matches this folder, already filtered. */
@@ -155,14 +156,13 @@ export function FolderItem(props: FolderItemProps) {
                       Rename
                     </DropdownMenuItem>
                   )}
-                  {!isSystem && (
-                    <DropdownMenuItem
-                      onSelect={() => menuAction.run(() => handleCreateNoteInFolder())}
-                      style={{ fontFamily: 'Outfit, sans-serif' }}
-                    >
-                      New Note Inside
-                    </DropdownMenuItem>
-                  )}
+                  {/* Not gated on isSystem — mirrors the row's + button. */}
+                  <DropdownMenuItem
+                    onSelect={() => menuAction.run(() => handleCreateNoteInFolder())}
+                    style={{ fontFamily: 'Outfit, sans-serif' }}
+                  >
+                    New Note Inside
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => menuAction.run(() => setNewSubfolderOpen(true))}
                     style={{ fontFamily: 'Outfit, sans-serif' }}
@@ -209,25 +209,25 @@ export function FolderItem(props: FolderItemProps) {
               </div>
 
               {/* Quick add — new note straight into this folder, no category
-                  prompt. Hidden on the system Study root, which hides inline note
-                  creation in favor of a docked button in the Study pane. */}
-              {!isSystem && (
-                <button
-                  type="button"
-                  aria-label={`New note in ${folder.name}`}
-                  title="New note in this folder"
-                  className="shrink-0 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/15 transition-all"
-                  style={{
-                    opacity: hovering || isMobile ? 1 : 0,
-                    transition: 'opacity 0.15s',
-                    color: 'var(--silica)',
-                    padding: '1px',
-                  }}
-                  onClick={(e) => { e.stopPropagation(); handleCreateNoteInFolder(); }}
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              )}
+                  prompt. Shown on every folder including the system Study root:
+                  `isSystem` means "can't be renamed or deleted", not "can't hold
+                  new notes", and the row-level + is how every other folder in
+                  the app works. */}
+              <button
+                type="button"
+                aria-label={`New note in ${folder.name}`}
+                title="New note in this folder"
+                className="shrink-0 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/15 transition-all"
+                style={{
+                  opacity: hovering || isMobile ? 1 : 0,
+                  transition: 'opacity 0.15s',
+                  color: 'var(--silica)',
+                  padding: '1px',
+                }}
+                onClick={(e) => { e.stopPropagation(); handleCreateNoteInFolder(); }}
+              >
+                <Plus className="w-3 h-3" />
+              </button>
             </div>
 
             {/* Children */}
@@ -285,14 +285,13 @@ export function FolderItem(props: FolderItemProps) {
               Rename
             </ContextMenuItem>
           )}
-          {!isSystem && (
-            <ContextMenuItem
-              onSelect={() => menuAction.run(() => handleCreateNoteInFolder())}
-              style={{ fontFamily: 'Outfit, sans-serif' }}
-            >
-              New Note Inside
-            </ContextMenuItem>
-          )}
+          {/* Not gated on isSystem — mirrors the row's + button. */}
+          <ContextMenuItem
+            onSelect={() => menuAction.run(() => handleCreateNoteInFolder())}
+            style={{ fontFamily: 'Outfit, sans-serif' }}
+          >
+            New Note Inside
+          </ContextMenuItem>
           <ContextMenuItem
             onSelect={() => menuAction.run(() => setNewSubfolderOpen(true))}
             style={{ fontFamily: 'Outfit, sans-serif' }}
@@ -320,7 +319,7 @@ export function FolderItem(props: FolderItemProps) {
           <AlertDialogHeader>
             <AlertDialogTitle style={{ fontFamily: 'Outfit, sans-serif' }}>Delete Folder</AlertDialogTitle>
             <AlertDialogDescription style={{ fontFamily: 'Outfit, sans-serif' }}>
-              Are you sure you want to delete "{folder.name}"? Notes inside will be moved to root.
+              Are you sure you want to delete "{folder.name}"? Notes inside will be moved to Main.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

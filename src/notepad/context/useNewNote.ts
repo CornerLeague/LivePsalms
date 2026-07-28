@@ -28,8 +28,9 @@ export interface UseNewNote {
  * decided yet (`resolveNewNoteFolderId` returns null) this waits for the
  * hierarchy to settle and resolves against the real list instead.
  *
- * A second click while that wait is in flight is ignored, so one impatient
- * double-tap can't produce two notes.
+ * A second click is ignored while a creation is in flight — whether that's the
+ * folder-list wait or just the `createNote` call on the fast path — so one
+ * impatient double-tap can't produce two notes.
  */
 export function useNewNote(): UseNewNote {
   const { activeNote, collection } = useNoteCollection();
@@ -39,23 +40,29 @@ export function useNewNote(): UseNewNote {
 
   const createNewNote = useCallback(async (): Promise<Note | null> => {
     if (inFlight.current) return null;
-
-    const target = resolveNewNoteFolderId(activeNote, folders, foldersLoaded);
-    if (target !== null) {
-      return collection.createNote(target, DEFAULT_NEW_NOTE_TYPE);
-    }
-
+    // Guard the whole creation — including the fast path — so a double-tap
+    // can't slip a second note through before the first `createNote` settles.
+    // `pending` stays scoped to the folder-list wait below (see its doc): the
+    // fast path resolves instantly, so flashing the button busy there is noise.
     inFlight.current = true;
-    setPending(true);
     try {
-      const settled = await hierarchy.whenLoaded();
-      // Re-read the active note: the user may have opened one while we waited.
-      const latestActive = collection.getSnapshot().activeNote;
-      const folderId = resolveNewNoteFolderId(latestActive, settled.folders, true);
-      return await collection.createNote(folderId, DEFAULT_NEW_NOTE_TYPE);
+      const target = resolveNewNoteFolderId(activeNote, folders, foldersLoaded);
+      if (target !== null) {
+        return await collection.createNote(target, DEFAULT_NEW_NOTE_TYPE);
+      }
+
+      setPending(true);
+      try {
+        const settled = await hierarchy.whenLoaded();
+        // Re-read the active note: the user may have opened one while we waited.
+        const latestActive = collection.getSnapshot().activeNote;
+        const folderId = resolveNewNoteFolderId(latestActive, settled.folders, true);
+        return await collection.createNote(folderId, DEFAULT_NEW_NOTE_TYPE);
+      } finally {
+        setPending(false);
+      }
     } finally {
       inFlight.current = false;
-      setPending(false);
     }
   }, [activeNote, folders, foldersLoaded, hierarchy, collection]);
 

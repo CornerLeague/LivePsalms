@@ -3,8 +3,13 @@ import type { Note } from '../types';
 import { NoteCollection } from './note-collection';
 import { FolderHierarchy } from './folder-hierarchy';
 import { ReferenceGraph } from '../graph/reference-graph';
-import { planTypeFolderSeed } from './seed-type-folders';
-import { hasSeededTypeFolders, markSeededTypeFolders } from '../session/session-storage';
+import { planTypeFolderSeed, reconcileTypeFolderSeed } from './seed-type-folders';
+import {
+  hasSeededTypeFolders,
+  markSeededTypeFolders,
+  hasAttemptedTypeFolders,
+  markAttemptedTypeFolders,
+} from '../session/session-storage';
 
 /**
  * How many note moves the backfill issues at once. Sequential would mean one
@@ -24,7 +29,7 @@ export class NotepadActions {
    * Whether this instance has already completed the type-folder backfill.
    * Backstop for the `hasSeededTypeFolders` marker, which silently no-ops when
    * localStorage is unavailable. Deliberately not set on failure, so a run that
-   * errored before creating anything is retried on the next load.
+   * errored — wholly or partway — is retried (and resumed) on the next load.
    */
   private seedAttempted = false;
 
@@ -84,42 +89,95 @@ export class NotepadActions {
    * folder" onboarding step on their behalf.
    *
    * Never throws into `init()`: a failure here must not block the workspace from
-   * loading. A partial run leaves the remaining notes at root — visible in the
-   * sidebar and fixable by dragging — and won't be retried, since the account
-   * now has folders.
+   * loading. A partial run is recorded up front (see `markAttemptedTypeFolders`)
+   * and resumed on this device's next load — creating only the folders that are
+   * still missing and moving only the notes still at root — so an interrupted
+   * backfill converges instead of stranding notes at root. Until it does, the
+   * un-moved notes stay visible in the sidebar's legacy type grouping.
    */
   private async seedTypeFolders(): Promise<void> {
     const scopeId = this.adapter.scopeId;
     if (this.seedAttempted || hasSeededTypeFolders(scopeId)) return;
 
-    const plan = planTypeFolderSeed(
-      this.notes.getSnapshot().notes,
-      this.folders.getSnapshot().folders,
-    );
-    if (!plan) return;
-
-    // Re-read straight from storage immediately before writing. The in-memory
-    // snapshot can be stale — another tab on the same account may have already
-    // run the backfill since this one loaded — and seeding twice would hand the
-    // user two of every folder.
+    // Re-read folders straight from storage: the in-memory snapshot can be stale
+    // (another tab on the same account may have seeded since this one loaded).
     const current = await this.adapter.getFolders();
-    if (current.some((f) => f.kind !== 'study')) {
+
+    // Respect a genuine user folder — non-system AND untagged. The user has
+    // adopted folders, so their layout is theirs and the one-time backfill backs
+    // off. This gate runs for a *resume* too, not just a fresh start: if the user
+    // organized between a partial run and its resume, we must not pile more seed
+    // folders on top. A seeded folder (seededType set) is our own run, never
+    // adoption, so it doesn't trip this — which is what lets a partial seed
+    // resume, and (when the attempt marker was lost) be recognized by its tag.
+    if (current.some((f) => f.kind !== 'study' && f.seededType == null)) {
       await this.folders.init().catch(() => {});
       return;
     }
 
+    if (!hasAttemptedTypeFolders(scopeId)) {
+      // Fresh account: only start if there are root notes to migrate.
+      const plan = planTypeFolderSeed(this.notes.getSnapshot().notes, current);
+      if (!plan) return;
+      // Record intent before the first write so a crash mid-seed is resumable.
+      markAttemptedTypeFolders(scopeId);
+    }
+
+    await this.applyTypeFolderSeed(scopeId);
+  }
+
+  /**
+   * Drive the account to the seeded end-state from wherever it currently sits,
+   * creating only the folders that don't exist yet and moving only notes still
+   * at root (see `reconcileTypeFolderSeed`). Idempotent by identity match, so a
+   * retry after a partial run fills the gaps rather than duplicating folders.
+   *
+   * Never throws: on failure the attempt marker stays set and the next load
+   * resumes; on success it records completion so later loads short-circuit.
+   */
+  private async applyTypeFolderSeed(scopeId: string): Promise<void> {
     try {
-      const folderIdByType = new Map<string, string>();
-      for (let i = 0; i < plan.folders.length; i++) {
-        const spec = plan.folders[i];
-        const created = await this.adapter.createFolder({
-          name: spec.name,
-          parentId: null,
-          order: i,
-          icon: spec.icon,
-          color: spec.color,
-        });
-        folderIdByType.set(spec.type, created.id);
+      // Reconcile against live storage, not the in-memory snapshot, so a resume
+      // sees folders an earlier attempt (or another tab) already created.
+      const liveFolders = await this.adapter.getFolders();
+      const plan = reconcileTypeFolderSeed(this.notes.getSnapshot().notes, liveFolders);
+      if (!plan) {
+        // Nothing left at root — an earlier attempt already did the work (or
+        // there was none to do). Record completion and stop re-checking.
+        this.seedAttempted = true;
+        markSeededTypeFolders(scopeId);
+        await this.folders.init().catch(() => {});
+        return;
+      }
+
+      const folderIdByType = new Map<string, string>(plan.existingByType);
+      for (const spec of plan.foldersToCreate) {
+        try {
+          const created = await this.adapter.createFolder({
+            name: spec.name,
+            parentId: null,
+            order: spec.order,
+            icon: spec.icon,
+            color: spec.color,
+            // Provenance: lets a resume re-find this folder by tag, not name, backs
+            // the (user_id, seeded_type) unique index that stops two tabs both
+            // creating it, and marks it for later seeded-folder features. See
+            // Folder.seededType and migration 053.
+            seededType: spec.type,
+          });
+          folderIdByType.set(spec.type, created.id);
+        } catch (err) {
+          // Another tab seeding this account concurrently may have created the
+          // folder first — the unique index rejects our duplicate. Adopt the
+          // winner's folder (found by tag) so both tabs file into the same one.
+          // If it's genuinely absent this is a real failure: rethrow to the
+          // outer catch, which leaves the attempt marker set to resume next load.
+          const existing = (await this.adapter.getFolders()).find(
+            (f) => f.seededType === spec.type,
+          );
+          if (!existing) throw err;
+          folderIdByType.set(spec.type, existing.id);
+        }
       }
 
       for (let i = 0; i < plan.moves.length; i += SEED_MOVE_CONCURRENCY) {
@@ -138,7 +196,8 @@ export class NotepadActions {
       markSeededTypeFolders(scopeId);
     } catch (err) {
       console.warn('[NotepadActions] type-folder backfill failed:', err);
-      // Pick up whatever did land so the UI matches storage.
+      // Pick up whatever did land so the UI matches storage. The attempt marker
+      // stays set, so the next load resumes and fills the rest.
       await this.folders.init().catch(() => {});
     }
   }
@@ -178,13 +237,24 @@ export class NotepadActions {
   };
 
   async rebindAdapter(next: StorageAdapter): Promise<void> {
+    // Drain any init still in flight before swapping accounts. rebind mutates the
+    // shared NoteCollection / FolderHierarchy / ReferenceGraph in place, so if a
+    // previous account's run kept going after the swap the two inits would
+    // interleave over the same collections — double seeds, notes filed into the
+    // wrong account's folders, a graph rebuilt from a mixed note set. Letting the
+    // old run finish first (on its own, still-current binding) keeps them serial.
+    // Loop, don't check once: a mount / StrictMode `init()` can start during the
+    // await. Once the loop exits, the swap below runs synchronously through to
+    // `init()` installing the new guard, so no run can slip in after the last
+    // check — and `init()` finds `initInFlight` already null, so it starts fresh.
+    while (this.initInFlight) {
+      await this.initInFlight.catch(() => {});
+    }
     this.adapter = next;
     this.notes.rebindAdapter(next);
     this.folders.rebindAdapter(next);
     this.referenceGraph.reset();
-    // Drop both init guards: a run still in flight belongs to the previous
-    // account, and the incoming one needs its own backfill check.
-    this.initInFlight = null;
+    // Fresh account: re-run the backfill check.
     this.seedAttempted = false;
     await this.init();
   }

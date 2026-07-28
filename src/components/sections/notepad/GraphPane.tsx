@@ -17,7 +17,7 @@ import type { FolderIcon as FolderIconKey } from '@/notepad/types';
 import { emitOnboardingEvent } from '@/notepad/onboarding/onboarding-events';
 
 // Fallback color for categories whose folder has no explicit color, and for the
-// synthetic Scripture / Unfiled chips. CSS vars are theme-aware.
+// synthetic Scripture / Main chips. CSS vars are theme-aware.
 const SCRIPTURE_CHIP_COLOR = 'var(--graph-node-scripture)';
 const NEUTRAL_CHIP_COLOR = 'var(--graph-node-general)';
 
@@ -62,7 +62,7 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
   );
 
   // Tint note nodes by their folder's color and normalize orphaned folder ids
-  // (folder deleted) to the Unfiled category, so the canvas and the chips agree
+  // (folder deleted) to the Main category, so the canvas and the chips agree
   // on which category every node belongs to.
   const nodes = useMemo<GraphNode[]>(
     () =>
@@ -76,7 +76,7 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
   );
 
   // Category chips are derived from the user's folders (plus Scripture for verse
-  // nodes and Unfiled for root notes) — so a new folder shows up automatically.
+  // nodes and Main for unfiled notes) — so a new folder shows up automatically.
   const categories = useMemo<GraphCategory[]>(() => {
     const cats: GraphCategory[] = [];
     if (rawNodes.some((n) => n.type === 'scripture')) {
@@ -92,7 +92,9 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
       cats.push({ id: f.id, label: f.name, color: f.color ?? NEUTRAL_CHIP_COLOR, Icon: folderIconComponent(f.icon) });
     }
     if (rawNodes.some((n) => n.type !== 'scripture' && (!n.folderId || !folderById.has(n.folderId)))) {
-      cats.push({ id: UNFILED_CATEGORY, label: 'Unfiled', color: NEUTRAL_CHIP_COLOR, Icon: FileText });
+      // `UNFILED_CATEGORY` is the stored id ('root'); "Main" is how the folder
+      // pickers name that same place, so the chip matches what the user picked.
+      cats.push({ id: UNFILED_CATEGORY, label: 'Main', color: NEUTRAL_CHIP_COLOR, Icon: FileText });
     }
     return cats;
   }, [rawNodes, folders, folderById]);

@@ -40,6 +40,18 @@ export interface Folder {
   icon?: FolderIcon;
   color?: string;
   kind?: FolderKind;
+  /**
+   * Provenance for the one-time type-folder backfill: set to the legacy note
+   * type this folder was auto-created to stand in for (see
+   * `NotepadActions.seedTypeFolders`). Undefined for folders the user made
+   * themselves and for the system Study folder. Orthogonal to `kind` — a seeded
+   * folder is still a user folder the moment it exists (rename/recolor/delete
+   * all apply), so this never gates the "has the user adopted folders?" checks.
+   * It gives the backfill a rename-proof handle on its own folders (exact resume
+   * instead of matching by name) and a durable marker for later features that
+   * reason about seeded folders.
+   */
+  seededType?: NoteType;
 }
 
 export type { ScriptureNode, GraphEdge, GraphNode, AdjacencyList } from './graph/types';

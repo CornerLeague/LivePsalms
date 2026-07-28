@@ -52,14 +52,12 @@ beforeEach(() => {
 });
 
 describe('FolderItem isSystem', () => {
-  it('hides Rename, Delete, and New Note Inside but keeps New Subfolder when isSystem', async () => {
+  it('hides Rename and Delete when isSystem — the app owns this folder', async () => {
     const user = userEvent.setup();
     renderFolder(true);
     await user.click(screen.getByLabelText(/folder options/i));
     expect(screen.queryByText('Rename')).toBeNull();
     expect(screen.queryByText('Delete')).toBeNull();
-    // New Note Inside is hidden on the Study root — the docked accent button replaces it.
-    expect(screen.queryByText('New Note Inside')).toBeNull();
     expect(screen.getByText('New Subfolder')).toBeInTheDocument();
   });
 
@@ -70,5 +68,50 @@ describe('FolderItem isSystem', () => {
     expect(screen.getByText('Rename')).toBeInTheDocument();
     expect(screen.getByText('Delete')).toBeInTheDocument();
     expect(screen.getByText('New Note Inside')).toBeInTheDocument();
+  });
+
+  // isSystem is about ownership (name + lifecycle), not about whether the
+  // folder can hold new notes — the Study root takes a note like any other.
+  it('keeps the row + button on a system folder', () => {
+    renderFolder(true);
+    expect(screen.getByLabelText('New note in Study')).toBeInTheDocument();
+  });
+
+  it('keeps New Note Inside on a system folder', async () => {
+    const user = userEvent.setup();
+    renderFolder(true);
+    await user.click(screen.getByLabelText(/folder options/i));
+    expect(screen.getByText('New Note Inside')).toBeInTheDocument();
+  });
+
+  it('creates into the system folder when its + is clicked', async () => {
+    const user = userEvent.setup();
+    const onCreateNote = vi.fn();
+    render(
+      <TreeViewStateProvider>
+        <FolderItem
+          folder={STUDY}
+          isSystem
+          notes={[]}
+          childFolders={[]}
+          notesByFolder={new Map()}
+          childFoldersByParent={new Map()}
+          allFolders={[STUDY]}
+          activeNoteId={null}
+          onOpen={noop}
+          onCreateNote={onCreateNote}
+          onRenameNote={noop}
+          onDuplicateNote={noop}
+          onDeleteNote={noop}
+          onMoveNote={noop}
+          onRenameFolder={noop}
+          onDeleteFolder={noop}
+          onCreateSubfolder={noop}
+        />
+      </TreeViewStateProvider>,
+    );
+
+    await user.click(screen.getByLabelText('New note in Study'));
+    expect(onCreateNote).toHaveBeenCalledWith('s1', 'general');
   });
 });

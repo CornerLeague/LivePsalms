@@ -143,8 +143,10 @@ export function NewFolderDialog({ open, onOpenChange }: NewFolderDialogProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                {/* `root` is the stored parent id for a top-level folder;
+                    "Main" is how we say that to the user. */}
                 <SelectItem value="root" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13 }}>
-                  Root
+                  Main
                 </SelectItem>
                 {folders.map((f) => (
                   <SelectItem key={f.id} value={f.id} style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13 }}>

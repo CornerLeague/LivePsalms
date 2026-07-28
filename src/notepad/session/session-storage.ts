@@ -22,6 +22,8 @@ const KEY_QUICK_LIST = 'psalms.bible.focus.quickList';
 const KEY_MEMORIZE_CARDS = 'psalms.memorize.cards';
 // Suffixed with the adapter's scopeId — see hasSeededTypeFolders.
 const KEY_TYPE_FOLDER_SEED = 'psalms.notepad.typeFolderSeed';
+// Suffixed with the adapter's scopeId — see hasAttemptedTypeFolders.
+const KEY_TYPE_FOLDER_SEED_ATTEMPT = 'psalms.notepad.typeFolderSeedAttempt';
 
 export {
   KEY_LAST_NOTE,
@@ -175,4 +177,25 @@ export function hasSeededTypeFolders(scopeId: string): boolean {
 
 export function markSeededTypeFolders(scopeId: string): void {
   writeRaw(`${KEY_TYPE_FOLDER_SEED}.${scopeId}`, '1');
+}
+
+/**
+ * Records that THIS device started a type-folder backfill that hasn't been
+ * marked complete yet. Set once, before the first write; the completion marker
+ * ([hasSeededTypeFolders]) supersedes it on success (and is checked first).
+ *
+ * Its job is to make a partial run resumable without weakening cross-device
+ * idempotency. A half-finished run leaves folders behind, which is
+ * indistinguishable from "this account already adopted folders" by state alone
+ * — so only the device that *began* a seed is allowed to finish one. A second
+ * device, which never set this, still declines on any existing folder exactly
+ * as before, and so can't file notes a user deliberately left at root after
+ * migrating elsewhere.
+ */
+export function hasAttemptedTypeFolders(scopeId: string): boolean {
+  return readRaw(`${KEY_TYPE_FOLDER_SEED_ATTEMPT}.${scopeId}`) === '1';
+}
+
+export function markAttemptedTypeFolders(scopeId: string): void {
+  writeRaw(`${KEY_TYPE_FOLDER_SEED_ATTEMPT}.${scopeId}`, '1');
 }

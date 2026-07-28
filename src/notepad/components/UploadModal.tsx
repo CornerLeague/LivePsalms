@@ -235,7 +235,9 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                     <SelectValue placeholder="Select folder" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="root">Root</SelectItem>
+                    {/* `root` is the stored folderId for an unfiled note;
+                        "Main" is how we say that to the user. */}
+                    <SelectItem value="root">Main</SelectItem>
                     {folders.map((f) => (
                       <SelectItem key={f.id} value={f.id}>
                         {f.name}
