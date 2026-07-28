@@ -208,22 +208,26 @@ export function FolderItem(props: FolderItemProps) {
                 />
               </div>
 
-              {/* Quick add — new note straight into this folder, no category prompt */}
-              <button
-                type="button"
-                aria-label={`New note in ${folder.name}`}
-                title="New note in this folder"
-                className="shrink-0 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/15 transition-all"
-                style={{
-                  opacity: hovering || isMobile ? 1 : 0,
-                  transition: 'opacity 0.15s',
-                  color: 'var(--silica)',
-                  padding: '1px',
-                }}
-                onClick={(e) => { e.stopPropagation(); handleCreateNoteInFolder(); }}
-              >
-                <Plus className="w-3 h-3" />
-              </button>
+              {/* Quick add — new note straight into this folder, no category
+                  prompt. Hidden on the system Study root, which hides inline note
+                  creation in favor of a docked button in the Study pane. */}
+              {!isSystem && (
+                <button
+                  type="button"
+                  aria-label={`New note in ${folder.name}`}
+                  title="New note in this folder"
+                  className="shrink-0 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/15 transition-all"
+                  style={{
+                    opacity: hovering || isMobile ? 1 : 0,
+                    transition: 'opacity 0.15s',
+                    color: 'var(--silica)',
+                    padding: '1px',
+                  }}
+                  onClick={(e) => { e.stopPropagation(); handleCreateNoteInFolder(); }}
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              )}
             </div>
 
             {/* Children */}
