@@ -17,9 +17,8 @@ import { BibleStudyPane } from '@/notepad/bible/BibleStudyPane';
 import { MobileMoreSheet, type DetailSegment } from './MobileMoreSheet';
 import { MobileAuthModal } from './MobileAuthModal';
 import { MobileAccountSheet } from './MobileAccountSheet';
-import { MobileNewNoteTypeSheet } from './MobileNewNoteTypeSheet';
 import { useMobileWorkspaceModel } from './useMobileWorkspaceModel';
-import type { NoteType } from '../../../../notepad/types';
+import { useNewNote } from '../../../../notepad/context/useNewNote';
 import { useHasConnections } from './useHasConnections';
 import { useArrivalDot } from '@/notepad/lamplight/arrival-badge';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
@@ -37,6 +36,7 @@ type ScanStage = null | 'capture' | { review: TranscriptionResult };
 export function MobileNotepadWorkspace() {
   const navigate = useNavigate();
   const model = useMobileWorkspaceModel();
+  const { createNewNote } = useNewNote();
   const actions = useNotepadActions();
   const { adapter, session } = useAuthSession();
   const { profile } = useAccountProfile();
@@ -50,7 +50,6 @@ export function MobileNotepadWorkspace() {
   const [moreSheetSegment, setMoreSheetSegment] = useState<DetailSegment | undefined>(undefined);
   const [authOpen, setAuthOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [newTypeOpen, setNewTypeOpen] = useState(false);
   const [scan, setScan] = useState<ScanStage>(null);
 
   // Registers this workspace's imperative controls so the onboarding tour can
@@ -97,7 +96,7 @@ export function MobileNotepadWorkspace() {
     navigate('/notebook');
   }, [session, navigate]);
 
-  const { openNote, createNote } = model;
+  const { openNote } = model;
 
   const hasConnections = useHasConnections({
     adapter: model.lamplightAdapter,
@@ -137,20 +136,16 @@ export function MobileNotepadWorkspace() {
     [openNote],
   );
 
-  // Mobile previously created a Devotion note directly; now we ask which kind
-  // of note first (matching the desktop type picker).
+  // One tap creates a note straight into the folder the user is currently on
+  // (the active note's folder), falling back to the top folder — no category
+  // prompt, matching the desktop toolbar's New Note button. A tap fired before
+  // the folder list loads waits for it rather than filing the note at root, so
+  // the tab switch happens once the note actually exists.
   const handleNewNote = useCallback(() => {
-    setNewTypeOpen(true);
-  }, []);
-
-  const handleSelectNoteType = useCallback(
-    (type: NoteType) => {
-      setNewTypeOpen(false);
-      createNote('root', type);
-      setTab('editor');
-    },
-    [createNote],
-  );
+    void createNewNote().then((note) => {
+      if (note) setTab('editor');
+    });
+  }, [createNewNote]);
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {
@@ -284,12 +279,6 @@ export function MobileNotepadWorkspace() {
           navigate('/profile');
         }}
         onSignOut={handleSignOut}
-      />
-
-      <MobileNewNoteTypeSheet
-        open={newTypeOpen}
-        onClose={() => setNewTypeOpen(false)}
-        onSelect={handleSelectNoteType}
       />
 
       {scan !== null && model.user && (

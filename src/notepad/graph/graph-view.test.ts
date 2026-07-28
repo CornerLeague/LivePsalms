@@ -141,6 +141,7 @@ const node = (over: Partial<GraphNode> & { id: string; type: GraphNode['type'] }
   id: over.id, type: over.type, title: over.title ?? over.id,
   weight: over.weight ?? 0, tags: over.tags ?? [],
   scriptureText: over.scriptureText ?? '', scriptureTranslation: over.scriptureTranslation ?? '',
+  folderId: over.folderId, color: over.color,
 });
 
 const edge = (over: Partial<GraphEdge> & { id: string; source: string; target: string }): GraphEdge => ({
@@ -248,37 +249,71 @@ describe('GraphView — setMode', () => {
 });
 
 describe('GraphView — setFilters', () => {
-  it('drops nodes whose type is filtered off', () => {
+  it('drops nodes whose category (folder) is filtered off', () => {
     const { view } = attached();
     view.setData(
       [
-        node({ id: 'a', type: 'devotion' }),
-        node({ id: 'b', type: 'sermon' }),
-        node({ id: 'c', type: 'theme' }),
+        node({ id: 'a', type: 'devotion', folderId: 'f1' }),
+        node({ id: 'b', type: 'sermon', folderId: 'f2' }),
+        node({ id: 'c', type: 'theme', folderId: 'f1' }),
       ],
       [],
       null,
     );
-    view.setFilters({ scripture: true, sermon: false, devotion: true, theme: true, general: true });
+    view.setFilters({ f2: false });
     const ids = view.getSimNodes().map((n) => n.id).sort();
     expect(ids).toEqual(['a', 'c']);
+  });
+
+  it('categories absent from the filter map stay visible (new folders default on)', () => {
+    const { view } = attached();
+    view.setData(
+      [node({ id: 'a', type: 'devotion', folderId: 'f1' }), node({ id: 'b', type: 'sermon', folderId: 'f2' })],
+      [],
+      null,
+    );
+    view.setFilters({ f1: true }); // f2 never mentioned → still shown
+    const ids = view.getSimNodes().map((n) => n.id).sort();
+    expect(ids).toEqual(['a', 'b']);
+  });
+
+  it('filters scripture verse nodes via the scripture category', () => {
+    const { view } = attached();
+    view.setData(
+      [node({ id: 'a', type: 'devotion', folderId: 'f1' }), node({ id: 's1', type: 'scripture' })],
+      [],
+      null,
+    );
+    view.setFilters({ scripture: false });
+    expect(view.getSimNodes().map((n) => n.id)).toEqual(['a']);
+  });
+
+  it('treats root / unfiled notes as the "root" category', () => {
+    const { view } = attached();
+    view.setData(
+      [node({ id: 'a', type: 'devotion', folderId: 'root' }), node({ id: 'b', type: 'sermon', folderId: 'f1' })],
+      [],
+      null,
+    );
+    view.setFilters({ root: false });
+    expect(view.getSimNodes().map((n) => n.id)).toEqual(['b']);
   });
 
   it('drops edges whose endpoints have been filtered out', () => {
     const { view } = attached();
     view.setData(
-      [node({ id: 'a', type: 'devotion' }), node({ id: 'b', type: 'sermon' })],
+      [node({ id: 'a', type: 'devotion', folderId: 'f1' }), node({ id: 'b', type: 'sermon', folderId: 'f2' })],
       [edge({ id: 'r1', source: 'a', target: 'b' })],
       null,
     );
-    view.setFilters({ scripture: true, sermon: false, devotion: true, theme: true, general: true });
+    view.setFilters({ f2: false });
     expect(view.getSimLinks()).toEqual([]);
   });
 
   it('preserves positions of surviving nodes when a filter toggles', () => {
     const { view } = attached();
     view.setData(
-      [node({ id: 'a', type: 'devotion' }), node({ id: 'b', type: 'sermon' })],
+      [node({ id: 'a', type: 'devotion', folderId: 'f1' }), node({ id: 'b', type: 'sermon', folderId: 'f2' })],
       [],
       null,
     );
@@ -286,7 +321,7 @@ describe('GraphView — setFilters', () => {
     before.find((n) => n.id === 'a')!.x = 50;
     before.find((n) => n.id === 'a')!.y = 60;
 
-    view.setFilters({ scripture: true, sermon: false, devotion: true, theme: true, general: true });
+    view.setFilters({ f2: false });
     const after = view.getSimNodes();
     const a = after.find((n) => n.id === 'a')!;
     expect(a.x).toBe(50);

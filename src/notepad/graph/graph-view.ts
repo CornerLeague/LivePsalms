@@ -10,6 +10,7 @@ import type { SimulationNodeDatum, SimulationLinkDatum } from 'd3-force';
 import { forceSphere } from './force-sphere';
 import { projectPoint, depthNorm, depthScale, depthAlpha, type SphereCamera } from './sphere-math';
 import { resolveGraphPalette } from './graph-palette';
+import { graphNodeCategory } from './node-category';
 
 export interface PopoverState {
   nodeId: string;
@@ -24,13 +25,13 @@ export interface GraphViewState {
   popover: PopoverState | null;
 }
 
-export interface NodeTypeFilters {
-  scripture: boolean;
-  sermon: boolean;
-  devotion: boolean;
-  theme: boolean;
-  general: boolean;
-}
+/**
+ * Category visibility map, keyed by category id (folder id, `'scripture'`, or
+ * `'root'` for unfiled). A category is visible unless its value is explicitly
+ * `false` — so categories absent from the map (e.g. a just-created folder) show
+ * by default. See {@link graphNodeCategory}.
+ */
+export type CategoryFilters = Record<string, boolean>;
 
 export interface GraphSettings {
   depth: number;
@@ -64,9 +65,9 @@ export interface GraphViewDeps {
   onNodeTap?: (node: { id: string; type: GraphNode['type']; title: string }) => boolean;
 }
 
-export const DEFAULT_FILTERS: NodeTypeFilters = {
-  scripture: true, sermon: true, devotion: true, theme: true, general: true,
-};
+// Empty map = every category visible. Categories are hidden by setting their
+// id to `false`; unknown/new categories therefore default to visible.
+export const DEFAULT_FILTERS: CategoryFilters = {};
 
 export const DEFAULT_SETTINGS: GraphSettings = {
   depth: 1,
@@ -106,6 +107,8 @@ export interface SimNode extends SimulationNodeDatum {
   tags: string[];
   scriptureText: string;
   scriptureTranslation: string;
+  folderId?: string;
+  color?: string;
   z?: number;
 }
 
@@ -155,7 +158,7 @@ export class GraphView extends Observable<GraphViewState> {
   private activeNodeId: string | null = null;
 
   private settings: GraphSettings = { ...DEFAULT_SETTINGS };
-  private filters: NodeTypeFilters = { ...DEFAULT_FILTERS };
+  private filters: CategoryFilters = { ...DEFAULT_FILTERS };
   private mode: 'global' | 'local' = 'global';
   private focusNodeId: string | null = null;
   private getNeighborhoodFn: ((id: string, depth: number) => Set<string>) | null = null;
@@ -380,7 +383,9 @@ export class GraphView extends Observable<GraphViewState> {
       const drawR = n.radius * cam.scale * depthScale(dn);
       const isConnected = !hovered || connectedIds.has(n.id);
       const fade = depthAlpha(dn) * (hovered ? (isConnected ? 1 : 0.18) : 1);
-      const color = palette.nodeColors[n.type as keyof typeof palette.nodeColors] ?? '#999';
+      // Folder-tinted color when resolved (note nodes in a colored folder),
+      // otherwise the theme-aware type palette (scripture + unfiled notes).
+      const color = n.color ?? palette.nodeColors[n.type as keyof typeof palette.nodeColors] ?? '#999';
 
       if (n.id === activeId) {
         ctx.beginPath();
@@ -408,7 +413,8 @@ export class GraphView extends Observable<GraphViewState> {
         const drawR = d.n.radius * cam.scale * depthScale(d.dn);
         ctx.beginPath();
         ctx.arc(d.p.sx, d.p.sy, drawR + 4 * cam.scale, 0, Math.PI * 2);
-        ctx.strokeStyle = `${palette.nodeColors[d.n.type as keyof typeof palette.nodeColors] ?? '#999'}80`;
+        const hoverColor = d.n.color ?? palette.nodeColors[d.n.type as keyof typeof palette.nodeColors] ?? '#999';
+        ctx.strokeStyle = `${hoverColor}80`;
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -466,7 +472,7 @@ export class GraphView extends Observable<GraphViewState> {
     this.draw();
   }
 
-  setFilters(filters: NodeTypeFilters): void {
+  setFilters(filters: CategoryFilters): void {
     this.filters = filters;
     this.rebuild();
   }
@@ -698,6 +704,8 @@ export class GraphView extends Observable<GraphViewState> {
         tags: n.tags,
         scriptureText: n.scriptureText,
         scriptureTranslation: n.scriptureTranslation,
+        folderId: n.folderId,
+        color: n.color,
         x: prev?.x ?? Math.cos(theta) * rUnit * R,
         y: prev?.y ?? yUnit * R,
         z: prev?.z ?? Math.sin(theta) * rUnit * R,
@@ -749,7 +757,9 @@ export class GraphView extends Observable<GraphViewState> {
         filtered = [];
       }
     }
-    return filtered.filter((n) => this.filters[n.type]);
+    // A category is visible unless explicitly set to false, so newly created
+    // folders (absent from the map) show by default.
+    return filtered.filter((n) => this.filters[graphNodeCategory(n)] !== false);
   }
 
   private resize(): void {

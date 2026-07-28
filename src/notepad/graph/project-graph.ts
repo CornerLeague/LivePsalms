@@ -38,6 +38,7 @@ export function projectGraph(
     tags: note.tags,
     scriptureText: '',
     scriptureTranslation: '',
+    folderId: note.folderId,
   }));
 
   for (const sn of scriptureNodes) {

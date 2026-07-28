@@ -1,33 +1,36 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { BookOpen, Mic, PenLine, Sparkles, FileText, Maximize2, Minimize2, Settings2 } from 'lucide-react';
+import { BookOpen, FileText, Folder as FolderIcon, Maximize2, Minimize2, Settings2, type LucideIcon } from 'lucide-react';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
+import { useFolderHierarchy } from '@/notepad/context/useFolderHierarchy';
 import { useReferenceGraph } from '@/notepad/context/useReferenceGraph';
 import { projectGraph } from '@/notepad/graph/project-graph';
 import {
   GraphView,
-  DEFAULT_FILTERS,
   DEFAULT_SETTINGS,
-  type NodeTypeFilters,
+  type CategoryFilters,
   type GraphSettings,
 } from '@/notepad/graph/graph-view';
+import { SCRIPTURE_CATEGORY, UNFILED_CATEGORY } from '@/notepad/graph/node-category';
+import { FOLDER_ICONS } from '@/notepad/components/NewFolderDialog';
 import type { GraphNode } from '@/notepad/graph/types';
+import type { FolderIcon as FolderIconKey } from '@/notepad/types';
 import { emitOnboardingEvent } from '@/notepad/onboarding/onboarding-events';
 
-const NODE_COLORS: Record<string, string> = {
-  scripture: 'var(--graph-node-scripture)',
-  sermon: 'var(--graph-node-sermon)',
-  devotion: 'var(--graph-node-devotion)',
-  theme: 'var(--graph-node-theme)',
-  general: 'var(--graph-node-general)',
-};
+// Fallback color for categories whose folder has no explicit color, and for the
+// synthetic Scripture / Unfiled chips. CSS vars are theme-aware.
+const SCRIPTURE_CHIP_COLOR = 'var(--graph-node-scripture)';
+const NEUTRAL_CHIP_COLOR = 'var(--graph-node-general)';
 
-const NODE_ICONS: Record<string, typeof BookOpen> = {
-  scripture: BookOpen,
-  sermon: Mic,
-  devotion: PenLine,
-  theme: Sparkles,
-  general: FileText,
-};
+function folderIconComponent(key: FolderIconKey | undefined): LucideIcon {
+  return FOLDER_ICONS.find((i) => i.key === key)?.icon ?? FolderIcon;
+}
+
+interface GraphCategory {
+  id: string;
+  label: string;
+  color: string;
+  Icon: LucideIcon;
+}
 
 interface GraphPaneProps {
   graphOpen: boolean;
@@ -47,13 +50,52 @@ interface GraphPaneProps {
 
 export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedded = false, onNodePeek, focusNodeId = null }: GraphPaneProps) {
   const { notes, activeNoteId, collection } = useNoteCollection();
+  const { folders } = useFolderHierarchy();
   const { references, scriptureNodes, graph } = useReferenceGraph();
   const openNote = collection.openNote;
 
-  const { nodes, edges } = useMemo(
+  const folderById = useMemo(() => new Map(folders.map((f) => [f.id, f])), [folders]);
+
+  const { nodes: rawNodes, edges } = useMemo(
     () => projectGraph(notes, references, scriptureNodes),
     [notes, references, scriptureNodes],
   );
+
+  // Tint note nodes by their folder's color and normalize orphaned folder ids
+  // (folder deleted) to the Unfiled category, so the canvas and the chips agree
+  // on which category every node belongs to.
+  const nodes = useMemo<GraphNode[]>(
+    () =>
+      rawNodes.map((n) => {
+        if (n.type === 'scripture') return n;
+        const folder = n.folderId ? folderById.get(n.folderId) : undefined;
+        if (folder) return { ...n, folderId: folder.id, color: folder.color };
+        return { ...n, folderId: UNFILED_CATEGORY, color: undefined };
+      }),
+    [rawNodes, folderById],
+  );
+
+  // Category chips are derived from the user's folders (plus Scripture for verse
+  // nodes and Unfiled for root notes) — so a new folder shows up automatically.
+  const categories = useMemo<GraphCategory[]>(() => {
+    const cats: GraphCategory[] = [];
+    if (rawNodes.some((n) => n.type === 'scripture')) {
+      cats.push({ id: SCRIPTURE_CATEGORY, label: 'Scripture', color: SCRIPTURE_CHIP_COLOR, Icon: BookOpen });
+    }
+    const sortedFolders = [...folders].sort((a, b) => {
+      const aRoot = a.parentId === null ? 0 : 1;
+      const bRoot = b.parentId === null ? 0 : 1;
+      if (aRoot !== bRoot) return aRoot - bRoot;
+      return a.order - b.order;
+    });
+    for (const f of sortedFolders) {
+      cats.push({ id: f.id, label: f.name, color: f.color ?? NEUTRAL_CHIP_COLOR, Icon: folderIconComponent(f.icon) });
+    }
+    if (rawNodes.some((n) => n.type !== 'scripture' && (!n.folderId || !folderById.has(n.folderId)))) {
+      cats.push({ id: UNFILED_CATEGORY, label: 'Unfiled', color: NEUTRAL_CHIP_COLOR, Icon: FileText });
+    }
+    return cats;
+  }, [rawNodes, folders, folderById]);
 
   // Kept in a ref so the memoized GraphView stays stable while always seeing the
   // latest callback. onNodeTap returns true (handled) only when a peek handler exists.
@@ -106,7 +148,7 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
 
   // Controls — React state, forwarded into the view on each change.
   const [graphMode, setGraphMode] = useState<'global' | 'local'>('global');
-  const [filters, setFilters] = useState<NodeTypeFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<CategoryFilters>({});
   const [settings, setSettings] = useState<GraphSettings>(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -122,8 +164,9 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
   const state = useSyncExternalStore(view.subscribe, view.getSnapshot);
   const popover = state.popover;
 
-  const toggleFilter = (key: keyof NodeTypeFilters) => {
-    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  // A category is visible unless explicitly false; toggling flips that.
+  const toggleFilter = (id: string) => {
+    setFilters((prev) => ({ ...prev, [id]: prev[id] === false }));
   };
 
   return (
@@ -165,23 +208,34 @@ export function GraphPane({ graphOpen, expanded = false, onToggleExpand, embedde
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(filters) as Array<keyof NodeTypeFilters>).map((key) => {
-            const Icon = NODE_ICONS[key];
-            return (
-              <button key={key} onClick={() => toggleFilter(key)} className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium tracking-wider transition-all"
-                style={{
-                  border: `1px solid ${filters[key] ? NODE_COLORS[key] : 'var(--pale-stone)'}`,
-                  background: filters[key] ? `${NODE_COLORS[key]}15` : 'transparent',
-                  color: filters[key] ? NODE_COLORS[key] : 'var(--silica)',
-                  fontFamily: 'Outfit, sans-serif',
-                }}>
-                <Icon className="w-3 h-3" />
-                {key.charAt(0).toUpperCase() + key.slice(1)}
-              </button>
-            );
-          })}
-        </div>
+        {categories.length > 0 && (
+          <div
+            className="flex gap-2 overflow-x-auto graph-category-row"
+            style={{ scrollbarWidth: 'thin' }}
+          >
+            {categories.map((cat) => {
+              const Icon = cat.Icon;
+              const on = filters[cat.id] !== false;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => toggleFilter(cat.id)}
+                  title={cat.label}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium tracking-wider transition-all shrink-0 whitespace-nowrap max-w-[140px]"
+                  style={{
+                    border: `1px solid ${on ? cat.color : 'var(--pale-stone)'}`,
+                    background: on ? `color-mix(in srgb, ${cat.color} 12%, transparent)` : 'transparent',
+                    color: on ? cat.color : 'var(--silica)',
+                    fontFamily: 'Outfit, sans-serif',
+                  }}
+                >
+                  <Icon className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {settingsOpen && (
           <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--pale-stone)' }}>

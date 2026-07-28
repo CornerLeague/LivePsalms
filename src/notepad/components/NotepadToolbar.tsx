@@ -8,14 +8,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useNoteCollection } from '../context/useNoteCollection';
-import type { NoteType } from '../types';
+import { useNewNote } from '../context/useNewNote';
 import { UploadModal } from './UploadModal';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { NotepadAuthControls } from './NotepadAuthControls';
@@ -43,14 +36,14 @@ export function NotepadToolbar({
   onOpenSearch,
 }: NotepadToolbarProps) {
   const navigate = useNavigate();
-  const { collection } = useNoteCollection();
-  const createNote = collection.createNote;
   const [uploadOpen, setUploadOpen] = useState(false);
   const navTrigger = useNavTrigger();
 
-  const handleNewNote = (type: NoteType) => {
-    createNote('root', type);
-  };
+  // One-click note creation: drops the note into the folder the user is
+  // currently on (the active note's folder), or the top folder when they aren't
+  // on one. Clicking before the folder list has loaded waits it out rather than
+  // filing the note at root — see useNewNote.
+  const { createNewNote, pending: creatingNote } = useNewNote();
 
   // Shared button class
   const btnClass =
@@ -129,56 +122,27 @@ export function NotepadToolbar({
           {/* Theme toggle */}
           <ThemeToggle className="w-8 h-8" />
 
-          {/* NEW NOTE dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                data-tour="new-note-sidebar-button"
-                className={`${btnClass} flex items-center gap-1.5 px-3 h-8`}
-                style={{
-                  background: 'var(--deep-umber)',
-                  borderRadius: 6,
-                }}
-              >
-                <Plus className="w-3.5 h-3.5" style={{ color: 'var(--plaster)' }} />
-                <span
-                  className="text-[10px] font-medium tracking-widest"
-                  style={{ color: 'var(--plaster)', fontFamily: 'Outfit, sans-serif' }}
-                >
-                  NEW NOTE
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              style={{ fontFamily: 'Outfit, sans-serif', minWidth: 140 }}
+          {/* NEW NOTE — one click, drops into the current folder */}
+          <button
+            data-tour="new-note-sidebar-button"
+            onClick={() => void createNewNote()}
+            aria-busy={creatingNote}
+            title="New note in the current folder"
+            className={`${btnClass} flex items-center gap-1.5 px-3 h-8`}
+            style={{
+              background: 'var(--deep-umber)',
+              borderRadius: 6,
+              opacity: creatingNote ? 0.6 : 1,
+            }}
+          >
+            <Plus className="w-3.5 h-3.5" style={{ color: 'var(--plaster)' }} />
+            <span
+              className="text-[10px] font-medium tracking-widest"
+              style={{ color: 'var(--plaster)', fontFamily: 'Outfit, sans-serif' }}
             >
-              <DropdownMenuItem
-                onClick={() => handleNewNote('general')}
-                style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12 }}
-              >
-                General
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleNewNote('devotion')}
-                style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12 }}
-              >
-                Devotion
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleNewNote('sermon')}
-                style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12 }}
-              >
-                Sermon
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleNewNote('theme')}
-                style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12 }}
-              >
-                Theme
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              NEW NOTE
+            </span>
+          </button>
 
           {/* Upload button */}
           <button

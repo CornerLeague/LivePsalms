@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, MoreVertical } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreVertical, Plus } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,9 +25,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { FOLDER_ICONS } from '../components/NewFolderDialog';
+import { DEFAULT_NEW_NOTE_TYPE } from '../collection/new-note-target';
 import type { Note, Folder, NoteType, FolderIcon } from '../types';
 import { NoteItem } from './NoteItem';
-import { NewNoteDialog } from './NewNoteDialog';
 import { NewSubfolderDialog } from './NewSubfolderDialog';
 import { InlineEdit } from './InlineEdit';
 import { useTreeViewState } from './tree-view-state';
@@ -87,13 +87,19 @@ export function FolderItem(props: FolderItemProps) {
   const treeView = useTreeViewState();
   const open = treeView.isExpanded(`folder:${folder.id}`, true);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [newNoteOpen, setNewNoteOpen] = useState(false);
   const [newSubfolderOpen, setNewSubfolderOpen] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const isMobile = useIsMobile();
   const menuAction = useDeferredMenuAction();
+
+  // Create a note directly in this folder — no category prompt. Expands the
+  // folder first so the freshly created note is visible.
+  const handleCreateNoteInFolder = () => {
+    if (!open) treeView.toggle(`folder:${folder.id}`, true);
+    onCreateNote(folder.id, DEFAULT_NEW_NOTE_TYPE);
+  };
 
   return (
     <>
@@ -151,7 +157,7 @@ export function FolderItem(props: FolderItemProps) {
                   )}
                   {!isSystem && (
                     <DropdownMenuItem
-                      onSelect={() => menuAction.run(() => setNewNoteOpen(true))}
+                      onSelect={() => menuAction.run(() => handleCreateNoteInFolder())}
                       style={{ fontFamily: 'Outfit, sans-serif' }}
                     >
                       New Note Inside
@@ -201,6 +207,27 @@ export function FolderItem(props: FolderItemProps) {
                   style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
                 />
               </div>
+
+              {/* Quick add — new note straight into this folder, no category
+                  prompt. Hidden on the system Study root, which hides inline note
+                  creation in favor of a docked button in the Study pane. */}
+              {!isSystem && (
+                <button
+                  type="button"
+                  aria-label={`New note in ${folder.name}`}
+                  title="New note in this folder"
+                  className="shrink-0 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/15 transition-all"
+                  style={{
+                    opacity: hovering || isMobile ? 1 : 0,
+                    transition: 'opacity 0.15s',
+                    color: 'var(--silica)',
+                    padding: '1px',
+                  }}
+                  onClick={(e) => { e.stopPropagation(); handleCreateNoteInFolder(); }}
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              )}
             </div>
 
             {/* Children */}
@@ -260,7 +287,7 @@ export function FolderItem(props: FolderItemProps) {
           )}
           {!isSystem && (
             <ContextMenuItem
-              onSelect={() => menuAction.run(() => setNewNoteOpen(true))}
+              onSelect={() => menuAction.run(() => handleCreateNoteInFolder())}
               style={{ fontFamily: 'Outfit, sans-serif' }}
             >
               New Note Inside
@@ -307,14 +334,6 @@ export function FolderItem(props: FolderItemProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* New Note dialog */}
-      <NewNoteDialog
-        open={newNoteOpen}
-        onOpenChange={setNewNoteOpen}
-        folderId={folder.id}
-        onCreate={onCreateNote}
-      />
 
       {/* New Subfolder dialog */}
       <NewSubfolderDialog
