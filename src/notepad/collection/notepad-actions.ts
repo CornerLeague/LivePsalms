@@ -111,12 +111,14 @@ export class NotepadActions {
       );
       if (!plan) return;
 
-      // Re-read straight from storage immediately before writing. The in-memory
-      // snapshot can be stale — another tab on the same account may have already
-      // run the backfill since this one loaded — and seeding twice would hand
-      // the user two of every folder.
+      // Re-read straight from storage immediately before writing. Decline only
+      // for a genuine user folder — non-system AND untagged. A seeded folder is
+      // our own (a concurrent tab's run, or a prior partial one), so fall through
+      // to applyTypeFolderSeed and reconcile/adopt it rather than bailing. That
+      // also resumes a partial seed when the attempt marker was lost (localStorage
+      // disabled): the durable tag, not the marker, is what identifies our run.
       const current = await this.adapter.getFolders();
-      if (current.some((f) => f.kind !== 'study')) {
+      if (current.some((f) => f.kind !== 'study' && f.seededType == null)) {
         await this.folders.init().catch(() => {});
         return;
       }

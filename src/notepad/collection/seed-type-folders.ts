@@ -43,8 +43,8 @@ export interface TypeFolderSeedPlan {
  * Decide whether an account needs the backfill, and what it should look like.
  *
  * Returns `null` — leave the account alone — when either:
- *   - it already has a non-system folder, meaning the user has adopted folders
- *     and their layout is theirs to arrange, or
+ *   - it already has a non-system, non-seeded folder, meaning the user has
+ *     adopted folders and their layout is theirs to arrange, or
  *   - it has no root notes to file.
  *
  * The system Study folder doesn't count as adoption: it's created for the user
@@ -55,7 +55,12 @@ export interface TypeFolderSeedPlan {
  * Those are exactly the notes the legacy type buckets were rendering.
  */
 export function planTypeFolderSeed(notes: Note[], folders: Folder[]): TypeFolderSeedPlan | null {
-  const hasUserFolder = folders.some((f) => f.kind !== 'study');
+  // A seeded folder (`seededType` set) is our own — a completed or partial
+  // backfill — not evidence the user adopted folders, so it must not veto
+  // seeding. This is what lets a partial seed resume through the fresh gate when
+  // the attempt marker was lost (localStorage disabled): the durable tag, not the
+  // per-device marker, identifies the run as ours, and the reconcile adopts it.
+  const hasUserFolder = folders.some((f) => f.kind !== 'study' && f.seededType == null);
   if (hasUserFolder) return null;
 
   const folderIds = new Set(folders.map((f) => f.id));

@@ -356,6 +356,30 @@ describe('NotepadActions — type-folder backfill', () => {
     expect(filed.get('n2')).toBe(stored.find((f) => f.seededType === 'devotion')!.id);
   });
 
+  it('resumes a tagged partial seed with no attempt marker (localStorage lost)', async () => {
+    // A prior run created the General seed folder (tagged) but the attempt marker
+    // never persisted — localStorage disabled — and notes are still at root. The
+    // durable tag, not the per-device marker, must drive the resume so the notes
+    // aren't stranded.
+    adapter.folders.push({
+      id: 'g',
+      name: 'General',
+      parentId: null,
+      order: 0,
+      seededType: 'general',
+    });
+    seedNote(adapter, 'n1', 'general');
+    seedNote(adapter, 'n2', 'devotion');
+
+    await actions.init();
+
+    const stored = await adapter.getFolders();
+    expect(stored.map((f) => f.name).sort()).toEqual(['Devotions', 'General']);
+    const filed = new Map((await adapter.getNotes()).map((n) => [n.id, n.folderId]));
+    expect(filed.get('n1')).toBe('g'); // adopted the existing tagged General
+    expect(filed.get('n2')).toBe(stored.find((f) => f.seededType === 'devotion')!.id);
+  });
+
   it('adopts a concurrently-created seed folder on a unique-violation, not failing', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     seedNote(adapter, 'n1', 'general');
