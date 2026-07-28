@@ -158,6 +158,51 @@ describe('NotepadActions — type-folder backfill', () => {
     expect(folders.getSnapshot().folders.map((f) => f.name)).toEqual(['Themes']);
   });
 
+  it('waits for an in-flight init to drain before rebinding — no overlapping runs', async () => {
+    // Gate account A's folder load so its init() stays in flight.
+    let releaseA!: () => void;
+    const gateA = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+    seedNote(adapter, 'a1', 'general');
+    const realGetFolders = adapter.getFolders.bind(adapter);
+    adapter.getFolders = async () => {
+      await gateA;
+      return realGetFolders();
+    };
+
+    const initA = actions.init(); // hangs inside folders.init() on gateA
+    await Promise.resolve();
+
+    // Sign-in lands before A finished loading: rebind to B mid-flight.
+    const b = new FakeStorageAdapter();
+    b.scopeId = 'user:b';
+    seedNote(b, 'b1', 'devotion');
+    let bLoaded = false;
+    const realBGetFolders = b.getFolders.bind(b);
+    b.getFolders = async () => {
+      bLoaded = true;
+      return realBGetFolders();
+    };
+
+    const rebindP = actions.rebindAdapter(b);
+    // The rebind must serialize behind A: B's account is untouched until A drains.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(bLoaded).toBe(false);
+
+    // Let A finish; only then does the rebind swap and initialize B.
+    releaseA();
+    await initA;
+    await rebindP;
+
+    expect(bLoaded).toBe(true);
+    // B seeded cleanly — no interleaving corruption, exactly one Devotions folder.
+    expect(folders.getSnapshot().folders.map((f) => f.name)).toEqual(['Devotions']);
+    expect((await b.getFolders()).filter((f) => f.name === 'Devotions')).toHaveLength(1);
+  });
+
   it('runs on the newly bound account after sign-in', async () => {
     await actions.init();
 

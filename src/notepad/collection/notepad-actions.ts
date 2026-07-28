@@ -224,13 +224,24 @@ export class NotepadActions {
   };
 
   async rebindAdapter(next: StorageAdapter): Promise<void> {
+    // Drain any init still in flight before swapping accounts. rebind mutates the
+    // shared NoteCollection / FolderHierarchy / ReferenceGraph in place, so if a
+    // previous account's run kept going after the swap the two inits would
+    // interleave over the same collections — double seeds, notes filed into the
+    // wrong account's folders, a graph rebuilt from a mixed note set. Letting the
+    // old run finish first (on its own, still-current binding) keeps them serial.
+    // Loop, don't check once: a mount / StrictMode `init()` can start during the
+    // await. Once the loop exits, the swap below runs synchronously through to
+    // `init()` installing the new guard, so no run can slip in after the last
+    // check — and `init()` finds `initInFlight` already null, so it starts fresh.
+    while (this.initInFlight) {
+      await this.initInFlight.catch(() => {});
+    }
     this.adapter = next;
     this.notes.rebindAdapter(next);
     this.folders.rebindAdapter(next);
     this.referenceGraph.reset();
-    // Drop both init guards: a run still in flight belongs to the previous
-    // account, and the incoming one needs its own backfill check.
-    this.initInFlight = null;
+    // Fresh account: re-run the backfill check.
     this.seedAttempted = false;
     await this.init();
   }
