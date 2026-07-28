@@ -8,12 +8,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
 } from 'lucide-react';
-import { useNoteCollection } from '../context/useNoteCollection';
-import { useFolderHierarchy } from '../context/useFolderHierarchy';
-import {
-  resolveNewNoteFolderId,
-  DEFAULT_NEW_NOTE_TYPE,
-} from '../collection/new-note-target';
+import { useNewNote } from '../context/useNewNote';
 import { UploadModal } from './UploadModal';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { NotepadAuthControls } from './NotepadAuthControls';
@@ -41,20 +36,14 @@ export function NotepadToolbar({
   onOpenSearch,
 }: NotepadToolbarProps) {
   const navigate = useNavigate();
-  const { notes, activeNoteId, collection } = useNoteCollection();
-  const { folders, loaded: foldersLoaded } = useFolderHierarchy();
-  const createNote = collection.createNote;
   const [uploadOpen, setUploadOpen] = useState(false);
   const navTrigger = useNavTrigger();
 
-  // One-click note creation: drop the note into the folder the user is currently
-  // on (the active note's folder), or the top folder when they aren't on one.
-  // `foldersLoaded` keeps a click fired mid-load from filing the note at root.
-  const handleNewNote = () => {
-    const activeNote = notes.find((n) => n.id === activeNoteId) ?? null;
-    const folderId = resolveNewNoteFolderId(activeNote, folders, foldersLoaded);
-    createNote(folderId, DEFAULT_NEW_NOTE_TYPE);
-  };
+  // One-click note creation: drops the note into the folder the user is
+  // currently on (the active note's folder), or the top folder when they aren't
+  // on one. Clicking before the folder list has loaded waits it out rather than
+  // filing the note at root — see useNewNote.
+  const { createNewNote, pending: creatingNote } = useNewNote();
 
   // Shared button class
   const btnClass =
@@ -136,12 +125,14 @@ export function NotepadToolbar({
           {/* NEW NOTE — one click, drops into the current folder */}
           <button
             data-tour="new-note-sidebar-button"
-            onClick={handleNewNote}
+            onClick={() => void createNewNote()}
+            aria-busy={creatingNote}
             title="New note in the current folder"
             className={`${btnClass} flex items-center gap-1.5 px-3 h-8`}
             style={{
               background: 'var(--deep-umber)',
               borderRadius: 6,
+              opacity: creatingNote ? 0.6 : 1,
             }}
           >
             <Plus className="w-3.5 h-3.5" style={{ color: 'var(--plaster)' }} />

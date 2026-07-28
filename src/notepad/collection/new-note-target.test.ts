@@ -64,6 +64,29 @@ describe('resolveNewNoteFolderId', () => {
     expect(resolveNewNoteFolderId(null, [])).toBe('root');
     expect(resolveNewNoteFolderId(note({ id: 'n1', folderId: 'root' }), [])).toBe('root');
   });
+
+  it('skips the system Study folder when picking the top folder', () => {
+    // The Study root hides inline note creation in favor of the Study pane's
+    // own button — New Note must not drop notes there behind the user's back.
+    const folders = [
+      folder({ id: 'study', kind: 'study', order: 0 }),
+      folder({ id: 'mine', order: 1 }),
+    ];
+    expect(resolveNewNoteFolderId(null, folders)).toBe('mine');
+  });
+
+  it('falls back to root when the Study folder is the only one', () => {
+    const folders = [folder({ id: 'study', kind: 'study', order: 0 })];
+    expect(resolveNewNoteFolderId(null, folders)).toBe('root');
+  });
+
+  it('still honors an active note that lives inside the Study folder', () => {
+    // Explicitly being on a Study note is different from silently defaulting
+    // there — notes created from the Study pane stay with their siblings.
+    const folders = [folder({ id: 'study', kind: 'study', order: 0 })];
+    const active = note({ id: 'n1', folderId: 'study' });
+    expect(resolveNewNoteFolderId(active, folders)).toBe('study');
+  });
 });
 
 describe('resolveNewNoteFolderId — while folders are still loading', () => {
@@ -79,7 +102,18 @@ describe('resolveNewNoteFolderId — while folders are still loading', () => {
     expect(resolveNewNoteFolderId(active, [], true)).toBe('root');
   });
 
-  it('still falls back to root with no active note while loading', () => {
-    expect(resolveNewNoteFolderId(null, [], false)).toBe('root');
+  it('defers (null) with no active note while loading, rather than picking root', () => {
+    // The empty list carries no information yet. Returning 'root' here would
+    // permanently unfile the note on an account that does have folders.
+    expect(resolveNewNoteFolderId(null, [], false)).toBeNull();
+  });
+
+  it('defers when the active note is at root and folders are still loading', () => {
+    const active = note({ id: 'n1', folderId: 'root' });
+    expect(resolveNewNoteFolderId(active, [], false)).toBeNull();
+  });
+
+  it('contrast: a *loaded* empty list with no active note resolves to root', () => {
+    expect(resolveNewNoteFolderId(null, [], true)).toBe('root');
   });
 });

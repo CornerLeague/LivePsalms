@@ -18,11 +18,7 @@ import { MobileMoreSheet, type DetailSegment } from './MobileMoreSheet';
 import { MobileAuthModal } from './MobileAuthModal';
 import { MobileAccountSheet } from './MobileAccountSheet';
 import { useMobileWorkspaceModel } from './useMobileWorkspaceModel';
-import { useFolderHierarchy } from '../../../../notepad/context/useFolderHierarchy';
-import {
-  resolveNewNoteFolderId,
-  DEFAULT_NEW_NOTE_TYPE,
-} from '../../../../notepad/collection/new-note-target';
+import { useNewNote } from '../../../../notepad/context/useNewNote';
 import { useHasConnections } from './useHasConnections';
 import { useArrivalDot } from '@/notepad/lamplight/arrival-badge';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
@@ -40,7 +36,7 @@ type ScanStage = null | 'capture' | { review: TranscriptionResult };
 export function MobileNotepadWorkspace() {
   const navigate = useNavigate();
   const model = useMobileWorkspaceModel();
-  const { folders, loaded: foldersLoaded } = useFolderHierarchy();
+  const { createNewNote } = useNewNote();
   const actions = useNotepadActions();
   const { adapter, session } = useAuthSession();
   const { profile } = useAccountProfile();
@@ -100,7 +96,7 @@ export function MobileNotepadWorkspace() {
     navigate('/notebook');
   }, [session, navigate]);
 
-  const { openNote, createNote } = model;
+  const { openNote } = model;
 
   const hasConnections = useHasConnections({
     adapter: model.lamplightAdapter,
@@ -142,12 +138,14 @@ export function MobileNotepadWorkspace() {
 
   // One tap creates a note straight into the folder the user is currently on
   // (the active note's folder), falling back to the top folder — no category
-  // prompt, matching the desktop toolbar's New Note button.
+  // prompt, matching the desktop toolbar's New Note button. A tap fired before
+  // the folder list loads waits for it rather than filing the note at root, so
+  // the tab switch happens once the note actually exists.
   const handleNewNote = useCallback(() => {
-    const folderId = resolveNewNoteFolderId(model.activeNote ?? null, folders, foldersLoaded);
-    createNote(folderId, DEFAULT_NEW_NOTE_TYPE);
-    setTab('editor');
-  }, [createNote, model.activeNote, folders, foldersLoaded]);
+    void createNewNote().then((note) => {
+      if (note) setTab('editor');
+    });
+  }, [createNewNote]);
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {

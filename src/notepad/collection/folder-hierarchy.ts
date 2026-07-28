@@ -26,9 +26,41 @@ export class FolderHierarchy extends Observable<FolderHierarchyState> {
   }
 
   async init(): Promise<void> {
-    const folders = await this.adapter.getFolders();
-    this.setState((prev) => ({ ...prev, folders, loaded: true }));
+    try {
+      const folders = await this.adapter.getFolders();
+      this.setState((prev) => ({ ...prev, folders, loaded: true }));
+    } catch (err) {
+      // Mark the load settled even when it failed, then rethrow. `loaded` means
+      // "the fetch finished", not "it succeeded" — without this a failed load
+      // would leave `whenLoaded()` waiters hanging forever and New Note would
+      // silently do nothing instead of falling back to root.
+      this.setState((prev) => ({ ...prev, loaded: true }));
+      throw err;
+    }
   }
+
+  /**
+   * Resolves once the folder list has settled — immediately when it already
+   * has, otherwise on the first state change that flips `loaded` to true.
+   *
+   * Lets callers that must not act on a mid-load snapshot wait it out: an empty
+   * `folders` array before the load finishes is indistinguishable from an
+   * account with no folders, so New Note awaits this rather than guessing and
+   * permanently filing the note at root. See `resolveNewNoteFolderId`.
+   */
+  whenLoaded = (): Promise<FolderHierarchyState> => {
+    const current = this.getSnapshot();
+    if (current.loaded) return Promise.resolve(current);
+
+    return new Promise((resolve) => {
+      const unsubscribe = this.subscribe(() => {
+        const next = this.getSnapshot();
+        if (!next.loaded) return;
+        unsubscribe();
+        resolve(next);
+      });
+    });
+  };
 
   createFolder = async (
     name: string,

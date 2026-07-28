@@ -20,28 +20,47 @@ export const DEFAULT_NEW_NOTE_TYPE: NoteType = 'general';
  *      a deleted folder is treated as "not on a folder").
  *   2. Otherwise ("not on a folder" — no active note, or the active note sits at
  *      root / points at a deleted folder), fall back to the top folder: the
- *      first root folder by `order` (matching the sidebar's ordering).
- *   3. If there are no folders at all, fall back to `'root'`.
+ *      first root folder by `order` (matching the sidebar's ordering), skipping
+ *      system folders. The system Study root deliberately hides inline note
+ *      creation in favor of the Study pane's own docked button, so New Note
+ *      must not silently drop notes there either.
+ *   3. If there are no eligible folders, fall back to `'root'`.
  *
- * `foldersLoaded` guards against filing a note at root just because the click
- * landed in the brief window before the folder list finished loading (initial
- * load or an adapter rebind on sign-in/out).
+ * Returns `null` when the target cannot be decided yet: folders are still
+ * loading AND there is no active note whose folder id we can inherit. A
+ * mid-load snapshot is always `[]`, which is indistinguishable from "this
+ * account has no folders" — resolving it would permanently file the note at
+ * root just because the click landed before the list arrived. Callers must wait
+ * for the hierarchy to settle (`FolderHierarchy.whenLoaded()`) and resolve
+ * again rather than treating `null` as root; `useNewNote` does exactly that.
  */
 export function resolveNewNoteFolderId(
   activeNote: Note | null,
   folders: Folder[],
+  foldersLoaded?: true,
+): string;
+export function resolveNewNoteFolderId(
+  activeNote: Note | null,
+  folders: Folder[],
+  foldersLoaded: boolean,
+): string | null;
+export function resolveNewNoteFolderId(
+  activeNote: Note | null,
+  folders: Folder[],
   foldersLoaded = true,
-): string {
-  const folderIds = new Set(folders.map((f) => f.id));
-
+): string | null {
   if (activeNote && activeNote.folderId && activeNote.folderId !== 'root') {
-    if (!foldersLoaded || folderIds.has(activeNote.folderId)) {
+    if (!foldersLoaded || folders.some((f) => f.id === activeNote.folderId)) {
       return activeNote.folderId;
     }
   }
 
+  // No folder id to inherit, and an unloaded list carries no information about
+  // which folders exist — defer to the caller instead of falling back to root.
+  if (!foldersLoaded) return null;
+
   const topRootFolder = folders
-    .filter((f) => f.parentId === null)
+    .filter((f) => f.parentId === null && f.kind !== 'study')
     .sort((a, b) => a.order - b.order)[0];
 
   return topRootFolder?.id ?? 'root';

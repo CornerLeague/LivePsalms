@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,11 +16,17 @@ const model = {
   loadNeighborNotes: async () => [],
 };
 vi.mock('./useMobileWorkspaceModel', () => ({ useMobileWorkspaceModel: () => model }));
-vi.mock('../../../../notepad/context/useFolderHierarchy', () => ({ useFolderHierarchy: () => ({ folders: [] }) }));
+const { createNewNoteSpy } = vi.hoisted(() => ({ createNewNoteSpy: vi.fn() }));
+vi.mock('../../../../notepad/context/useNewNote', () => ({
+  useNewNote: () => ({ createNewNote: createNewNoteSpy, pending: false }),
+}));
 vi.mock('./useHasConnections', () => ({ useHasConnections: () => false }));
 vi.mock('./MobileNotesView', () => ({
-  MobileNotesView: (p: { onOpenLamplight?: () => void }) => (
-    <div data-testid="view-notes"><button data-testid="open-lamplight" onClick={p.onOpenLamplight}>flame</button></div>
+  MobileNotesView: (p: { onOpenLamplight?: () => void; onNewNote?: () => void }) => (
+    <div data-testid="view-notes">
+      <button data-testid="open-lamplight" onClick={p.onOpenLamplight}>flame</button>
+      <button data-testid="new-note" onClick={p.onNewNote}>new</button>
+    </div>
   ),
 }));
 vi.mock('@/notepad/bible/BibleStudyPane', () => ({ BibleStudyPane: () => <div data-testid="view-bible" /> }));
@@ -47,7 +53,7 @@ vi.mock('@/notepad/recordings/RecordingsDock', () => ({ RecordingsDock: () => nu
 
 import { MobileNotepadWorkspace } from './MobileNotepadWorkspace';
 
-afterEach(() => { cleanup(); localStorage.clear(); });
+afterEach(() => { cleanup(); localStorage.clear(); createNewNoteSpy.mockReset(); });
 
 function renderShell() {
   return render(
@@ -88,5 +94,28 @@ describe('<MobileNotepadWorkspace />', () => {
     const { getByTestId } = renderShell();
     fireEvent.click(getByTestId('open-lamplight'));
     expect(getByTestId('view-lamplight')).toBeTruthy();
+  });
+
+  it('delegates New Note to useNewNote and opens the editor once the note exists', async () => {
+    createNewNoteSpy.mockResolvedValueOnce({ id: 'n2' });
+    const { getByTestId } = renderShell();
+
+    await act(async () => {
+      fireEvent.click(getByTestId('new-note'));
+    });
+
+    expect(createNewNoteSpy).toHaveBeenCalledTimes(1);
+    expect(getByTestId('view-editor')).toBeTruthy();
+  });
+
+  it('stays on Notes when New Note is swallowed as a duplicate (resolves null)', async () => {
+    createNewNoteSpy.mockResolvedValueOnce(null);
+    const { getByTestId } = renderShell();
+
+    await act(async () => {
+      fireEvent.click(getByTestId('new-note'));
+    });
+
+    expect(getByTestId('view-notes')).toBeTruthy();
   });
 });
