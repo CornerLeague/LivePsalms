@@ -100,7 +100,13 @@ export function useNoteEditor({
   // Active-Note swap. Watch `id` only — content/title/tag changes from our own
   // saves must not trigger a reload over the user's in-flight edits.
   useEffect(() => {
-    if (!editor) return;
+    // `isDestroyed` guard: on a direct load, React reveals the Suspense-resolved
+    // subtree by re-running passive effects (reconnectPassiveEffects). TipTap's
+    // useEditor destroys the editor during the intervening cleanup, so this
+    // effect can fire with a non-null but destroyed editor — reading
+    // `editor.commands` on it throws (commandManager is null). Bail out until a
+    // fresh editor arrives (a new instance re-triggers this effect via deps).
+    if (!editor || editor.isDestroyed) return;
 
     if (!activeNote) {
       editor.commands.setContent('');
@@ -128,7 +134,7 @@ export function useNoteEditor({
   // Writing through the extension storage object (not the editor itself) so the
   // change applies to new inserts without rebuilding the editor.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     const allStorage = editor.storage as unknown as Record<string, Record<string, unknown>>;
     const refStorage = allStorage['scriptureRef'];
     if (refStorage) refStorage['translation'] = translation;
