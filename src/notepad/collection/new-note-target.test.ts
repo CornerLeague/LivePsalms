@@ -65,3 +65,21 @@ describe('resolveNewNoteFolderId', () => {
     expect(resolveNewNoteFolderId(note({ id: 'n1', folderId: 'root' }), [])).toBe('root');
   });
 });
+
+describe('resolveNewNoteFolderId — while folders are still loading', () => {
+  it('trusts the active note’s folder id before the folder list has loaded', () => {
+    // folders is empty because it hasn't loaded yet, not because none exist — so
+    // the note lands in the folder the user is on rather than at root.
+    const active = note({ id: 'n1', folderId: 'f2' });
+    expect(resolveNewNoteFolderId(active, [], false)).toBe('f2');
+  });
+
+  it('contrast: a *loaded* empty list redirects the same active folder to root', () => {
+    const active = note({ id: 'n1', folderId: 'f2' });
+    expect(resolveNewNoteFolderId(active, [], true)).toBe('root');
+  });
+
+  it('still falls back to root with no active note while loading', () => {
+    expect(resolveNewNoteFolderId(null, [], false)).toBe('root');
+  });
+});

@@ -6,9 +6,16 @@ import type { Folder, FolderIcon } from '../types';
 export interface FolderHierarchyState {
   folders: Folder[];
   studyFolderId: string | null;
+  /**
+   * False until the initial `getFolders()` load resolves (and again while a
+   * `rebindAdapter` reload is in flight). Lets consumers tell an empty folder
+   * list apart from "folders haven't loaded yet" — e.g. so New Note doesn't file
+   * a note at root just because it fired mid-load. See `resolveNewNoteFolderId`.
+   */
+  loaded: boolean;
 }
 
-const EMPTY_STATE: FolderHierarchyState = { folders: [], studyFolderId: null };
+const EMPTY_STATE: FolderHierarchyState = { folders: [], studyFolderId: null, loaded: false };
 
 export class FolderHierarchy extends Observable<FolderHierarchyState> {
   private adapter: StorageAdapter;
@@ -20,7 +27,7 @@ export class FolderHierarchy extends Observable<FolderHierarchyState> {
 
   async init(): Promise<void> {
     const folders = await this.adapter.getFolders();
-    this.setState((prev) => ({ ...prev, folders }));
+    this.setState((prev) => ({ ...prev, folders, loaded: true }));
   }
 
   createFolder = async (

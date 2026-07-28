@@ -40,7 +40,7 @@ type ScanStage = null | 'capture' | { review: TranscriptionResult };
 export function MobileNotepadWorkspace() {
   const navigate = useNavigate();
   const model = useMobileWorkspaceModel();
-  const { folders } = useFolderHierarchy();
+  const { folders, loaded: foldersLoaded } = useFolderHierarchy();
   const actions = useNotepadActions();
   const { adapter, session } = useAuthSession();
   const { profile } = useAccountProfile();
@@ -144,10 +144,10 @@ export function MobileNotepadWorkspace() {
   // (the active note's folder), falling back to the top folder — no category
   // prompt, matching the desktop toolbar's New Note button.
   const handleNewNote = useCallback(() => {
-    const folderId = resolveNewNoteFolderId(model.activeNote ?? null, folders);
+    const folderId = resolveNewNoteFolderId(model.activeNote ?? null, folders, foldersLoaded);
     createNote(folderId, DEFAULT_NEW_NOTE_TYPE);
     setTab('editor');
-  }, [createNote, model.activeNote, folders]);
+  }, [createNote, model.activeNote, folders, foldersLoaded]);
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {

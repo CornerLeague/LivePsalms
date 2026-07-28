@@ -42,16 +42,17 @@ export function NotepadToolbar({
 }: NotepadToolbarProps) {
   const navigate = useNavigate();
   const { notes, activeNoteId, collection } = useNoteCollection();
-  const { folders } = useFolderHierarchy();
+  const { folders, loaded: foldersLoaded } = useFolderHierarchy();
   const createNote = collection.createNote;
   const [uploadOpen, setUploadOpen] = useState(false);
   const navTrigger = useNavTrigger();
 
   // One-click note creation: drop the note into the folder the user is currently
   // on (the active note's folder), or the top folder when they aren't on one.
+  // `foldersLoaded` keeps a click fired mid-load from filing the note at root.
   const handleNewNote = () => {
     const activeNote = notes.find((n) => n.id === activeNoteId) ?? null;
-    const folderId = resolveNewNoteFolderId(activeNote, folders);
+    const folderId = resolveNewNoteFolderId(activeNote, folders, foldersLoaded);
     createNote(folderId, DEFAULT_NEW_NOTE_TYPE);
   };
 

@@ -34,6 +34,12 @@ describe('FolderHierarchy', () => {
     expect(hierarchy.getSnapshot().folders.map((f) => f.id)).toEqual(['a', 'b']);
   });
 
+  it('reports loaded=false until init resolves, then true', async () => {
+    expect(hierarchy.getSnapshot().loaded).toBe(false);
+    await hierarchy.init();
+    expect(hierarchy.getSnapshot().loaded).toBe(true);
+  });
+
   it('createFolder computes order from existing siblings', async () => {
     seedFolder(adapter, { parentId: null, order: 0 });
     seedFolder(adapter, { parentId: null, order: 1 });
