@@ -176,6 +176,28 @@ describe('useNewNote', () => {
     expect(ctx.notes.getSnapshot().notes).toHaveLength(1);
   });
 
+  it('collapses a double-click on the fast path into a single note', async () => {
+    const adapter = new FakeStorageAdapter();
+    adapter.folders.push({ id: 'top', name: 'Top', parentId: null, order: 0 });
+    const ctx = setup(adapter);
+    await act(async () => {
+      await ctx.folders.init();
+    });
+
+    // Folders are loaded, so both clicks take the synchronous fast path — the
+    // in-flight guard must still swallow the second before it persists a note.
+    let first!: Promise<unknown>;
+    let second!: Promise<unknown>;
+    await act(async () => {
+      first = ctx.latest().createNewNote();
+      second = ctx.latest().createNewNote();
+    });
+
+    expect(await second).toBeNull();
+    expect(await first).toMatchObject({ folderId: 'top' });
+    expect(ctx.notes.getSnapshot().notes).toHaveLength(1);
+  });
+
   it('still trusts the active note’s folder mid-load without waiting', async () => {
     const adapter = new GatedFolderAdapter();
     adapter.folders.push({ id: 'top', name: 'Top', parentId: null, order: 0 });
