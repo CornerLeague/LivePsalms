@@ -12,6 +12,7 @@ import type { GraphNode } from './types';
  * nodes to the view, so this stays a pure lookup with no folder-existence check.
  */
 export const SCRIPTURE_CATEGORY = 'scripture';
+/** Unfiled notes. Stored id is `'root'`; GraphPane labels the chip "Main". */
 export const UNFILED_CATEGORY = 'root';
 
 export function graphNodeCategory(
