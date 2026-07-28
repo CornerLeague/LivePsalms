@@ -1,6 +1,14 @@
 import type { Note, Folder } from '../types';
 
 export interface StorageAdapter {
+  /**
+   * Stable identifier for the account this adapter reads and writes — `'local'`
+   * for signed-out localStorage, `user:<id>` when signed in. Used to key
+   * per-device, per-account markers (e.g. "the type-folder backfill already ran
+   * for this account") so switching accounts doesn't inherit the other's state.
+   */
+  readonly scopeId: string;
+
   getNotes(): Promise<Note[]>;
   getNote(id: string): Promise<Note | null>;
   createNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note>;

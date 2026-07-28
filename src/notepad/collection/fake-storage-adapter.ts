@@ -11,6 +11,7 @@ export function resetFakeAdapterIds(): void {
 export class FakeStorageAdapter implements StorageAdapter {
   notes: Note[] = [];
   folders: Folder[] = [];
+  scopeId = 'fake';
 
   async getNotes(): Promise<Note[]> {
     return this.notes.slice();

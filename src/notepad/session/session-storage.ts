@@ -20,6 +20,8 @@ const KEY_FOCUS_MODE = 'psalms.bible.focus.mode';
 const KEY_FOCUS_ACTIVE_LIST = 'psalms.bible.focus.activeListId';
 const KEY_QUICK_LIST = 'psalms.bible.focus.quickList';
 const KEY_MEMORIZE_CARDS = 'psalms.memorize.cards';
+// Suffixed with the adapter's scopeId — see hasSeededTypeFolders.
+const KEY_TYPE_FOLDER_SEED = 'psalms.notepad.typeFolderSeed';
 
 export {
   KEY_LAST_NOTE,
@@ -156,4 +158,21 @@ export function loadMemorizeCards(): MemorizeCard[] {
 
 export function saveMemorizeCards(cards: MemorizeCard[]): void {
   writeRaw(KEY_MEMORIZE_CARDS, JSON.stringify(cards));
+}
+
+/**
+ * Records that the type-folder backfill has run for an account, so a user who
+ * later deletes every seeded folder (which returns their notes to root) isn't
+ * handed the same folders again on the next load. Keyed by the adapter's
+ * `scopeId` so signing into a different account doesn't inherit the mark.
+ *
+ * Per-device, like everything else here: a second device re-runs the check, but
+ * by then the account has folders and the backfill declines on its own.
+ */
+export function hasSeededTypeFolders(scopeId: string): boolean {
+  return readRaw(`${KEY_TYPE_FOLDER_SEED}.${scopeId}`) === '1';
+}
+
+export function markSeededTypeFolders(scopeId: string): void {
+  writeRaw(`${KEY_TYPE_FOLDER_SEED}.${scopeId}`, '1');
 }

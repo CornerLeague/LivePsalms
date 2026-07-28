@@ -17,6 +17,10 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     this.#userId = userId;
   }
 
+  get scopeId(): string {
+    return `user:${this.#userId}`;
+  }
+
   // ── Notes ──────────────────────────────────────────────────────────
 
   async getNotes(): Promise<Note[]> {

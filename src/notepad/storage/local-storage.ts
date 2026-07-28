@@ -7,6 +7,9 @@ const NOTES_KEY = 'notepad_notes';
 const FOLDERS_KEY = 'notepad_folders';
 
 export class LocalStorageAdapter implements StorageAdapter {
+  /** Signed-out notes are per-device by definition — one scope. */
+  readonly scopeId = 'local';
+
   private readNotes(): Note[] {
     const raw = localStorage.getItem(NOTES_KEY);
     return raw ? JSON.parse(raw) : [];
