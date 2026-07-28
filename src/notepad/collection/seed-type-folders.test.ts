@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planTypeFolderSeed } from './seed-type-folders';
+import { planTypeFolderSeed, reconcileTypeFolderSeed } from './seed-type-folders';
 import type { Folder, Note, NoteType } from '../types';
 
 const folder = (over: Partial<Folder> & { id: string }): Folder => ({
@@ -10,6 +10,7 @@ const folder = (over: Partial<Folder> & { id: string }): Folder => ({
   icon: over.icon,
   color: over.color,
   kind: over.kind,
+  seededType: over.seededType,
 });
 
 const note = (id: string, type: NoteType, folderId = 'root'): Note => ({
@@ -102,5 +103,96 @@ describe('planTypeFolderSeed — accounts it declines', () => {
       [folder({ id: 'study', kind: 'study' })],
     );
     expect(plan).toBeNull();
+  });
+});
+
+describe('reconcileTypeFolderSeed', () => {
+  it('plans every folder and move on a fresh account', () => {
+    const plan = reconcileTypeFolderSeed([note('n1', 'general'), note('n2', 'devotion')], []);
+    expect(plan!.foldersToCreate.map((f) => f.name)).toEqual(['General', 'Devotions']);
+    expect(plan!.existingByType).toEqual([]);
+    expect(plan!.moves).toEqual([
+      { noteId: 'n1', type: 'general' },
+      { noteId: 'n2', type: 'devotion' },
+    ]);
+  });
+
+  it('reuses a seed folder left by a partial run instead of recreating it', () => {
+    const plan = reconcileTypeFolderSeed(
+      [note('n1', 'general'), note('n2', 'devotion')],
+      [folder({ id: 'g', name: 'General', seededType: 'general' })],
+    );
+    // General already exists — only Devotions is created; both notes still move.
+    expect(plan!.foldersToCreate.map((f) => f.name)).toEqual(['Devotions']);
+    expect(plan!.existingByType).toEqual([['general', 'g']]);
+    expect(plan!.moves.map((m) => m.noteId)).toEqual(['n1', 'n2']);
+  });
+
+  it('re-finds a seeded folder by tag even after the user renamed it', () => {
+    const plan = reconcileTypeFolderSeed(
+      [note('n1', 'general')],
+      // Renamed away from 'General', but still tagged — a name match would miss
+      // it and create a duplicate; the tag keeps the resume exact.
+      [folder({ id: 'g', name: 'My Notes', seededType: 'general' })],
+    );
+    expect(plan!.foldersToCreate).toEqual([]);
+    expect(plan!.existingByType).toEqual([['general', 'g']]);
+    expect(plan!.moves).toEqual([{ noteId: 'n1', type: 'general' }]);
+  });
+
+  it('does not treat a folder tagged for another type as this type’s folder', () => {
+    const plan = reconcileTypeFolderSeed(
+      [note('n1', 'general')],
+      // Named 'General' but tagged devotion — the tag wins, so General is still
+      // created rather than dumping general notes into a devotion folder.
+      [folder({ id: 'd', name: 'General', seededType: 'devotion' })],
+    );
+    expect(plan!.foldersToCreate.map((f) => f.name)).toEqual(['General']);
+    expect(plan!.existingByType).toEqual([]);
+  });
+
+  it('falls back to a name match for folders seeded before tagging existed', () => {
+    // An older build's partial run left an untagged 'General' folder; the resume
+    // must still recognize it so it isn't duplicated.
+    const plan = reconcileTypeFolderSeed(
+      [note('n1', 'general')],
+      [folder({ id: 'g', name: 'General' })],
+    );
+    expect(plan!.foldersToCreate).toEqual([]);
+    expect(plan!.existingByType).toEqual([['general', 'g']]);
+  });
+
+  it('keeps a resumed folder’s order aligned with sidebar order', () => {
+    const plan = reconcileTypeFolderSeed(
+      [note('n1', 'general'), note('n2', 'devotion')],
+      [folder({ id: 'g', name: 'General' })],
+    );
+    // Devotions is second among the used types, so it keeps order 1 even though
+    // it's the only folder being created this pass.
+    expect(plan!.foldersToCreate[0].order).toBe(1);
+  });
+
+  it('does not match the system Study folder even when the name lines up', () => {
+    const plan = reconcileTypeFolderSeed(
+      [note('n1', 'general')],
+      [folder({ id: 's', name: 'General', kind: 'study' })],
+    );
+    expect(plan!.foldersToCreate.map((f) => f.name)).toEqual(['General']);
+    expect(plan!.existingByType).toEqual([]);
+  });
+
+  it('only moves notes still at root, leaving filed notes put', () => {
+    const plan = reconcileTypeFolderSeed(
+      [note('n1', 'general', 'g'), note('n2', 'general')],
+      [folder({ id: 'g', name: 'General' })],
+    );
+    expect(plan!.foldersToCreate).toEqual([]);
+    expect(plan!.moves).toEqual([{ noteId: 'n2', type: 'general' }]);
+  });
+
+  it('returns null when nothing is left at root', () => {
+    expect(
+      reconcileTypeFolderSeed([note('n1', 'general', 'g')], [folder({ id: 'g', name: 'General' })]),
+    ).toBeNull();
   });
 });

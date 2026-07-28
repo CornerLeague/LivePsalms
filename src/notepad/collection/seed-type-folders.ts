@@ -79,3 +79,70 @@ export function planTypeFolderSeed(notes: Note[], folders: Folder[]): TypeFolder
 
   return { folders: seedFolders, moves };
 }
+
+/**
+ * How a resumed run re-finds a type-folder it created on an earlier, partial
+ * attempt. The `seededType` tag is authoritative: it's stamped at creation and
+ * survives the user renaming or recoloring the folder, so a resume matches
+ * exactly and can't be fooled into creating a duplicate. The name check is only
+ * a fallback for folders seeded before provenance existed (a partial run from an
+ * older build) — those have no tag, so we recognize them the legacy way. A
+ * folder tagged for a *different* type is never a match, even if names collide.
+ */
+function isSeedFolderFor(folder: Folder, type: NoteType): boolean {
+  if (folder.seededType != null) return folder.seededType === type;
+  return (
+    folder.parentId === null && folder.kind !== 'study' && folder.name === TYPE_FOLDER[type].name
+  );
+}
+
+export interface TypeFolderReconcile {
+  /** Type-folders that don't exist yet, each carrying its final sidebar order. */
+  foldersToCreate: Array<SeedFolderSpec & { order: number }>;
+  /** type → id of a seed-folder that already exists from a prior partial run. */
+  existingByType: Array<[NoteType, string]>;
+  /** Root notes still needing a home, by the type whose folder they belong in. */
+  moves: Array<{ noteId: string; type: NoteType }>;
+}
+
+/**
+ * Compute the work still needed to reach the seeded end-state — every used note
+ * type has its folder and every root note sits inside it — given whatever
+ * already exists. On a fresh account this creates all folders and moves all
+ * notes (identical to `planTypeFolderSeed`'s plan); after a partial run it fills
+ * only the gaps, matching already-created folders by identity so a retry never
+ * duplicates them.
+ *
+ * Unlike `planTypeFolderSeed`, this does NOT decide *whether* to seed — it
+ * assumes the caller already has (fresh gate or resume marker). It returns
+ * `null` only when nothing remains to do (no root notes to file), so the caller
+ * can record completion.
+ */
+export function reconcileTypeFolderSeed(
+  notes: Note[],
+  folders: Folder[],
+): TypeFolderReconcile | null {
+  const folderIds = new Set(folders.map((f) => f.id));
+  const rootNotes = notes.filter((n) => n.folderId === 'root' || !folderIds.has(n.folderId));
+
+  const usedTypes = new Set(rootNotes.map((n) => n.type));
+  const orderedUsedTypes = NOTE_TYPE_ORDER.filter((type) => usedTypes.has(type));
+
+  const existingByType: Array<[NoteType, string]> = [];
+  const foldersToCreate: Array<SeedFolderSpec & { order: number }> = [];
+  orderedUsedTypes.forEach((type, order) => {
+    const existing = folders.find((f) => isSeedFolderFor(f, type));
+    if (existing) existingByType.push([type, existing.id]);
+    else foldersToCreate.push({ type, ...TYPE_FOLDER[type], order });
+  });
+
+  // Same rule as the plan: only move notes whose type earns a folder; an
+  // unrecognized type has no bucket and stays at root.
+  const plannedTypes = new Set(orderedUsedTypes);
+  const moves = rootNotes
+    .filter((n) => plannedTypes.has(n.type))
+    .map((n) => ({ noteId: n.id, type: n.type }));
+
+  if (foldersToCreate.length === 0 && moves.length === 0) return null;
+  return { foldersToCreate, existingByType, moves };
+}

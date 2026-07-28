@@ -192,4 +192,122 @@ describe('NotepadActions — type-folder backfill', () => {
     await actions.init();
     expect(folders.getSnapshot().folders.map((f) => f.name)).toEqual(['General']);
   });
+
+  it('resumes a partial folder-creation failure without duplicating folders', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    seedNote(adapter, 'n1', 'general');
+    seedNote(adapter, 'n2', 'devotion');
+
+    // The first folder (General) lands; the second (Devotions) fails, so the
+    // folder loop throws before any note is moved — a genuine partial run.
+    const realCreate = adapter.createFolder.bind(adapter);
+    let creates = 0;
+    adapter.createFolder = (folder) => {
+      creates += 1;
+      return creates === 1 ? realCreate(folder) : Promise.reject(new Error('offline'));
+    };
+    await actions.init();
+    expect((await adapter.getFolders()).map((f) => f.name)).toEqual(['General']);
+    expect((await adapter.getNotes()).every((n) => n.folderId === 'root')).toBe(true);
+
+    // Next load: a fresh instance over the same account. The attempt marker
+    // routes it into resume, which fills the gap and files both notes.
+    adapter.createFolder = realCreate;
+    wire(adapter);
+    await actions.init();
+
+    const stored = await adapter.getFolders();
+    expect(stored.map((f) => f.name)).toEqual(['General', 'Devotions']);
+    const byName = new Map(stored.map((f) => [f.name, f.id]));
+    const filed = new Map((await adapter.getNotes()).map((n) => [n.id, n.folderId]));
+    expect(filed.get('n1')).toBe(byName.get('General'));
+    expect(filed.get('n2')).toBe(byName.get('Devotions'));
+  });
+
+  it('resumes a partial note-move failure without duplicating the folder', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    seedNote(adapter, 'n1', 'general');
+    seedNote(adapter, 'n2', 'general');
+
+    // The folder is created, but moving n1 fails while n2 still lands.
+    const realUpdate = adapter.updateNote.bind(adapter);
+    let failN1 = true;
+    adapter.updateNote = (id, updates) => {
+      if (id === 'n1' && failN1) {
+        failN1 = false;
+        return Promise.reject(new Error('offline'));
+      }
+      return realUpdate(id, updates);
+    };
+    await actions.init();
+    const general = (await adapter.getFolders()).find((f) => f.name === 'General')!;
+    const afterFirst = new Map((await adapter.getNotes()).map((n) => [n.id, n.folderId]));
+    expect(afterFirst.get('n1')).toBe('root');
+    expect(afterFirst.get('n2')).toBe(general.id);
+
+    // Next load resumes: n1 moves in, and no second General folder is created.
+    adapter.updateNote = realUpdate;
+    wire(adapter);
+    await actions.init();
+
+    expect((await adapter.getFolders()).map((f) => f.name)).toEqual(['General']);
+    const filed = new Map((await adapter.getNotes()).map((n) => [n.id, n.folderId]));
+    expect(filed.get('n1')).toBe(general.id);
+    expect(filed.get('n2')).toBe(general.id);
+  });
+
+  it('does not resume a partial-looking account this device never seeded', async () => {
+    // A 'General' folder — exactly what our own partial run leaves behind —
+    // exists, but THIS device holds no attempt marker (it never started a seed;
+    // another device did). Cross-device idempotency means it must stay hands-off:
+    // no filing the root note, no duplicate folder.
+    adapter.folders.push({ id: 'general', name: 'General', parentId: null, order: 0 });
+    seedNote(adapter, 'n1', 'general');
+
+    await actions.init();
+
+    expect(notes.getSnapshot().notes[0].folderId).toBe('root');
+    expect((await adapter.getFolders()).map((f) => f.name)).toEqual(['General']);
+  });
+
+  it('stamps each seeded folder with its note type as provenance', async () => {
+    seedNote(adapter, 'n1', 'general');
+    seedNote(adapter, 'n2', 'sermon');
+    await actions.init();
+
+    const byName = new Map((await adapter.getFolders()).map((f) => [f.name, f.seededType]));
+    expect(byName.get('General')).toBe('general');
+    expect(byName.get('Sermons')).toBe('sermon');
+  });
+
+  it('resumes by tag after the user renamed a partially-seeded folder', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    seedNote(adapter, 'n1', 'general');
+    seedNote(adapter, 'n2', 'devotion');
+
+    // General lands (tagged 'general'); Devotions fails → a partial run.
+    const realCreate = adapter.createFolder.bind(adapter);
+    let creates = 0;
+    adapter.createFolder = (folder) => {
+      creates += 1;
+      return creates === 1 ? realCreate(folder) : Promise.reject(new Error('offline'));
+    };
+    await actions.init();
+    const general = (await adapter.getFolders()).find((f) => f.seededType === 'general')!;
+    expect(general.name).toBe('General');
+
+    // The user renames it before the resume — a name-based match would now miss
+    // it and spawn a duplicate 'General'. The tag keeps the resume exact.
+    await adapter.updateFolder(general.id, { name: 'Sunday Notes' });
+
+    adapter.createFolder = realCreate;
+    wire(adapter);
+    await actions.init();
+
+    const stored = await adapter.getFolders();
+    expect(stored.map((f) => f.name).sort()).toEqual(['Devotions', 'Sunday Notes']);
+    const filed = new Map((await adapter.getNotes()).map((n) => [n.id, n.folderId]));
+    expect(filed.get('n1')).toBe(general.id);
+    expect(filed.get('n2')).toBe(stored.find((f) => f.seededType === 'devotion')!.id);
+  });
 });

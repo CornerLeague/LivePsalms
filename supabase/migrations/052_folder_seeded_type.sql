@@ -1,0 +1,12 @@
+-- Provenance for the one-time type-folder backfill (see
+-- NotepadActions.seedTypeFolders): records that a folder was auto-created to
+-- stand in for a legacy note type, and which type. Null for every folder the
+-- user made themselves and for the system Study folder.
+--
+-- It lets a resumed or re-run backfill re-find its own folders exactly, by tag
+-- rather than by name (so a rename mid-migration can't spawn a duplicate), and
+-- gives later features — "undo migration", seeded-folder adoption analytics — a
+-- durable handle on which folders the backfill created. Values mirror
+-- notes.type; left unconstrained (like `kind`) so new note types don't require
+-- a column migration.
+alter table public.folders add column if not exists seeded_type text;

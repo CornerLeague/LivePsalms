@@ -161,6 +161,7 @@ export class SupabaseStorageAdapter implements StorageAdapter {
         icon: folder.icon ?? null,
         color: folder.color ?? null,
         kind: folder.kind ?? null,
+        seeded_type: folder.seededType ?? null,
       })
       .select()
       .single();
@@ -182,6 +183,7 @@ export class SupabaseStorageAdapter implements StorageAdapter {
         icon: folder.icon ?? null,
         color: folder.color ?? null,
         kind: folder.kind ?? null,
+        seeded_type: folder.seededType ?? null,
       })
       .select()
       .single();
@@ -280,5 +282,6 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     icon: row.icon as Folder['icon'],
     color: row.color as string | undefined,
     kind: (row.kind as Folder['kind']) ?? undefined,
+    seededType: (row.seeded_type as Folder['seededType']) ?? undefined,
   });
 }
