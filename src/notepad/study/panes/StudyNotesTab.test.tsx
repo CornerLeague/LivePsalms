@@ -75,7 +75,34 @@ describe('StudyNotesTab', () => {
     render(<StudyNotesTab />, { wrapper });
     await waitFor(() => expect(screen.getByText('Study')).toBeInTheDocument());
 
-    await userEvent.click(screen.getByRole('button', { name: /new note/i }));
+    // Exact name — the Study root row now carries its own "New note in Study"
+    // + button, so a loose /new note/i would match both.
+    await userEvent.click(screen.getByRole('button', { name: 'New note' }));
     expect(create).toHaveBeenCalledWith(studyId, 'general');
+  });
+
+  it('also offers a + on the Study root row that creates into it', async () => {
+    await hierarchy.ensureStudyFolder();
+    const studyId = hierarchy.getSnapshot().studyFolderId!;
+    const create = vi.spyOn(collection, 'createNote').mockResolvedValue({} as Note);
+
+    render(<StudyNotesTab />, { wrapper });
+    await waitFor(() => expect(screen.getByText('Study')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: 'New note in Study' }));
+    expect(create).toHaveBeenCalledWith(studyId, 'general');
+  });
+
+  it('offers a + on folders created inside Study', async () => {
+    await hierarchy.ensureStudyFolder();
+    const studyId = hierarchy.getSnapshot().studyFolderId!;
+    const sub = await hierarchy.createFolder('Romans deep dive', studyId);
+    const create = vi.spyOn(collection, 'createNote').mockResolvedValue({} as Note);
+
+    render(<StudyNotesTab />, { wrapper });
+    await waitFor(() => expect(screen.getByText('Romans deep dive')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: 'New note in Romans deep dive' }));
+    expect(create).toHaveBeenCalledWith(sub.id, 'general');
   });
 });
