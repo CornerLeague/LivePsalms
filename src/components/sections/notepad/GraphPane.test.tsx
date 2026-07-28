@@ -24,6 +24,10 @@ vi.mock('@/notepad/context/useReferenceGraph', () => ({
   useReferenceGraph: () => ({ references: [], scriptureNodes: [], graph: { getNeighborhood: vi.fn() } }),
 }));
 
+vi.mock('@/notepad/context/useFolderHierarchy', () => ({
+  useFolderHierarchy: () => ({ folders: [] }),
+}));
+
 vi.mock('@/notepad/graph/project-graph', () => ({
   projectGraph: () => ({ nodes: [], edges: [] }),
 }));

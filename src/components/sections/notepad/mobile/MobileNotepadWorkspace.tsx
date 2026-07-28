@@ -17,9 +17,12 @@ import { BibleStudyPane } from '@/notepad/bible/BibleStudyPane';
 import { MobileMoreSheet, type DetailSegment } from './MobileMoreSheet';
 import { MobileAuthModal } from './MobileAuthModal';
 import { MobileAccountSheet } from './MobileAccountSheet';
-import { MobileNewNoteTypeSheet } from './MobileNewNoteTypeSheet';
 import { useMobileWorkspaceModel } from './useMobileWorkspaceModel';
-import type { NoteType } from '../../../../notepad/types';
+import { useFolderHierarchy } from '../../../../notepad/context/useFolderHierarchy';
+import {
+  resolveNewNoteFolderId,
+  DEFAULT_NEW_NOTE_TYPE,
+} from '../../../../notepad/collection/new-note-target';
 import { useHasConnections } from './useHasConnections';
 import { useArrivalDot } from '@/notepad/lamplight/arrival-badge';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
@@ -37,6 +40,7 @@ type ScanStage = null | 'capture' | { review: TranscriptionResult };
 export function MobileNotepadWorkspace() {
   const navigate = useNavigate();
   const model = useMobileWorkspaceModel();
+  const { folders } = useFolderHierarchy();
   const actions = useNotepadActions();
   const { adapter, session } = useAuthSession();
   const { profile } = useAccountProfile();
@@ -50,7 +54,6 @@ export function MobileNotepadWorkspace() {
   const [moreSheetSegment, setMoreSheetSegment] = useState<DetailSegment | undefined>(undefined);
   const [authOpen, setAuthOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [newTypeOpen, setNewTypeOpen] = useState(false);
   const [scan, setScan] = useState<ScanStage>(null);
 
   // Registers this workspace's imperative controls so the onboarding tour can
@@ -137,20 +140,14 @@ export function MobileNotepadWorkspace() {
     [openNote],
   );
 
-  // Mobile previously created a Devotion note directly; now we ask which kind
-  // of note first (matching the desktop type picker).
+  // One tap creates a note straight into the folder the user is currently on
+  // (the active note's folder), falling back to the top folder — no category
+  // prompt, matching the desktop toolbar's New Note button.
   const handleNewNote = useCallback(() => {
-    setNewTypeOpen(true);
-  }, []);
-
-  const handleSelectNoteType = useCallback(
-    (type: NoteType) => {
-      setNewTypeOpen(false);
-      createNote('root', type);
-      setTab('editor');
-    },
-    [createNote],
-  );
+    const folderId = resolveNewNoteFolderId(model.activeNote ?? null, folders);
+    createNote(folderId, DEFAULT_NEW_NOTE_TYPE);
+    setTab('editor');
+  }, [createNote, model.activeNote, folders]);
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {
@@ -284,12 +281,6 @@ export function MobileNotepadWorkspace() {
           navigate('/profile');
         }}
         onSignOut={handleSignOut}
-      />
-
-      <MobileNewNoteTypeSheet
-        open={newTypeOpen}
-        onClose={() => setNewTypeOpen(false)}
-        onSelect={handleSelectNoteType}
       />
 
       {scan !== null && model.user && (

@@ -16,6 +16,7 @@ const model = {
   loadNeighborNotes: async () => [],
 };
 vi.mock('./useMobileWorkspaceModel', () => ({ useMobileWorkspaceModel: () => model }));
+vi.mock('../../../../notepad/context/useFolderHierarchy', () => ({ useFolderHierarchy: () => ({ folders: [] }) }));
 vi.mock('./useHasConnections', () => ({ useHasConnections: () => false }));
 vi.mock('./MobileNotesView', () => ({
   MobileNotesView: (p: { onOpenLamplight?: () => void }) => (
