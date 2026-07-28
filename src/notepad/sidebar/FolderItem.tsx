@@ -320,7 +320,7 @@ export function FolderItem(props: FolderItemProps) {
           <AlertDialogHeader>
             <AlertDialogTitle style={{ fontFamily: 'Outfit, sans-serif' }}>Delete Folder</AlertDialogTitle>
             <AlertDialogDescription style={{ fontFamily: 'Outfit, sans-serif' }}>
-              Are you sure you want to delete "{folder.name}"? Notes inside will be moved to root.
+              Are you sure you want to delete "{folder.name}"? Notes inside will be moved to Main.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
