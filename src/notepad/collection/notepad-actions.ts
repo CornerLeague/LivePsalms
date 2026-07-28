@@ -99,30 +99,26 @@ export class NotepadActions {
     const scopeId = this.adapter.scopeId;
     if (this.seedAttempted || hasSeededTypeFolders(scopeId)) return;
 
-    // A seed this device already began but never completed leaves folders
-    // behind, so the fresh gate below would (rightly) read the account as
-    // "already using folders" and decline. The attempt marker lets us finish
-    // our own half-run without letting a *different* device muscle into an
-    // account whose folders may simply be the user's own layout.
+    // Re-read folders straight from storage: the in-memory snapshot can be stale
+    // (another tab on the same account may have seeded since this one loaded).
+    const current = await this.adapter.getFolders();
+
+    // Respect a genuine user folder — non-system AND untagged. The user has
+    // adopted folders, so their layout is theirs and the one-time backfill backs
+    // off. This gate runs for a *resume* too, not just a fresh start: if the user
+    // organized between a partial run and its resume, we must not pile more seed
+    // folders on top. A seeded folder (seededType set) is our own run, never
+    // adoption, so it doesn't trip this — which is what lets a partial seed
+    // resume, and (when the attempt marker was lost) be recognized by its tag.
+    if (current.some((f) => f.kind !== 'study' && f.seededType == null)) {
+      await this.folders.init().catch(() => {});
+      return;
+    }
+
     if (!hasAttemptedTypeFolders(scopeId)) {
-      const plan = planTypeFolderSeed(
-        this.notes.getSnapshot().notes,
-        this.folders.getSnapshot().folders,
-      );
+      // Fresh account: only start if there are root notes to migrate.
+      const plan = planTypeFolderSeed(this.notes.getSnapshot().notes, current);
       if (!plan) return;
-
-      // Re-read straight from storage immediately before writing. Decline only
-      // for a genuine user folder — non-system AND untagged. A seeded folder is
-      // our own (a concurrent tab's run, or a prior partial one), so fall through
-      // to applyTypeFolderSeed and reconcile/adopt it rather than bailing. That
-      // also resumes a partial seed when the attempt marker was lost (localStorage
-      // disabled): the durable tag, not the marker, is what identifies our run.
-      const current = await this.adapter.getFolders();
-      if (current.some((f) => f.kind !== 'study' && f.seededType == null)) {
-        await this.folders.init().catch(() => {});
-        return;
-      }
-
       // Record intent before the first write so a crash mid-seed is resumable.
       markAttemptedTypeFolders(scopeId);
     }

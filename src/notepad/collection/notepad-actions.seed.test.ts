@@ -8,6 +8,7 @@ import { ReferenceGraph } from '../graph/reference-graph';
 import { createInMemoryStorage } from '../graph/in-memory-storage';
 import { createInMemoryVerseFetcher } from '../graph/in-memory-verse-fetcher';
 import { setOnboardingSink } from '../onboarding/onboarding-events';
+import { markAttemptedTypeFolders } from '../session/session-storage';
 import type { NoteType } from '../types';
 
 function seedNote(adapter: FakeStorageAdapter, id: string, type: NoteType, folderId = 'root') {
@@ -378,6 +379,23 @@ describe('NotepadActions — type-folder backfill', () => {
     const filed = new Map((await adapter.getNotes()).map((n) => [n.id, n.folderId]));
     expect(filed.get('n1')).toBe('g'); // adopted the existing tagged General
     expect(filed.get('n2')).toBe(stored.find((f) => f.seededType === 'devotion')!.id);
+  });
+
+  it('backs off a resume once the user has adopted folders', async () => {
+    // A partial seed left its attempt marker set and a tagged General behind...
+    markAttemptedTypeFolders(adapter.scopeId);
+    adapter.folders.push({
+      id: 'g', name: 'General', parentId: null, order: 0, seededType: 'general',
+    });
+    // ...then the user created their own folder and still has a note at root.
+    adapter.folders.push({ id: 'mine', name: 'My Stuff', parentId: null, order: 1 });
+    seedNote(adapter, 'n1', 'devotion');
+
+    await actions.init();
+
+    // The resume must back off: no new seed folder, the root note stays put.
+    expect((await adapter.getFolders()).map((f) => f.name).sort()).toEqual(['General', 'My Stuff']);
+    expect((await adapter.getNotes()).find((n) => n.id === 'n1')!.folderId).toBe('root');
   });
 
   it('adopts a concurrently-created seed folder on a unique-violation, not failing', async () => {
