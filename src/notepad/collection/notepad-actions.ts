@@ -154,17 +154,32 @@ export class NotepadActions {
 
       const folderIdByType = new Map<string, string>(plan.existingByType);
       for (const spec of plan.foldersToCreate) {
-        const created = await this.adapter.createFolder({
-          name: spec.name,
-          parentId: null,
-          order: spec.order,
-          icon: spec.icon,
-          color: spec.color,
-          // Provenance: lets a resume re-find this folder by tag, not name, and
-          // marks it for later seeded-folder features. See Folder.seededType.
-          seededType: spec.type,
-        });
-        folderIdByType.set(spec.type, created.id);
+        try {
+          const created = await this.adapter.createFolder({
+            name: spec.name,
+            parentId: null,
+            order: spec.order,
+            icon: spec.icon,
+            color: spec.color,
+            // Provenance: lets a resume re-find this folder by tag, not name, backs
+            // the (user_id, seeded_type) unique index that stops two tabs both
+            // creating it, and marks it for later seeded-folder features. See
+            // Folder.seededType and migration 053.
+            seededType: spec.type,
+          });
+          folderIdByType.set(spec.type, created.id);
+        } catch (err) {
+          // Another tab seeding this account concurrently may have created the
+          // folder first — the unique index rejects our duplicate. Adopt the
+          // winner's folder (found by tag) so both tabs file into the same one.
+          // If it's genuinely absent this is a real failure: rethrow to the
+          // outer catch, which leaves the attempt marker set to resume next load.
+          const existing = (await this.adapter.getFolders()).find(
+            (f) => f.seededType === spec.type,
+          );
+          if (!existing) throw err;
+          folderIdByType.set(spec.type, existing.id);
+        }
       }
 
       for (let i = 0; i < plan.moves.length; i += SEED_MOVE_CONCURRENCY) {

@@ -355,4 +355,68 @@ describe('NotepadActions — type-folder backfill', () => {
     expect(filed.get('n1')).toBe(general.id);
     expect(filed.get('n2')).toBe(stored.find((f) => f.seededType === 'devotion')!.id);
   });
+
+  it('adopts a concurrently-created seed folder on a unique-violation, not failing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    seedNote(adapter, 'n1', 'general');
+
+    // Simulate another tab winning the race: our insert for 'general' lands the
+    // "other tab's" row first, then is rejected with 23505 — what migration 053's
+    // (user_id, seeded_type) unique index does to a duplicate seed.
+    const realCreate = adapter.createFolder.bind(adapter);
+    adapter.createFolder = async (folder) => {
+      if (folder.seededType === 'general' && !adapter.folders.some((f) => f.seededType === 'general')) {
+        await realCreate({
+          name: 'General', parentId: null, order: 0, icon: 'book', color: '#9E9484', seededType: 'general',
+        });
+        throw Object.assign(new Error('duplicate key value violates unique constraint'), {
+          code: '23505',
+        });
+      }
+      return realCreate(folder);
+    };
+
+    await actions.init();
+
+    const general = (await adapter.getFolders()).filter((f) => f.seededType === 'general');
+    expect(general).toHaveLength(1); // adopted the winner's folder, not duplicated
+    expect((await adapter.getNotes())[0].folderId).toBe(general[0].id); // note filed into it
+    expect(warn).not.toHaveBeenCalled(); // handled inline, not via the failure path
+  });
+
+  it('two concurrent seeds of one account converge to a single folder per type', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Shared backend enforcing migration 053's uniqueness; two "tabs" are
+    // separate module sets over the same adapter + device localStorage.
+    const db = new FakeStorageAdapter();
+    db.scopeId = 'user:shared';
+    seedNote(db, 'n1', 'general');
+    seedNote(db, 'n2', 'devotion');
+    const realCreate = db.createFolder.bind(db);
+    db.createFolder = async (folder) => {
+      if (folder.seededType != null && db.folders.some((f) => f.seededType === folder.seededType)) {
+        throw Object.assign(new Error('duplicate key'), { code: '23505' });
+      }
+      return realCreate(folder);
+    };
+    const makeTab = () => {
+      const n = new NoteCollection(db);
+      const f = new FolderHierarchy(db);
+      return new NotepadActions(
+        db,
+        n,
+        f,
+        new ReferenceGraph(createInMemoryVerseFetcher({}), createInMemoryStorage()),
+      );
+    };
+
+    await Promise.all([makeTab().init(), makeTab().init()]);
+
+    const seeded = (await db.getFolders()).filter((f) => f.seededType);
+    expect(seeded.map((f) => f.name).sort()).toEqual(['Devotions', 'General']);
+    const byType = new Map(seeded.map((f) => [f.seededType, f.id]));
+    const stored = await db.getNotes();
+    expect(stored.find((n) => n.id === 'n1')!.folderId).toBe(byType.get('general'));
+    expect(stored.find((n) => n.id === 'n2')!.folderId).toBe(byType.get('devotion'));
+  });
 });
