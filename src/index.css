@@ -234,12 +234,11 @@
      Each block answers the same variable set .dark does.
 
      Light-structured (ivory-sand / oat-milk / blush-petal / vanilla-latte /
-     soft-sand / olive-gray): light-to-mid paper with dark ink — structured
-     like classic light with translucent chrome washes. Vanilla-latte and
-     olive-gray are too light to carry cream body text (~2:1), so their
-     swatch-card cream lives in CTAs/elevated chips and the body ink goes
-     dark instead; soft-sand's hex IS the cream, paired with its card's rust
-     as ink.
+     soft-sand): light-to-mid paper with dark ink — structured like classic
+     light with translucent chrome washes. Vanilla-latte is too light to
+     carry cream body text (~2:1), so its swatch-card cream lives in CTAs/
+     elevated chips and the body ink goes espresso instead; soft-sand's hex
+     IS the cream, paired with its card's rust as ink.
 
      Deep-structured (stormy-sky / olive-grove / terracotta-clay / graphite /
      matcha-brew / roman-coffee / plum-wine / maple-spice / licorice /
@@ -1006,57 +1005,6 @@
     --border: 29 30% 75%;
     --input: 29 30% 75%;
     --ring: 17 57% 42%;
-  }
-
-  html[data-theme='olive-gray'] {
-    --app-bg: #7E7B66;
-    --app-bg-rgb: 126, 123, 102;
-    --plaster: #A7A48E;
-    --surface-elevated: rgba(178, 175, 155, 0.97);
-    --deep-umber: #37362A;
-    --deep-umber-rgb: 55, 54, 42;
-    --charred: #2A291F;
-    --silica: #61604C;
-    --pale-stone: #918E78;
-    --warm-sand: #85826B;
-    --reflections-cta-bg: #4C4A38;
-    --reflections-cta-fg: #F0EDE2;
-    --alabaster: #AFAC97;
-    --cream: #ACA993;
-    --lamplight-accent: #6E6B4F;
-    --error-rose: #953F37;
-    --chat-panel-bg: rgba(240, 237, 226, 0.45);
-    --chat-on-accent: #fff;
-    --chat-badge-current: #57553F;
-    --notepad-page-bg: var(--plaster);
-    --notepad-bar-bg: var(--surface-elevated);
-    --notepad-sidebar-bg: rgba(167, 164, 142, 0.6);
-    --notepad-aside-bg: rgba(167, 164, 142, 0.4);
-    --study-verse-num: var(--deep-umber);
-    --graph-popover-bg: rgba(226, 223, 208, 0.95);
-    --highlight-panel-bg: #E4E1D1;
-    --peek-scripture: #565438;
-    --peek-scripture-wash: rgba(110, 107, 79, 0.15);
-    --graph-edge: rgba(134, 131, 110, 1);
-    --graph-label: rgba(42, 41, 31, 1);
-
-    --background: 53 12% 61%;
-    --foreground: 55 13% 19%;
-    --card: 53 12% 61%;
-    --card-foreground: 55 13% 19%;
-    --popover: 53 14% 67%;
-    --popover-foreground: 55 13% 19%;
-    --primary: 55 13% 19%;
-    --primary-foreground: 55 15% 90%;
-    --secondary: 53 10% 54%;
-    --secondary-foreground: 55 13% 17%;
-    --muted: 53 10% 54%;
-    --muted-foreground: 55 8% 30%;
-    --accent: 53 10% 52%;
-    --accent-foreground: 55 13% 17%;
-    --border: 53 9% 49%;
-    --input: 53 9% 49%;
-    --ring: 54 16% 37%;
   }
 
   html[data-theme='abyssal-teal'] {

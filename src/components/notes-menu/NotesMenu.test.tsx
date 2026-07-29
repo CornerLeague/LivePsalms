@@ -118,30 +118,42 @@ describe('NotesMenu', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('shows the Appearance section with all 17 palette swatches in light mode', () => {
+  it('shows the Appearance section with all 16 palette swatches', () => {
     renderMenu();
     openMenu();
     const menu = screen.getByRole('menu');
     expect(within(menu).getByText('Appearance')).toBeInTheDocument();
     const group = within(menu).getByRole('group', { name: 'Light color theme' });
-    expect(within(group).getAllByRole('button')).toHaveLength(17);
+    expect(within(group).getAllByRole('button')).toHaveLength(16);
     expect(within(group).getAllByRole('button')[0]).toHaveAccessibleName('Classic');
   });
 
-  it('hides the Appearance section while dark is resolved', () => {
+  it('keeps the Appearance section visible while dark is resolved', () => {
     renderMenu({}, themeValue({ resolvedTheme: 'dark' }));
     openMenu();
     const menu = screen.getByRole('menu');
-    expect(within(menu).queryByText('Appearance')).not.toBeInTheDocument();
+    expect(within(menu).getByText('Appearance')).toBeInTheDocument();
   });
 
-  it('selects a palette without closing the menu', () => {
+  it('selects a palette without closing the menu or touching the mode in light', () => {
     const setLightTheme = vi.fn();
-    renderMenu({}, themeValue({ setLightTheme }));
+    const setTheme = vi.fn();
+    renderMenu({}, themeValue({ setLightTheme, setTheme }));
     const trigger = openMenu();
     fireEvent.click(screen.getByRole('button', { name: 'Stormy Sky' }));
     expect(setLightTheme).toHaveBeenCalledWith('stormy-sky');
+    expect(setTheme).not.toHaveBeenCalled();
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('switches to light mode when a palette is picked while dark is resolved', () => {
+    const setLightTheme = vi.fn();
+    const setTheme = vi.fn();
+    renderMenu({}, themeValue({ resolvedTheme: 'dark', setLightTheme, setTheme }));
+    openMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Maple Spice' }));
+    expect(setTheme).toHaveBeenCalledWith('light');
+    expect(setLightTheme).toHaveBeenCalledWith('maple-spice');
   });
 
   it('marks the active palette swatch as pressed', () => {

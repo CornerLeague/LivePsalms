@@ -22,6 +22,7 @@ vi.mock('./MobileStudyEditorView', () => ({
 vi.mock('@/notepad/recordings/RecordingsDock', () => ({ RecordingsDock: () => <div>recordings-dock</div> }));
 
 import { MobileStudyWorkspace } from './MobileStudyWorkspace';
+import { ThemeContext, type ThemeContextValue } from '@/notepad/theme/theme-context';
 
 afterEach(() => {
   cleanup();
@@ -30,10 +31,21 @@ afterEach(() => {
   localStorage.clear();
 });
 
+// The header hosts the real NotesMenu, which reads theme context.
+const themeStub: ThemeContextValue = {
+  theme: 'system',
+  resolvedTheme: 'light',
+  setTheme: vi.fn(),
+  lightTheme: 'classic',
+  setLightTheme: vi.fn(),
+};
+
 function renderWorkspace() {
   return render(
     <MemoryRouter>
-      <MobileStudyWorkspace />
+      <ThemeContext.Provider value={themeStub}>
+        <MobileStudyWorkspace />
+      </ThemeContext.Provider>
     </MemoryRouter>,
   );
 }
@@ -42,6 +54,8 @@ describe('MobileStudyWorkspace', () => {
   it('lands on the Reader tab with the toggle and tab bar visible', () => {
     renderWorkspace();
     expect(screen.getByText('mode-toggle')).toBeInTheDocument();
+    // Site menu (Appearance picker access) rides the header on mobile Study.
+    expect(screen.getByRole('button', { name: 'Menu' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /reader/i })).toHaveAttribute('aria-selected', 'true');
   });
 

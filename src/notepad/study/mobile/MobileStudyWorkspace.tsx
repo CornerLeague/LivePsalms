@@ -8,6 +8,7 @@ import { StudyReader } from '../panes/StudyReader';
 import { StudySidePanel } from '../panes/StudySidePanel';
 import { ApparatusRail } from '../panes/ApparatusRail';
 import { StudyModeToggle } from '../StudyModeToggle';
+import { NotesMenu } from '@/components/notes-menu/NotesMenu';
 import { StudyTabBar } from './StudyTabBar';
 import { MobileStudyEditorView } from './MobileStudyEditorView';
 import { RecordingsDock } from '@/notepad/recordings/RecordingsDock';
@@ -75,6 +76,11 @@ export function MobileStudyWorkspace() {
             onClick={() => navigate('/')}
           />
           <StudyModeToggle />
+          {/* Right-aligned site menu — parity with the Journal mobile views, and
+              the only mobile-Study path to the Appearance palette picker. */}
+          <div style={{ marginLeft: 'auto' }}>
+            <NotesMenu className="w-9 h-9 rounded-full" iconSize={18} />
+          </div>
         </header>
       )}
 

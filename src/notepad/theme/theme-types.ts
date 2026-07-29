@@ -30,7 +30,6 @@ export type LightTheme =
   | 'maple-spice'
   | 'licorice'
   | 'soft-sand'
-  | 'olive-gray'
   | 'abyssal-teal';
 
 export const LIGHT_THEMES: readonly LightTheme[] = [
@@ -49,7 +48,6 @@ export const LIGHT_THEMES: readonly LightTheme[] = [
   'maple-spice',
   'licorice',
   'soft-sand',
-  'olive-gray',
   'abyssal-teal',
 ] as const;
 export const DEFAULT_LIGHT_THEME: LightTheme = 'classic';
@@ -82,7 +80,6 @@ export const LIGHT_THEME_META: readonly {
   { slug: 'maple-spice', label: 'Maple Spice', swatch: { bg: '#692721', ink: '#F2E2CE', accent: '#DFAE7E' } },
   { slug: 'licorice', label: 'Licorice', swatch: { bg: '#342021', ink: '#EAE3E4', accent: '#CBA3AB' } },
   { slug: 'soft-sand', label: 'Soft Sand', swatch: { bg: '#EFE1D4', ink: '#8F4527', accent: '#A5552F' } },
-  { slug: 'olive-gray', label: 'Olive Gray', swatch: { bg: '#A7A48E', ink: '#37362A', accent: '#6E6B4F' } },
   { slug: 'abyssal-teal', label: 'Abyssal Teal', swatch: { bg: '#1D2A33', ink: '#E6E9E7', accent: '#9EC6C2' } },
 ] as const;
 
