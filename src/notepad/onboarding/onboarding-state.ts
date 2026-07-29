@@ -6,12 +6,18 @@ export interface OnboardingStateInput {
   signedIn: boolean;
   eligibleForJourney: boolean;
   anonTourDone: boolean;
+  /** Session-only "run the tour now" latch set by the header replay button. */
+  tourRequested: boolean;
   anon: AnonProgress | null;
   account: AccountProgress | null;
 }
 
 export function decideOnboardingActions(input: OnboardingStateInput): OnboardingAction[] {
   if (input.authLoading) return [];
+
+  // Explicit replay from the header icon runs the tour in EITHER auth state —
+  // and, like the first-visit tour, it owns the screen (no checklists beside it).
+  if (input.tourRequested) return [{ kind: 'start-tour' }];
 
   if (!input.signedIn) {
     if (!input.anonTourDone) {

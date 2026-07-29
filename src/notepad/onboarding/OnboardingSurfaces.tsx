@@ -29,15 +29,14 @@ function completedMap(
 
 /**
  * The "Get started" anonymous checklist. Owns its own collapsed state so it is
- * never coupled to the journey panel's expansion.
+ * never coupled to the journey panel's expansion. (Tour replay moved from this
+ * panel to the header TourReplayButton.)
  */
 function GetStartedPanel({
   anon,
-  onReplayTour,
   onDismiss,
 }: {
   anon: AnonProgress | null;
-  onReplayTour: () => void;
   onDismiss: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -48,7 +47,6 @@ function GetStartedPanel({
       completed={completedMap(anon)}
       collapsed={collapsed}
       onToggleCollapsed={() => setCollapsed((c) => !c)}
-      onReplayTour={onReplayTour}
       onDismiss={onDismiss}
     />
   );
@@ -124,11 +122,11 @@ export function OnboardingSurfaces({ onStartGuidedNote }: OnboardingSurfacesProp
   const overlayVisible = useLoadingOverlayVisible();
   const {
     actions,
+    signedIn,
     anon,
     account,
     completeGuidedNote,
     dismissChecklist,
-    replayTour,
     markTourDone,
   } = useOnboarding();
 
@@ -145,6 +143,7 @@ export function OnboardingSurfaces({ onStartGuidedNote }: OnboardingSurfacesProp
             return createPortal(
               <SpotlightOverlay
                 steps={TOUR_STEPS}
+                signedIn={signedIn}
                 onComplete={markTourDone}
                 onSkip={markTourDone}
                 onSignUp={() => {
@@ -164,7 +163,6 @@ export function OnboardingSurfaces({ onStartGuidedNote }: OnboardingSurfacesProp
               <GetStartedPanel
                 key="show-get-started"
                 anon={anon}
-                onReplayTour={replayTour}
                 onDismiss={dismissChecklist}
               />
             );

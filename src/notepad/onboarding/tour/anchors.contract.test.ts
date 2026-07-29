@@ -7,9 +7,11 @@ import { TOUR_ANCHOR_TOKENS } from './tour-steps';
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../../..');
 
-/** Which component source carries each data-tour token (both viewports, all 9 steps). */
+/** Which component source carries each data-tour token (both viewports, all 13 steps). */
 const TOKEN_SOURCES: Record<string, string> = {
   'new-note-sidebar-button': 'src/notepad/components/NotepadToolbar.tsx',
+  'notes-menu-trigger': 'src/components/notes-menu/NotesMenu.tsx',
+  'tour-replay-button': 'src/notepad/onboarding/TourReplayButton.tsx',
   'editor-page': 'src/notepad/components/Editor.tsx',
   'verse-chip': 'src/notepad/extensions/ScriptureRefView.tsx',
   'editor-bible-panel': 'src/components/sections/notepad/StudyWindow.tsx',
@@ -34,9 +36,11 @@ describe('tour anchors contract — step ↔ token lists (drift fails CI)', () =
       'editor-bible-panel',
       'editor-page',
       'decoration-tray',
+      'notes-menu-trigger',
       'studywindow-graph-tab',
       'study-toggle',
       'lamplight-panel-entry',
+      'tour-replay-button',
       null,
     ]);
   });
@@ -50,9 +54,11 @@ describe('tour anchors contract — step ↔ token lists (drift fails CI)', () =
       'mobile-bible-reader',
       'editor-page',
       'decoration-tray',
+      'notes-menu-trigger',
       'more-sheet-graph',
       'study-toggle',
       'header-flame',
+      'tour-replay-button',
       null,
     ]);
   });

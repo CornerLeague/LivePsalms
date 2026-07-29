@@ -7,7 +7,6 @@ export interface ChecklistPanelProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onDismiss: () => void;
-  onReplayTour?: () => void;
 }
 
 export function ChecklistPanel({
@@ -17,7 +16,6 @@ export function ChecklistPanel({
   collapsed,
   onToggleCollapsed,
   onDismiss,
-  onReplayTour,
 }: ChecklistPanelProps) {
   if (collapsed) {
     return (
@@ -108,17 +106,6 @@ export function ChecklistPanel({
           );
         })}
       </ul>
-
-      {onReplayTour && (
-        <button
-          onClick={onReplayTour}
-          aria-label="Replay tour"
-          className="mt-3 text-xs text-left hover:opacity-70 transition-opacity"
-          style={{ color: 'var(--silica)' }}
-        >
-          Replay tour
-        </button>
-      )}
     </div>
   );
 }

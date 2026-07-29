@@ -3,6 +3,7 @@ import { Search, User } from 'lucide-react';
 import { NotepadSidebar } from '../../../../notepad/components/Sidebar';
 import { MobileFabMenu } from './MobileFabMenu';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
+import { TourReplayButton } from '@/notepad/onboarding/TourReplayButton';
 import { HeaderLamplightFlame } from './HeaderLamplightFlame';
 import { NotesMenu } from '@/components/notes-menu/NotesMenu';
 
@@ -70,6 +71,7 @@ export function MobileNotesView({
           >
             <Search size={18} />
           </button>
+          <TourReplayButton className="w-9 h-9" />
           <ThemeToggle className="w-9 h-9" />
           <NotesMenu className="w-9 h-9 rounded-full" iconSize={18} onNavTrigger={onNavTrigger} />
           <button

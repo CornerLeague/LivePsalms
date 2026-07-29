@@ -5,6 +5,7 @@ import type { Note } from '../../../../notepad/types';
 import { useKeyboardInset } from './useKeyboardInset';
 import { MobileNewNoteFab } from './MobileNewNoteFab';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
+import { TourReplayButton } from '@/notepad/onboarding/TourReplayButton';
 import { HeaderLamplightFlame } from './HeaderLamplightFlame';
 import { NotesMenu } from '@/components/notes-menu/NotesMenu';
 
@@ -62,6 +63,7 @@ export function MobileEditorView({
             lamplightHasConnections={lamplightHasConnections}
             lamplightHasArrived={lamplightHasArrived}
           />
+          <TourReplayButton className="w-9 h-9" />
           <ThemeToggle className="w-9 h-9" />
           <NotesMenu className="w-9 h-9 rounded-full" iconSize={18} onNavTrigger={onNavTrigger} />
         <button

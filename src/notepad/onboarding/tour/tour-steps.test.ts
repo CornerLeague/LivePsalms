@@ -8,7 +8,7 @@ function makeCtx(viewport: 'desktop' | 'mobile', sampleNoteId: string | null = n
 }
 
 describe('TOUR_STEPS', () => {
-  it('has the eleven approved moments in order', () => {
+  it('has the thirteen approved moments in order', () => {
     expect(TOUR_STEPS.map((step) => step.id)).toEqual([
       'welcome',
       'create-note',
@@ -17,9 +17,11 @@ describe('TOUR_STEPS', () => {
       'bible-beside',
       'highlights',
       'decorations',
+      'appearance',
       'graph-map',
       'study',
       'lamplight',
+      'walk-again',
       'make-it-yours',
     ]);
   });
@@ -36,18 +38,26 @@ describe('TOUR_STEPS', () => {
     expect(TOUR_STEPS[6].copy.body).toBe(
       'Drop in stickers, shapes, and marks to make a page feel like yours.',
     );
+    expect(TOUR_STEPS[7].copy.title).toBe('Pick your palette.');
     expect(TOUR_STEPS[7].copy.body).toBe(
+      "Open this menu to choose the notebook's colors — a shelf of palettes from Soft Sand to Abyssal Teal. The little moon nearby turns the lights down.",
+    );
+    expect(TOUR_STEPS[8].copy.body).toBe(
       'As notes link to verses and to each other, a map takes shape — showing how God pieces your story together.',
     );
-    expect(TOUR_STEPS[8].copy.title).toBe('Go deeper in Study.');
-    expect(TOUR_STEPS[8].copy.body).toBe(
+    expect(TOUR_STEPS[9].copy.title).toBe('Go deeper in Study.');
+    expect(TOUR_STEPS[9].copy.body).toBe(
       'Flip to Study for close reading — the original Hebrew and Greek behind each verse, word-by-word meanings, and the roots underneath.',
     );
-    expect(TOUR_STEPS[9].copy.title).toBe('Meet Lamplight. 🕯');
-    expect(TOUR_STEPS[9].copy.body).toBe(
+    expect(TOUR_STEPS[10].copy.title).toBe('Meet Lamplight. 🕯');
+    expect(TOUR_STEPS[10].copy.body).toBe(
       'A companion for the mid-reading questions, your journey reflections, scripture study plans, and much more.',
     );
-    expect(TOUR_STEPS[10].copy.body).toBe(
+    expect(TOUR_STEPS[11].copy.title).toBe('Take the walk anytime.');
+    expect(TOUR_STEPS[11].copy.body).toBe(
+      'This button restarts the tour whenever you want a refresher — it lives here, beside the theme switch.',
+    );
+    expect(TOUR_STEPS[12].copy.body).toBe(
       'A free account keeps your notes on every device — and lights Lamplight for the road ahead.',
     );
   });
@@ -66,9 +76,11 @@ describe('TOUR_STEPS', () => {
       'editor-bible-panel',
       'editor-page',
       'decoration-tray',
+      'notes-menu-trigger',
       'studywindow-graph-tab',
       'study-toggle',
       'lamplight-panel-entry',
+      'tour-replay-button',
       null,
     ]);
     expect(TOUR_ANCHOR_TOKENS.mobile).toEqual([
@@ -79,9 +91,11 @@ describe('TOUR_STEPS', () => {
       'mobile-bible-reader',
       'editor-page',
       'decoration-tray',
+      'notes-menu-trigger',
       'more-sheet-graph',
       'study-toggle',
       'header-flame',
+      'tour-replay-button',
       null,
     ]);
   });
@@ -176,11 +190,24 @@ describe('TOUR_STEPS', () => {
       expect(openDecorationTray).toHaveBeenCalledWith(true);
     });
 
-    it('step 7 desktop shows the Graph tab (and closes the decoration tray); mobile opens the More sheet on Graph', async () => {
+    it('step 7 (appearance) closes the decoration tray; mobile returns to the editor tab (closes the More sheet on Back)', async () => {
+      const openDecorationTray = vi.fn();
+      const mobileSetTab = vi.fn();
+      await TOUR_STEPS[7].prepare?.({ openDecorationTray, mobileSetTab }, makeCtx('mobile'));
+      expect(openDecorationTray).toHaveBeenCalledWith(false);
+      expect(mobileSetTab).toHaveBeenCalledWith('editor');
+      openDecorationTray.mockClear();
+      mobileSetTab.mockClear();
+      await TOUR_STEPS[7].prepare?.({ openDecorationTray, mobileSetTab }, makeCtx('desktop'));
+      expect(openDecorationTray).toHaveBeenCalledWith(false);
+      expect(mobileSetTab).not.toHaveBeenCalled();
+    });
+
+    it('step 8 desktop shows the Graph tab (and closes the decoration tray); mobile opens the More sheet on Graph', async () => {
       const desktopSetGraphOpen = vi.fn();
       const desktopSetStudyTab = vi.fn();
       const openDecorationTray = vi.fn();
-      await TOUR_STEPS[7].prepare?.(
+      await TOUR_STEPS[8].prepare?.(
         { desktopSetGraphOpen, desktopSetStudyTab, openDecorationTray },
         makeCtx('desktop'),
       );
@@ -188,33 +215,42 @@ describe('TOUR_STEPS', () => {
       expect(desktopSetGraphOpen).toHaveBeenCalledWith(true);
       expect(desktopSetStudyTab).toHaveBeenCalledWith('graph');
       const mobileOpenMoreSheet = vi.fn();
-      await TOUR_STEPS[7].prepare?.({ mobileOpenMoreSheet }, makeCtx('mobile'));
+      await TOUR_STEPS[8].prepare?.({ mobileOpenMoreSheet }, makeCtx('mobile'));
       expect(mobileOpenMoreSheet).toHaveBeenCalledWith('graph');
     });
 
-    it('step 8 (study) switches to the Notes tab on mobile so the header toggle shows; desktop is a no-op', async () => {
-      const mobileSetTab = vi.fn();
-      await TOUR_STEPS[8].prepare?.({ mobileSetTab }, makeCtx('mobile'));
-      expect(mobileSetTab).toHaveBeenCalledWith('notes');
-      mobileSetTab.mockClear();
-      await TOUR_STEPS[8].prepare?.({ mobileSetTab }, makeCtx('desktop'));
-      expect(mobileSetTab).not.toHaveBeenCalled();
-    });
-
-    it('step 9 mobile returns to the editor tab (closes the More sheet); desktop is a no-op', async () => {
+    it('step 9 (study) switches to the Notes tab on mobile so the header toggle shows; desktop is a no-op', async () => {
       const mobileSetTab = vi.fn();
       await TOUR_STEPS[9].prepare?.({ mobileSetTab }, makeCtx('mobile'));
-      expect(mobileSetTab).toHaveBeenCalledWith('editor');
+      expect(mobileSetTab).toHaveBeenCalledWith('notes');
       mobileSetTab.mockClear();
       await TOUR_STEPS[9].prepare?.({ mobileSetTab }, makeCtx('desktop'));
       expect(mobileSetTab).not.toHaveBeenCalled();
     });
 
-    it('steps 0 and 10 are centered with no prepare', () => {
+    it('step 10 mobile returns to the editor tab (closes the More sheet); desktop is a no-op', async () => {
+      const mobileSetTab = vi.fn();
+      await TOUR_STEPS[10].prepare?.({ mobileSetTab }, makeCtx('mobile'));
+      expect(mobileSetTab).toHaveBeenCalledWith('editor');
+      mobileSetTab.mockClear();
+      await TOUR_STEPS[10].prepare?.({ mobileSetTab }, makeCtx('desktop'));
+      expect(mobileSetTab).not.toHaveBeenCalled();
+    });
+
+    it('step 11 (walk-again) mobile shows the editor header (carries the replay button); desktop is a no-op', async () => {
+      const mobileSetTab = vi.fn();
+      await TOUR_STEPS[11].prepare?.({ mobileSetTab }, makeCtx('mobile'));
+      expect(mobileSetTab).toHaveBeenCalledWith('editor');
+      mobileSetTab.mockClear();
+      await TOUR_STEPS[11].prepare?.({ mobileSetTab }, makeCtx('desktop'));
+      expect(mobileSetTab).not.toHaveBeenCalled();
+    });
+
+    it('steps 0 and 12 are centered with no prepare', () => {
       expect(TOUR_STEPS[0].anchor('desktop')).toBeNull();
       expect(TOUR_STEPS[0].prepare).toBeUndefined();
-      expect(TOUR_STEPS[10].anchor('mobile')).toBeNull();
-      expect(TOUR_STEPS[10].prepare).toBeUndefined();
+      expect(TOUR_STEPS[12].anchor('mobile')).toBeNull();
+      expect(TOUR_STEPS[12].prepare).toBeUndefined();
     });
   });
 });

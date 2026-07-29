@@ -52,6 +52,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const adapter = useOnboardingAdapter(userId);
 
   const [anonTourDone, setAnonTourDone] = useState(false);
+  // Session-only latch for the header replay button: forces the tour to run in
+  // either auth state, cleared when the tour completes or is skipped.
+  const [tourRequested, setTourRequested] = useState(false);
   const [anon, setAnon] = useState<AnonProgress | null>(null);
   const [account, setAccount] = useState<AccountProgress | null>(null);
   // True only after the async account-load effect settles (success OR failure),
@@ -244,6 +247,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
     setAnonTourDone(false);
+    setTourRequested(true);
   }, []);
 
   const markTourDone = useCallback(() => {
@@ -253,6 +257,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
     setAnonTourDone(true);
+    setTourRequested(false);
   }, []);
 
   const actions = useMemo(
@@ -262,15 +267,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         signedIn,
         eligibleForJourney,
         anonTourDone,
+        tourRequested,
         anon,
         account,
       }),
-    [loading, signedIn, eligibleForJourney, anonTourDone, anon, account],
+    [loading, signedIn, eligibleForJourney, anonTourDone, tourRequested, anon, account],
   );
 
   const value: OnboardingContextValue = useMemo(
     () => ({
       actions,
+      signedIn,
       anon,
       account,
       reportOnboardingEvent,
@@ -281,6 +288,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }),
     [
       actions,
+      signedIn,
       anon,
       account,
       reportOnboardingEvent,
