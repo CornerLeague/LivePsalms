@@ -1,7 +1,7 @@
-/* Study Desk recolors from one scope: the indigo accent on the cream base. */
-[data-mode='study'] {
-  --lamplight-accent: #43508C; /* Twilight Indigo */
-}
+/* The Study Desk used to pin --lamplight-accent to Twilight Indigo from this
+   scope. That fought the per-theme accents (a maple page with blue accents),
+   so Study now inherits the active theme's accent — scripture gold on classic,
+   each palette's own accent under data-theme, lifted tan on dark. */
 
 /* Waiting-line flourish for the Lamplight Study chat (StudyChatWaiting): each
    line fades in as it streams; disabled under reduced-motion. */

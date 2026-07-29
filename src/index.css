@@ -99,7 +99,7 @@
     --charred: #19130C;
     --silica: #8A8B90;
     --alabaster: #F5F0E8;
-    --lamplight-accent: #C49A78; /* scripture gold; overridden to indigo under [data-mode="study"] */
+    --lamplight-accent: #C49A78; /* scripture gold — shared by the Study desk (no per-mode override) */
     --error-rose: #b45454;       /* semantic error/warning; lifted in dark */
     --chat-panel-bg: rgba(255, 255, 255, 0.45);    /* translucent chat glaze over the study desk (light) */
     --chat-on-accent: #fff;                        /* text on the gold accent — user bubble + buttons */
@@ -178,7 +178,7 @@
     --reflections-cta-fg: #2A2620;   /* near-black text */
     --alabaster: #14120f;             /* lamplight empty bg */
     --cream: #0e0e0e;                 /* Study desk bg (var(--cream,#F4F1EA) fallback) */
-    --lamplight-accent: #c4b5a0;      /* scripture gold (study overrides to indigo) */
+    --lamplight-accent: #c4b5a0;      /* scripture gold (Study desk shares it) */
     --error-rose: #f1a3a3;            /* lifted rose for dark bg contrast */
     --chat-panel-bg: rgba(33, 29, 23, 0.97);       /* opaque elevated panel reads cleaner on near-black */
     --chat-on-accent: var(--app-bg);               /* near-black ink on the lifted gold */
