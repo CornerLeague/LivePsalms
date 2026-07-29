@@ -124,7 +124,7 @@ describe('useThemePreference', () => {
     mockUpdateEq.mockResolvedValue({ error: null });
     act(() => result.current.setTheme('light'));
     expect(result.current.theme).toBe('light');
-    expect(mockUpdate).toHaveBeenCalledWith({ theme: 'light' });
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith({ theme: 'light' }));
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'user-123');
   });
 
@@ -227,7 +227,34 @@ describe('useThemePreference', () => {
     mockUpdateEq.mockResolvedValue({ error: null });
     act(() => result.current.setLightTheme('graphite'));
     expect(result.current.lightTheme).toBe('graphite');
-    expect(mockUpdate).toHaveBeenCalledWith({ light_theme: 'graphite' });
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith({ light_theme: 'graphite' }));
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'user-123');
+  });
+
+  it('serializes rapid palette writes so the latest selection commits last', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { theme: 'system', light_theme: 'classic' }, error: null });
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
+    mockUpdate.mockReturnValue({ eq: mockUpdateEq });
+
+    // First write stays pending; the second must not fire until it settles.
+    let resolveFirst!: (v: { error: null }) => void;
+    const firstPending = new Promise<{ error: null }>((r) => { resolveFirst = r; });
+    mockUpdateEq.mockReturnValueOnce(firstPending).mockResolvedValue({ error: null });
+
+    act(() => { result.current.setLightTheme('stormy-sky'); });
+    act(() => { result.current.setLightTheme('graphite'); });
+
+    // While the first write is in flight, only it has been issued.
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+    expect(mockUpdate).toHaveBeenNthCalledWith(1, { light_theme: 'stormy-sky' });
+
+    // Once it settles the second fires — so the last pick is the last committed.
+    await act(async () => { resolveFirst({ error: null }); await firstPending; });
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(2));
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, { light_theme: 'graphite' });
+    expect(result.current.lightTheme).toBe('graphite');
   });
 });

@@ -88,17 +88,23 @@ export function useThemePreference(
 
   // Best-effort cross-device sync. localStorage is the device source of truth,
   // so a failed write is non-fatal (the next successful change re-syncs), but we
-  // surface it rather than swallowing it so drift is diagnosable.
+  // surface it rather than swallowing it so drift is diagnosable. Writes are
+  // chained through this tail promise so two rapid selections can't land out of
+  // order server-side — each update only fires once the previous one settles, so
+  // the last pick is always the last committed.
+  const writeChain = useRef<Promise<void>>(Promise.resolve());
   const syncPreference = useCallback(
     (patch: { theme: Theme } | { light_theme: LightTheme }) => {
       if (!userId || !supabase) return;
-      void supabase.from('profiles').update(patch).eq('id', userId)
-        .then(
+      const client = supabase;
+      writeChain.current = writeChain.current.then(() =>
+        client.from('profiles').update(patch).eq('id', userId).then(
           ({ error }) => {
             if (error) console.warn('[theme] profile preference sync failed:', error.message);
           },
           (err) => console.warn('[theme] profile preference sync failed:', err),
-        );
+        ),
+      );
     },
     [userId],
   );
