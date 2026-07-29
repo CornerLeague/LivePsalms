@@ -91,6 +91,25 @@ maybeDescribe('profiles privileged-column guard (integration)', () => {
     await userA.client.from('profiles').update({ theme: 'system' }).eq('id', userA.userId);
   });
 
+  it('still allows the owner to self-update light_theme', async () => {
+    const { error } = await userA.client
+      .from('profiles').update({ light_theme: 'stormy-sky' }).eq('id', userA.userId);
+    expect(error).toBeNull();
+
+    const { data } = await serviceClient()
+      .from('profiles').select('light_theme').eq('id', userA.userId).single();
+    expect(data?.light_theme).toBe('stormy-sky');
+
+    // restore default so the row is left clean for other runs
+    await userA.client.from('profiles').update({ light_theme: 'classic' }).eq('id', userA.userId);
+  });
+
+  it('rejects a light_theme outside the check constraint', async () => {
+    const { error } = await userA.client
+      .from('profiles').update({ light_theme: 'neon' }).eq('id', userA.userId);
+    expect(error).not.toBeNull();
+  });
+
   it('regression: a qualifying note insert still bumps note_count via the trigger', async () => {
     const svc = serviceClient();
     const before = await svc.from('profiles').select('note_count').eq('id', userA.userId).single();

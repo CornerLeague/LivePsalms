@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { NotesMenu } from './NotesMenu';
+import { ThemeContext, type ThemeContextValue } from '@/notepad/theme/theme-context';
 
 // --- jsdom shims for Radix DropdownMenu (same rationale as RecordingsStrip.test.tsx) ---
 class ResizeObserverStub {
@@ -27,10 +28,26 @@ afterAll(() => {
 });
 afterEach(cleanup);
 
-function renderMenu(props: Partial<React.ComponentProps<typeof NotesMenu>> = {}) {
+function themeValue(overrides: Partial<ThemeContextValue> = {}): ThemeContextValue {
+  return {
+    theme: 'system',
+    resolvedTheme: 'light',
+    setTheme: vi.fn(),
+    lightTheme: 'classic',
+    setLightTheme: vi.fn(),
+    ...overrides,
+  };
+}
+
+function renderMenu(
+  props: Partial<React.ComponentProps<typeof NotesMenu>> = {},
+  theme: ThemeContextValue = themeValue(),
+) {
   return render(
     <MemoryRouter>
-      <NotesMenu {...props} />
+      <ThemeContext.Provider value={theme}>
+        <NotesMenu {...props} />
+      </ThemeContext.Provider>
     </MemoryRouter>,
   );
 }
@@ -99,5 +116,50 @@ describe('NotesMenu', () => {
     const trigger = openMenu();
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows the Appearance section with all 16 palette swatches', () => {
+    renderMenu();
+    openMenu();
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getByText('Appearance')).toBeInTheDocument();
+    const group = within(menu).getByRole('group', { name: 'Light color theme' });
+    expect(within(group).getAllByRole('button')).toHaveLength(16);
+    expect(within(group).getAllByRole('button')[0]).toHaveAccessibleName('Classic');
+  });
+
+  it('keeps the Appearance section visible while dark is resolved', () => {
+    renderMenu({}, themeValue({ resolvedTheme: 'dark' }));
+    openMenu();
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getByText('Appearance')).toBeInTheDocument();
+  });
+
+  it('selects a palette without closing the menu or touching the mode in light', () => {
+    const setLightTheme = vi.fn();
+    const setTheme = vi.fn();
+    renderMenu({}, themeValue({ setLightTheme, setTheme }));
+    const trigger = openMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Stormy Sky' }));
+    expect(setLightTheme).toHaveBeenCalledWith('stormy-sky');
+    expect(setTheme).not.toHaveBeenCalled();
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('switches to light mode when a palette is picked while dark is resolved', () => {
+    const setLightTheme = vi.fn();
+    const setTheme = vi.fn();
+    renderMenu({}, themeValue({ resolvedTheme: 'dark', setLightTheme, setTheme }));
+    openMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Maple Spice' }));
+    expect(setTheme).toHaveBeenCalledWith('light');
+    expect(setLightTheme).toHaveBeenCalledWith('maple-spice');
+  });
+
+  it('marks the active palette swatch as pressed', () => {
+    renderMenu({}, themeValue({ lightTheme: 'graphite' }));
+    openMenu();
+    expect(screen.getByRole('button', { name: 'Graphite' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Classic' })).toHaveAttribute('aria-pressed', 'false');
   });
 });

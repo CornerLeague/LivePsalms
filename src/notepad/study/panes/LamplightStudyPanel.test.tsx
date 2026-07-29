@@ -106,7 +106,7 @@ describe('LamplightStudyPanel refined-flat layout', () => {
     expect(row.style.textAlign).toBe('right');
   });
 
-  it('renders an assistant turn with an indigo accent bar + "Lamplight" label', () => {
+  it('renders an assistant turn with a theme-accent bar + "Lamplight" label', () => {
     studyThreadMessages.push({ id: 'a1', role: 'assistant', content: 'Grace and peace.', citations: [] });
     render(<LamplightStudyPanel book="jhn" chapter={10} userId="u1" />);
     const row = document.querySelector('[data-role="assistant"]') as HTMLElement;

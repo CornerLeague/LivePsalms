@@ -103,7 +103,7 @@ describe('useThemePreference', () => {
     expect(result.current.theme).toBe('system');
     await waitFor(() => expect(result.current.theme).toBe('dark'));
     expect(mockFrom).toHaveBeenCalledWith('profiles');
-    expect(mockSelect).toHaveBeenCalledWith('theme');
+    expect(mockSelect).toHaveBeenCalledWith('theme, light_theme');
     expect(mockSelectEq).toHaveBeenCalledWith('id', 'user-123');
   });
 
@@ -124,7 +124,7 @@ describe('useThemePreference', () => {
     mockUpdateEq.mockResolvedValue({ error: null });
     act(() => result.current.setTheme('light'));
     expect(result.current.theme).toBe('light');
-    expect(mockUpdate).toHaveBeenCalledWith({ theme: 'light' });
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith({ theme: 'light' }));
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'user-123');
   });
 
@@ -132,5 +132,129 @@ describe('useThemePreference', () => {
     const { result } = renderHook(() => useThemePreference());
     act(() => result.current.setTheme('dark'));
     expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('defaults lightTheme to classic', () => {
+    const { result } = renderHook(() => useThemePreference());
+    expect(result.current.lightTheme).toBe('classic');
+  });
+
+  it('persists a light-theme selection across remounts', () => {
+    const first = renderHook(() => useThemePreference());
+    act(() => first.result.current.setLightTheme('stormy-sky'));
+    const second = renderHook(() => useThemePreference());
+    expect(second.result.current.lightTheme).toBe('stormy-sky');
+  });
+
+  it('ignores a corrupt stored light-theme value', () => {
+    localStorage.setItem('psalms.session.lightTheme', 'neon');
+    const { result } = renderHook(() => useThemePreference());
+    expect(result.current.lightTheme).toBe('classic');
+  });
+
+  it('hydrates light_theme from profile when userId is provided', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: { theme: 'light', light_theme: 'olive-grove' },
+      error: null,
+    });
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    await waitFor(() => expect(result.current.lightTheme).toBe('olive-grove'));
+    expect(result.current.theme).toBe('light');
+  });
+
+  it('falls back to a theme-only select when the combined select fails (pre-migration DB)', async () => {
+    mockMaybeSingle
+      .mockResolvedValueOnce({ data: null, error: { message: 'column profiles.light_theme does not exist' } })
+      .mockResolvedValueOnce({ data: { theme: 'dark' }, error: null });
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    await waitFor(() => expect(result.current.theme).toBe('dark'));
+    expect(result.current.lightTheme).toBe('classic');
+    expect(mockSelect).toHaveBeenNthCalledWith(1, 'theme, light_theme');
+    expect(mockSelect).toHaveBeenNthCalledWith(2, 'theme');
+  });
+
+  it('does not hydrate an invalid remote light_theme', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: { theme: 'light', light_theme: 'neon' },
+      error: null,
+    });
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    await waitFor(() => expect(result.current.theme).toBe('light'));
+    expect(result.current.lightTheme).toBe('classic');
+  });
+
+  it('does not let a slow profile hydration clobber a palette the user picks meanwhile', async () => {
+    // Hydration fetch stays pending until we resolve it by hand.
+    let resolveFetch!: (v: { data: unknown; error: null }) => void;
+    const pending = new Promise<{ data: unknown; error: null }>((r) => { resolveFetch = r; });
+    mockMaybeSingle.mockReturnValueOnce(pending);
+
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    // User picks a palette while the profile read is still in flight.
+    act(() => result.current.setLightTheme('stormy-sky'));
+    expect(result.current.lightTheme).toBe('stormy-sky');
+
+    // The stale profile value arrives afterward — it must NOT win.
+    await act(async () => {
+      resolveFetch({ data: { theme: 'system', light_theme: 'classic' }, error: null });
+      await pending;
+    });
+    expect(result.current.lightTheme).toBe('stormy-sky');
+    expect(localStorage.getItem('psalms.session.lightTheme')).toBe('stormy-sky');
+  });
+
+  it('logs, without throwing, when the light_theme profile write fails', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { theme: 'system', light_theme: 'classic' }, error: null });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
+    mockUpdateEq.mockResolvedValueOnce({ error: { message: 'rls denied' } });
+    act(() => { result.current.setLightTheme('graphite'); });
+    expect(result.current.lightTheme).toBe('graphite');
+    await waitFor(() =>
+      expect(warn).toHaveBeenCalledWith('[theme] profile preference sync failed:', 'rls denied'),
+    );
+    warn.mockRestore();
+  });
+
+  it('writes light_theme to profiles when setLightTheme is called with a userId', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { theme: 'system', light_theme: 'classic' }, error: null });
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
+    mockUpdate.mockReturnValue({ eq: mockUpdateEq });
+    mockUpdateEq.mockResolvedValue({ error: null });
+    act(() => result.current.setLightTheme('graphite'));
+    expect(result.current.lightTheme).toBe('graphite');
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith({ light_theme: 'graphite' }));
+    expect(mockUpdateEq).toHaveBeenCalledWith('id', 'user-123');
+  });
+
+  it('serializes rapid palette writes so the latest selection commits last', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { theme: 'system', light_theme: 'classic' }, error: null });
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
+    mockUpdate.mockReturnValue({ eq: mockUpdateEq });
+
+    // First write stays pending; the second must not fire until it settles.
+    let resolveFirst!: (v: { error: null }) => void;
+    const firstPending = new Promise<{ error: null }>((r) => { resolveFirst = r; });
+    mockUpdateEq.mockReturnValueOnce(firstPending).mockResolvedValue({ error: null });
+
+    act(() => { result.current.setLightTheme('stormy-sky'); });
+    act(() => { result.current.setLightTheme('graphite'); });
+
+    // While the first write is in flight, only it has been issued.
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+    expect(mockUpdate).toHaveBeenNthCalledWith(1, { light_theme: 'stormy-sky' });
+
+    // Once it settles the second fires — so the last pick is the last committed.
+    await act(async () => { resolveFirst({ error: null }); await firstPending; });
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(2));
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, { light_theme: 'graphite' });
+    expect(result.current.lightTheme).toBe('graphite');
   });
 });

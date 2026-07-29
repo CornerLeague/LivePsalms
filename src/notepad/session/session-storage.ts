@@ -15,6 +15,7 @@ const KEY_BIBLE_TRANSLATION = 'psalms.bible.translation';
 const KEY_BIBLE_VERSE_LAYOUT = 'psalms.bible.verseLayout';
 const KEY_TEXT_SIZE = 'psalms.textSize';
 const KEY_THEME = 'psalms.session.theme';
+const KEY_LIGHT_THEME = 'psalms.session.lightTheme';
 const KEY_MOBILE_STUDY_TAB = 'psalms.session.mobileStudyTab';
 const KEY_FOCUS_MODE = 'psalms.bible.focus.mode';
 const KEY_FOCUS_ACTIVE_LIST = 'psalms.bible.focus.activeListId';
@@ -34,6 +35,7 @@ export {
   KEY_BIBLE_VERSE_LAYOUT,
   KEY_TEXT_SIZE,
   KEY_THEME,
+  KEY_LIGHT_THEME,
   KEY_MOBILE_STUDY_TAB,
   KEY_FOCUS_MODE,
   KEY_FOCUS_ACTIVE_LIST,
