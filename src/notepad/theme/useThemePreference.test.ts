@@ -183,6 +183,40 @@ describe('useThemePreference', () => {
     expect(result.current.lightTheme).toBe('classic');
   });
 
+  it('does not let a slow profile hydration clobber a palette the user picks meanwhile', async () => {
+    // Hydration fetch stays pending until we resolve it by hand.
+    let resolveFetch!: (v: { data: unknown; error: null }) => void;
+    const pending = new Promise<{ data: unknown; error: null }>((r) => { resolveFetch = r; });
+    mockMaybeSingle.mockReturnValueOnce(pending);
+
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    // User picks a palette while the profile read is still in flight.
+    act(() => result.current.setLightTheme('stormy-sky'));
+    expect(result.current.lightTheme).toBe('stormy-sky');
+
+    // The stale profile value arrives afterward — it must NOT win.
+    await act(async () => {
+      resolveFetch({ data: { theme: 'system', light_theme: 'classic' }, error: null });
+      await pending;
+    });
+    expect(result.current.lightTheme).toBe('stormy-sky');
+    expect(localStorage.getItem('psalms.session.lightTheme')).toBe('stormy-sky');
+  });
+
+  it('logs, without throwing, when the light_theme profile write fails', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { theme: 'system', light_theme: 'classic' }, error: null });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
+    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalled());
+    mockUpdateEq.mockResolvedValueOnce({ error: { message: 'rls denied' } });
+    act(() => { result.current.setLightTheme('graphite'); });
+    expect(result.current.lightTheme).toBe('graphite');
+    await waitFor(() =>
+      expect(warn).toHaveBeenCalledWith('[theme] profile preference sync failed:', 'rls denied'),
+    );
+    warn.mockRestore();
+  });
+
   it('writes light_theme to profiles when setLightTheme is called with a userId', async () => {
     mockMaybeSingle.mockResolvedValue({ data: { theme: 'system', light_theme: 'classic' }, error: null });
     const { result } = renderHook(() => useThemePreference({ userId: 'user-123' }));
