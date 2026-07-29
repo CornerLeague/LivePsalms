@@ -1,7 +1,7 @@
 import type { TourRunContext, TourStep, TourViewport } from './tour-engine';
 import type { WorkspaceControls } from './workspace-controller';
 
-// The nine tour moments (spec §3; copy §5 verbatim). Pure data: anchors are
+// The twelve tour moments (spec §3; copy §5 verbatim). Pure data: anchors are
 // per-viewport data-tour tokens; prepare actions drive the app exclusively
 // through the WorkspaceController registry (locked decision 1).
 
@@ -124,6 +124,24 @@ export const TOUR_STEPS: TourStep[] = [
     },
   },
   {
+    id: 'appearance',
+    placement: 'bottom',
+    copy: {
+      title: 'Pick your palette.',
+      body: "Open this menu to choose the notebook's colors — a shelf of palettes from Soft Sand to Abyssal Teal. The little moon nearby turns the lights down.",
+    },
+    anchor: () => 'notes-menu-trigger',
+    // Leaving decorations: close the tray so the spotlight moves to a tidy
+    // header. Mobile returns to the editor tab — its header carries the menu
+    // trigger, and setting a tab also closes the More sheet when arriving via
+    // Back from graph-map (mirroring handleSelectTab). Desktop toolbar is
+    // always mounted, so no further driving is needed.
+    prepare: (controls, ctx) => {
+      controls.openDecorationTray?.(false);
+      if (ctx.viewport === 'mobile') controls.mobileSetTab?.('editor');
+    },
+  },
+  {
     id: 'graph-map',
     placement: { desktop: 'left', mobile: 'top' },
     copy: {
@@ -132,8 +150,8 @@ export const TOUR_STEPS: TourStep[] = [
     },
     anchor: (viewport) => (viewport === 'desktop' ? 'studywindow-graph-tab' : 'more-sheet-graph'),
     prepare: (controls, ctx) => {
-      // Leaving decorations: close the tray so it doesn't linger through later
-      // steps (desktop tidiness; no-op on mobile where the tray isn't visible).
+      // Redundant in the forward flow (appearance closes it), but kept so the
+      // tray never lingers if the appearance step is ever skipped or removed.
       controls.openDecorationTray?.(false);
       if (ctx.viewport === 'desktop') {
         controls.desktopSetGraphOpen?.(true);

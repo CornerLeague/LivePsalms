@@ -53,6 +53,7 @@ export function NotesMenu({ onNavTrigger, className, align = 'end', iconSize = 1
         <button
           type="button"
           aria-label="Menu"
+          data-tour="notes-menu-trigger"
           className={cn(
             'flex items-center justify-center transition-colors hover:bg-black/5 dark:hover:bg-white/10',
             className,
@@ -64,7 +65,7 @@ export function NotesMenu({ onNavTrigger, className, align = 'end', iconSize = 1
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align={align}
-        style={{ fontFamily: 'Outfit, sans-serif', minWidth: 176 }}
+        style={{ fontFamily: 'Outfit, sans-serif', minWidth: 232 }}
       >
         {navItems.map((item) => (
           <DropdownMenuItem
@@ -101,7 +102,7 @@ export function NotesMenu({ onNavTrigger, className, align = 'end', iconSize = 1
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
             justifyItems: 'center',
-            gap: 6,
+            gap: '8px 6px',
             padding: '4px 8px 8px',
           }}
         >
@@ -109,34 +110,55 @@ export function NotesMenu({ onNavTrigger, className, align = 'end', iconSize = 1
             <button
               key={slug}
               type="button"
-              title={label}
-              aria-label={label}
               aria-pressed={lightTheme === slug}
               onClick={() => pickPalette(slug)}
               style={{
-                width: 26,
-                height: 26,
-                borderRadius: '50%',
-                background: swatch.bg,
-                border: '1px solid rgba(0, 0, 0, 0.2)',
-                boxShadow:
-                  lightTheme === slug ? '0 0 0 2px var(--deep-umber)' : 'none',
-                cursor: 'pointer',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: 4,
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
                 padding: 0,
+                cursor: 'pointer',
               }}
             >
               <span
                 aria-hidden
                 style={{
-                  width: 10,
-                  height: 10,
+                  width: 26,
+                  height: 26,
                   borderRadius: '50%',
-                  background: swatch.accent,
+                  background: swatch.bg,
+                  border: '1px solid rgba(0, 0, 0, 0.2)',
+                  boxShadow:
+                    lightTheme === slug ? '0 0 0 2px var(--deep-umber)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-              />
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: swatch.accent,
+                  }}
+                />
+              </span>
+              <span
+                style={{
+                  fontSize: 9,
+                  lineHeight: 1.2,
+                  textAlign: 'center',
+                  color: lightTheme === slug ? 'var(--deep-umber)' : 'var(--silica)',
+                  fontWeight: lightTheme === slug ? 600 : 400,
+                }}
+              >
+                {label}
+              </span>
             </button>
           ))}
         </div>
