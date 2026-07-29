@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import { loadEnum, saveEnum, KEY_THEME } from '../session/session-storage';
-import { type Theme, type ResolvedTheme, THEMES, DEFAULT_THEME, isTheme } from './theme-types';
+import { loadEnum, saveEnum, KEY_THEME, KEY_LIGHT_THEME } from '../session/session-storage';
+import {
+  type Theme,
+  type ResolvedTheme,
+  type LightTheme,
+  THEMES,
+  DEFAULT_THEME,
+  LIGHT_THEMES,
+  DEFAULT_LIGHT_THEME,
+  isTheme,
+  isLightTheme,
+} from './theme-types';
 import { supabase } from '@/lib/supabase';
 
 export interface UseThemePreferenceResult {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
   setTheme: (t: Theme) => void;
+  lightTheme: LightTheme;
+  setLightTheme: (t: LightTheme) => void;
 }
 
 function systemPrefersDark(): boolean {
@@ -20,6 +32,9 @@ export function useThemePreference(
   const [theme, setState] = useState<Theme>(() =>
     loadEnum<Theme>(KEY_THEME, THEMES, DEFAULT_THEME),
   );
+  const [lightTheme, setLightState] = useState<LightTheme>(() =>
+    loadEnum<LightTheme>(KEY_LIGHT_THEME, LIGHT_THEMES, DEFAULT_LIGHT_THEME),
+  );
   const [systemDark, setSystemDark] = useState<boolean>(() => systemPrefersDark());
 
   // Track the OS scheme so 'system' resolves live.
@@ -32,16 +47,29 @@ export function useThemePreference(
   }, []);
 
   // Hydrate from the profile when signed in (localStorage is the instant default).
+  // The combined select fails wholesale if light_theme doesn't exist yet (deploy
+  // ahead of the manually-applied migration), so fall back to theme-only rather
+  // than losing mode hydration too.
   useEffect(() => {
     let cancelled = false;
     if (!userId || !supabase) return;
     (async () => {
-      const { data } = await supabase
-        .from('profiles').select('theme').eq('id', userId).maybeSingle();
+      let { data } = await supabase
+        .from('profiles').select('theme, light_theme').eq('id', userId).maybeSingle();
+      if (!data) {
+        ({ data } = await supabase
+          .from('profiles').select('theme').eq('id', userId).maybeSingle());
+      }
+      if (cancelled) return;
       const remote = data?.theme;
-      if (!cancelled && isTheme(remote)) {
+      if (isTheme(remote)) {
         setState(remote);
         saveEnum(KEY_THEME, remote);
+      }
+      const remoteLight = (data as { light_theme?: unknown } | null)?.light_theme;
+      if (isLightTheme(remoteLight)) {
+        setLightState(remoteLight);
+        saveEnum(KEY_LIGHT_THEME, remoteLight);
       }
     })();
     return () => { cancelled = true; };
@@ -55,8 +83,16 @@ export function useThemePreference(
     }
   }, [userId]);
 
+  const setLightTheme = useCallback((t: LightTheme) => {
+    setLightState(t);
+    saveEnum(KEY_LIGHT_THEME, t);
+    if (userId && supabase) {
+      void supabase.from('profiles').update({ light_theme: t }).eq('id', userId);
+    }
+  }, [userId]);
+
   const resolvedTheme: ResolvedTheme =
     theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
 
-  return { theme, resolvedTheme, setTheme };
+  return { theme, resolvedTheme, setTheme, lightTheme, setLightTheme };
 }

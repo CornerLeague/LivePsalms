@@ -227,6 +227,668 @@
 }
 
 @layer base {
+  /* Light-mode palettes — applied as data-theme on <html> only while a notepad
+     workspace route is mounted AND the resolved theme is light (ThemeProvider;
+     same Approach-C gating as .dark, and mutually exclusive with it). 'classic'
+     sets no attribute, so the :root values above remain the untouched default.
+     Each block answers the same variable set .dark does.
+
+     Light-structured (ivory-sand / oat-milk / blush-petal / vanilla-latte):
+     light-to-mid paper with dark ink — structured like classic light with
+     translucent chrome washes. Vanilla-latte's greige is too light to carry
+     cream body text (~2:1), so its swatch-card cream lives in CTAs/elevated
+     chips and the body ink goes espresso instead.
+
+     Deep-structured (stormy-sky / olive-grove / terracotta-clay / graphite /
+     matcha-brew / roman-coffee / plum-wine): tinted mid-tone surfaces with
+     cream ink, structured like dark (flat opaque chrome, lifted accents/error/
+     graph colors). Stormy/olive/terracotta/matcha keep the swatch color for
+     chrome (--plaster) but deepen the reading paper (--notepad-page-bg,
+     --cream) so cream body text clears long-session legibility; roman-coffee
+     and plum-wine already pass at their exact swatch color. */
+
+  html[data-theme='ivory-sand'] {
+    --app-bg: #A8927A;
+    --app-bg-rgb: 168, 146, 122;
+    --plaster: #E4D6C5;
+    --surface-elevated: rgba(233, 221, 205, 0.97);
+    --deep-umber: #6F4429;
+    --deep-umber-rgb: 111, 68, 41;
+    --charred: #59351F;
+    --silica: #9A7E63;
+    --pale-stone: #CDBBA4;
+    --warm-sand: #B08F6C;
+    --reflections-cta-bg: #A5673F;
+    --reflections-cta-fg: #FAF3EA;
+    --alabaster: #EDE2D3;
+    --cream: #EADFCF;
+    --lamplight-accent: #A5673F;
+    --chat-panel-bg: rgba(255, 252, 246, 0.45);
+    --chat-on-accent: #fff;
+    --chat-badge-current: #8A5A38;
+    --notepad-page-bg: var(--plaster);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: rgba(228, 214, 197, 0.6);
+    --notepad-aside-bg: rgba(228, 214, 197, 0.4);
+    --study-verse-num: var(--deep-umber);
+    --graph-popover-bg: rgba(250, 244, 235, 0.95);
+    --highlight-panel-bg: #FAF4EB;
+    --peek-scripture: #96562E;
+    --peek-scripture-wash: rgba(165, 103, 63, 0.15);
+    --graph-edge: rgba(178, 158, 132, 1);
+    --graph-label: rgba(89, 53, 31, 1);
+
+    --background: 33 36% 83%;
+    --foreground: 23 46% 30%;
+    --card: 33 36% 83%;
+    --card-foreground: 23 46% 30%;
+    --popover: 34 40% 88%;
+    --popover-foreground: 23 46% 30%;
+    --primary: 23 46% 30%;
+    --primary-foreground: 36 41% 92%;
+    --secondary: 33 30% 75%;
+    --secondary-foreground: 23 46% 28%;
+    --muted: 33 30% 75%;
+    --muted-foreground: 25 30% 42%;
+    --accent: 33 30% 72%;
+    --accent-foreground: 23 46% 28%;
+    --border: 33 25% 70%;
+    --input: 33 25% 70%;
+    --ring: 24 45% 45%;
+  }
+
+  html[data-theme='oat-milk'] {
+    --app-bg: #9E9A87;
+    --app-bg-rgb: 158, 154, 135;
+    --plaster: #F2EDE2;
+    --surface-elevated: rgba(246, 242, 233, 0.97);
+    --deep-umber: #575B3F;
+    --deep-umber-rgb: 87, 91, 63;
+    --charred: #43462F;
+    --silica: #8B8C76;
+    --pale-stone: #D9D3C2;
+    --warm-sand: #AFA98C;
+    --reflections-cta-bg: #C47A5C;
+    --reflections-cta-fg: #FCF7EF;
+    --alabaster: #F6F1E7;
+    --cream: #F6F2E8;
+    --lamplight-accent: #C47A5C;
+    --chat-panel-bg: rgba(255, 255, 255, 0.45);
+    --chat-on-accent: #fff;
+    --chat-badge-current: #A05F42;
+    --notepad-page-bg: var(--plaster);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: rgba(242, 237, 226, 0.6);
+    --notepad-aside-bg: rgba(242, 237, 226, 0.4);
+    --study-verse-num: var(--deep-umber);
+    --graph-popover-bg: rgba(255, 253, 248, 0.95);
+    --highlight-panel-bg: #fff;
+    --peek-scripture: #A75F41;
+    --peek-scripture-wash: rgba(196, 122, 92, 0.15);
+    --graph-edge: rgba(170, 166, 146, 1);
+    --graph-label: rgba(67, 70, 47, 1);
+
+    --background: 41 38% 92%;
+    --foreground: 69 18% 30%;
+    --card: 41 38% 92%;
+    --card-foreground: 69 18% 30%;
+    --popover: 42 40% 95%;
+    --popover-foreground: 69 18% 30%;
+    --primary: 69 18% 30%;
+    --primary-foreground: 41 38% 94%;
+    --secondary: 41 28% 84%;
+    --secondary-foreground: 69 18% 28%;
+    --muted: 41 28% 84%;
+    --muted-foreground: 60 12% 40%;
+    --accent: 41 28% 82%;
+    --accent-foreground: 69 18% 28%;
+    --border: 41 22% 78%;
+    --input: 41 22% 78%;
+    --ring: 17 47% 56%;
+  }
+
+  html[data-theme='blush-petal'] {
+    --app-bg: #B2837D;
+    --app-bg-rgb: 178, 131, 125;
+    --plaster: #E7B9B2;
+    --surface-elevated: rgba(236, 197, 190, 0.97);
+    --deep-umber: #6E3641;
+    --deep-umber-rgb: 110, 54, 65;
+    --charred: #572833;
+    --silica: #9C6660;
+    --pale-stone: #D3A49C;
+    --warm-sand: #C08B82;
+    --reflections-cta-bg: #9E4C58;
+    --reflections-cta-fg: #FBF0EE;
+    --alabaster: #EFC9C2;
+    --cream: #EDC5BD;
+    --lamplight-accent: #9E4C58;
+    --error-rose: #8C3732; /* classic #b45454 blends into the blush field */
+    --chat-panel-bg: rgba(255, 248, 246, 0.45);
+    --chat-on-accent: #fff;
+    --chat-badge-current: #8A414C;
+    --notepad-page-bg: var(--plaster);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: rgba(231, 185, 178, 0.6);
+    --notepad-aside-bg: rgba(231, 185, 178, 0.4);
+    --study-verse-num: var(--deep-umber);
+    --graph-popover-bg: rgba(250, 238, 235, 0.95);
+    --highlight-panel-bg: #F9EFEC;
+    --peek-scripture: #8E4450;
+    --peek-scripture-wash: rgba(158, 76, 88, 0.15);
+    --graph-edge: rgba(198, 152, 145, 1);
+    --graph-label: rgba(87, 40, 51, 1);
+
+    --background: 8 52% 80%;
+    --foreground: 348 34% 32%;
+    --card: 8 52% 80%;
+    --card-foreground: 348 34% 32%;
+    --popover: 8 52% 86%;
+    --popover-foreground: 348 34% 32%;
+    --primary: 348 34% 32%;
+    --primary-foreground: 10 45% 92%;
+    --secondary: 8 40% 73%;
+    --secondary-foreground: 348 34% 30%;
+    --muted: 8 40% 73%;
+    --muted-foreground: 350 22% 42%;
+    --accent: 8 40% 71%;
+    --accent-foreground: 348 34% 30%;
+    --border: 8 32% 68%;
+    --input: 8 32% 68%;
+    --ring: 351 35% 46%;
+  }
+
+  html[data-theme='stormy-sky'] {
+    --app-bg: #4D5B60;
+    --app-bg-rgb: 77, 91, 96;
+    --plaster: #78898F;
+    --surface-elevated: rgba(104, 120, 126, 0.97);
+    --deep-umber: #F2EDE2;
+    --deep-umber-rgb: 242, 237, 226;
+    --charred: #FAF6EC;
+    --silica: #C0C9CC;
+    --pale-stone: rgba(255, 255, 255, 0.14);
+    --warm-sand: #D9C7A8;
+    --reflections-cta-bg: #D9C7A8;
+    --reflections-cta-fg: #333F44;
+    --alabaster: #617177;
+    --cream: #5C6C72;
+    --lamplight-accent: #D9C7A8;
+    --error-rose: #F1A3A3;
+    --chat-panel-bg: rgba(84, 99, 105, 0.97);
+    --chat-on-accent: #333F44;
+    --chat-badge-current: var(--lamplight-accent);
+    --notepad-page-bg: var(--cream);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: var(--cream);
+    --notepad-aside-bg: var(--cream);
+    --study-verse-num: #CBD2D4;
+    --graph-popover-bg: var(--surface-elevated);
+    --highlight-panel-bg: var(--surface-elevated);
+    --peek-scripture: var(--lamplight-accent);
+    --peek-scripture-wash: rgba(217, 199, 168, 0.18);
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(220, 226, 228, 0.6);
+    --graph-label: rgba(242, 237, 226, 0.9);
+
+    --background: 196 11% 40%;
+    --foreground: 41 38% 92%;
+    --card: 196 10% 44%;
+    --card-foreground: 41 38% 92%;
+    --popover: 196 10% 46%;
+    --popover-foreground: 41 38% 92%;
+    --primary: 41 38% 92%;
+    --primary-foreground: 196 11% 32%;
+    --secondary: 196 9% 50%;
+    --secondary-foreground: 41 38% 92%;
+    --muted: 196 9% 48%;
+    --muted-foreground: 200 12% 78%;
+    --accent: 196 9% 52%;
+    --accent-foreground: 41 38% 94%;
+    --border: 196 10% 55%;
+    --input: 196 10% 55%;
+    --ring: 38 39% 75%;
+  }
+
+  html[data-theme='olive-grove'] {
+    --app-bg: #4A5140;
+    --app-bg-rgb: 74, 81, 64;
+    --plaster: #6E775C;
+    --surface-elevated: rgba(101, 110, 86, 0.97);
+    --deep-umber: #F2EDE2;
+    --deep-umber-rgb: 242, 237, 226;
+    --charred: #FAF7ED;
+    --silica: #C3C7B4;
+    --pale-stone: rgba(255, 255, 255, 0.14);
+    --warm-sand: #C9B584;
+    --reflections-cta-bg: #C9B584;
+    --reflections-cta-fg: #3F4433;
+    --alabaster: #666F55;
+    --cream: #616951;
+    --lamplight-accent: #C9B584;
+    --error-rose: #F1A3A3;
+    --chat-panel-bg: rgba(90, 98, 76, 0.97);
+    --chat-on-accent: #3F4433;
+    --chat-badge-current: var(--lamplight-accent);
+    --notepad-page-bg: var(--cream);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: var(--cream);
+    --notepad-aside-bg: var(--cream);
+    --study-verse-num: #CDD1C0;
+    --graph-popover-bg: var(--surface-elevated);
+    --highlight-panel-bg: var(--surface-elevated);
+    --peek-scripture: var(--lamplight-accent);
+    --peek-scripture-wash: rgba(201, 181, 132, 0.18);
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(225, 229, 214, 0.55);
+    --graph-label: rgba(242, 237, 226, 0.9);
+
+    --background: 80 13% 36%;
+    --foreground: 41 38% 92%;
+    --card: 80 12% 40%;
+    --card-foreground: 41 38% 92%;
+    --popover: 80 12% 42%;
+    --popover-foreground: 41 38% 92%;
+    --primary: 41 38% 92%;
+    --primary-foreground: 80 13% 28%;
+    --secondary: 80 10% 46%;
+    --secondary-foreground: 41 38% 92%;
+    --muted: 80 10% 44%;
+    --muted-foreground: 75 15% 78%;
+    --accent: 80 10% 48%;
+    --accent-foreground: 41 38% 94%;
+    --border: 80 10% 50%;
+    --input: 80 10% 50%;
+    --ring: 43 39% 65%;
+  }
+
+  html[data-theme='terracotta-clay'] {
+    --app-bg: #8A4E33;
+    --app-bg-rgb: 138, 78, 51;
+    --plaster: #C47A5C;
+    --surface-elevated: rgba(180, 107, 77, 0.97);
+    --deep-umber: #F6EBDD;
+    --deep-umber-rgb: 246, 235, 221;
+    --charred: #FDF6EC;
+    --silica: #E3BFA9;
+    --pale-stone: rgba(255, 255, 255, 0.16);
+    --warm-sand: #E2C3A8;
+    --reflections-cta-bg: #7E4530; /* kiln umber holds the solid-CTA role */
+    --reflections-cta-fg: #F6EBDD;
+    --alabaster: #B0684A;
+    --cream: #A9613F;
+    /* Text-accent roles lift to sunbaked sand — kiln umber vanishes as text on
+       the clay field, same reason dark lifts its gold. */
+    --lamplight-accent: #F0D6B4;
+    --error-rose: #FFB3A8;
+    --chat-panel-bg: rgba(162, 94, 66, 0.97);
+    --chat-on-accent: #5C3320;
+    --chat-badge-current: var(--lamplight-accent);
+    --notepad-page-bg: var(--cream);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: var(--cream);
+    --notepad-aside-bg: var(--cream);
+    --study-verse-num: #E7CDBA;
+    --graph-popover-bg: var(--surface-elevated);
+    --highlight-panel-bg: var(--surface-elevated);
+    --peek-scripture: var(--lamplight-accent);
+    --peek-scripture-wash: rgba(240, 214, 180, 0.2);
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(240, 222, 206, 0.5);
+    --graph-label: rgba(246, 235, 221, 0.92);
+
+    --background: 19 46% 45%;
+    --foreground: 34 58% 92%;
+    --card: 18 45% 49%;
+    --card-foreground: 34 58% 92%;
+    --popover: 18 44% 51%;
+    --popover-foreground: 34 58% 92%;
+    --primary: 34 58% 92%;
+    --primary-foreground: 19 46% 36%;
+    --secondary: 18 40% 55%;
+    --secondary-foreground: 34 58% 92%;
+    --muted: 18 40% 53%;
+    --muted-foreground: 28 45% 85%;
+    --accent: 18 40% 57%;
+    --accent-foreground: 34 58% 94%;
+    --border: 18 38% 58%;
+    --input: 18 38% 58%;
+    --ring: 33 55% 83%;
+  }
+
+  html[data-theme='graphite'] {
+    --app-bg: #333231;
+    --app-bg-rgb: 51, 50, 49;
+    --plaster: #4A4947;
+    --surface-elevated: rgba(84, 83, 80, 0.97);
+    --deep-umber: #EFECE6;
+    --deep-umber-rgb: 239, 236, 230;
+    --charred: #F7F4EE;
+    --silica: #ADAAA4;
+    --pale-stone: rgba(255, 255, 255, 0.12);
+    --warm-sand: #C49A78;
+    --reflections-cta-bg: #C49A78;
+    --reflections-cta-fg: #2E2C29;
+    --alabaster: #504F4C;
+    --cream: #4A4947;
+    --lamplight-accent: #C49A78;
+    --error-rose: #F1A3A3;
+    --chat-panel-bg: rgba(66, 65, 63, 0.97);
+    --chat-on-accent: #2E2C29;
+    --chat-badge-current: var(--lamplight-accent);
+    --notepad-page-bg: var(--cream);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: var(--cream);
+    --notepad-aside-bg: var(--cream);
+    --study-verse-num: #B5B2AB;
+    --graph-popover-bg: var(--surface-elevated);
+    --highlight-panel-bg: var(--surface-elevated);
+    --peek-scripture: var(--lamplight-accent);
+    --peek-scripture-wash: rgba(196, 154, 120, 0.16);
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(160, 156, 148, 0.7);
+    --graph-label: rgba(239, 236, 230, 0.9);
+
+    --background: 40 2% 28%;
+    --foreground: 40 22% 92%;
+    --card: 40 2% 31%;
+    --card-foreground: 40 22% 92%;
+    --popover: 40 3% 33%;
+    --popover-foreground: 40 22% 92%;
+    --primary: 40 22% 92%;
+    --primary-foreground: 40 2% 22%;
+    --secondary: 40 3% 36%;
+    --secondary-foreground: 40 22% 92%;
+    --muted: 40 3% 34%;
+    --muted-foreground: 40 6% 70%;
+    --accent: 40 3% 38%;
+    --accent-foreground: 40 22% 94%;
+    --border: 40 3% 40%;
+    --input: 40 3% 40%;
+    --ring: 27 39% 62%;
+  }
+
+  html[data-theme='vanilla-latte'] {
+    --app-bg: #8A7A68;
+    --app-bg-rgb: 138, 122, 104;
+    --plaster: #B5A391;
+    --surface-elevated: rgba(190, 174, 156, 0.97);
+    --deep-umber: #3C3129;
+    --deep-umber-rgb: 60, 49, 41;
+    --charred: #2E251E;
+    --silica: #6E6153;
+    --pale-stone: #9C8C7A;
+    --warm-sand: #8F7D69;
+    --reflections-cta-bg: #5C4B3B;
+    --reflections-cta-fg: #F3EBE1;
+    --alabaster: #BDAD9C;
+    --cream: #BAA997;
+    --lamplight-accent: #7A5C42;
+    --error-rose: #9E4038;
+    --chat-panel-bg: rgba(248, 242, 234, 0.45);
+    --chat-on-accent: #fff;
+    --chat-badge-current: #6B4F38;
+    --notepad-page-bg: var(--plaster);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: rgba(181, 163, 145, 0.6);
+    --notepad-aside-bg: rgba(181, 163, 145, 0.4);
+    --study-verse-num: var(--deep-umber);
+    --graph-popover-bg: rgba(232, 222, 210, 0.95);
+    --highlight-panel-bg: #E9DFD2;
+    --peek-scripture: #5E452E;
+    --peek-scripture-wash: rgba(122, 92, 66, 0.15);
+    --graph-edge: rgba(146, 130, 112, 1);
+    --graph-label: rgba(46, 37, 30, 1);
+
+    --background: 30 20% 64%;
+    --foreground: 25 19% 20%;
+    --card: 30 20% 64%;
+    --card-foreground: 25 19% 20%;
+    --popover: 30 22% 70%;
+    --popover-foreground: 25 19% 20%;
+    --primary: 25 19% 20%;
+    --primary-foreground: 33 26% 90%;
+    --secondary: 30 16% 57%;
+    --secondary-foreground: 25 19% 18%;
+    --muted: 30 16% 57%;
+    --muted-foreground: 27 14% 32%;
+    --accent: 30 16% 55%;
+    --accent-foreground: 25 19% 18%;
+    --border: 30 14% 52%;
+    --input: 30 14% 52%;
+    --ring: 26 30% 37%;
+  }
+
+  html[data-theme='matcha-brew'] {
+    --app-bg: #46544A;
+    --app-bg-rgb: 70, 84, 74;
+    --plaster: #677D6A;
+    --surface-elevated: rgba(96, 116, 100, 0.97);
+    --deep-umber: #F0EAD6;
+    --deep-umber-rgb: 240, 234, 214;
+    --charred: #F8F3E2;
+    --silica: #BCC7B6;
+    --pale-stone: rgba(255, 255, 255, 0.14);
+    --warm-sand: #D9D3AC;
+    --reflections-cta-bg: #D9D3AC;
+    --reflections-cta-fg: #39463C;
+    --alabaster: #5F7162;
+    --cream: #5A6C5D;
+    --lamplight-accent: #D9D3AC;
+    --error-rose: #F1A3A3;
+    --chat-panel-bg: rgba(86, 104, 90, 0.97);
+    --chat-on-accent: #39463C;
+    --chat-badge-current: var(--lamplight-accent);
+    --notepad-page-bg: var(--cream);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: var(--cream);
+    --notepad-aside-bg: var(--cream);
+    --study-verse-num: #C9D1C2;
+    --graph-popover-bg: var(--surface-elevated);
+    --highlight-panel-bg: var(--surface-elevated);
+    --peek-scripture: var(--lamplight-accent);
+    --peek-scripture-wash: rgba(217, 211, 172, 0.18);
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(219, 226, 214, 0.55);
+    --graph-label: rgba(240, 234, 214, 0.9);
+
+    --background: 130 9% 39%;
+    --foreground: 46 46% 89%;
+    --card: 130 9% 43%;
+    --card-foreground: 46 46% 89%;
+    --popover: 130 9% 45%;
+    --popover-foreground: 46 46% 89%;
+    --primary: 46 46% 89%;
+    --primary-foreground: 130 10% 30%;
+    --secondary: 130 8% 49%;
+    --secondary-foreground: 46 46% 89%;
+    --muted: 130 8% 47%;
+    --muted-foreground: 120 10% 78%;
+    --accent: 130 8% 51%;
+    --accent-foreground: 46 46% 91%;
+    --border: 130 8% 53%;
+    --input: 130 8% 53%;
+    --ring: 52 37% 76%;
+  }
+
+  html[data-theme='roman-coffee'] {
+    --app-bg: #5A4739;
+    --app-bg-rgb: 90, 71, 57;
+    --plaster: #796254;
+    --surface-elevated: rgba(136, 112, 96, 0.97);
+    --deep-umber: #F2E7DC;
+    --deep-umber-rgb: 242, 231, 220;
+    --charred: #FAF2E9;
+    --silica: #C9B6A8;
+    --pale-stone: rgba(255, 255, 255, 0.14);
+    --warm-sand: #E3C9AD;
+    --reflections-cta-bg: #E3C9AD;
+    --reflections-cta-fg: #4A3729;
+    --alabaster: #816A5B;
+    --cream: #796254;
+    --lamplight-accent: #E3C9AD;
+    --error-rose: #F8B0A6;
+    --chat-panel-bg: rgba(105, 85, 71, 0.97);
+    --chat-on-accent: #4A3729;
+    --chat-badge-current: var(--lamplight-accent);
+    --notepad-page-bg: var(--cream);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: var(--cream);
+    --notepad-aside-bg: var(--cream);
+    --study-verse-num: #D3C2B4;
+    --graph-popover-bg: var(--surface-elevated);
+    --highlight-panel-bg: var(--surface-elevated);
+    --peek-scripture: var(--lamplight-accent);
+    --peek-scripture-wash: rgba(227, 201, 173, 0.18);
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(226, 214, 203, 0.5);
+    --graph-label: rgba(242, 231, 220, 0.92);
+
+    --background: 23 18% 40%;
+    --foreground: 30 46% 91%;
+    --card: 23 17% 44%;
+    --card-foreground: 30 46% 91%;
+    --popover: 23 17% 46%;
+    --popover-foreground: 30 46% 91%;
+    --primary: 30 46% 91%;
+    --primary-foreground: 23 18% 32%;
+    --secondary: 23 15% 50%;
+    --secondary-foreground: 30 46% 91%;
+    --muted: 23 15% 48%;
+    --muted-foreground: 26 20% 80%;
+    --accent: 23 15% 52%;
+    --accent-foreground: 30 46% 93%;
+    --border: 23 14% 54%;
+    --input: 23 14% 54%;
+    --ring: 31 49% 78%;
+  }
+
+  html[data-theme='plum-wine'] {
+    --app-bg: #543437;
+    --app-bg-rgb: 84, 52, 55;
+    --plaster: #754B4D;
+    --surface-elevated: rgba(131, 86, 89, 0.97);
+    --deep-umber: #F0DFDA;
+    --deep-umber-rgb: 240, 223, 218;
+    --charred: #F9EDE8;
+    --silica: #C8A9A6;
+    --pale-stone: rgba(255, 255, 255, 0.14);
+    --warm-sand: #DFB0AA;
+    --reflections-cta-bg: #DFB0AA;
+    --reflections-cta-fg: #4E3033;
+    --alabaster: #7D5254;
+    --cream: #754B4D;
+    --lamplight-accent: #DFB0AA;
+    --error-rose: #FFB3A8;
+    --chat-panel-bg: rgba(103, 66, 69, 0.97);
+    --chat-on-accent: #4E3033;
+    --chat-badge-current: var(--lamplight-accent);
+    --notepad-page-bg: var(--cream);
+    --notepad-bar-bg: var(--surface-elevated);
+    --notepad-sidebar-bg: var(--cream);
+    --notepad-aside-bg: var(--cream);
+    --study-verse-num: #D6BCB8;
+    --graph-popover-bg: var(--surface-elevated);
+    --highlight-panel-bg: var(--surface-elevated);
+    --peek-scripture: var(--lamplight-accent);
+    --peek-scripture-wash: rgba(223, 176, 170, 0.18);
+    --graph-node-scripture: #d8b48f;
+    --graph-node-sermon: #8fb4c8;
+    --graph-node-devotion: #84a795;
+    --graph-node-theme: #e0b0b0;
+    --graph-node-general: #b8ac9a;
+    --graph-edge: rgba(226, 205, 201, 0.5);
+    --graph-label: rgba(240, 223, 218, 0.92);
+
+    --background: 357 22% 38%;
+    --foreground: 14 42% 90%;
+    --card: 357 21% 42%;
+    --card-foreground: 14 42% 90%;
+    --popover: 357 21% 44%;
+    --popover-foreground: 14 42% 90%;
+    --primary: 14 42% 90%;
+    --primary-foreground: 357 22% 30%;
+    --secondary: 357 18% 48%;
+    --secondary-foreground: 14 42% 90%;
+    --muted: 357 18% 46%;
+    --muted-foreground: 10 20% 80%;
+    --accent: 357 18% 50%;
+    --accent-foreground: 14 42% 92%;
+    --border: 357 17% 52%;
+    --input: 357 17% 52%;
+    --ring: 7 45% 77%;
+  }
+}
+
+@layer base {
+  /* Deep light palettes borrow dark mode's exceptions: the dark logo artwork
+     needs the light silhouette, cream body ink needs to go dark through light
+     highlight washes, and the mobile Lamplight tab's --alabaster remaps to the
+     page bg so it matches the other tabs. Kept in one selector group per rule —
+     the creamy trio reads like classic light and must NOT get these. */
+  html[data-theme='stormy-sky'] .notepad-nav-logo,
+  html[data-theme='olive-grove'] .notepad-nav-logo,
+  html[data-theme='terracotta-clay'] .notepad-nav-logo,
+  html[data-theme='graphite'] .notepad-nav-logo,
+  html[data-theme='matcha-brew'] .notepad-nav-logo,
+  html[data-theme='roman-coffee'] .notepad-nav-logo,
+  html[data-theme='plum-wine'] .notepad-nav-logo {
+    filter: brightness(0) invert(1);
+  }
+
+  html[data-theme='stormy-sky'] span[data-style-highlight],
+  html[data-theme='stormy-sky'] .bible-verse-highlight,
+  html[data-theme='olive-grove'] span[data-style-highlight],
+  html[data-theme='olive-grove'] .bible-verse-highlight,
+  html[data-theme='terracotta-clay'] span[data-style-highlight],
+  html[data-theme='terracotta-clay'] .bible-verse-highlight,
+  html[data-theme='graphite'] span[data-style-highlight],
+  html[data-theme='graphite'] .bible-verse-highlight,
+  html[data-theme='matcha-brew'] span[data-style-highlight],
+  html[data-theme='matcha-brew'] .bible-verse-highlight,
+  html[data-theme='roman-coffee'] span[data-style-highlight],
+  html[data-theme='roman-coffee'] .bible-verse-highlight,
+  html[data-theme='plum-wine'] span[data-style-highlight],
+  html[data-theme='plum-wine'] .bible-verse-highlight {
+    color: #3a3426;
+  }
+
+  html[data-theme='stormy-sky'] .lamplight-mobile-view,
+  html[data-theme='olive-grove'] .lamplight-mobile-view,
+  html[data-theme='terracotta-clay'] .lamplight-mobile-view,
+  html[data-theme='graphite'] .lamplight-mobile-view,
+  html[data-theme='matcha-brew'] .lamplight-mobile-view,
+  html[data-theme='roman-coffee'] .lamplight-mobile-view,
+  html[data-theme='plum-wine'] .lamplight-mobile-view {
+    --alabaster: var(--notepad-page-bg);
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }

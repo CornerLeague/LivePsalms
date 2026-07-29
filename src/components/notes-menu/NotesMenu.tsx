@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { navItems, NAV_TRIGGER_LABELS } from '@/data/projects';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/notepad/theme/theme-context';
+import { LIGHT_THEME_META } from '@/notepad/theme/theme-types';
 
 export interface NotesMenuProps {
   /** Fired when a nav label in NAV_TRIGGER_LABELS is tapped (loading-overlay parity with MobileBottomDock). */
@@ -29,10 +31,16 @@ export interface NotesMenuProps {
  * relocated from MobileBottomDock: the four navItems links + a Social/Instagram
  * row. Built on the shared Radix DropdownMenu primitive, which supplies keyboard
  * navigation, Escape/outside-click dismissal, anchored positioning, and
- * .dark-class-scoped popover tokens (never prefers-color-scheme). Presentational
- * + navigational only — open/close state is owned by the primitive.
+ * .dark-class-scoped popover tokens (never prefers-color-scheme). Open/close
+ * state is owned by the primitive.
+ *
+ * Also hosts the Appearance section: the light-palette swatch picker (Classic
+ * first). Light mode only — dark is deliberately not themeable, so the section
+ * hides while dark is resolved. Swatch taps don't dismiss the menu, so the
+ * palettes can be flipped through live.
  */
 export function NotesMenu({ onNavTrigger, className, align = 'end', iconSize = 18 }: NotesMenuProps) {
+  const { resolvedTheme, lightTheme, setLightTheme } = useTheme();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -68,6 +76,68 @@ export function NotesMenu({ onNavTrigger, className, align = 'end', iconSize = 1
             </Link>
           </DropdownMenuItem>
         ))}
+        {resolvedTheme === 'light' && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel
+              style={{
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: 10,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                opacity: 0.6,
+              }}
+            >
+              Appearance
+            </DropdownMenuLabel>
+            <div
+              role="group"
+              aria-label="Light color theme"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                justifyItems: 'center',
+                gap: 6,
+                padding: '4px 8px 8px',
+              }}
+            >
+              {LIGHT_THEME_META.map(({ slug, label, swatch }) => (
+                <button
+                  key={slug}
+                  type="button"
+                  title={label}
+                  aria-label={label}
+                  aria-pressed={lightTheme === slug}
+                  onClick={() => setLightTheme(slug)}
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: '50%',
+                    background: swatch.bg,
+                    border: '1px solid rgba(0, 0, 0, 0.2)',
+                    boxShadow:
+                      lightTheme === slug ? '0 0 0 2px var(--deep-umber)' : 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: swatch.accent,
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuLabel
           style={{
