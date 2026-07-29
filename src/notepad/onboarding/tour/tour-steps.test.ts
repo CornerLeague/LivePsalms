@@ -8,7 +8,7 @@ function makeCtx(viewport: 'desktop' | 'mobile', sampleNoteId: string | null = n
 }
 
 describe('TOUR_STEPS', () => {
-  it('has the twelve approved moments in order', () => {
+  it('has the thirteen approved moments in order', () => {
     expect(TOUR_STEPS.map((step) => step.id)).toEqual([
       'welcome',
       'create-note',
@@ -21,6 +21,7 @@ describe('TOUR_STEPS', () => {
       'graph-map',
       'study',
       'lamplight',
+      'walk-again',
       'make-it-yours',
     ]);
   });
@@ -52,7 +53,11 @@ describe('TOUR_STEPS', () => {
     expect(TOUR_STEPS[10].copy.body).toBe(
       'A companion for the mid-reading questions, your journey reflections, scripture study plans, and much more.',
     );
+    expect(TOUR_STEPS[11].copy.title).toBe('Take the walk anytime.');
     expect(TOUR_STEPS[11].copy.body).toBe(
+      'This button restarts the tour whenever you want a refresher — it lives here, beside the theme switch.',
+    );
+    expect(TOUR_STEPS[12].copy.body).toBe(
       'A free account keeps your notes on every device — and lights Lamplight for the road ahead.',
     );
   });
@@ -75,6 +80,7 @@ describe('TOUR_STEPS', () => {
       'studywindow-graph-tab',
       'study-toggle',
       'lamplight-panel-entry',
+      'tour-replay-button',
       null,
     ]);
     expect(TOUR_ANCHOR_TOKENS.mobile).toEqual([
@@ -89,6 +95,7 @@ describe('TOUR_STEPS', () => {
       'more-sheet-graph',
       'study-toggle',
       'header-flame',
+      'tour-replay-button',
       null,
     ]);
   });
@@ -230,11 +237,20 @@ describe('TOUR_STEPS', () => {
       expect(mobileSetTab).not.toHaveBeenCalled();
     });
 
-    it('steps 0 and 11 are centered with no prepare', () => {
+    it('step 11 (walk-again) mobile shows the editor header (carries the replay button); desktop is a no-op', async () => {
+      const mobileSetTab = vi.fn();
+      await TOUR_STEPS[11].prepare?.({ mobileSetTab }, makeCtx('mobile'));
+      expect(mobileSetTab).toHaveBeenCalledWith('editor');
+      mobileSetTab.mockClear();
+      await TOUR_STEPS[11].prepare?.({ mobileSetTab }, makeCtx('desktop'));
+      expect(mobileSetTab).not.toHaveBeenCalled();
+    });
+
+    it('steps 0 and 12 are centered with no prepare', () => {
       expect(TOUR_STEPS[0].anchor('desktop')).toBeNull();
       expect(TOUR_STEPS[0].prepare).toBeUndefined();
-      expect(TOUR_STEPS[11].anchor('mobile')).toBeNull();
-      expect(TOUR_STEPS[11].prepare).toBeUndefined();
+      expect(TOUR_STEPS[12].anchor('mobile')).toBeNull();
+      expect(TOUR_STEPS[12].prepare).toBeUndefined();
     });
   });
 });

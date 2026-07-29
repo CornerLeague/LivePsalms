@@ -41,8 +41,8 @@ describe('ChecklistPanel', () => {
     expect(onToggleCollapsed).toHaveBeenCalled();
   });
 
-  it('shows replay-tour link when provided', () => {
-    render(<ChecklistPanel {...base} onReplayTour={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /replay tour/i })).toBeInTheDocument();
+  it('has no replay-tour affordance — replay lives in the header TourReplayButton', () => {
+    render(<ChecklistPanel {...base} />);
+    expect(screen.queryByRole('button', { name: /replay/i })).not.toBeInTheDocument();
   });
 });

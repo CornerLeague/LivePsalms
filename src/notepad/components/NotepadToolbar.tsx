@@ -13,6 +13,7 @@ import { UploadModal } from './UploadModal';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
 import { NotepadAuthControls } from './NotepadAuthControls';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
+import { TourReplayButton } from '@/notepad/onboarding/TourReplayButton';
 import { NotesMenu } from '@/components/notes-menu/NotesMenu';
 import { useNavTrigger } from '@/hooks/nav-trigger-context';
 
@@ -118,6 +119,9 @@ export function NotepadToolbar({
 
           {/* Spacer */}
           <div className="flex-1" />
+
+          {/* Tour replay */}
+          <TourReplayButton className="w-8 h-8" />
 
           {/* Theme toggle */}
           <ThemeToggle className="w-8 h-8" />

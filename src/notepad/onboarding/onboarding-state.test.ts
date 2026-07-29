@@ -10,7 +10,7 @@ describe('decideOnboardingActions', () => {
   it('returns nothing while auth is loading', () => {
     expect(decideOnboardingActions({
       authLoading: true, signedIn: false, eligibleForJourney: false,
-      anonTourDone: false, anon: null, account: null,
+      anonTourDone: false, tourRequested: false, anon: null, account: null,
     })).toEqual([]);
   });
 
@@ -18,19 +18,19 @@ describe('decideOnboardingActions', () => {
     it('first visit: starts the tour only (get-started stays hidden until the tour ends)', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: false, eligibleForJourney: false,
-        anonTourDone: false, anon: null, account: null,
+        anonTourDone: false, tourRequested: false, anon: null, account: null,
       })).toEqual([{ kind: 'start-tour' }]);
     });
     it('tour done, checklist active: shows get-started only', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: false, eligibleForJourney: false,
-        anonTourDone: true, anon: anon(), account: null,
+        anonTourDone: true, tourRequested: false, anon: anon(), account: null,
       })).toEqual([{ kind: 'show-get-started' }]);
     });
     it('tour done, checklist dismissed: nothing', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: false, eligibleForJourney: false,
-        anonTourDone: true, anon: anon({ dismissed: true }), account: null,
+        anonTourDone: true, tourRequested: false, anon: anon({ dismissed: true }), account: null,
       })).toEqual([]);
     });
   });
@@ -39,39 +39,61 @@ describe('decideOnboardingActions', () => {
     it('ineligible account (pre-launch): nothing', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: true, eligibleForJourney: false,
-        anonTourDone: true, anon: null, account: acct(),
+        anonTourDone: true, tourRequested: false, anon: null, account: acct(),
       })).toEqual([]);
     });
     it('eligible, guided note pending: offers guided note + journey', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: true, eligibleForJourney: true,
-        anonTourDone: true, anon: null, account: acct({ guidedNote: 'pending' }),
+        anonTourDone: true, tourRequested: false, anon: null, account: acct({ guidedNote: 'pending' }),
       })).toEqual([{ kind: 'offer-guided-note' }, { kind: 'show-journey' }]);
     });
     it('eligible, null account treated as fresh -> offer + journey', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: true, eligibleForJourney: true,
-        anonTourDone: true, anon: null, account: null,
+        anonTourDone: true, tourRequested: false, anon: null, account: null,
       })).toEqual([{ kind: 'offer-guided-note' }, { kind: 'show-journey' }]);
     });
     it('eligible, guided note skipped: journey only', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: true, eligibleForJourney: true,
-        anonTourDone: true, anon: null, account: acct({ guidedNote: 'skipped' }),
+        anonTourDone: true, tourRequested: false, anon: null, account: acct({ guidedNote: 'skipped' }),
       })).toEqual([{ kind: 'show-journey' }]);
     });
     it('eligible, journey dismissed: nothing', () => {
       expect(decideOnboardingActions({
         authLoading: false, signedIn: true, eligibleForJourney: true,
-        anonTourDone: true, anon: null, account: acct({ guidedNote: 'done', dismissed: true }),
+        anonTourDone: true, tourRequested: false, anon: null, account: acct({ guidedNote: 'done', dismissed: true }),
       })).toEqual([]);
     });
     it('eligible, all journey items complete: nothing (retires itself)', () => {
       const items = Object.fromEntries(ALL_JOURNEY_ITEM_IDS.map((id) => [id, '2026-06-11T00:00:00Z']));
       expect(decideOnboardingActions({
         authLoading: false, signedIn: true, eligibleForJourney: true,
-        anonTourDone: true, anon: null,
+        anonTourDone: true, tourRequested: false, anon: null,
         account: acct({ guidedNote: 'done', items: items as AccountProgress['items'] }),
+      })).toEqual([]);
+    });
+  });
+
+  describe('explicit replay (header button)', () => {
+    it('signed out: runs the tour alone, even over a dismissed checklist', () => {
+      expect(decideOnboardingActions({
+        authLoading: false, signedIn: false, eligibleForJourney: false,
+        anonTourDone: true, tourRequested: true, anon: anon({ dismissed: true }), account: null,
+      })).toEqual([{ kind: 'start-tour' }]);
+    });
+    it('signed in: runs the tour alone — no journey surfaces beside it', () => {
+      expect(decideOnboardingActions({
+        authLoading: false, signedIn: true, eligibleForJourney: true,
+        anonTourDone: true, tourRequested: true, anon: null,
+        account: acct({ guidedNote: 'pending' }),
+      })).toEqual([{ kind: 'start-tour' }]);
+    });
+    it('still yields to auth loading', () => {
+      expect(decideOnboardingActions({
+        authLoading: true, signedIn: false, eligibleForJourney: false,
+        anonTourDone: true, tourRequested: true, anon: null, account: null,
       })).toEqual([]);
     });
   });

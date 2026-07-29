@@ -8,6 +8,8 @@ import type {
 
 export interface OnboardingContextValue {
   actions: OnboardingAction[];
+  /** Auth state, surfaced so tour UI can adapt (e.g. hide the sign-up CTA). */
+  signedIn: boolean;
   anon: AnonProgress | null;
   account: AccountProgress | null;
   reportOnboardingEvent: (event: OnboardingEvent) => void;

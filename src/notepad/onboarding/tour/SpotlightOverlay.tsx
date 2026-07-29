@@ -27,6 +27,8 @@ export interface SpotlightOverlayProps {
   onComplete: () => void;
   onSkip: () => void;
   onSignUp: () => void;
+  /** Signed-in replays swap the final sign-up CTA for a plain finish. */
+  signedIn?: boolean;
   /** Injectable for tests; defaults to the DOM polling resolver. */
   resolveAnchor?: TourEngineDeps['resolveAnchor'];
 }
@@ -147,6 +149,7 @@ export function SpotlightOverlay({
   onComplete,
   onSkip,
   onSignUp,
+  signedIn = false,
   resolveAnchor = defaultResolveAnchor,
 }: SpotlightOverlayProps) {
   const reduceMotion = usePrefersReducedMotion();
@@ -393,14 +396,22 @@ export function SpotlightOverlay({
           </motion.button>
         </div>
       ) : isLast ? (
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          <motion.button whileTap={tap} style={ghostStyle} onClick={() => engine.next()}>
-            Not yet — keep exploring
-          </motion.button>
-          <motion.button whileTap={tap} style={primaryStyle} onClick={beginSignUp}>
-            Create free account
-          </motion.button>
-        </div>
+        signedIn ? (
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <motion.button whileTap={tap} style={primaryStyle} onClick={() => engine.next()}>
+              Finish the walk
+            </motion.button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <motion.button whileTap={tap} style={ghostStyle} onClick={() => engine.next()}>
+              Not yet — keep exploring
+            </motion.button>
+            <motion.button whileTap={tap} style={primaryStyle} onClick={beginSignUp}>
+              Create free account
+            </motion.button>
+          </div>
+        )
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <motion.button whileTap={tap} style={ghostStyle} onClick={() => engine.skip()}>
