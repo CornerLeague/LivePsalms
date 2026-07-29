@@ -118,13 +118,13 @@ describe('NotesMenu', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('shows the Appearance section with all 12 palette swatches in light mode', () => {
+  it('shows the Appearance section with all 17 palette swatches in light mode', () => {
     renderMenu();
     openMenu();
     const menu = screen.getByRole('menu');
     expect(within(menu).getByText('Appearance')).toBeInTheDocument();
     const group = within(menu).getByRole('group', { name: 'Light color theme' });
-    expect(within(group).getAllByRole('button')).toHaveLength(12);
+    expect(within(group).getAllByRole('button')).toHaveLength(17);
     expect(within(group).getAllByRole('button')[0]).toHaveAccessibleName('Classic');
   });
 

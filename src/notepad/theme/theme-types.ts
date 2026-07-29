@@ -26,7 +26,12 @@ export type LightTheme =
   | 'vanilla-latte'
   | 'matcha-brew'
   | 'roman-coffee'
-  | 'plum-wine';
+  | 'plum-wine'
+  | 'maple-spice'
+  | 'licorice'
+  | 'soft-sand'
+  | 'olive-gray'
+  | 'abyssal-teal';
 
 export const LIGHT_THEMES: readonly LightTheme[] = [
   'classic',
@@ -41,6 +46,11 @@ export const LIGHT_THEMES: readonly LightTheme[] = [
   'matcha-brew',
   'roman-coffee',
   'plum-wine',
+  'maple-spice',
+  'licorice',
+  'soft-sand',
+  'olive-gray',
+  'abyssal-teal',
 ] as const;
 export const DEFAULT_LIGHT_THEME: LightTheme = 'classic';
 
@@ -69,6 +79,11 @@ export const LIGHT_THEME_META: readonly {
   { slug: 'matcha-brew', label: 'Matcha Brew', swatch: { bg: '#677D6A', ink: '#F0EAD6', accent: '#D9D3AC' } },
   { slug: 'roman-coffee', label: 'Roman Coffee', swatch: { bg: '#796254', ink: '#F2E7DC', accent: '#E3C9AD' } },
   { slug: 'plum-wine', label: 'Plum Wine', swatch: { bg: '#754B4D', ink: '#F0DFDA', accent: '#DFB0AA' } },
+  { slug: 'maple-spice', label: 'Maple Spice', swatch: { bg: '#692721', ink: '#F2E2CE', accent: '#DFAE7E' } },
+  { slug: 'licorice', label: 'Licorice', swatch: { bg: '#342021', ink: '#EAE3E4', accent: '#CBA3AB' } },
+  { slug: 'soft-sand', label: 'Soft Sand', swatch: { bg: '#EFE1D4', ink: '#8F4527', accent: '#A5552F' } },
+  { slug: 'olive-gray', label: 'Olive Gray', swatch: { bg: '#A7A48E', ink: '#37362A', accent: '#6E6B4F' } },
+  { slug: 'abyssal-teal', label: 'Abyssal Teal', swatch: { bg: '#1D2A33', ink: '#E6E9E7', accent: '#9EC6C2' } },
 ] as const;
 
 /** True when the path is a notepad workspace route that should be dark-eligible. */
