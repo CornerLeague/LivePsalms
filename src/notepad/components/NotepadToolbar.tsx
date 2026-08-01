@@ -7,7 +7,11 @@ import {
   Upload,
   PanelRightClose,
   PanelRightOpen,
+  Waypoints,
 } from 'lucide-react';
+import { useAccountProfile } from '@/auth/context/useAccountProfile';
+import { useAuthSession } from '@/auth/context/useAuthSession';
+import { reflectionsPath } from './waymarks/reflections-path';
 import { useNewNote } from '../context/useNewNote';
 import { UploadModal } from './UploadModal';
 import { StudyModeToggle } from '@/notepad/study/StudyModeToggle';
@@ -39,6 +43,16 @@ export function NotepadToolbar({
   const navigate = useNavigate();
   const [uploadOpen, setUploadOpen] = useState(false);
   const navTrigger = useNavTrigger();
+
+  // Reflections is now a top-level destination (its own door), no longer a pill
+  // buried in the Lamplight card. Vanity-aware target — same seam the old
+  // "Your Reflections" CTA used; falls back to the legacy redirect while the
+  // username loads. Signed-out readers can't reach the (Plus-gated, signed-in)
+  // path, so the door sends them to sign-in rather than silently bouncing off
+  // the redirect — parity with how Lamplight gates signed-out users.
+  const { profile } = useAccountProfile();
+  const { user } = useAuthSession();
+  const reflectionsHref = user ? reflectionsPath(profile?.username) : '/login';
 
   // One-click note creation: drops the note into the folder the user is
   // currently on (the active note's folder), or the top folder when they aren't
@@ -119,6 +133,25 @@ export function NotepadToolbar({
 
           {/* Spacer */}
           <div className="flex-1" />
+
+          {/* Reflections — top-level destination (the focal feature). A featured
+              pill in the app's warm "path" voice, sitting apart from the Content/
+              Backlinks/Info/Lamplight editor tabs. Opens the full path of stones. */}
+          <button
+            data-tour="reflections-entry"
+            onClick={() => navigate(reflectionsHref)}
+            title="Your Reflections"
+            className="flex items-center gap-1.5 px-3 h-8 rounded-full transition-colors cursor-pointer shrink-0 hover:bg-black/5 dark:hover:bg-white/10 mr-1"
+            style={{
+              border: '1.5px solid var(--reflections-cta-bg)',
+              background: 'color-mix(in srgb, var(--reflections-cta-bg) 8%, transparent)',
+              color: 'var(--reflections-cta-bg)',
+              fontFamily: 'Outfit, sans-serif',
+            }}
+          >
+            <Waypoints className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-medium tracking-wide">Reflections</span>
+          </button>
 
           {/* Tour replay */}
           <TourReplayButton className="w-8 h-8" />

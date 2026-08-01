@@ -10,17 +10,7 @@ vi.mock('@/auth/context/useAuthSession', () => ({
 }));
 import { useAuthSession } from '@/auth/context/useAuthSession';
 
-// LamplightTabPanel now reads the username (final-review fix, Critical 2) to build a
-// vanity-aware link to The Path. Mocked the same way useAuthSession is above, rather
-// than wrapping every render in a real AuthProvider — this file already exercises the
-// component in isolation from AuthProvider entirely.
-vi.mock('@/auth/context/useAccountProfile', () => ({
-  useAccountProfile: vi.fn(),
-}));
-import { useAccountProfile } from '@/auth/context/useAccountProfile';
-
 const useAuthSessionMock = useAuthSession as unknown as ReturnType<typeof vi.fn>;
-const useAccountProfileMock = useAccountProfile as unknown as ReturnType<typeof vi.fn>;
 
 function renderPanel(adapter: FakeLamplightAdapter) {
   return render(
@@ -33,7 +23,6 @@ function renderPanel(adapter: FakeLamplightAdapter) {
 afterEach(() => {
   cleanup();
   useAuthSessionMock.mockReset();
-  useAccountProfileMock.mockReset();
 });
 
 describe('LamplightTabPanel', () => {
@@ -42,7 +31,6 @@ describe('LamplightTabPanel', () => {
   beforeEach(() => {
     adapter = new FakeLamplightAdapter();
     useAuthSessionMock.mockReturnValue({ user: null });
-    useAccountProfileMock.mockReturnValue({ profile: { username: 'reader1' } });
   });
 
   it('shows SignInGate for anonymous users', async () => {
@@ -92,11 +80,10 @@ describe('LamplightTabPanel', () => {
     });
   });
 
-  // The "Your Reflections" CTA is now rendered by TodaysLampCard (idle: under the start
-  // button; every revealed phase: panel bottom), so exactly one stays reachable in every
-  // card phase — including after today's lamp has generated (the ready phase), which is
-  // where the earlier idle-only placement used to hide it.
-  it('keeps the "Your Reflections" link visible after today\'s lamp is generated', async () => {
+  // Reflections was promoted out of the Lamplight card into its own top-level
+  // doors (desktop toolbar + mobile tab bar), so the panel no longer renders a
+  // "Your Reflections" CTA in any phase.
+  it('does not render a "Your Reflections" CTA (promoted to a top-level door)', async () => {
     useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
     await adapter.upsertSettings('user-1', {
       enabled: true,
@@ -111,43 +98,8 @@ describe('LamplightTabPanel', () => {
       note_citations: [{ note_id: 'n1', reason: 'test recurrence' }],
     });
     renderPanel(adapter);
-    // The devotion renders (ready phase) and the reflections CTA remains reachable.
     expect(await screen.findByText(/A quiet test greeting/)).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Your Reflections' })).toHaveLength(1);
-    expect(screen.getByRole('link', { name: 'Your Reflections' }))
-      .toHaveAttribute('href', '/notebook/u/reader1/reflections');
-  });
-
-  it('shows the "Your Reflections" link in the idle phase as well', async () => {
-    useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
-    await adapter.upsertSettings('user-1', {
-      enabled: true,
-      consentDecidedAt: new Date().toISOString(),
-    });
-    render(
-      <MemoryRouter>
-        <LamplightTabPanel lamplightAdapter={adapter} autoGenerate={false} />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByRole('link', { name: 'Your Reflections' }))
-      .toHaveAttribute('href', '/notebook/u/reader1/reflections');
-    expect(screen.getAllByRole('link', { name: 'Your Reflections' })).toHaveLength(1);
-  });
-
-  it('falls back to the legacy /notebook/reflections href while the username has not loaded yet', async () => {
-    useAuthSessionMock.mockReturnValue({ user: { id: 'user-1' } });
-    useAccountProfileMock.mockReturnValue({ profile: null });
-    await adapter.upsertSettings('user-1', {
-      enabled: true,
-      consentDecidedAt: new Date().toISOString(),
-    });
-    render(
-      <MemoryRouter>
-        <LamplightTabPanel lamplightAdapter={adapter} autoGenerate={false} />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByRole('link', { name: 'Your Reflections' }))
-      .toHaveAttribute('href', '/notebook/reflections');
+    expect(screen.queryByRole('link', { name: 'Your Reflections' })).toBeNull();
   });
 
   it('shows PaywallCard for opted-in users when promo is off and tier=none', async () => {
