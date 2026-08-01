@@ -5,7 +5,6 @@ import type { DailyDevotion } from '../../storage/lamplight-artifacts';
 import { TodaysLampLoading } from './TodaysLampLoading';
 import { TodaysLampError } from './TodaysLampError';
 import { TodaysLampIntro } from './TodaysLampIntro';
-import { ReflectionsCta } from './ReflectionsCta';
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 
 export interface TodaysLampCardProps {
@@ -14,18 +13,16 @@ export interface TodaysLampCardProps {
   localDate: string;
   firstName: string | null;
   autoGenerate?: boolean;
-  reflectionsHref?: string;
 }
 
 export function TodaysLampCard({
-  adapter, userId, localDate, firstName, autoGenerate = true, reflectionsHref,
+  adapter, userId, localDate, firstName, autoGenerate = true,
 }: TodaysLampCardProps) {
   const { state, start, retry } = useTodaysLamp({ adapter, userId, localDate, autoGenerate });
   const prefersReducedMotion = usePrefersReducedMotion();
 
-  // Idle owns its own CTA placement (directly under "Show Me Today's Lamp").
   if (state.phase === 'idle') {
-    return <TodaysLampIntro firstName={firstName} onStart={start} reflectionsHref={reflectionsHref} />;
+    return <TodaysLampIntro firstName={firstName} onStart={start} />;
   }
 
   let body: ReactNode = null;
@@ -56,17 +53,7 @@ export function TodaysLampCard({
     body = <Devotion artifact={state.artifact} localDate={localDate} />;
   }
 
-  // Every revealed phase shows exactly one CTA, pinned to the panel bottom.
-  return (
-    <>
-      {body}
-      {reflectionsHref && (
-        <div className="flex justify-center pb-6" style={{ background: 'var(--alabaster)' }}>
-          <ReflectionsCta href={reflectionsHref} />
-        </div>
-      )}
-    </>
-  );
+  return <>{body}</>;
 }
 
 export function Devotion(props: {

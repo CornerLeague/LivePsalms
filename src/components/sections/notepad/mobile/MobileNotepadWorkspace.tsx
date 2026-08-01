@@ -18,6 +18,7 @@ import { MobileMoreSheet, type DetailSegment } from './MobileMoreSheet';
 import { MobileAuthModal } from './MobileAuthModal';
 import { MobileAccountSheet } from './MobileAccountSheet';
 import { useMobileWorkspaceModel } from './useMobileWorkspaceModel';
+import { reflectionsPath } from '@/notepad/components/waymarks/reflections-path';
 import { useNewNote } from '../../../../notepad/context/useNewNote';
 import { useHasConnections } from './useHasConnections';
 import { useArrivalDot } from '@/notepad/lamplight/arrival-badge';
@@ -257,7 +258,15 @@ export function MobileNotepadWorkspace() {
       </div>
 
       <RecordingsDock variant="mobile" onOpenNote={handleOpenNote} />
-      <MobileTabBar active={effectiveTab} onSelect={handleSelectTab} />
+      <MobileTabBar
+        active={effectiveTab}
+        onSelect={handleSelectTab}
+        onReflections={() =>
+          // The path is signed-in + Plus-gated; signed-out readers get the auth
+          // sheet (mobile's sign-in entry) instead of a silent redirect bounce.
+          model.user ? navigate(reflectionsPath(profile?.username)) : setAuthOpen(true)
+        }
+      />
 
       <MobileMoreSheet
         open={moreOpen}

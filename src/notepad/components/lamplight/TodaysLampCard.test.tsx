@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { TodaysLampCard, Devotion, formatLocalDate } from './TodaysLampCard';
 import { FakeLamplightAdapter } from '../../storage/fake-lamplight-adapter';
 import type { DailyDevotion } from '../../storage/lamplight-artifacts';
@@ -47,6 +46,9 @@ describe('TodaysLampCard', () => {
     expect(screen.getByText(/What part of this verse/)).toBeInTheDocument();
     expect(screen.getByText(/recurring rest/)).toBeInTheDocument();
     expect(screen.getByText(/evening anxiety/)).toBeInTheDocument();
+    // Reflections was promoted to its own top-level door — the card no longer
+    // carries a "Your Reflections" CTA.
+    expect(screen.queryByRole('link', { name: 'Your Reflections' })).toBeNull();
   });
 
   it('formatLocalDate is timezone-safe across boundary months', () => {
@@ -89,37 +91,6 @@ describe('TodaysLampCard (manual start)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Show Me Today's Lamp/i }));
     await waitFor(() => expect(screen.getByText(/though I walk/i)).toBeInTheDocument());
     expect(generateSpy).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('TodaysLampCard (Your Reflections CTA)', () => {
-  const href = '/notebook/u/reader1/reflections';
-
-  it('idle: renders exactly one CTA, under the start button', async () => {
-    const adapter = new FakeLamplightAdapter();
-    render(
-      <MemoryRouter>
-        <TodaysLampCard adapter={adapter} userId="user-1" localDate="2026-05-27" firstName={null} autoGenerate={false} reflectionsHref={href} />
-      </MemoryRouter>,
-    );
-    const startBtn = await screen.findByRole('button', { name: /Show Me Today's Lamp/i });
-    const ctas = screen.getAllByRole('link', { name: 'Your Reflections' });
-    expect(ctas).toHaveLength(1);
-    expect(startBtn.compareDocumentPosition(ctas[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it('ready: renders exactly one CTA at panel bottom, no start button', async () => {
-    const adapter = new FakeLamplightAdapter();
-    adapter.__seedDailyDevotion('user-1', '2026-05-27', devotion);
-    render(
-      <MemoryRouter>
-        <TodaysLampCard adapter={adapter} userId="user-1" localDate="2026-05-27" firstName={null} autoGenerate reflectionsHref={href} />
-      </MemoryRouter>,
-    );
-    await waitFor(() => expect(screen.getByText(/A quiet greeting/)).toBeInTheDocument());
-    expect(screen.getAllByRole('link', { name: 'Your Reflections' })).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: /Show Me Today's Lamp/i })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Your Reflections' })).toHaveAttribute('href', href);
   });
 });
 
