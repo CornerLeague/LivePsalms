@@ -53,8 +53,7 @@ export function MobileTabBar({ active, onSelect, onReflections }: MobileTabBarPr
 
   return (
     <div
-      role="tablist"
-      className="shrink-0 flex items-end"
+      className="shrink-0 relative flex"
       style={{
         borderTop: '1px solid var(--pale-stone)',
         background: 'var(--notepad-bar-bg)',
@@ -64,18 +63,31 @@ export function MobileTabBar({ active, onSelect, onReflections }: MobileTabBarPr
         fontFamily: 'Outfit, sans-serif',
       }}
     >
-      {LEFT_TABS.map(renderTab)}
+      {/* Only the four view-switching tabs form the tab widget. The middle slot
+          is an aria-hidden spacer that reserves the launcher's room without
+          adding a non-tab child to the tablist (a real button here would make a
+          malformed ARIA tab widget). */}
+      <div role="tablist" aria-label="Notebook sections" className="flex flex-1 items-end">
+        {LEFT_TABS.map(renderTab)}
+        <div aria-hidden className="flex-1" style={{ minHeight: 56 }} />
+        {RIGHT_TABS.map(renderTab)}
+      </div>
 
-      {/* Reflections — the raised focal launcher. Rises above the bar so the
-          eye lands on it first; opens the full path of stones. */}
-      <div className="flex-1 flex flex-col items-center justify-end" style={{ minHeight: 56 }}>
+      {/* Reflections — the raised focal launcher. A sibling of the tablist (not a
+          tab), centered over the reserved gap; rises above the bar so the eye
+          lands on it first. The overlay ignores pointer events so it never steals
+          taps from the flanking tabs; only the button itself is interactive. */}
+      <div
+        className="absolute inset-0 flex items-end justify-center"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)', pointerEvents: 'none' }}
+      >
         <button
           type="button"
           onClick={onReflections}
           aria-label="Reflections"
           data-tour="reflections-entry-mobile"
           className="flex flex-col items-center gap-0.5 cursor-pointer"
-          style={{ background: 'transparent' }}
+          style={{ background: 'transparent', pointerEvents: 'auto' }}
         >
           <span
             className="flex items-center justify-center"
@@ -99,8 +111,6 @@ export function MobileTabBar({ active, onSelect, onReflections }: MobileTabBarPr
           </span>
         </button>
       </div>
-
-      {RIGHT_TABS.map(renderTab)}
     </div>
   );
 }

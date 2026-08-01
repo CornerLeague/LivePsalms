@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MobileTabBar } from './MobileTabBar';
 
@@ -38,6 +38,17 @@ describe('<MobileTabBar />', () => {
     fireEvent.click(launcher);
     expect(onReflections).toHaveBeenCalledTimes(1);
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('keeps the launcher OUT of the tablist so the tab widget stays well-formed', () => {
+    const { getByRole } = render(
+      <MobileTabBar active="notes" onSelect={() => {}} onReflections={() => {}} />,
+    );
+    const tablist = getByRole('tablist');
+    // The tablist owns exactly the four view-switching tabs — no stray controls.
+    expect(within(tablist).getAllByRole('tab')).toHaveLength(4);
+    // The Reflections launcher is a sibling of the tablist, never inside it.
+    expect(within(tablist).queryByRole('button', { name: /Reflections/ })).toBeNull();
   });
 
   it('never renders the lamplight connection dot in the bar (it moved to the header)', () => {
