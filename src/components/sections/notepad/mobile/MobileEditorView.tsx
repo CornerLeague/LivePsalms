@@ -2,7 +2,6 @@
 import { User } from 'lucide-react';
 import { NotepadEditor } from '../../../../notepad/components/Editor';
 import type { Note } from '../../../../notepad/types';
-import { useKeyboardInset } from './useKeyboardInset';
 import { MobileNewNoteFab } from './MobileNewNoteFab';
 import { ThemeToggle } from '@/notepad/theme/ThemeToggle';
 import { TourReplayButton } from '@/notepad/onboarding/TourReplayButton';
@@ -43,7 +42,6 @@ export function MobileEditorView({
   hasActiveNote,
   onNewNote,
 }: MobileEditorViewProps) {
-  const keyboardInset = useKeyboardInset();
   return (
     <div className="relative flex flex-col h-full min-h-0" style={{ background: 'var(--notepad-page-bg)' }}>
       <header
@@ -84,9 +82,12 @@ export function MobileEditorView({
       <div className="flex-1 min-h-0">
         <NotepadEditor
           onAfterSave={onAfterSave}
-          toolbarPlacement="bottom"
-          toolbarBottomOffset={keyboardInset}
-          showBottomDock={false}
+          // Toolbar rides at the top, directly under this view's header — keeping
+          // the mobile styling (compact, scrollable, portaled menus) but off the
+          // bottom edge, where it collided with the workspace tab bar's raised
+          // Reflections button.
+          toolbarPlacement="top"
+          mobile
         />
       </div>
       {!hasActiveNote && <MobileNewNoteFab onClick={onNewNote} />}

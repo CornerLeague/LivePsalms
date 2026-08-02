@@ -2,6 +2,18 @@
 import { expect } from 'vitest';
 import * as matchers from '@testing-library/jest-dom/matchers';
 
+// @supabase/realtime-js (pulled in transitively by src/lib/supabase.ts) resolves
+// a WebSocket constructor the instant the client is constructed, and throws on
+// Node < 22, where there's no global WebSocket — so merely importing the client
+// crashes node-environment suites. The app never opens a realtime channel; the
+// RealtimeClient exists only as a side effect of createClient and is never
+// connected, so a stub constructor that satisfies the factory's presence check
+// (it is never instantiated) is enough. Guarded so a genuine WebSocket — a
+// browser-like jsdom, or Node 22+ — always wins.
+if (typeof globalThis.WebSocket === 'undefined') {
+  Reflect.set(globalThis, 'WebSocket', class WebSocketStub {});
+}
+
 // Only extend matchers in jsdom environment
 if (typeof window !== 'undefined') {
   expect.extend(matchers);

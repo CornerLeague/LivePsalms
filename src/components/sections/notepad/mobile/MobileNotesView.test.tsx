@@ -6,6 +6,11 @@ import { ThemeContext, type ThemeContextValue } from '../../../../notepad/theme/
 vi.mock('../../../../notepad/components/Sidebar', () => ({
   NotepadSidebar: () => <div data-testid="sidebar" />,
 }));
+// Header ornament that reads OnboardingContext; irrelevant to these tests and
+// otherwise throws for want of an OnboardingProvider.
+vi.mock('@/notepad/onboarding/TourReplayButton', () => ({
+  TourReplayButton: () => null,
+}));
 import { MobileNotesView } from './MobileNotesView';
 
 afterEach(cleanup);

@@ -75,6 +75,9 @@ vi.mock('@/notepad/onboarding/OnboardingProvider', () => ({
   OnboardingProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/notepad/onboarding/OnboardingSurfaces', () => ({ OnboardingSurfaces: () => null }));
+// Header tour-replay button reads OnboardingContext; the provider above is a
+// pass-through stub (no context value), so render it inert here.
+vi.mock('@/notepad/onboarding/TourReplayButton', () => ({ TourReplayButton: () => null }));
 
 import { NotepadProvider } from '@/notepad/context/NotepadProvider';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';

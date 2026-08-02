@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import './waymarks.css';
 import { Stone } from './Stone';
 
@@ -8,6 +9,11 @@ const EXAMPLE_MONTHS = ['January', 'February', 'March'];
 export function WaymarksLockedPreview() {
   return (
     <div className="wm-root">
+      {/* This route hides the mobile nav dock, and the locked state has no other
+          chrome — so without this it's a dead end. Mirrors the ready index's
+          back link ("← Notebook" → the notebook workspace, which owns site nav
+          via NotesMenu). */}
+      <Link to=".." className="wm-back wm-label">← Notebook</Link>
       <div className="wm-locked">
         <p className="wm-label">Waymarks</p>
         <h1 className="wm-title wm-locked__title">A path made of the months you’ve kept</h1>

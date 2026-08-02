@@ -51,6 +51,13 @@ export interface NotepadEditorProps {
   /** When true (mobile editor routes), reserve room for the fixed MobileBottomDock:
    *  lift the sticky bottom toolbar above the dock and pad the content bottom. */
   showBottomDock?: boolean;
+  /** Mobile styling — compact toolbar buttons, a horizontally-scrollable bar,
+   *  portaled dropdowns, tap-to-preview verses, and the selection pill. This is
+   *  independent of whether the bar sits at the `top` or `bottom`; it defaults to
+   *  the bottom placement so existing mobile callers keep their styling, but a
+   *  `top`-placed bar can opt in (mobile journal editor) to move the accessory
+   *  bar off the bottom edge without losing the mobile affordances. */
+  mobile?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +82,7 @@ export function NotepadEditor({
   toolbarPlacement = 'top',
   toolbarBottomOffset = 0,
   showBottomDock = false,
+  mobile,
 }: NotepadEditorProps = {}) {
   const { notes, activeNote, collection } = useNoteCollection();
   const actions = useNotepadActions();
@@ -100,7 +108,11 @@ export function NotepadEditor({
   const { title, onTitleChange, flushTitle } = useNoteTitle({ activeNote, updateNote });
 
 
+  // Placement (top vs bottom edge) is orthogonal to mobile styling. `mobile`
+  // drives the compact/scrollable/portaled affordances; when unspecified it
+  // follows the bottom placement so existing callers are unchanged.
   const isBottomToolbar = toolbarPlacement === 'bottom';
+  const isMobile = mobile ?? isBottomToolbar;
 
   // Read-only decoration overlay state (style stickers placed over the note).
   const decorationsApi = useDecorations(activeNote, updateNote);
@@ -117,7 +129,7 @@ export function NotepadEditor({
   const selectedDecorationObj = selectedDecoration
     ? decorationsApi.decorations.find((x) => x.id === selectedDecoration) ?? null
     : null;
-  const showDecorationToolbar = isBottomToolbar && !!selectedDecorationObj;
+  const showDecorationToolbar = isMobile && !!selectedDecorationObj;
   const decorationLayerRef = useRef<DecorationLayerHandle>(null);
   // Monotonic ms (performance.now) of the last tap/click that established a
   // decoration selection. Used on mobile to swallow the trailing synthesized
@@ -168,7 +180,9 @@ export function NotepadEditor({
   // range). The view renders the pill + swatch from these snapshots.
   const { pillAnchor, swatchAnchor, dismiss: dismissSelectionAnchor } = useSelectionAnchor({
     editor,
-    isBottomToolbar,
+    // The hook's `isBottomToolbar` dep is really "mobile mode" (pill vs desktop
+    // swatch); drive it from isMobile so a top-placed mobile bar keeps the pill.
+    isBottomToolbar: isMobile,
   });
 
   // `[[` popup controller — owns trigger detection, anchor, search, insertion.
@@ -206,13 +220,21 @@ export function NotepadEditor({
   // Heading dropdown
   const [headingOpen, setHeadingOpen] = useState(false);
   const headingBtnRef = useRef<HTMLDivElement>(null);
-  const [headingCoords, setHeadingCoords] = useState<{ bottom: number; left: number }>({ bottom: 0, left: 0 });
+  const [headingCoords, setHeadingCoords] = useState<{ top: number; bottom: number; left: number }>(
+    { top: 0, bottom: 0, left: 0 },
+  );
 
   const openHeadingMenu = () => {
     if (!headingOpen && headingBtnRef.current) {
       const r = headingBtnRef.current.getBoundingClientRect();
-      // Anchor the menu's bottom 4px above the trigger (it opens upward on mobile).
-      setHeadingCoords({ bottom: window.innerHeight - r.top + 4, left: r.left });
+      // Both anchors are captured so the portaled mobile menu can open away from
+      // the bar: downward (`top`) for a top-placed bar, upward (`bottom`) for a
+      // bottom-placed one — each sits 4px clear of the trigger.
+      setHeadingCoords({
+        top: r.bottom + 4,
+        bottom: window.innerHeight - r.top + 4,
+        left: r.left,
+      });
     }
     setHeadingOpen((v) => !v);
   };
@@ -256,20 +278,27 @@ export function NotepadEditor({
       flexDirection: isBottomToolbar ? 'column-reverse' : 'column',
       height: '100%',
       position: 'relative',
-      ...(isBottomToolbar ? { width: '100%', minWidth: 0, maxWidth: '100%' } : {}),
+      // Clamp the column so the wide, horizontally-scrolling mobile toolbar can't
+      // push the writing pad past the viewport — a mobile-styling concern, so it
+      // applies to a top-placed mobile bar too, not just the bottom one.
+      ...(isMobile ? { width: '100%', minWidth: 0, maxWidth: '100%' } : {}),
     }}>
       {/* Fixed formatting toolbar */}
       {editor && !showDecorationToolbar && (
         <div
           data-toolbar-placement={toolbarPlacement}
-          className={`shrink-0 flex items-center gap-0.5 px-3${isBottomToolbar ? ' scrollbar-hide' : ''}`}
+          className={`shrink-0 flex items-center gap-0.5 px-3${isMobile ? ' scrollbar-hide' : ''}`}
           style={{
             height: 40,
             background: 'var(--notepad-bar-bg)',
             borderColor: 'var(--pale-stone)',
+            // Border sits on the edge facing the content: below a top bar, above a
+            // bottom bar (placement concern).
             borderBottom: isBottomToolbar ? 'none' : '1px solid var(--pale-stone)',
             borderTop: isBottomToolbar ? '1px solid var(--pale-stone)' : 'none',
             fontFamily: 'Outfit, sans-serif',
+            // Sticky pinning + the offset above the keyboard/dock only apply to a
+            // bottom-pinned bar; a top bar rides in normal flow under the header.
             position: isBottomToolbar ? 'sticky' : undefined,
             bottom: isBottomToolbar
               ? (showBottomDock
@@ -277,11 +306,12 @@ export function NotepadEditor({
                   : `${toolbarBottomOffset}px`)
               : undefined,
             zIndex: isBottomToolbar ? 20 : undefined,
-            minWidth: isBottomToolbar ? 0 : undefined,
-            overflowX: isBottomToolbar ? 'auto' : undefined,
+            // Horizontal-scroll affordances are mobile styling (either placement).
+            minWidth: isMobile ? 0 : undefined,
+            overflowX: isMobile ? 'auto' : undefined,
             // Setting only overflow-x forces computed overflow-y to 'auto' too, which lets
             // the toolbar scroll vertically and clip the icons. Pin it to horizontal-only.
-            overflowY: isBottomToolbar ? 'hidden' : undefined,
+            overflowY: isMobile ? 'hidden' : undefined,
           }}
         >
           {/* Undo / Redo */}
@@ -289,7 +319,7 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
             title="Undo"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <Undo2 size={15} />
           </ToolbarButton>
@@ -297,12 +327,12 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
             title="Redo"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <Redo2 size={15} />
           </ToolbarButton>
 
-          <ToolbarDivider mobile={isBottomToolbar} />
+          <ToolbarDivider mobile={isMobile} />
 
           {/* Heading dropdown */}
           <div className="relative" ref={headingBtnRef}>
@@ -310,7 +340,7 @@ export function NotepadEditor({
               onClick={openHeadingMenu}
               active={currentHeading !== 'H'}
               title="Heading"
-              mobile={isBottomToolbar}
+              mobile={isMobile}
             >
               <Heading size={15} />
               <span className="text-[9px] ml-0.5">{currentHeading !== 'H' ? currentHeading : ''}</span>
@@ -343,14 +373,19 @@ export function NotepadEditor({
                 </>
               );
 
-              if (isBottomToolbar) {
+              // On mobile the bar clips its overflow (horizontal scroll), so the
+              // menu is portaled to the body to escape it. It opens away from the
+              // bar: upward from a bottom bar, downward from a top bar.
+              if (isMobile) {
                 return createPortal(
                   <div
                     data-testid="heading-menu"
                     className="rounded-md shadow-lg py-1"
                     style={{
                       position: 'fixed',
-                      bottom: headingCoords.bottom,
+                      ...(isBottomToolbar
+                        ? { bottom: headingCoords.bottom }
+                        : { top: headingCoords.top }),
                       left: headingCoords.left,
                       background: 'var(--surface-elevated)',
                       border: '1px solid var(--pale-stone)',
@@ -381,7 +416,7 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             active={editor.isActive('bulletList')}
             title="Bullet List"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <List size={15} />
           </ToolbarButton>
@@ -389,7 +424,7 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             active={editor.isActive('orderedList')}
             title="Ordered List"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <ListOrdered size={15} />
           </ToolbarButton>
@@ -397,19 +432,19 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             active={editor.isActive('blockquote')}
             title="Blockquote"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <Quote size={15} />
           </ToolbarButton>
 
-          <ToolbarDivider mobile={isBottomToolbar} />
+          <ToolbarDivider mobile={isMobile} />
 
           {/* Inline formatting */}
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive('bold')}
             title="Bold"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <Bold size={15} />
           </ToolbarButton>
@@ -417,7 +452,7 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().toggleItalic().run()}
             active={editor.isActive('italic')}
             title="Italic"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <Italic size={15} />
           </ToolbarButton>
@@ -425,7 +460,7 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().toggleStrike().run()}
             active={editor.isActive('strike')}
             title="Strikethrough"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <Strikethrough size={15} />
           </ToolbarButton>
@@ -433,7 +468,7 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().toggleCode().run()}
             active={editor.isActive('code')}
             title="Inline Code"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <Code size={15} />
           </ToolbarButton>
@@ -441,22 +476,22 @@ export function NotepadEditor({
             onClick={() => editor.chain().focus().toggleUnderline().run()}
             active={editor.isActive('underline')}
             title="Underline"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <UnderlineIcon size={15} />
           </ToolbarButton>
-          <ToolbarButton onClick={() => setTrayOpen((v) => !v)} active={trayOpen} title="Decorate" mobile={isBottomToolbar} dataTour="highlight-toolbar">
+          <ToolbarButton onClick={() => setTrayOpen((v) => !v)} active={trayOpen} title="Decorate" mobile={isMobile} dataTour="highlight-toolbar">
             <Sparkles size={15} />
           </ToolbarButton>
 
-          <ToolbarDivider mobile={isBottomToolbar} />
+          <ToolbarDivider mobile={isMobile} />
 
           {/* Shared 3-level text-size control — same scale map as the Bible/Study reader. */}
           <ToolbarButton
             onClick={() => setLocalTextSize(nextTextSize(textSize))}
             title={`Text size: ${TEXT_SIZE_LABEL[textSize]} — click to change`}
             ariaLabel="Text size"
-            mobile={isBottomToolbar}
+            mobile={isMobile}
           >
             <span className="text-[11px] font-bold">{TEXT_SIZE_LABEL[textSize]}</span>
           </ToolbarButton>
@@ -485,8 +520,11 @@ export function NotepadEditor({
         style={{
           flex: 1,
           overflowY: 'auto',
-          overflowX: isBottomToolbar ? 'hidden' : undefined,
-          padding: isBottomToolbar ? '2rem 1.25rem' : '2rem 2.5rem',
+          // Tighter gutters + no horizontal scroll are mobile styling (either
+          // placement); the dock-clearance padding only applies to a bottom bar
+          // that reserves room for the fixed MobileBottomDock.
+          overflowX: isMobile ? 'hidden' : undefined,
+          padding: isMobile ? '2rem 1.25rem' : '2rem 2.5rem',
           ...(isBottomToolbar && showBottomDock
             ? { paddingBottom: 'var(--mobile-dock-clearance)' }
             : {}),
@@ -605,7 +643,7 @@ export function NotepadEditor({
               // (no dblclick/alt available). On a hit, short-circuit before the
               // deselect below; otherwise record the tap and fall through to the
               // normal single-tap flow (cursor placement, deselect, tooltip).
-              if (isBottomToolbar && isDoubleTap(e)) {
+              if (isMobile && isDoubleTap(e)) {
                 if (selectBehindDecoration(e)) {
                   lastTapRef.current = null;
                   return;
@@ -614,7 +652,7 @@ export function NotepadEditor({
               // A tap that just selected a decoration also fires a synthesized click here
               // (the island is now pointerEvents:none). Swallow that one trailing click on
               // mobile so it can't immediately clear the selection we just made.
-              if (isBottomToolbar && performance.now() - justSelectedAtRef.current < 400) {
+              if (isMobile && performance.now() - justSelectedAtRef.current < 400) {
                 justSelectedAtRef.current = 0; // consume: only the immediate trailing click
                 return;
               }
@@ -624,10 +662,10 @@ export function NotepadEditor({
               // Clicks on a decoration hit its pointerEvents:auto island instead and
               // never reach this handler, so this only fires for genuine editor clicks.
               setSelectedDecoration(null);
-              // On mobile (bottom toolbar) there is no hover; a tap shows/dismisses
-              // the verse tooltip. handleMouseOver reads e.target.closest(...) so a
-              // click event drives it correctly and clears it when tapping off a verse.
-              if (isBottomToolbar) handleMouseOver(e);
+              // On mobile there is no hover; a tap shows/dismisses the verse
+              // tooltip. handleMouseOver reads e.target.closest(...) so a click
+              // event drives it correctly and clears it when tapping off a verse.
+              if (isMobile) handleMouseOver(e);
             }}
             // Double-click over a behind-text decoration selects it too (instead of
             // selecting a word), so it is reachable without holding a modifier key.
@@ -652,7 +690,7 @@ export function NotepadEditor({
             key={activeNote.id}
             ref={decorationLayerRef}
             decorations={decorationsApi.decorations}
-            mobile={isBottomToolbar}
+            mobile={isMobile}
             selectedId={selectedDecoration}
             onSelect={(id) => { setSelectedDecoration(id); justSelectedAtRef.current = performance.now(); }}
             onDeselect={() => { setSelectedDecoration(null); editor?.commands.focus(); }}
@@ -824,7 +862,7 @@ export function NotepadEditor({
         />
       )}
 
-      {editor && isBottomToolbar && pillAnchor && (
+      {editor && isMobile && pillAnchor && (
         <HighlightPill
           assets={STYLE_ASSETS}
           anchor={pillAnchor}

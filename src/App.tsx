@@ -29,7 +29,6 @@ import { ThemeProvider } from '@/notepad/theme/ThemeProvider';
 import { BiblePrefsProvider } from '@/notepad/bible/prefs/BiblePrefsProvider';
 import { RecordingsAudioProvider } from '@/notepad/recordings/audio-context';
 import { NotepadCompatRedirect } from '@/routing/NotepadCompatRedirect';
-import { isNotesWorkspaceIndexPath, isStudyWorkspacePath } from '@/routing/notes-route';
 import './App.css';
 
 // ── Route-level code splitting ───────────────────────────────────────────────
@@ -198,21 +197,20 @@ function App() {
   const hideFooter = isDetailPage || isNotepadAny || isLoginPage || isProfilePage || isWelcomePage || isUpdatePasswordPage || isCommunityPage || isContactPage || isLegalPage;
   // Header + wrapper chrome stay off the notepad editor family (unchanged).
   const dockMounted = !isNotepadEditor && !isLoginPage && !isProfilePage && !isWelcomePage && !isUpdatePasswordPage;
-  // The mobile bottom dock ALSO shows on the notepad editor family (study + journal
-  // + waymarks) so users keep a way to navigate. isAppShell / the scroll lock are
-  // intentionally left unchanged.
-  // The mobile bottom dock shows across the notepad editor family (waymarks)
-  // so users keep a way to navigate — EXCEPT the two workspaces that own the
-  // bottom edge themselves: the notes index (where the relocated NotesMenu
-  // hamburger took over site nav) and Study (whose StudyTabBar the dock floats
-  // on top of). Both suppress the dock to remove the tab-bar/pill collision.
+  // The mobile bottom dock is suppressed across the ENTIRE notepad editor family
+  // (`/notebook/notes` + `/notebook/u/:username` and every child — notes index,
+  // Study, and Waymarks/reflections) so the floating MENU pill never appears once
+  // the reader is inside the notebook. Each of those surfaces owns its own bottom
+  // edge or in-page navigation (the notes/study tab bars, the relocated NotesMenu
+  // hamburger, and the Waymarks "← Notebook" back link), so no site nav is lost.
+  // The `/notebook` landing keeps the dock. This now mirrors the desktop
+  // `dockMounted` gate above. isAppShell / the scroll lock are left unchanged.
   const mobileDockMounted =
+    !isNotepadEditor &&
     !isLoginPage &&
     !isProfilePage &&
     !isWelcomePage &&
-    !isUpdatePasswordPage &&
-    !isNotesWorkspaceIndexPath(location.pathname) &&
-    !isStudyWorkspacePath(location.pathname);
+    !isUpdatePasswordPage;
 
   useAppShellLock(isAppShell);
 
