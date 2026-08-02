@@ -33,7 +33,11 @@ describe('WaymarksReflections downgrade (lapsed Plus keeps the path)', () => {
 
 describe('WaymarksLockedPreview is an invitation, not a paywall', () => {
   it('shows no numbers and no paywall vocabulary', () => {
-    const { container } = render(<WaymarksLockedPreview />);
+    const { container } = render(
+      <MemoryRouter>
+        <WaymarksLockedPreview />
+      </MemoryRouter>,
+    );
     expect(container.textContent ?? '').not.toMatch(/\d/);
     expect(container.textContent ?? '').not.toMatch(/unlock|upgrade to|paywall|\$/i);
   });
