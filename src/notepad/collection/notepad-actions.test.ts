@@ -242,6 +242,9 @@ describe('NotepadActions', () => {
 
     it('does NOT call notes.updateNote when repairNoteLinks returns no rewires', async () => {
       seedNote(adapter, 'n1', 'root');
+      // A genuine user folder makes the one-time type-folder backfill back off,
+      // so the only updateNote calls in scope are the repair pass's (here: none).
+      seedFolder(adapter, 'f1');
 
       vi.spyOn(referenceGraph, 'repairNoteLinks').mockReturnValue({
         rewires: [], rewiredLinks: 0, orphans: 0,
@@ -258,6 +261,9 @@ describe('NotepadActions', () => {
     it('persists each rewire through notes.updateNote when repairNoteLinks returns rewires', async () => {
       seedNote(adapter, 'n1', 'root');
       seedNote(adapter, 'n2', 'root');
+      // A genuine user folder makes the one-time type-folder backfill back off,
+      // isolating the two rewire-driven updateNote calls asserted below.
+      seedFolder(adapter, 'f1');
 
       vi.spyOn(referenceGraph, 'repairNoteLinks').mockReturnValue({
         rewires: [
