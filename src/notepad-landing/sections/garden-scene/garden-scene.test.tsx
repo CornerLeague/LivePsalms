@@ -60,9 +60,9 @@ describe('<GardenScene /> — PRM mode (prm=true)', () => {
     expect(screen.getByRole('heading', { name: /psalm 119 calls the word a lamp to your feet/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /we make taking notes effortless/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /your notes share connections just like the scriptures share connections\./i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /open any passage\. study it with your own notes in hand/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /your own biblical ai to help you in your walk/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /a page that actually looks like yours/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /your work counts/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /capture the room, not just your writing/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /your personal journey\. your prayer life\. your intimate walk with god\./i })).toBeInTheDocument();
   });
 });
