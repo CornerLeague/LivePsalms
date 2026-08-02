@@ -4,11 +4,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ThemeContext, type ThemeContextValue } from '../../../../notepad/theme/theme-context';
 
 vi.mock('../../../../notepad/components/Editor', () => ({
-  NotepadEditor: (props: { toolbarPlacement?: string }) => (
-    <div data-testid="editor" data-placement={props.toolbarPlacement} />
+  NotepadEditor: (props: { toolbarPlacement?: string; mobile?: boolean }) => (
+    <div data-testid="editor" data-placement={props.toolbarPlacement} data-mobile={String(!!props.mobile)} />
   ),
 }));
-vi.mock('./useKeyboardInset', () => ({ useKeyboardInset: () => 0 }));
+// Header ornament that reads OnboardingContext; irrelevant to these tests and
+// otherwise throws for want of an OnboardingProvider.
+vi.mock('@/notepad/onboarding/TourReplayButton', () => ({
+  TourReplayButton: () => null,
+}));
 import { MobileEditorView } from './MobileEditorView';
 
 afterEach(cleanup);
@@ -16,13 +20,16 @@ afterEach(cleanup);
 const themeValue: ThemeContextValue = { theme: 'system', resolvedTheme: 'light', setTheme: vi.fn() };
 
 describe('<MobileEditorView />', () => {
-  it('renders the editor with bottom toolbar placement', () => {
+  it('renders the editor with a top-placed toolbar in mobile styling', () => {
     render(
       <ThemeContext.Provider value={themeValue}>
         <MobileEditorView onExit={vi.fn()} hasActiveNote onNewNote={vi.fn()} />
       </ThemeContext.Provider>,
     );
-    expect(screen.getByTestId('editor').getAttribute('data-placement')).toBe('bottom');
+    // Toolbar moved off the bottom edge (where it collided with the tab bar's
+    // raised Reflections button) but keeps the mobile affordances.
+    expect(screen.getByTestId('editor').getAttribute('data-placement')).toBe('top');
+    expect(screen.getByTestId('editor').getAttribute('data-mobile')).toBe('true');
   });
 
   it('does not render a Note details button (removed as redundant with the More tab)', () => {
