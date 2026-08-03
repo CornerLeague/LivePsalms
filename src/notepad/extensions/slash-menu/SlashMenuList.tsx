@@ -29,17 +29,18 @@ export interface SlashMenuListProps {
   onSelect: (command: SlashCommand) => void;
   /** Show group headers (only when browsing the full, unfiltered list). */
   grouped: boolean;
-  /** Presentation: floating popover (desktop) or bottom sheet (mobile). */
-  variant?: 'popover' | 'sheet';
+  /** Larger tap targets for touch. Always a caret-anchored popover either way. */
+  mobile?: boolean;
 }
 
-export function SlashMenuList({ items, selectedIndex, onSelect, grouped, variant = 'popover' }: SlashMenuListProps) {
+export function SlashMenuList({ items, selectedIndex, onSelect, grouped, mobile = false }: SlashMenuListProps) {
+  const cls = `slash-menu slash-menu--popover${mobile ? ' slash-menu--mobile' : ''}`;
   if (items.length === 0) {
-    return <div className={`slash-menu slash-menu--${variant} slash-menu--empty`}>No matching commands</div>;
+    return <div className={`${cls} slash-menu--empty`}>No matching commands</div>;
   }
 
   return (
-    <div className={`slash-menu slash-menu--${variant}`} role="listbox" aria-label="Formatting commands">
+    <div className={cls} role="listbox" aria-label="Formatting commands">
       {items.map((command, i) => {
         const Icon = ICONS[command.icon] ?? Minus;
         // Header when this row starts a new group (compare to the previous
@@ -53,9 +54,10 @@ export function SlashMenuList({ items, selectedIndex, onSelect, grouped, variant
               role="option"
               aria-selected={i === selectedIndex}
               className={`slash-menu__row${i === selectedIndex ? ' is-selected' : ''}`}
-              // onMouseDown (not onClick) so selecting fires before the editor's
-              // blur/selection teardown races the popup unmount.
-              onMouseDown={(e) => { e.preventDefault(); onSelect(command); }}
+              // pointerdown (not click/mousedown) so selecting fires on touch AND
+              // mouse, before the editor's blur/selection teardown races the
+              // popup unmount. preventDefault keeps the editor focused.
+              onPointerDown={(e) => { e.preventDefault(); onSelect(command); }}
               tabIndex={-1}
             >
               <span className="slash-menu__icon" aria-hidden="true"><Icon size={16} /></span>
