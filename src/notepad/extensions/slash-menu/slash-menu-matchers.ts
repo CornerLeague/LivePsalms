@@ -2,6 +2,7 @@
 // text-before-cursor within a single block, exactly like the scripture
 // matchers (scripture-ref-matchers.ts) — the Node adapts these offsets into
 // ProseMirror doc positions in findSuggestionMatch.
+import { matchVersePickerBeforeCursor, matchLookupPickerBeforeCursor } from '../scripture-ref-matchers';
 
 export interface SlashTextMatch {
   /** Offset of the leading "/" in the supplied string. */
@@ -18,24 +19,26 @@ export interface SlashTextMatch {
 // URLs like "http://x" and a second slash from matching.
 const SLASH_AT_END = /(?:^|\s)(\/[^/]*)$/;
 
-// Queries owned by ScriptureRef's shipped pickers. The launcher stands down for
-// these so "/verse …" and "/lookup …" route to their dedicated typeaheads,
-// mirroring how scripture-ref-matchers require the exact keyword + boundary
-// (so "/versed" / "/lookupx" are NOT ceded and stay in the launcher).
-const SCRIPTURE_CEDE = /^(?:verse|lookup)(?:\s|$)/i;
-
 /**
  * Returns the launcher match anchored at the end of `textBeforeCursor`, or
- * null. Null when there's no slash at a word boundary, or when the query is a
- * scripture command (ceded to ScriptureRef).
+ * null. Null when there's no slash at a word boundary, or while a ScriptureRef
+ * command owns the line.
  */
 export function matchSlashBeforeCursor(textBeforeCursor: string): SlashTextMatch | null {
+  // Stand down whenever ScriptureRef's "/verse …" or "/lookup …" picker is
+  // active — deferring to *its* matchers (not just inspecting our own trailing
+  // slash-run) so a stray whitespace-delimited slash mid-query, e.g.
+  // "/verse John /", cedes instead of opening the launcher on top of the verse
+  // picker. This keeps the two from ever sharing the screen, and "/versed" /
+  // "/lookupx" (which those matchers reject) still fall through to the launcher.
+  if (matchVersePickerBeforeCursor(textBeforeCursor) || matchLookupPickerBeforeCursor(textBeforeCursor)) {
+    return null;
+  }
+
   const m = SLASH_AT_END.exec(textBeforeCursor);
   if (!m) return null;
   const full = m[1]; // "/..." including the leading slash
-  const query = full.slice(1);
-  if (SCRIPTURE_CEDE.test(query)) return null;
   const to = textBeforeCursor.length;
   const from = to - full.length;
-  return { from, to, query };
+  return { from, to, query: full.slice(1) };
 }

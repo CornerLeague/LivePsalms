@@ -46,4 +46,15 @@ describe('matchSlashBeforeCursor', () => {
     expect(matchSlashBeforeCursor('/versed')).toEqual({ from: 0, to: 7, query: 'versed' });
     expect(matchSlashBeforeCursor('/lookupx')).toEqual({ from: 0, to: 8, query: 'lookupx' });
   });
+
+  it('cedes a stray slash typed inside an active scripture query', () => {
+    // The scripture picker still owns the line ("/verse …" swallows a later
+    // whitespace-delimited slash), so the launcher must NOT fire on that
+    // trailing slash — otherwise both dropdowns fight for the keyboard.
+    expect(matchSlashBeforeCursor('/verse /')).toBeNull();
+    expect(matchSlashBeforeCursor('/verse John /')).toBeNull();
+    expect(matchSlashBeforeCursor('/lookup love /')).toBeNull();
+    // Sanity: a bare trailing slash with no scripture command still opens it.
+    expect(matchSlashBeforeCursor('John 3:16 /')).toEqual({ from: 10, to: 11, query: '' });
+  });
 });
