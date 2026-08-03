@@ -1825,9 +1825,27 @@ img {
   opacity: 0.8;
 }
 
+/* Tailwind's preflight strips list markers globally (list-style: none), so
+   restore them here — without this, toggling a bullet/numbered list changes
+   the document but renders nothing visible. */
 .notepad-editor .tiptap ul,
 .notepad-editor .tiptap ol {
-  padding-left: 1.25rem;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.notepad-editor .tiptap ul { list-style: disc; }
+.notepad-editor .tiptap ul ul { list-style: circle; }
+.notepad-editor .tiptap ol { list-style: decimal; }
+
+.notepad-editor .tiptap li::marker {
+  color: var(--silica);
+}
+
+/* List items hold full <p> blocks; the paragraph bottom margin would read as
+   double spacing between items. */
+.notepad-editor .tiptap li > p {
+  margin-bottom: 0.25rem;
 }
 
 .notepad-editor .tiptap p {

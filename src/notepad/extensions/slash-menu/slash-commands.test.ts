@@ -4,38 +4,38 @@ import { createSlashCommands, filterSlashCommands, type SlashCommand } from './s
 // The list under test is the real production registry. Runs are never invoked
 // here (this suite covers only the pure filter + registry shape); the editor
 // tests in slash-menu.editor.test.ts exercise the `run` closures end-to-end.
-const ALL: SlashCommand[] = createSlashCommands({ defaultSwatchId: 'highlight-01' });
+const ALL: SlashCommand[] = createSlashCommands();
 
 const ids = (list: SlashCommand[]): string[] => list.map((c) => c.id);
 
 describe('createSlashCommands', () => {
-  it('builds the v1 registry in group order: basic → style → scripture', () => {
+  it('builds the registry in group order: basic → scripture', () => {
     const groups = ALL.map((c) => c.group);
-    const firstStyle = groups.indexOf('style');
     const firstScripture = groups.indexOf('scripture');
     const lastBasic = groups.lastIndexOf('basic');
-    expect(lastBasic).toBeLessThan(firstStyle);
-    expect(firstStyle).toBeLessThan(firstScripture);
+    expect(lastBasic).toBeLessThan(firstScripture);
   });
 
-  it('includes the core block, mark, style and scripture commands', () => {
+  it('includes the core block, mark and scripture commands — and no style entries', () => {
     const set = new Set(ids(ALL));
     for (const id of [
       'heading-1', 'heading-2', 'heading-3',
       'bullet-list', 'numbered-list', 'quote', 'divider',
       'bold', 'italic', 'underline',
-      'highlight',
       'insert-verse', 'lookup-verse',
     ]) {
       expect(set.has(id)).toBe(true);
     }
+    // The Notes Styles live in the Decorate tray + toolbar, not the launcher.
+    expect(set.has('highlight')).toBe(false);
+    expect(set.has('more-styles')).toBe(false);
   });
 
   it('gives every command a stable id, a title, a group and a run fn', () => {
     for (const c of ALL) {
       expect(c.id).toMatch(/^[a-z0-9-]+$/);
       expect(c.title.length).toBeGreaterThan(0);
-      expect(['basic', 'style', 'scripture']).toContain(c.group);
+      expect(['basic', 'scripture']).toContain(c.group);
       expect(typeof c.run).toBe('function');
     }
   });
@@ -66,8 +66,8 @@ describe('filterSlashCommands', () => {
     expect(ids(filterSlashCommands(ALL, 'bul'))).toEqual(['bullet-list']);
   });
 
-  it('is case-insensitive ("HIGH" → Highlight)', () => {
-    expect(ids(filterSlashCommands(ALL, 'HIGH'))).toEqual(['highlight']);
+  it('is case-insensitive ("QUO" → Quote)', () => {
+    expect(ids(filterSlashCommands(ALL, 'QUO'))).toEqual(['quote']);
   });
 
   it('ranks a title-prefix hit above a keyword-only hit', () => {

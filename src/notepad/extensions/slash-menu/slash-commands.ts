@@ -9,7 +9,7 @@ import { type Editor } from '@tiptap/core';
 // shipped matchers take over (see scripture-ref.ts). The launcher is a front
 // door, not a rebuild.
 
-export type SlashGroup = 'basic' | 'style' | 'scripture';
+export type SlashGroup = 'basic' | 'scripture';
 
 export interface SlashRunContext {
   editor: Editor;
@@ -31,13 +31,6 @@ export interface SlashCommand {
   run: (ctx: SlashRunContext) => void;
 }
 
-export interface SlashCommandDeps {
-  /** The swatch a bare "Highlight" applies; null when no style assets exist. */
-  defaultSwatchId: string | null;
-  /** Opens the full Notes Styles swatch picker (wired by the Editor host). */
-  openStylePicker?: () => void;
-}
-
 // A block/mark command: delete the "/query" then toggle. Focus first so the
 // selection is live when the toggle runs.
 const block =
@@ -46,9 +39,7 @@ const block =
     fn(editor.chain().focus().deleteRange(range)).run();
   };
 
-export function createSlashCommands(deps: SlashCommandDeps): SlashCommand[] {
-  const { defaultSwatchId } = deps;
-
+export function createSlashCommands(): SlashCommand[] {
   const commands: SlashCommand[] = [
     // ── Basic — block & mark formatting ─────────────────────────────────
     {
@@ -102,20 +93,6 @@ export function createSlashCommands(deps: SlashCommandDeps): SlashCommand[] {
       run: block((c) => c.toggleUnderline()),
     },
 
-    // ── Style — the hand-drawn Notes Styles (applied as a mark) ──────────
-    {
-      id: 'highlight', title: 'Highlight', hint: 'Hand-drawn emphasis — styles what you type next',
-      group: 'style', icon: 'Highlighter', keywords: ['style', 'mark', 'marker', 'emphasis'],
-      run: ({ editor, range }) => {
-        const chain = editor.chain().focus().deleteRange(range);
-        // With a collapsed selection this sets a stored mark, so the next typed
-        // text is highlighted (the agreed "style-forward" behavior). With a
-        // selection it marks the selection. Routed through the extension command
-        // so lastSwatchId + the onboarding event stay consistent.
-        if (defaultSwatchId) chain.setStyleHighlight(defaultSwatchId).run();
-        else chain.run();
-      },
-    },
     // ── Scripture — bridge to the shipped pickers ───────────────────────
     {
       id: 'insert-verse', title: 'Insert verse', hint: 'Pick a book & verse',
@@ -132,24 +109,6 @@ export function createSlashCommands(deps: SlashCommandDeps): SlashCommand[] {
       },
     },
   ];
-
-  // "More styles…" opens the full Notes Styles swatch picker — only surfaced
-  // when the host wires an opener, so the menu never shows a dead entry. It's
-  // inserted right after "Highlight" (the last 'style' command) to keep the
-  // Style group contiguous.
-  if (deps.openStylePicker) {
-    const openStylePicker = deps.openStylePicker;
-    const insertAt = commands.findIndex((c) => c.id === 'highlight') + 1;
-    commands.splice(insertAt, 0, {
-      id: 'more-styles', title: 'More styles…', hint: 'Circle, arrow, bracket, squiggle…',
-      group: 'style', icon: 'Palette',
-      keywords: ['style', 'shape', 'arrow', 'circle', 'bubble', 'squiggle', 'decorate'],
-      run: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).run();
-        openStylePicker();
-      },
-    });
-  }
 
   return commands;
 }
