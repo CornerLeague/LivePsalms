@@ -7,6 +7,9 @@ import { NoteLink } from '../extensions/note-link';
 import { TagMark } from '../extensions/tag-mark';
 import { StyleHighlight } from '../extensions/style-highlight';
 import { ScriptureRef } from '../extensions/scripture-ref';
+import { SlashMenu } from '../extensions/slash-menu/slash-menu';
+import { createSlashCommands } from '../extensions/slash-menu/slash-commands';
+import { getWorkspaceControls } from '../onboarding/tour/workspace-controller';
 import { createBrowserVerseSearchDeps } from '../bible/verse-search-client';
 import { type BibleTranslation, DEFAULT_TRANSLATION } from '../bible/translations';
 import { STYLE_ASSETS, filterAssets } from '../styles/manifest';
@@ -66,12 +69,23 @@ export function useNoteEditor({
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: 'Start writing...' }),
+      Placeholder.configure({ placeholder: 'Start writing, or press "/" for commands…' }),
       BibleVerse,
       ScriptureRef.configure({ search: createBrowserVerseSearchDeps(undefined, translation), translation }),
       NoteLink,
       TagMark,
       StyleHighlight.configure({ defaultSwatchId: defaultHighlightSwatchId }),
+      // The unified "/" command launcher. Its registry is built once at mount.
+      // "More styles…" opens the shared Notes Styles tray via the workspace-
+      // controls registry (the same seam the Decorate button and tour use), so
+      // slash-commands.ts stays framework-free. Scripture entries bridge to
+      // ScriptureRef's pickers.
+      SlashMenu.configure({
+        commands: createSlashCommands({
+          defaultSwatchId: defaultHighlightSwatchId,
+          openStylePicker: () => getWorkspaceControls().openDecorationTray?.(true),
+        }),
+      }),
     ],
     content: '',
     onUpdate({ editor: ed }) {

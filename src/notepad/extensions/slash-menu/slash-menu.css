@@ -1,0 +1,213 @@
+/* The unified "/" command launcher. Reuses the floating-panel vocabulary of
+   the /verse dropdown (scripture-ref.css): translucent surface, hairline
+   border, soft shadow, Outfit type, gold selection. Portaled to document.body
+   by slash-menu-renderer, so styles live here and load with SlashMenuList.
+
+   THEME-AWARE: the notepad themes via html[data-theme='…'] (graphite = dark,
+   ivory-sand/oat-milk/… = light), NOT a .dark class. Every surface + ink color
+   is a theme variable (--surface-elevated, --deep-umber, --charred, --silica,
+   --pale-stone, --lamplight-accent), so the menu adapts to all ten themes with
+   no per-theme overrides. Only the gold accent tints are literal (gold reads on
+   both light and dark surfaces). */
+
+.slash-menu {
+  --sm-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  box-sizing: border-box;
+  font-family: 'Outfit', sans-serif;
+  color: var(--deep-umber);
+  background: var(--surface-elevated);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--pale-stone);
+}
+
+/* ── Desktop: floating popover anchored at the caret ──────────────────── */
+.slash-menu--popover {
+  min-width: 268px;
+  max-width: 340px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 5px;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(58, 52, 38, 0.22);
+  transform-origin: top left;
+  animation: slash-menu-in 180ms var(--sm-ease-out);
+}
+
+@keyframes slash-menu-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.slash-menu::-webkit-scrollbar { width: 9px; }
+.slash-menu::-webkit-scrollbar-thumb {
+  background: rgba(var(--deep-umber-rgb), 0.22);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.slash-menu::-webkit-scrollbar-thumb:hover { background: rgba(var(--deep-umber-rgb), 0.34); }
+
+/* ── Group header ─────────────────────────────────────────────────────── */
+.slash-menu__group {
+  padding: 8px 10px 4px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--silica);
+}
+
+/* ── Row ──────────────────────────────────────────────────────────────── */
+.slash-menu__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  scroll-margin: 6px;
+  transition: background-color 120ms ease;
+}
+
+/* Selected + hover both use the gold accent tint — reads on any theme surface. */
+.slash-menu__row.is-selected { background: rgba(184, 132, 58, 0.16); }
+
+@media (hover: hover) and (pointer: fine) {
+  .slash-menu__row:hover { background: rgba(184, 132, 58, 0.1); }
+  .slash-menu__row.is-selected:hover { background: rgba(184, 132, 58, 0.22); }
+}
+
+.slash-menu__row:active { background: rgba(184, 132, 58, 0.24); }
+
+.slash-menu__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: rgba(184, 132, 58, 0.14);
+  color: var(--lamplight-accent);
+}
+
+.slash-menu__labels {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.slash-menu__title {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--charred);
+}
+
+.slash-menu__hint {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--silica);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slash-menu--empty {
+  min-width: 220px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-style: italic;
+  text-align: center;
+  color: var(--silica);
+  box-shadow: 0 6px 24px rgba(58, 52, 38, 0.22);
+}
+
+/* ── Mobile: bottom sheet ─────────────────────────────────────────────── */
+.slash-menu--sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-height: 56vh;
+  overflow-y: auto;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28);
+  animation: slash-sheet-in 220ms var(--sm-ease-out);
+}
+
+.slash-menu--sheet .slash-menu__row { padding: 12px 12px; }
+.slash-menu--sheet .slash-menu__icon { width: 36px; height: 36px; }
+.slash-menu--sheet .slash-menu__title { font-size: 0.95rem; }
+.slash-menu--sheet .slash-menu__hint { font-size: 0.78rem; }
+
+@keyframes slash-sheet-in {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Empty-line "+" opener ────────────────────────────────────────────── */
+.slash-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  margin-left: -1.9em;
+  vertical-align: -0.35em;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--silica);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1em;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.slash-plus:hover {
+  background: rgba(184, 132, 58, 0.16);
+  color: var(--lamplight-accent);
+}
+
+/* Desktop: keep the gutter quiet — reveal only when the editor is hovered.
+   Declared BEFORE the mobile rule so that at a narrow desktop window (where both
+   this and the breakpoint rule match) the mobile "always-visible" wins by order. */
+@media (hover: hover) and (pointer: fine) {
+  .slash-plus { opacity: 0; }
+  .ProseMirror:hover .slash-plus { opacity: 0.55; }
+  .slash-plus:hover { opacity: 1; }
+}
+
+/* Mobile-forward: always offer the affordance on touch OR at the mobile
+   breakpoint (same 767px seam the bottom sheet uses), so the "+" and the sheet
+   activate together on phones. The desktop gutter offset (-1.9em) would push it
+   off the screen edge on mobile (no left padding there), so it sits inline at
+   the line start instead. */
+@media (hover: none), (max-width: 767px) {
+  .slash-plus {
+    opacity: 0.6;
+    margin-left: -0.3em;
+    margin-right: 0.25em;
+  }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .slash-menu--popover, .slash-menu--sheet { animation: slash-menu-fade 140ms ease; }
+}
+
+@keyframes slash-menu-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
