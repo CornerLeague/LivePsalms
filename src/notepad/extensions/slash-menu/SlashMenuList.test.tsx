@@ -72,6 +72,16 @@ describe('SlashMenuList touch selection', () => {
     expect(onSelect.mock.calls[0][0].id).toBe('quote');
   });
 
+  it('non-primary presses (right/middle click) never select', () => {
+    const { onSelect, row } = renderList();
+    fireEvent.pointerDown(row('Quote'), { ...mouse(), button: 2 });
+    fireEvent.pointerDown(row('Quote'), { ...mouse(), button: 1 });
+    // A pen barrel-button press must not arm a tap either.
+    fireEvent.pointerDown(row('Quote'), { ...touch(), button: 5 });
+    fireEvent.pointerUp(row('Quote'), touch());
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it('any press inside the menu cancels the default (keeps the editor focused)', () => {
     const { row } = renderList();
     const down = new window.PointerEvent('pointerdown', touch());

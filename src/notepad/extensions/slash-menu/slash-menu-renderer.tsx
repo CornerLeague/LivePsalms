@@ -90,6 +90,14 @@ export function renderSlashMenu() {
     const maxh = Math.max(64, Math.min(Math.max(160, Math.round(avail)), visH - 16));
     el.style.setProperty('--slash-menu-maxh', `${maxh}px`);
 
+    // Width cap: a pinch-zoomed visual viewport can be narrower than the
+    // panel's CSS min-width (and the mobile rules' vw terms track the LAYOUT
+    // viewport, so zoom breaks them too). The stylesheet folds this cap into
+    // every min()/max-width, so min-width can never beat the visible strip and
+    // strand the panel's right edge off screen.
+    const visW = vis.right - vis.left;
+    el.style.setProperty('--slash-menu-maxw', `${Math.max(64, Math.round(visW - 16))}px`);
+
     const menuH = panel?.offsetHeight || 300;
     const menuW = panel?.offsetWidth || 300;
 
