@@ -73,13 +73,34 @@ function plusPosFromEvent(event: Event): number | null {
 
 export function slashPlusPlugin(editor: Editor): Plugin {
   // Commit on a genuine TAP (primary-button press → release in ~the same spot),
-  // not eagerly on the press. Acting on pointerdown would hijack a scroll that
-  // begins on the "+" (and block it) and fire on secondary mouse buttons.
+  // not eagerly on the press. Acting on pointerdown would fire on secondary
+  // mouse buttons and turn a scroll that starts on the "+" into an open.
   // Tracked per pointerId, so two quick presses on different lines never collide
   // (no plugin-wide dedup). Pointer events cover mouse, touch and pen on every
   // browser since ~2019; a mouse fallback covers older webviews (registered
   // exclusively, so the two never double-fire).
   const pressStarts = new Map<number, { pos: number; x: number; y: number }>();
+
+  // Belt and braces for engines that replay a synthesized mousedown/mouseup/
+  // click even though the pointerdown was canceled: anything mouse-ish that
+  // arrives right after a committed tap, at the tap point, is the replay of
+  // the tap itself — swallow it so ProseMirror never treats it as a fresh
+  // press (which would move the caret and dismiss the launcher). Scoped tight
+  // (600ms, 32px) so a genuine quick follow-up press elsewhere is untouched.
+  const SWALLOW_MS = 600;
+  const SWALLOW_PX = 32;
+  let lastCommit: { x: number; y: number; until: number } | null = null;
+
+  const swallowCompatMouse = (event: MouseEvent): boolean => {
+    if (!lastCommit) return false;
+    if (performance.now() > lastCommit.until) { lastCommit = null; return false; }
+    if (
+      Math.abs(event.clientX - lastCommit.x) > SWALLOW_PX ||
+      Math.abs(event.clientY - lastCommit.y) > SWALLOW_PX
+    ) return false;
+    event.preventDefault();
+    return true; // handled — ProseMirror must not run its press behavior
+  };
 
   const onDown = (event: MouseEvent): boolean => {
     if (event.button !== 0) return false; // primary button only
@@ -87,7 +108,15 @@ export function slashPlusPlugin(editor: Editor): Plugin {
     if (pos == null) return false;
     const id = (event as PointerEvent).pointerId ?? -1;
     pressStarts.set(id, { pos, x: event.clientX, y: event.clientY });
-    // Do NOT preventDefault — let a scroll begin normally; we only commit on up.
+    // Cancel the press's default actions. For a touch pointerdown that
+    // suppresses the compatibility mouse sequence (mousedown/mouseup/click)
+    // the browser replays at the tap point after release — which used to
+    // arrive AFTER openLauncherAt ran, hand ProseMirror a stray press, yank
+    // the caret off the fresh "/", and close the launcher the instant it
+    // opened. Panning is NOT affected: scrolling is governed by touch-action,
+    // not by canceling pointerdown, so a scroll that starts on the "+" still
+    // scrolls (and the slop check below keeps it from committing).
+    event.preventDefault();
     return false;
   };
 
@@ -103,7 +132,9 @@ export function slashPlusPlugin(editor: Editor): Plugin {
     const moved =
       Math.abs(event.clientX - start.x) > TAP_SLOP || Math.abs(event.clientY - start.y) > TAP_SLOP;
     if (moved) return false; // it was a scroll/drag, not a tap
-    event.preventDefault(); // suppress the trailing click on the widget
+    event.preventDefault();
+    // Arm the compat-mouse swallow (below) BEFORE opening, then open.
+    lastCommit = { x: event.clientX, y: event.clientY, until: performance.now() + SWALLOW_MS };
     openLauncherAt(editor, start.pos);
     return true;
   };
@@ -117,6 +148,9 @@ export function slashPlusPlugin(editor: Editor): Plugin {
           pressStarts.delete(event.pointerId);
           return false;
         },
+        mousedown: (_view: unknown, event: MouseEvent) => swallowCompatMouse(event),
+        mouseup: (_view: unknown, event: MouseEvent) => swallowCompatMouse(event),
+        click: (_view: unknown, event: MouseEvent) => swallowCompatMouse(event),
       }
     : {
         mousedown: (_view: unknown, event: MouseEvent) => onDown(event),

@@ -19,6 +19,9 @@
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   border: 1px solid var(--pale-stone);
+  /* Keep list panning/scrolling, drop double-tap zoom (quick consecutive row
+     taps must never zoom the page on touch). */
+  touch-action: manipulation;
 }
 
 /* ── Caret-anchored popover (all viewports) ───────────────────────────── */
@@ -186,6 +189,15 @@
     height: 2em;
     margin-left: -0.15em;
     margin-right: 0.3em;
+  }
+
+  /* The inline "+" and the first-line placeholder ("Start writing, …") share
+     the line's left edge here, so the ghost text used to render underneath the
+     button. Indent it past the "+" footprint (-0.15em margin + 2em button +
+     0.3em gap = 2.15em) so it begins where the caret does. Scoped with :has so
+     an editor without the "+" (emptyLinePlus off) keeps the flush placeholder. */
+  .notepad-editor .tiptap p.is-editor-empty:first-child:has(.slash-plus)::before {
+    padding-left: 2.15em;
   }
 }
 

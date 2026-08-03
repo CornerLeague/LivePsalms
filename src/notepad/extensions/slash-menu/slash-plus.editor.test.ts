@@ -61,3 +61,75 @@ describe('slashPlus plugin decorations', () => {
     expect(plusWidgetCount(editor)).toBe(0);
   });
 });
+
+describe('slashPlus tap handling', () => {
+  function plusButton(ed: Editor): HTMLElement {
+    const btn = ed.view.dom.querySelector('button.slash-plus');
+    if (!(btn instanceof HTMLElement)) throw new Error('no "+" widget rendered');
+    return btn;
+  }
+
+  function pointer(type: string, init: PointerEventInit & { x: number; y: number }) {
+    return new window.PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerId: init.pointerId ?? 1,
+      pointerType: init.pointerType ?? 'touch',
+      clientX: init.x,
+      clientY: init.y,
+    });
+  }
+
+  it('a clean tap (down → up in place) opens the launcher by typing "/"', () => {
+    editor = makeEditor('<p></p>');
+    const btn = plusButton(editor);
+    btn.dispatchEvent(pointer('pointerdown', { x: 12, y: 12 }));
+    btn.dispatchEvent(pointer('pointerup', { x: 13, y: 14 }));
+    expect(editor.getText()).toBe('/');
+  });
+
+  it('cancels the press default so touch taps synthesize no compat mouse events', () => {
+    // A non-canceled pointerdown lets the browser replay mousedown/mouseup/click
+    // at the tap point after release — ProseMirror would treat that replay as a
+    // fresh press and yank the caret off the just-typed "/", closing the menu.
+    editor = makeEditor('<p></p>');
+    const down = pointer('pointerdown', { x: 12, y: 12 });
+    plusButton(editor).dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+  });
+
+  it('a drag past the slop (a scroll that started on the "+") does not open', () => {
+    editor = makeEditor('<p></p>');
+    const btn = plusButton(editor);
+    btn.dispatchEvent(pointer('pointerdown', { x: 12, y: 12 }));
+    btn.dispatchEvent(pointer('pointerup', { x: 12, y: 60 }));
+    expect(editor.getText()).toBe('');
+  });
+
+  it('swallows the synthesized mouse replay that lands right after a commit', () => {
+    editor = makeEditor('<p></p>');
+    const btn = plusButton(editor);
+    btn.dispatchEvent(pointer('pointerdown', { x: 12, y: 12 }));
+    btn.dispatchEvent(pointer('pointerup', { x: 12, y: 12 }));
+    expect(editor.getText()).toBe('/');
+
+    // The engine replays the tap as mouse events at the same spot ("+" is gone
+    // by now, so they land on the paragraph). They must be swallowed…
+    const replay = new window.MouseEvent('mousedown', {
+      bubbles: true, cancelable: true, button: 0, clientX: 12, clientY: 12,
+    });
+    editor.view.dom.dispatchEvent(replay);
+    expect(replay.defaultPrevented).toBe(true);
+
+    // …while a genuine press elsewhere (outside the 32px window) is untouched.
+    // (mouseup, not mousedown: ProseMirror's own mousedown handler needs
+    // elementFromPoint, which jsdom lacks — the swallow's distance gate is the
+    // same function for all three mouse event types.)
+    const elsewhere = new window.MouseEvent('mouseup', {
+      bubbles: true, cancelable: true, button: 0, clientX: 200, clientY: 180,
+    });
+    editor.view.dom.dispatchEvent(elsewhere);
+    expect(elsewhere.defaultPrevented).toBe(false);
+  });
+});
