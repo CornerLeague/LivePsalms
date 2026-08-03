@@ -13,6 +13,26 @@ function isMobileViewport(): boolean {
   return window.matchMedia('(max-width: 767px)').matches;
 }
 
+// Height (px) the on-screen keyboard (or other bottom inset) currently steals
+// from the layout viewport, via visualViewport. 0 when there's no keyboard or
+// the API is unavailable. This is what lets the bottom sheet sit ABOVE the
+// keyboard instead of behind it — the reason the menu looked like it never
+// opened on phones (you type "/", the keyboard is up, the sheet was pinned to
+// bottom:0 under it).
+function keyboardInset(): number {
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  if (!vv) return 0;
+  return Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+}
+
+// Height of the area actually visible above the keyboard — caps the sheet so
+// its top can't run off-screen when the keyboard is tall.
+function visibleHeight(): number {
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  if (vv) return vv.height;
+  return typeof window !== 'undefined' ? window.innerHeight : 0;
+}
+
 // Minimal DOM renderer for the "/" launcher, mirroring verse-suggest-renderer:
 // a body-portaled panel positioned at the caret, class-based styling, arrow/
 // enter/escape keyboard nav. No async work — items arrive synchronously from
@@ -24,6 +44,29 @@ export function renderSlashMenu() {
   let current: SuggestionProps<SlashCommand, SlashCommand> | null = null;
 
   const items = (): SlashCommand[] => current?.items ?? [];
+
+  // Push the sheet above the keyboard, and re-measure whenever the keyboard
+  // shows/hides/resizes (visualViewport fires resize + scroll). The CSS reads
+  // these two custom properties.
+  const applySheetMetrics = () => {
+    if (!el) return;
+    el.style.setProperty('--slash-sheet-kb', `${keyboardInset()}px`);
+    el.style.setProperty('--slash-sheet-maxh', `${Math.max(160, visibleHeight() - 24)}px`);
+  };
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  let vvBound = false;
+  const bindViewport = () => {
+    if (vvBound || !vv) return;
+    vv.addEventListener('resize', applySheetMetrics);
+    vv.addEventListener('scroll', applySheetMetrics);
+    vvBound = true;
+  };
+  const unbindViewport = () => {
+    if (!vvBound || !vv) return;
+    vv.removeEventListener('resize', applySheetMetrics);
+    vv.removeEventListener('scroll', applySheetMetrics);
+    vvBound = false;
+  };
 
   const paint = () => {
     if (!root || !current) return;
@@ -43,13 +86,19 @@ export function renderSlashMenu() {
     if (!el) return;
     el.style.zIndex = '9999';
     if (isMobileViewport()) {
-      // Bottom sheet — the container spans the viewport bottom; the sheet CSS
-      // owns its own fixed placement, so clear any caret coordinates.
+      // Bottom sheet — the sheet CSS owns its own fixed placement (above the
+      // keyboard via the metrics below), so clear any caret coordinates.
       el.style.position = '';
       el.style.left = '';
       el.style.top = '';
+      applySheetMetrics();
+      bindViewport();
       return;
     }
+    // Desktop popover — drop any sheet metrics/listener from a prior rotate.
+    unbindViewport();
+    el.style.removeProperty('--slash-sheet-kb');
+    el.style.removeProperty('--slash-sheet-maxh');
     const rect = props.clientRect?.();
     if (rect) {
       // Caret-anchored popover — matches the verse dropdown / note-link popup so
@@ -86,6 +135,7 @@ export function renderSlashMenu() {
       return false;
     },
     onExit: () => {
+      unbindViewport();
       root?.unmount(); root = null;
       el?.remove(); el = null; current = null;
     },
