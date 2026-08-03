@@ -9,7 +9,7 @@ import { emptyParagraphPositions } from './slash-plus';
 let editor: Editor | null = null;
 afterEach(() => { editor?.destroy(); editor = null; });
 
-const COMMANDS = createSlashCommands({ defaultSwatchId: 'highlight-01' });
+const COMMANDS = createSlashCommands();
 
 function makeEditor(content: string, emptyLinePlus = true) {
   return new Editor({

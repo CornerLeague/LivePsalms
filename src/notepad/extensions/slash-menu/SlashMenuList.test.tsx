@@ -6,7 +6,7 @@ import { createSlashCommands } from './slash-commands';
 
 afterEach(() => cleanup());
 
-const COMMANDS = createSlashCommands({ defaultSwatchId: 'highlight-01' });
+const COMMANDS = createSlashCommands();
 
 function renderList(onSelect = vi.fn()) {
   const utils = render(

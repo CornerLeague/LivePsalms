@@ -11,7 +11,7 @@ import { matchVersePickerBeforeCursor, matchLookupPickerBeforeCursor } from '../
 let editor: Editor | null = null;
 afterEach(() => { editor?.destroy(); editor = null; });
 
-const COMMANDS = createSlashCommands({ defaultSwatchId: 'highlight-01' });
+const COMMANDS = createSlashCommands();
 
 function makeEditor() {
   return new Editor({

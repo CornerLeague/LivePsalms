@@ -3,7 +3,6 @@ import {
   Heading1, Heading2, Heading3,
   List, ListOrdered, Quote, Minus,
   Bold, Italic, Underline,
-  Highlighter, Palette,
   BookOpen, Search,
   type LucideIcon,
 } from 'lucide-react';
@@ -14,13 +13,11 @@ const ICONS: Record<string, LucideIcon> = {
   Heading1, Heading2, Heading3,
   List, ListOrdered, Quote, Minus,
   Bold, Italic, Underline,
-  Highlighter, Palette,
   BookOpen, Search,
 };
 
 const GROUP_LABEL: Record<SlashGroup, string> = {
   basic: 'Basic',
-  style: 'Style',
   scripture: 'Scripture',
 };
 
