@@ -60,25 +60,64 @@ function openLauncherAt(editor: Editor, pos: number): void {
  * under a real finger on phones). `pointerdown` fires for mouse, touch and pen
  * alike, so this is one path for every device.
  */
+// Movement (px) between press and release still counted as a tap, not a scroll.
+const TAP_SLOP = 10;
+
+function plusPosFromEvent(event: Event): number | null {
+  const target = event.target as HTMLElement | null;
+  const btn = target?.closest?.(`button.slash-plus[${POS_ATTR}]`);
+  if (!(btn instanceof HTMLElement)) return null;
+  const pos = Number(btn.getAttribute(POS_ATTR));
+  return Number.isFinite(pos) ? pos : null;
+}
+
 export function slashPlusPlugin(editor: Editor): Plugin {
-  // pointerdown handles mouse + touch + pen on every modern browser. mousedown
-  // is a fallback for the rare webview that doesn't deliver pointer events. Both
-  // arrive for one tap, so dedup within a short window (also, opening the
-  // launcher removes the empty line's widget, so the second event usually misses
-  // the button anyway).
-  let lastHandledAt = -Infinity;
-  const handlePress = (event: Event): boolean => {
-    const target = event.target as HTMLElement | null;
-    const btn = target?.closest?.(`button.slash-plus[${POS_ATTR}]`);
-    if (!(btn instanceof HTMLElement)) return false;
-    // Own the gesture: stop the view from turning this into a caret placement.
-    event.preventDefault();
-    if (event.timeStamp - lastHandledAt < 700) return true; // dedup the paired event
-    lastHandledAt = event.timeStamp;
-    const pos = Number(btn.getAttribute(POS_ATTR));
-    if (Number.isFinite(pos)) openLauncherAt(editor, pos);
+  // Commit on a genuine TAP (primary-button press → release in ~the same spot),
+  // not eagerly on the press. Acting on pointerdown would hijack a scroll that
+  // begins on the "+" (and block it) and fire on secondary mouse buttons.
+  // Tracked per pointerId, so two quick presses on different lines never collide
+  // (no plugin-wide dedup). Pointer events cover mouse, touch and pen on every
+  // browser since ~2019; a mouse fallback covers older webviews (registered
+  // exclusively, so the two never double-fire).
+  const pressStarts = new Map<number, { pos: number; x: number; y: number }>();
+
+  const onDown = (event: MouseEvent): boolean => {
+    if (event.button !== 0) return false; // primary button only
+    const pos = plusPosFromEvent(event);
+    if (pos == null) return false;
+    const id = (event as PointerEvent).pointerId ?? -1;
+    pressStarts.set(id, { pos, x: event.clientX, y: event.clientY });
+    // Do NOT preventDefault — let a scroll begin normally; we only commit on up.
+    return false;
+  };
+
+  const onUp = (event: MouseEvent): boolean => {
+    const id = (event as PointerEvent).pointerId ?? -1;
+    const start = pressStarts.get(id);
+    if (!start) return false;
+    pressStarts.delete(id);
+    const moved =
+      Math.abs(event.clientX - start.x) > TAP_SLOP || Math.abs(event.clientY - start.y) > TAP_SLOP;
+    if (moved) return false; // it was a scroll/drag, not a tap
+    event.preventDefault(); // suppress the trailing click on the widget
+    openLauncherAt(editor, start.pos);
     return true;
   };
+
+  const supportsPointer = typeof window !== 'undefined' && 'PointerEvent' in window;
+  const handleDOMEvents = supportsPointer
+    ? {
+        pointerdown: (_view: unknown, event: PointerEvent) => onDown(event),
+        pointerup: (_view: unknown, event: PointerEvent) => onUp(event),
+        pointercancel: (_view: unknown, event: PointerEvent) => {
+          pressStarts.delete(event.pointerId);
+          return false;
+        },
+      }
+    : {
+        mousedown: (_view: unknown, event: MouseEvent) => onDown(event),
+        mouseup: (_view: unknown, event: MouseEvent) => onUp(event),
+      };
 
   return new Plugin({
     key: PLUS_KEY,
@@ -94,10 +133,8 @@ export function slashPlusPlugin(editor: Editor): Plugin {
         );
         return DecorationSet.create(state.doc, widgets);
       },
-      handleDOMEvents: {
-        pointerdown: (_view, event) => handlePress(event),
-        mousedown: (_view, event) => handlePress(event),
-      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      handleDOMEvents: handleDOMEvents as any,
     },
   });
 }
