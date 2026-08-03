@@ -82,6 +82,7 @@ export function SlashMenuList({ items, selectedIndex, onSelect, grouped, mobile 
               // the release below, like a native button tap. (The container's
               // onPointerDown already preventDefaults for every press.)
               onPointerDown={(e) => {
+                if (e.button !== 0) return; // primary only — right/middle keep their default behavior
                 if (e.pointerType === 'mouse') { onSelect(command); return; }
                 press.current = { pointerId: e.pointerId, commandId: command.id, x: e.clientX, y: e.clientY };
               }}

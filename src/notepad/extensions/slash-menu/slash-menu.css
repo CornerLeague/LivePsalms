@@ -25,9 +25,12 @@
 }
 
 /* ── Caret-anchored popover (all viewports) ───────────────────────────── */
+/* Every width bound folds in --slash-menu-maxw (the visible-strip width the
+   renderer measures from visualViewport) — min-width beats max-width in CSS,
+   so an uncapped minimum would poke past a pinch-zoomed viewport's edge. */
 .slash-menu--popover {
-  min-width: 268px;
-  max-width: 340px;
+  min-width: min(268px, var(--slash-menu-maxw, 340px));
+  max-width: min(340px, var(--slash-menu-maxw, 340px));
   /* Capped by the renderer to the space between the caret and the visible edge
      (accounts for the on-screen keyboard); scrolls internally past that. */
   max-height: var(--slash-menu-maxh, 340px);
@@ -39,10 +42,12 @@
   animation: slash-menu-in 180ms var(--sm-ease-out);
 }
 
-/* Touch: same caret-anchored popover, roomier targets + a bit wider. */
+/* Touch: same caret-anchored popover, roomier targets + a bit wider. (The vw
+   terms track the layout viewport — fine unzoomed; --slash-menu-maxw carries
+   the real visible width when pinch-zoomed.) */
 .slash-menu--mobile {
-  min-width: min(300px, 88vw);
-  max-width: min(360px, 92vw);
+  min-width: min(300px, 88vw, var(--slash-menu-maxw, 360px));
+  max-width: min(360px, 92vw, var(--slash-menu-maxw, 360px));
 }
 .slash-menu--mobile .slash-menu__row { padding: 11px 12px; }
 .slash-menu--mobile .slash-menu__icon { width: 34px; height: 34px; }
@@ -130,7 +135,7 @@
 }
 
 .slash-menu--empty {
-  min-width: 220px;
+  min-width: min(220px, var(--slash-menu-maxw, 340px));
   padding: 12px 14px;
   border-radius: 12px;
   font-size: 0.82rem;
