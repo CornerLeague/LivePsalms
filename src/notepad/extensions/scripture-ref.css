@@ -26,7 +26,10 @@
   padding: 5px;
   font-family: 'Outfit', sans-serif;
   color: var(--deep-umber);
-  background: rgba(240, 236, 232, 0.98);
+  /* Theme-aware surface — adapts to all data-theme palettes AND .dark (the
+     variable is defined in every theme block). Light value ≈ the old hardcoded
+     parchment, so light mode is unchanged; graphite/dark now render dark. */
+  background: var(--surface-elevated);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   border: 1px solid var(--pale-stone);
@@ -45,12 +48,12 @@
 /* Slim, unobtrusive scrollbar for the overflow list. */
 .verse-suggest::-webkit-scrollbar { width: 9px; }
 .verse-suggest::-webkit-scrollbar-thumb {
-  background: rgba(58, 52, 38, 0.2);
+  background: rgba(var(--deep-umber-rgb), 0.2);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-.verse-suggest::-webkit-scrollbar-thumb:hover { background: rgba(58, 52, 38, 0.32); }
+.verse-suggest::-webkit-scrollbar-thumb:hover { background: rgba(var(--deep-umber-rgb), 0.32); }
 
 .verse-suggest__row {
   display: flex;
@@ -68,7 +71,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .verse-suggest__row:hover { background: rgba(58, 52, 38, 0.06); }
+  .verse-suggest__row:hover { background: rgba(var(--deep-umber-rgb), 0.06); }
   .verse-suggest__row.is-selected:hover { background: rgba(184, 132, 58, 0.2); }
 }
 
@@ -84,7 +87,7 @@
 .verse-suggest__text {
   font-size: 0.8rem;
   line-height: 1.45;
-  color: rgba(58, 52, 38, 0.66);
+  color: rgba(var(--deep-umber-rgb), 0.66);
   /* Clamp long verses to two lines so rows stay even. */
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -125,7 +128,10 @@
   padding: 1px 6px;
   border: none;
   border-radius: 6px;
-  color: #8a5a1e;
+  /* Semantic scripture gold — a dark gold on light themes, a light gold on
+     dark/graphite, so the pill reads on every surface (was #8a5a1e + a dead
+     .dark override). */
+  color: var(--peek-scripture);
   background: rgba(184, 132, 58, 0.1);
   cursor: pointer;
   white-space: nowrap;
@@ -170,7 +176,7 @@
   border: 1px solid var(--pale-stone);
   border-left: 3px solid rgba(184, 132, 58, 0.55);
   border-radius: 8px;
-  background: rgba(245, 240, 232, 0.7);
+  background: var(--surface-elevated);
   font-family: 'Outfit', sans-serif;
   animation: scripture-ref-card-in 170ms var(--vs-ease-out);
 }
@@ -229,47 +235,7 @@
   to { opacity: 1; }
 }
 
-/* Dark theme — verse suggest and scripture-ref surfaces lift to near-black
-   backgrounds; gold accent remains gold (lamplight-accent shifts warm-neutral
-   in dark so inline refs stay readable). */
-.dark .verse-suggest {
-  background: var(--surface-elevated);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-}
-
-.dark .verse-suggest::-webkit-scrollbar-thumb {
-  background: rgba(var(--deep-umber-rgb), 0.25);
-}
-.dark .verse-suggest::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--deep-umber-rgb), 0.4);
-}
-
-.dark .verse-suggest__row.is-selected {
-  background: rgba(196, 181, 160, 0.14);
-}
-@media (hover: hover) and (pointer: fine) {
-  .dark .verse-suggest__row:hover { background: rgba(var(--deep-umber-rgb), 0.08); }
-  .dark .verse-suggest__row.is-selected:hover { background: rgba(196, 181, 160, 0.2); }
-}
-.dark .verse-suggest__row:active { background: rgba(196, 181, 160, 0.22); }
-
-.dark .verse-suggest__text {
-  color: rgba(var(--deep-umber-rgb), 0.66);
-}
-
-.dark .scripture-ref-link {
-  color: var(--lamplight-accent);
-  background: rgba(196, 181, 160, 0.12);
-}
-@media (hover: hover) and (pointer: fine) {
-  .dark .scripture-ref-link:hover { background: rgba(196, 181, 160, 0.2); }
-}
-.dark .scripture-ref-link:focus-visible {
-  outline-color: rgba(196, 181, 160, 0.55);
-}
-
-.dark .scripture-ref-verse {
-  background: var(--surface-elevated);
-  border-left-color: rgba(196, 181, 160, 0.55);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
+/* NOTE: no `.dark …` overrides — the base rules above are driven by theme
+   variables (--surface-elevated, --deep-umber-rgb, --peek-scripture) that each
+   data-theme block AND the .dark block define, so the dropdown, pills, and verse
+   cards adapt to every palette (including graphite/dark) on their own. */
