@@ -21,11 +21,13 @@
   border: 1px solid var(--pale-stone);
 }
 
-/* ── Desktop: floating popover anchored at the caret ──────────────────── */
+/* ── Caret-anchored popover (all viewports) ───────────────────────────── */
 .slash-menu--popover {
   min-width: 268px;
   max-width: 340px;
-  max-height: 340px;
+  /* Capped by the renderer to the space between the caret and the visible edge
+     (accounts for the on-screen keyboard); scrolls internally past that. */
+  max-height: var(--slash-menu-maxh, 340px);
   overflow-y: auto;
   padding: 5px;
   border-radius: 12px;
@@ -33,6 +35,16 @@
   transform-origin: top left;
   animation: slash-menu-in 180ms var(--sm-ease-out);
 }
+
+/* Touch: same caret-anchored popover, roomier targets + a bit wider. */
+.slash-menu--mobile {
+  min-width: min(300px, 88vw);
+  max-width: min(360px, 92vw);
+}
+.slash-menu--mobile .slash-menu__row { padding: 11px 12px; }
+.slash-menu--mobile .slash-menu__icon { width: 34px; height: 34px; }
+.slash-menu--mobile .slash-menu__title { font-size: 0.92rem; }
+.slash-menu--mobile .slash-menu__hint { font-size: 0.76rem; }
 
 @keyframes slash-menu-in {
   from { opacity: 0; transform: scale(0.96) translateY(-4px); }
@@ -125,39 +137,6 @@
   box-shadow: 0 6px 24px rgba(58, 52, 38, 0.22);
 }
 
-/* ── Mobile: bottom sheet ─────────────────────────────────────────────── */
-.slash-menu--sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  /* Sit above the on-screen keyboard: the renderer measures it via
-     visualViewport and sets --slash-sheet-kb (0 when the keyboard is down).
-     Without this the sheet hides under the keyboard and the menu looks like it
-     never opened. --slash-sheet-maxh caps it to the visible area. */
-  bottom: var(--slash-sheet-kb, 0px);
-  width: 100%;
-  max-height: var(--slash-sheet-maxh, 56vh);
-  overflow-y: auto;
-  padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28);
-  animation: slash-sheet-in 220ms var(--sm-ease-out);
-}
-
-.slash-menu--sheet .slash-menu__row { padding: 12px 12px; }
-.slash-menu--sheet .slash-menu__icon { width: 36px; height: 36px; }
-.slash-menu--sheet .slash-menu__title { font-size: 0.95rem; }
-.slash-menu--sheet .slash-menu__hint { font-size: 0.78rem; }
-
-@keyframes slash-sheet-in {
-  from { opacity: 0; transform: translateY(100%); }
-  to { opacity: 1; transform: none; }
-}
-
 /* ── Empty-line "+" opener ────────────────────────────────────────────── */
 .slash-plus {
   display: inline-flex;
@@ -212,7 +191,7 @@
 
 /* ── Reduced motion ───────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .slash-menu--popover, .slash-menu--sheet { animation: slash-menu-fade 140ms ease; }
+  .slash-menu--popover { animation: slash-menu-fade 140ms ease; }
 }
 
 @keyframes slash-menu-fade {
