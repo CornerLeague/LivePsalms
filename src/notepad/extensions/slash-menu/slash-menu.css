@@ -130,9 +130,13 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* Sit above the on-screen keyboard: the renderer measures it via
+     visualViewport and sets --slash-sheet-kb (0 when the keyboard is down).
+     Without this the sheet hides under the keyboard and the menu looks like it
+     never opened. --slash-sheet-maxh caps it to the visible area. */
+  bottom: var(--slash-sheet-kb, 0px);
   width: 100%;
-  max-height: 56vh;
+  max-height: var(--slash-sheet-maxh, 56vh);
   overflow-y: auto;
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
   border-left: none;
