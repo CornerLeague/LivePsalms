@@ -96,6 +96,10 @@ export function slashPlusPlugin(editor: Editor): Plugin {
     const start = pressStarts.get(id);
     if (!start) return false;
     pressStarts.delete(id);
+    // The release must land back on the SAME "+": leaving the control cancels
+    // the press, like a native button (guards a small drift onto adjacent
+    // content that stays within the slop).
+    if (plusPosFromEvent(event) !== start.pos) return false;
     const moved =
       Math.abs(event.clientX - start.x) > TAP_SLOP || Math.abs(event.clientY - start.y) > TAP_SLOP;
     if (moved) return false; // it was a scroll/drag, not a tap
