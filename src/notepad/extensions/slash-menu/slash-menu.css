@@ -197,8 +197,12 @@
 @media (hover: none), (max-width: 767px) {
   .slash-plus {
     opacity: 0.6;
-    margin-left: -0.3em;
-    margin-right: 0.25em;
+    /* Bigger, easier hit area than the desktop gutter icon — a ~22px target at
+       the screen edge is easy to fat-finger. */
+    width: 2em;
+    height: 2em;
+    margin-left: -0.15em;
+    margin-right: 0.3em;
   }
 }
 
