@@ -10,7 +10,7 @@
 //
 // Node-testable with a fake LLMAdapter; no Supabase fakes required.
 
-import type { GenerateInput, LLMAdapter, LLMModel, ToolSchema } from './anthropic.ts';
+import type { GenerateInput, LLMAdapter, LLMModel, ToolSchema } from './openai.ts';
 import { LAMPLIGHT_SYSTEM_FRAGMENT, composeSystem } from './voice.ts';
 
 export interface GenerateWithRetryConfig<TParsed, TViolations> {

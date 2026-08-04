@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runBibleChatPipeline, runBibleChatStreaming, type BibleChatContext } from './bible-chat-pipeline.ts';
-import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/anthropic.ts';
+import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/openai.ts';
 import { BIBLE_INSIGHT_PROMPT } from './prompts/bible-insight.ts';
 
 const baseCtx: BibleChatContext = {
@@ -17,7 +17,7 @@ const baseCtx: BibleChatContext = {
 function fakeLLM(reply: unknown): LLMAdapter {
   return {
     generate: vi.fn().mockResolvedValue({
-      parsed: reply, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20,
+      parsed: reply, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20,
     }),
   } as unknown as LLMAdapter;
 }
@@ -76,16 +76,16 @@ describe('runBibleChatPipeline', () => {
   it('passes the requested model through to the LLM adapter', async () => {
     const generate = vi.fn().mockResolvedValue({
       parsed: { reply: 'ok', citations: [] },
-      modelUsed: 'claude-opus-4-8', promptTokens: 5, completionTokens: 7,
+      modelUsed: 'gpt-5.6-sol', promptTokens: 5, completionTokens: 7,
     });
-    const llm = { generate } as unknown as import('../_shared/anthropic.ts').LLMAdapter;
+    const llm = { generate } as unknown as import('../_shared/openai.ts').LLMAdapter;
     const ctx: import('./bible-chat-pipeline.ts').BibleChatContext = {
       passageRef: 'jhn 10', passageText: 'I am the good shepherd.',
       crossRefs: [], notes: [], history: [], userMessage: 'hi',
       allowedNoteIds: new Set(), allowedVerseRefs: new Set(),
     };
-    await runBibleChatPipeline({ llm, ctx, model: 'opus' });
-    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ model: 'opus' }));
+    await runBibleChatPipeline({ llm, ctx, model: 'deep' });
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ model: 'deep' }));
   });
 });
 
@@ -100,7 +100,7 @@ describe('runBibleChatStreaming', () => {
       async generate<U>(): Promise<GenerateOutput<U>> {
         return {
           parsed: { reply: fullReply, citations } as unknown as U,
-          modelUsed: 'claude-sonnet-4-6',
+          modelUsed: 'gpt-5.6-terra',
           promptTokens: 10,
           completionTokens: 20,
         };
@@ -119,7 +119,7 @@ describe('runBibleChatStreaming', () => {
         handlers.onField?.('citations', citations);
         return {
           parsed: { reply: fullReply, citations } as unknown as U,
-          modelUsed: 'claude-sonnet-4-6',
+          modelUsed: 'gpt-5.6-terra',
           promptTokens: 10,
           completionTokens: 20,
         };
@@ -171,7 +171,7 @@ describe('runBibleChatStreaming', () => {
     const controller = new AbortController();
     const llm: LLMAdapter = {
       async generate<U>(): Promise<GenerateOutput<U>> {
-        return { parsed: { reply: fullReply, citations } as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+        return { parsed: { reply: fullReply, citations } as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
       },
       async generateStream<U>(
         input: GenerateStreamInput,
@@ -181,7 +181,7 @@ describe('runBibleChatStreaming', () => {
         handlers.onText?.('reply', fullReply);
         handlers.onField?.('reply', fullReply);
         handlers.onField?.('citations', citations);
-        return { parsed: { reply: fullReply, citations } as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+        return { parsed: { reply: fullReply, citations } as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
       },
     };
 
@@ -199,7 +199,7 @@ describe('runBibleChatStreaming', () => {
       async generate<U>(): Promise<GenerateOutput<U>> {
         return {
           parsed: { reply: 'A reply.', citations: badCitations } as unknown as U,
-          modelUsed: 'claude-sonnet-4-6',
+          modelUsed: 'gpt-5.6-terra',
           promptTokens: 10,
           completionTokens: 20,
         };
@@ -213,7 +213,7 @@ describe('runBibleChatStreaming', () => {
         handlers.onField?.('citations', badCitations);
         return {
           parsed: { reply: 'A reply.', citations: badCitations } as unknown as U,
-          modelUsed: 'claude-sonnet-4-6',
+          modelUsed: 'gpt-5.6-terra',
           promptTokens: 10,
           completionTokens: 20,
         };

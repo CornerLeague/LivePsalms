@@ -136,7 +136,7 @@ maybeDescribe('Lamplight RLS isolation (integration)', () => {
       },
       source_note_ids: [],
       source_verses: ['Psalm 23:4'],
-      model_used: 'claude-sonnet-4-6',
+      model_used: 'gpt-5.6-terra',
       prompt_version: 'daily-devotion-2026-05-27-v1',
     });
     expect(insErr).toBeNull();

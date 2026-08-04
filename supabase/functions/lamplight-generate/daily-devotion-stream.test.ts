@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { streamDailyDevotion, type DailyDevotionStreamDeps } from './daily-devotion-stream';
 import { type DailyDevotionContext } from './daily-devotion-pipeline';
-import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/openai';
 import type { DailyDevotion } from '../_shared/artifacts';
 
 // ── Fixtures (mirrors daily-devotion-pipeline.test.ts) ───────────────────────
@@ -47,7 +47,7 @@ function makeSupabaseMock(opts: { existing?: DailyDevotion | null; insertedId?: 
               eq: () => ({
                 async maybeSingle() {
                   if (existing) {
-                    return { data: { id: 'cached-id', body: existing, model_used: 'claude-sonnet-4-6', prompt_version: 'v1' }, error: null };
+                    return { data: { id: 'cached-id', body: existing, model_used: 'gpt-5.6-terra', prompt_version: 'v1' }, error: null };
                   }
                   return { data: null, error: null };
                 },
@@ -78,7 +78,7 @@ function makeSupabaseMock(opts: { existing?: DailyDevotion | null; insertedId?: 
 function makeStreamAdapter(artifact: DailyDevotion): LLMAdapter {
   return {
     async generate<U>(): Promise<GenerateOutput<U>> {
-      return { parsed: artifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      return { parsed: artifact as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
     },
     async generateStream<U>(_: GenerateStreamInput, handlers: StreamHandlers): Promise<GenerateOutput<U>> {
       handlers.onField?.('opening', artifact.opening);
@@ -86,7 +86,7 @@ function makeStreamAdapter(artifact: DailyDevotion): LLMAdapter {
       handlers.onField?.('reflection', artifact.reflection);
       handlers.onField?.('prompt', artifact.prompt);
       handlers.onField?.('note_citations', artifact.note_citations);
-      return { parsed: artifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      return { parsed: artifact as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
     },
   };
 }

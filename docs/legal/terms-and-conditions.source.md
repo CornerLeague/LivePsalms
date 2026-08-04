@@ -92,7 +92,7 @@ LivePsalms allows you to create, upload, store, and organize notes, folders, tag
 
 To provide the Services, we require a limited legal license to process your User Content. By uploading, submitting, or creating User Content on our platform, you grant LivePsalms a worldwide, non-exclusive, royalty-free, fully paid-up, sublicensable (solely to our sub-processors as detailed in our Privacy Policy), and transferable license to host, store, reproduce, modify, transmit, and display your User Content **solely as necessary to deliver, maintain, secure, and improve the Services for you**.
 
-> **Our Strict Privacy Promise**: This license does **not** grant us the right to sell your User Content, distribute it to third parties for their independent use, or use your personal notes for advertising or marketing purposes. Furthermore, we contractually restrict our AI sub-processors (including Anthropic and Voyage AI) from using your note content to train their public models [2] [3]. No human employee or contractor at LivePsalms will ever read, review, or inspect your personal notes unless you explicitly request support and grant us temporary, express permission to access your account for troubleshooting.
+> **Our Strict Privacy Promise**: This license does **not** grant us the right to sell your User Content, distribute it to third parties for their independent use, or use your personal notes for advertising or marketing purposes. Furthermore, we contractually restrict our AI sub-processors (including OpenAI and Voyage AI) from using your note content to train their public models [2] [3]. No human employee or contractor at LivePsalms will ever read, review, or inspect your personal notes unless you explicitly request support and grant us temporary, express permission to access your account for troubleshooting.
 
 ### 4.3 User Representations and Warranties
 
@@ -110,7 +110,7 @@ If you explicitly opt into our Lamplight AI feature suite, the following terms a
 
 ### 5.1 Nature of AI-Generated Output
 
-Lamplight utilizes advanced large language models and text embedding technologies provided by third-party sub-processors (such as Anthropic and Voyage AI) to generate devotional reflections, summaries, and note connection explanations (collectively, "Output") [2] [3]. You acknowledge and agree that:
+Lamplight utilizes advanced large language models and text embedding technologies provided by third-party sub-processors (such as OpenAI and Voyage AI) to generate devotional reflections, summaries, and note connection explanations (collectively, "Output") [2] [3]. You acknowledge and agree that:
 
 - Generative AI outputs are probabilistic and may occasionally contain inaccurate, incomplete, or misleading information.
 - The Output is generated automatically by machines and does not represent the theological positions, official doctrines, or personal views of LivePsalms.
@@ -361,7 +361,7 @@ You may not assign, transfer, or delegate your rights or obligations under these
 ## References
 
 - [1] [EU General Data Protection Regulation (GDPR) — Article 8: Age of Consent](https://gdpr-info.eu/art-8-gdpr/)
-- [2] [Anthropic Commercial Terms and API Data Usage Policy](https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training)
+- [2] [OpenAI Platform — Data Controls: Training, Retention, and Abuse Monitoring](https://developers.openai.com/api/docs/guides/your-data)
 - [3] [Voyage AI Terms of Service — Section 3: Content and Models](https://www.voyageai.com/tos)
 - [4] [U.S. Copyright Office Guidance on AI-Generated Works](https://www.openpolicy.co/resources/u-s-copyright-office-clarifies-ai-authorship-rules-in-part-ii-of-its-copyright-ai-report)
 - [5] [U.S. Copyright Office — DMCA Safe Harbor Provisions](https://www.copyright.gov/512/)

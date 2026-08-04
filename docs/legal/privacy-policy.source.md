@@ -104,9 +104,9 @@ When Lamplight is enabled, the following automated processes occur:
 
 **Embedding Generation**: When you save or update a note, our system extracts the plaintext content of that note, splits it into manageable chunks, and sends those chunks to Voyage AI's embedding API to generate a mathematical vector representation (a 1024-dimensional numerical array). This vector captures the semantic meaning of your text without retaining the original words. The vector is stored in our database alongside a cryptographic hash of the content (used to avoid redundant reprocessing).
 
-**Daily Devotion Generation**: When you request your "Today's Lamp" devotion, our system retrieves the plaintext of your 3 most recently updated notes (up to 800 characters each), your first name (derived from your profile), your voice preference, and your tradition hint. This context is sent to Anthropic's Claude API, which generates a personalized devotional reflection grounded in your notes and relevant Bible passages.
+**Daily Devotion Generation**: When you request your "Today's Lamp" devotion, our system retrieves the plaintext of your 3 most recently updated notes (up to 800 characters each), your first name (derived from your profile), your voice preference, and your tradition hint. This context is sent to OpenAI's API, which generates a personalized devotional reflection grounded in your notes and relevant Bible passages.
 
-**Connection Card Generation**: When our system identifies that two of your notes are semantically similar (based on their vector embeddings), it may generate a brief explanation of why those notes are connected. This involves sending the plaintext of both notes to Anthropic's Claude API to produce a short, human-readable explanation.
+**Connection Card Generation**: When our system identifies that two of your notes are semantically similar (based on their vector embeddings), it may generate a brief explanation of why those notes are connected. This involves sending the plaintext of both notes to OpenAI's API to produce a short, human-readable explanation.
 
 ### 4.3 What Data Lamplight Stores
 
@@ -146,16 +146,18 @@ To deliver our services, we engage a limited number of trusted technology partne
 | Sub-processor | Headquarters | Role | Data They Access | Training on Your Data? | Data Retention by Sub-processor |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Supabase, Inc.** | San Francisco, CA, USA | Cloud database hosting, user authentication (including OAuth flows), file storage for avatars, and serverless Edge Function execution. | All database records including profile data, notes, folders, and Lamplight tables. Hashed passwords. Avatar image files. | No | Data persists until you delete it or your account. Supabase does not independently retain copies beyond what is in the active database. |
-| **Anthropic, PBC** | San Francisco, CA, USA | Large Language Model provider (Claude Haiku and Claude Sonnet). Used exclusively for generating devotional text and connection explanations within Lamplight. | Note plaintext (max 800 characters per note, max 3–5 notes per request), your first name, voice preference, and tradition hint. | **No.** Under Anthropic's commercial API terms, customer inputs and outputs are never used to train their models [7]. | Anthropic does not retain API inputs/outputs for commercial customers beyond the duration needed to process the request and provide safety monitoring. |
+| **OpenAI, L.L.C.** | San Francisco, CA, USA | Large Language Model provider (the GPT-5.6 model family). Used exclusively for generating devotional text, study and chat replies, and connection explanations within Lamplight. | Note plaintext (max 800 characters per note, max 3–5 notes per request), your first name, voice preference, and tradition hint. | **No.** Data sent to the OpenAI API is not used to train or improve OpenAI's models unless the customer explicitly opts in, which we have not [7]. | OpenAI may retain API inputs and outputs in abuse-monitoring logs for **up to 30 days**, after which they are deleted, unless a longer period is required by law [7]. |
 | **Voyage AI Innovations, Inc.** | San Francisco, CA, USA | Text embedding generation and passage reranking. Used to convert note text into semantic vectors and to match Bible passages to your themes. | Plaintext note content (chunked) and search query text. | **No** (on paid tier). Voyage AI's terms state that paid-tier customer content is deleted immediately after processing when the customer has opted out of training [6]. | Content is deleted immediately after embedding generation is complete. |
 | **Google LLC** | Mountain View, CA, USA | OAuth identity provider (Sign in with Google). | Your Google account email, display name, and profile picture — only when you choose to sign in with Google. | N/A | Governed by Google's own Privacy Policy. |
 | **Apple Inc.** | Cupertino, CA, USA | OAuth identity provider (Sign in with Apple). | Your Apple ID email (or relay email if you choose to hide your email), and display name — only when you choose to sign in with Apple. | N/A | Governed by Apple's own Privacy Policy. |
 
 ### 5.3 No Human Access to Your Notes
 
-We want to reiterate and expand upon our core commitment: **no human being — whether a LivePsalms employee, a sub-processor employee, a contractor, or any other person — will ever read, access, or review the content of your notes.**
+We want to reiterate and expand upon our core commitment: **no LivePsalms employee or contractor will ever read, access, or review the content of your notes.** We have built no tool that would let us do so.
 
-When your notes are processed by Lamplight, they are handled exclusively by automated machine learning systems. The AI models receive your text, generate a response, and the text passes through no human review pipeline. Anthropic's commercial API does not include human review of customer prompts or completions. Voyage AI's embedding service processes text mathematically without human inspection.
+When your notes are processed by Lamplight, they are handled by automated machine learning systems. The AI models receive your text, generate a response, and the text passes through no human review pipeline of ours. Voyage AI's embedding service processes text mathematically without human inspection.
+
+One limited exception applies at the model provider, and we state it plainly rather than promise more than we can deliver: under OpenAI's standard abuse-monitoring programme, API inputs and outputs are retained for up to 30 days and may be reviewed by an OpenAI reviewer if automated safety classifiers flag content as a potential violation of OpenAI's usage policies, or where review is required by law [7]. This content is not reviewed routinely, and it is never used to train models. Devotional notes are extremely unlikely to trigger such a classifier, but we will not claim an absolute guarantee that is not ours to give.
 
 Our database is protected by Row Level Security (RLS) policies enforced at the PostgreSQL level. These policies ensure that database queries — even those executed by our own backend services — can only return data belonging to the authenticated user making the request. Our administrative tools do not include any interface for browsing, searching, or reading individual user notes.
 
@@ -198,7 +200,7 @@ Our sub-processors' data processing locations are as follows:
 | Sub-processor | Data Processing Location | Data Storage Location |
 | :--- | :--- | :--- |
 | Supabase | AWS region selected at project creation (US by default) | Same as processing region |
-| Anthropic | United States, Europe, Asia, Australia (multi-region processing) | United States only [5] |
+| OpenAI | United States (default processing region) | United States [5] |
 | Voyage AI | United States | United States |
 
 ---
@@ -379,9 +381,9 @@ For EEA/UK residents, if you are unsatisfied with our response, you have the rig
 - [2] [California Consumer Privacy Act (CCPA/CPRA) — California Attorney General](https://oag.ca.gov/privacy/ccpa)
 - [3] [EU Artificial Intelligence Act — Article 50: Transparency Obligations](https://artificialintelligenceact.eu/article/50/)
 - [4] [Supabase Data Processing Addendum (DPA)](https://supabase.com/legal/dpa)
-- [5] [Anthropic Privacy Center — Server Locations & Data Processing](https://privacy.claude.com/en/articles/7996890-where-are-your-servers-located-do-you-host-your-models-on-eu-servers)
+- [5] [OpenAI Platform — Data Residency and Processing Regions](https://developers.openai.com/api/docs/guides/your-data)
 - [6] [Voyage AI Terms of Service — Section 3: Content and Models](https://www.voyageai.com/tos)
-- [7] [Anthropic Privacy Center — API Data Not Used for Model Training](https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training)
+- [7] [OpenAI Platform — Data Controls: Training, Retention, and Abuse Monitoring](https://developers.openai.com/api/docs/guides/your-data)
 - [8] [Supabase Platform Regions Documentation](https://supabase.com/docs/guides/platform/regions)
 - [9] [Privacy Laws 2026: Global Changes, Enforcement & Compliance Guide](https://secureprivacy.ai/blog/privacy-laws-2026)
 - [10] [EU AI Act — Regulatory Framework Overview](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai)

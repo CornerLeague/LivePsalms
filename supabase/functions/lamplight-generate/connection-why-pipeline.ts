@@ -4,7 +4,7 @@
 // invalidates whenever EITHER note's plaintext changes.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import type { LLMAdapter } from '../_shared/openai.ts';
 import {
   applyContentRules,
   flattenConnectionWhyText,
@@ -101,7 +101,7 @@ export async function runConnectionWhyPipeline(args: {
   // 2. Generate → validate → maybe-retry-once.
   const outcome = await generateWithRetry<ConnectionWhyArtifact, ConnectionViolations>({
     llm,
-    model: 'haiku',
+    model: 'fast',
     maxTokens: 256,
     artifactSystem: CONNECTION_WHY_PROMPT.system,
     messages: CONNECTION_WHY_PROMPT.buildMessages(ctx),

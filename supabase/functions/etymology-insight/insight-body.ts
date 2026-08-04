@@ -1,6 +1,6 @@
 // supabase/functions/etymology-insight/insight-body.ts
 // Extracted, side-effect-injected generation logic so it is vitest-testable with
-// plain fakes (the index.ts shell wires the real Supabase/Anthropic deps). Returns
+// plain fakes (the index.ts shell wires the real Supabase/OpenAI deps). Returns
 // a GenerationOutcome for the shared runGeneration seam. Usage is recorded ONLY on
 // a successful insert — cache-hit, no-entry, and model-failure all return usage:null
 // so a failure spends no quota and inserts no row (spec §8).

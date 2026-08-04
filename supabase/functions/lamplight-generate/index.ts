@@ -22,7 +22,7 @@ import { serviceClient } from '../_shared/supabase.ts';
 import { embedQuery, type VoyageDeps } from '../_shared/voyage.ts';
 import { searchBible } from '../_shared/retrieval.ts';
 import { type BiblePassageRow, fetchPassageText } from '../_shared/bible-passage.ts';
-import { createAnthropicAdapter } from '../_shared/anthropic.ts';
+import { createOpenAIAdapter } from '../_shared/openai.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { retrieveNoteContext, type NoteContextDeps, type RawNoteRow } from '../_shared/note-context.ts';
 import { sanitizeFirstName } from '../_shared/personalization.ts';
@@ -80,9 +80,9 @@ async function handleGenerate(req: Request): Promise<Response> {
   const jsonResp = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...cors, 'content-type': 'application/json' } });
 
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
   const voyageKey = Deno.env.get('VOYAGE_AI_KEY');
-  if (!anthropicKey) return jsonResp({ error: 'ANTHROPIC_API_KEY missing' }, 500);
+  if (!openaiKey) return jsonResp({ error: 'OPENAI_API_KEY missing' }, 500);
   if (!voyageKey)    return jsonResp({ error: 'VOYAGE_AI_KEY missing' }, 500);
 
   let body: {
@@ -120,7 +120,7 @@ async function handleGenerate(req: Request): Promise<Response> {
     })();
     const outcomes = await runReflectionSweep({
       supabase,
-      llm: createAnthropicAdapter({ apiKey: anthropicKey, fetch }),
+      llm: createOpenAIAdapter({ apiKey: openaiKey, fetch }),
       claim: (limit) => claimReflectionJobs(supabase, limit),
       embed: (text) => embedQuery(text, voyageDepsForSweep),
       loadSettings: async (uid) => {
@@ -187,12 +187,12 @@ async function handleGenerate(req: Request): Promise<Response> {
   // rows in a rolling 24h window. Runs before any model/context work. A failed
   // count throws and is surfaced as a 500 by the top-level catch (fail closed).
   // Note: the quota caps MODEL SPEND. Cache-hit paths (e.g. an already-generated
-  // daily_devotion) return without calling Anthropic/Voyage and intentionally do
+  // daily_devotion) return without calling OpenAI/Voyage and intentionally do
   // not record a usage row, so they don't consume quota — they incur no cost.
   const quotaCfg = resolveQuotaLimits(Deno.env);
   const voyageDeps: VoyageDeps = { apiKey: voyageKey, fetch };
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
-  const llm = createAnthropicAdapter({ apiKey: anthropicKey, fetch });
+  const llm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
 
   // The coordinator seam owns quota + usage recording + error classification.
   // checkQuota maps the internal QuotaResult.reason onto the lifecycle's shape;

@@ -360,14 +360,14 @@ export function PrivacyPolicy() {
         <strong>Daily Devotion Generation</strong>: When you request your "Today's Lamp" devotion,
         our system retrieves the plaintext of your 3 most recently updated notes (up to 800
         characters each), your first name (derived from your profile), your voice preference, and
-        your tradition hint. This context is sent to Anthropic's Claude API, which generates a
+        your tradition hint. This context is sent to OpenAI's API, which generates a
         personalized devotional reflection grounded in your notes and relevant Bible passages.
       </p>
       <p>
         <strong>Connection Card Generation</strong>: When our system identifies that two of your
         notes are semantically similar (based on their vector embeddings), it may generate a brief
         explanation of why those notes are connected. This involves sending the plaintext of both
-        notes to Anthropic's Claude API to produce a short, human-readable explanation.
+        notes to OpenAI's API to produce a short, human-readable explanation.
       </p>
 
       <h3>4.3 What Data Lamplight Stores</h3>
@@ -551,24 +551,26 @@ export function PrivacyPolicy() {
             </tr>
             <tr>
               <td>
-                <strong>Anthropic, PBC</strong>
+                <strong>OpenAI, L.L.C.</strong>
               </td>
               <td>San Francisco, CA, USA</td>
               <td>
-                Large Language Model provider (Claude Haiku and Claude Sonnet). Used exclusively
-                for generating devotional text and connection explanations within Lamplight.
+                Large Language Model provider (the GPT-5.6 model family). Used exclusively for
+                generating devotional text, study and chat replies, and connection explanations
+                within Lamplight.
               </td>
               <td>
                 Note plaintext (max 800 characters per note, max 3–5 notes per request), your
                 first name, voice preference, and tradition hint.
               </td>
               <td>
-                <strong>No.</strong> Under Anthropic's commercial API terms, customer inputs and
-                outputs are never used to train their models [7].
+                <strong>No.</strong> Data sent to the OpenAI API is not used to train or improve
+                OpenAI's models unless the customer explicitly opts in, which we have not [7].
               </td>
               <td>
-                Anthropic does not retain API inputs/outputs for commercial customers beyond the
-                duration needed to process the request and provide safety monitoring.
+                OpenAI may retain API inputs and outputs in abuse-monitoring logs for{' '}
+                <strong>up to 30 days</strong>, after which they are deleted, unless a longer
+                period is required by law [7].
               </td>
             </tr>
             <tr>
@@ -624,16 +626,25 @@ export function PrivacyPolicy() {
       <p>
         We want to reiterate and expand upon our core commitment:{' '}
         <strong>
-          no human being — whether a LivePsalms employee, a sub-processor employee, a contractor,
-          or any other person — will ever read, access, or review the content of your notes.
-        </strong>
+          no LivePsalms employee or contractor will ever read, access, or review the content of
+          your notes.
+        </strong>{' '}
+        We have built no tool that would let us do so.
       </p>
       <p>
-        When your notes are processed by Lamplight, they are handled exclusively by automated
-        machine learning systems. The AI models receive your text, generate a response, and the text
-        passes through no human review pipeline. Anthropic's commercial API does not include human
-        review of customer prompts or completions. Voyage AI's embedding service processes text
+        When your notes are processed by Lamplight, they are handled by automated machine learning
+        systems. The AI models receive your text, generate a response, and the text passes through
+        no human review pipeline of ours. Voyage AI's embedding service processes text
         mathematically without human inspection.
+      </p>
+      <p>
+        One limited exception applies at the model provider, and we state it plainly rather than
+        promise more than we can deliver: under OpenAI's standard abuse-monitoring programme, API
+        inputs and outputs are retained for up to 30 days and may be reviewed by an OpenAI reviewer
+        if automated safety classifiers flag content as a potential violation of OpenAI's usage
+        policies, or where review is required by law [7]. This content is not reviewed routinely,
+        and it is never used to train models. Devotional notes are extremely unlikely to trigger
+        such a classifier, but we will not claim an absolute guarantee that is not ours to give.
       </p>
       <p>
         Our database is protected by Row Level Security (RLS) policies enforced at the PostgreSQL
@@ -741,9 +752,9 @@ export function PrivacyPolicy() {
               <td>Same as processing region</td>
             </tr>
             <tr>
-              <td>Anthropic</td>
-              <td>United States, Europe, Asia, Australia (multi-region processing)</td>
-              <td>United States only [5]</td>
+              <td>OpenAI</td>
+              <td>United States (default processing region)</td>
+              <td>United States [5]</td>
             </tr>
             <tr>
               <td>Voyage AI</td>
@@ -1436,11 +1447,11 @@ export function PrivacyPolicy() {
         <li>
           [5]{' '}
           <a
-            href="https://privacy.claude.com/en/articles/7996890-where-are-your-servers-located-do-you-host-your-models-on-eu-servers"
+            href="https://developers.openai.com/api/docs/guides/your-data"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Anthropic Privacy Center — Server Locations &amp; Data Processing
+            OpenAI Platform — Data Residency and Processing Regions
           </a>
         </li>
         <li>
@@ -1452,11 +1463,11 @@ export function PrivacyPolicy() {
         <li>
           [7]{' '}
           <a
-            href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training"
+            href="https://developers.openai.com/api/docs/guides/your-data"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Anthropic Privacy Center — API Data Not Used for Model Training
+            OpenAI Platform — Data Controls: Training, Retention, and Abuse Monitoring
           </a>
         </li>
         <li>

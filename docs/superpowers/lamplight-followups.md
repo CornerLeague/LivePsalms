@@ -19,7 +19,7 @@ These must be resolved before flipping `lamplight_promo_active` off or making an
   where key = 'lamplight_min_similarity';
   ```
   Word + vault thresholds are component defaults — change them in [useConnectionCards.ts](src/notepad/hooks/useConnectionCards.ts).
-- **Why P0:** Loose thresholds during launch will surface low-quality "connections" to first-impression users and waste Anthropic credits on weak pairs.
+- **Why P0:** Loose thresholds during launch will surface low-quality "connections" to first-impression users and waste OpenAI credits on weak pairs.
 
 ### P0-2. Doctrinal review board — identify reviewers and produce sign-off artifact
 - **Source:** Foundation spec §"Operational items", Reasoning Layer spec follow-up #5, Today's Lamp spec follow-up #10, Connection Cards spec follow-up #7.
@@ -76,9 +76,9 @@ Spec'd as small, deferred for cleanliness or sequencing. Most are ≤1 day each.
 
 ### P1-4. Set per-user soft cost cap
 - **Source:** Reasoning Layer spec follow-up #4 + Entitlements UI spec follow-up #6.
-- **Current state:** Only Voyage `truncation: true` and Anthropic `max_tokens` cap anything. `lamplight_usage` is being populated (Sub-Project 6 partial) but nothing reads it for limits.
+- **Current state:** Only Voyage `truncation: true` and OpenAI `max_completion_tokens` cap anything. `lamplight_usage` is being populated (Sub-Project 6 partial) but nothing reads it for limits.
 - **What to do:** Add a check at the top of `lamplight-generate` for daily-devotion and connection-why dispatches: sum `tokens_in + tokens_out` over the last 24h for `user_id`; if above threshold, return `{ ok: false, reason: 'cost_cap_exceeded' }`. Threshold lives in `app_config` for easy tuning.
-- **Why P1:** Without this, a single bug (e.g., a hook re-invoking on every render) can drain Anthropic credits silently. The data foundation is already there — wiring takes hours.
+- **Why P1:** Without this, a single bug (e.g., a hook re-invoking on every render) can drain OpenAI credits silently. The data foundation is already there — wiring takes hours.
 
 ### P1-5. `cms_test`/Smoke-test removal cleanup blast radius check
 - See P1-1.
@@ -274,7 +274,7 @@ Small ergonomic improvements. Pick up when there's slack.
 
 - **RLS isolation regression** — every migration since 008 extended this; run the full `lamplight-rls.test.ts` suite against staging with a fresh second user.
 - **Cron sweep drain rate** — current cap of 5 jobs/min was fine for empty production. Re-measure against expected concurrent embedders after launch; bump if drain time > 60s p99.
-- **Cost-map prices** — the values in `src/admin/lamplight-cost.ts` are pinned at write-time (May 2026). Voyage and Anthropic both move; verify before each public-facing claim of price.
+- **Cost-map prices** — the values in `src/admin/lamplight-cost.ts` are pinned at write-time (May 2026). Voyage and OpenAI both move; verify before each public-facing claim of price.
 - **Embedding model ↔ column dim alignment** — voyage-context-3 follow-up flagged this: `voyage.DIM` must equal the migration's `vector(N)`. Add the integration assertion if it isn't already there.
 - **Promo flag end-state UI** — `<PaywallCard />` is reachable only when `lamplight_promo_active=false`. Manually flip the flag in staging and walk every Lamplight surface. The spec promises it's not a `// TODO`; verify.
 

@@ -3,7 +3,7 @@ import {
   runConnectionWhyPipeline,
   type ConnectionWhyContext,
 } from './connection-why-pipeline';
-import type { LLMAdapter, GenerateOutput } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateOutput } from '../_shared/openai';
 
 function makeCtx(over: Partial<ConnectionWhyContext> = {}): ConnectionWhyContext {
   return {
@@ -30,7 +30,7 @@ function makeLLM(
       if (!r) throw new Error('no more LLM responses');
       return {
         parsed: r as unknown as T,
-        modelUsed: 'claude-haiku-4-5-20251001',
+        modelUsed: 'gpt-5.6-luna',
         promptTokens: 100,
         completionTokens: 20,
       };
@@ -125,7 +125,7 @@ describe('runConnectionWhyPipeline', () => {
       expect(result.cached).toBe(false);
       expect(result.attempts).toBe(1);
       expect(result.usage).toEqual({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-5.6-luna',
         tokens_in: 100,
         tokens_out: 20,
         status: 'ok',
@@ -195,7 +195,7 @@ describe('runConnectionWhyPipeline', () => {
       expect(result.reason).toBe('validators_failed');
       expect(result.attempts).toBe(2);
       expect(result.usage).toEqual({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-5.6-luna',
         tokens_in: 0,
         tokens_out: 0,
         status: 'error',

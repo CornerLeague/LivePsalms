@@ -94,7 +94,19 @@ describe('narrateDevelopment (retry on 429)', () => {
   const toolResponse = {
     ok: true,
     status: 200,
-    json: async () => ({ content: [{ type: 'tool_use', input: { body: 'Formed from the root, meaning to tend.' } }] }),
+    json: async () => ({
+      choices: [{
+        message: {
+          tool_calls: [{
+            type: 'function',
+            function: {
+              name: 'emit_development',
+              arguments: JSON.stringify({ body: 'Formed from the root, meaning to tend.' }),
+            },
+          }],
+        },
+      }],
+    }),
     text: async () => '',
   } as unknown as Response;
 
@@ -127,6 +139,6 @@ describe('narrateDevelopment (retry on 429)', () => {
     const rec = buildGroundingRecord('H7462', buildLexicon(dict));
     await expect(
       narrateDevelopment(rec, 'key', fetchImpl, { sleepImpl: async () => {} }),
-    ).rejects.toThrow(/anthropic 400/);
+    ).rejects.toThrow(/openai 400/);
   });
 });

@@ -4,7 +4,7 @@
 // scorecard-feel, exemplar fidelity). Returns { pass, reasons }; the pipeline
 // (Task 6) runs it only after the deterministic gates pass.
 
-import type { LLMAdapter, ToolSchema } from '../_shared/anthropic.ts';
+import type { LLMAdapter, ToolSchema } from '../_shared/openai.ts';
 import type { ReflectionArtifact } from '../_shared/artifacts.ts';
 import type { MonthNote } from './prompts/monthly-reflection.ts';
 
@@ -67,7 +67,7 @@ function buildJudgeMessages(
 
 export async function judgeReflectionRegister(input: ReflectionJudgeInput): Promise<ReflectionJudgeResult> {
   const { parsed } = await input.llm.generate<ReflectionJudgeResult>({
-    model: 'haiku',
+    model: 'fast',
     system: JUDGE_SYSTEM,
     messages: buildJudgeMessages(input.artifact, input.notes, input.periodLabel),
     tool: JUDGE_TOOL,

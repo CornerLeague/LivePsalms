@@ -50,7 +50,7 @@ describe('runGeneration', () => {
     const { deps, recorded } = makeDeps();
     const out = await runGeneration(deps, meta, async () => ({
       response: { ok: true, artifact_id: 'a1' },
-      usage: { model: 'claude-sonnet-4-6', tokens_in: 10, tokens_out: 20, status: 'ok' },
+      usage: { model: 'gpt-5.6-terra', tokens_in: 10, tokens_out: 20, status: 'ok' },
     }));
     expect(out.status).toBe(200);
     expect(out.response).toEqual({ ok: true, artifact_id: 'a1' });
@@ -59,7 +59,7 @@ describe('runGeneration', () => {
     expect(recorded[0]).toEqual({
       user_id: 'u1',
       artifact_kind: 'daily_devotion',
-      model: 'claude-sonnet-4-6',
+      model: 'gpt-5.6-terra',
       tokens_in: 10,
       tokens_out: 20,
       status: 'ok',

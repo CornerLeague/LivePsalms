@@ -1,5 +1,5 @@
 // supabase/functions/transcribe-note/prompt.ts
-import type { ToolSchema } from '../_shared/anthropic.ts';
+import type { ToolSchema } from '../_shared/openai.ts';
 
 export const TRANSCRIBE_SYSTEM = `You are transcribing a handwritten note from a Psalms / Bible-study devotional journal. The writer may reference verses ("Psalm 23:1"), psalm titles, prayers, and scriptural language — use this context to resolve messy handwriting.
 

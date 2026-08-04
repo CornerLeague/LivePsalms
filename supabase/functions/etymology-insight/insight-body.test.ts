@@ -7,7 +7,7 @@ function makeDeps(over: Partial<EtymologyInsightBodyDeps> = {}): EtymologyInsigh
     loadExistingInsight: async () => null,
     loadEntry: async () => ({ lemma: 'רָעָה', root: 'רעה', rootGloss: 'to tend', development: 'grew from tending', related: [] }),
     loadVerseText: async () => ({ reference: 'Psalm 23:1', text: 'The LORD is my shepherd…' }),
-    generate: async () => ({ body: 'Grounded insight.', modelUsed: 'claude-opus-4-8', promptTokens: 100, completionTokens: 20 }),
+    generate: async () => ({ body: 'Grounded insight.', modelUsed: 'gpt-5.6-sol', promptTokens: 100, completionTokens: 20 }),
     insertInsight: async () => {},
     reloadInsight: async () => 'Grounded insight.',
     ...over,
@@ -46,7 +46,7 @@ describe('buildEtymologyInsightOutcome', () => {
     const out = await buildEtymologyInsightOutcome(makeDeps({ insertInsight }), args);
     expect(insertInsight).toHaveBeenCalledTimes(1);
     expect(out.response).toEqual({ ok: true, body: 'Grounded insight.', cached: false });
-    expect(out.usage).toEqual({ model: 'claude-opus-4-8', tokens_in: 100, tokens_out: 20, status: 'ok' });
+    expect(out.usage).toEqual({ model: 'gpt-5.6-sol', tokens_in: 100, tokens_out: 20, status: 'ok' });
   });
 
   it('a concurrency loser reads the winner row and reports cached:true', async () => {

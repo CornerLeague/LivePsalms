@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { streamBibleChat, type BibleChatStreamDeps } from './bible-chat-stream';
 import { type BibleChatContext } from './bible-chat-pipeline';
-import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/openai';
 
 // ── Fixtures (mirrors bible-chat-pipeline.test.ts) ───────────────────────────
 
@@ -31,7 +31,7 @@ function makeStreamAdapter(overrides: { cites?: typeof citations } = {}): LLMAda
     async generate<U>(): Promise<GenerateOutput<U>> {
       return {
         parsed: { reply: fullReply, citations: cites } as unknown as U,
-        modelUsed: 'claude-sonnet-4-6',
+        modelUsed: 'gpt-5.6-terra',
         promptTokens: 10,
         completionTokens: 20,
       };
@@ -44,7 +44,7 @@ function makeStreamAdapter(overrides: { cites?: typeof citations } = {}): LLMAda
       handlers.onField?.('citations', cites);
       return {
         parsed: { reply: fullReply, citations: cites } as unknown as U,
-        modelUsed: 'claude-sonnet-4-6',
+        modelUsed: 'gpt-5.6-terra',
         promptTokens: 10,
         completionTokens: 20,
       };

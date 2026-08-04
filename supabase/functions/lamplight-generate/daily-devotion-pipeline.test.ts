@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runDailyDevotionPipeline, runDailyDevotionStreaming, type DailyDevotionContext } from './daily-devotion-pipeline';
-import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/openai';
 import type { DailyDevotion } from '../_shared/artifacts';
 
 function makeCtx(overrides: Partial<DailyDevotionContext> = {}): DailyDevotionContext {
@@ -27,7 +27,7 @@ function makeAdapter<T>(responses: T[]): LLMAdapter {
     async generate<U>(): Promise<GenerateOutput<U>> {
       const parsed = responses[Math.min(i, responses.length - 1)] as unknown as U;
       i++;
-      return { parsed, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      return { parsed, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
     },
   };
 }
@@ -67,13 +67,13 @@ function makeSupabaseMock(opts: {
               eq: () => ({
                 async maybeSingle() {
                   if (existing) {
-                    return { data: { id: 'cached-id', body: existing, model_used: 'claude-sonnet-4-6', prompt_version: 'daily-devotion-2026-05-27-v1' }, error: null };
+                    return { data: { id: 'cached-id', body: existing, model_used: 'gpt-5.6-terra', prompt_version: 'daily-devotion-2026-05-27-v1' }, error: null };
                   }
                   return { data: null, error: null };
                 },
                 async single() {
                   if (existing) {
-                    return { data: { id: 'cached-id', body: existing, model_used: 'claude-sonnet-4-6', prompt_version: 'daily-devotion-2026-05-27-v1' }, error: null };
+                    return { data: { id: 'cached-id', body: existing, model_used: 'gpt-5.6-terra', prompt_version: 'daily-devotion-2026-05-27-v1' }, error: null };
                   }
                   return { data: null, error: { message: 'no row' } };
                 },
@@ -167,7 +167,7 @@ describe('runDailyDevotionPipeline', () => {
       expect(result.cached).toBe(false);
       expect(result.artifact.scripture.ref).toBe('Psalm 23:4');
       expect(result.usage).toEqual({
-        model: 'claude-sonnet-4-6',
+        model: 'gpt-5.6-terra',
         tokens_in: 10,
         tokens_out: 20,
         status: 'ok',
@@ -198,7 +198,7 @@ describe('runDailyDevotionPipeline', () => {
       async generate<U>(input: Parameters<LLMAdapter['generate']>[0]): Promise<GenerateOutput<U>> {
         capturedSystems.push(input.system);
         const next = capturedSystems.length === 1 ? dirty : cleanArtifact;
-        return { parsed: next as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 1, completionTokens: 1 };
+        return { parsed: next as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 1, completionTokens: 1 };
       },
     };
     await runDailyDevotionPipeline({
@@ -267,7 +267,7 @@ describe('runDailyDevotionPipeline', () => {
                       data: {
                         id: 'race-id',
                         body: cleanArtifact,
-                        model_used: 'claude-sonnet-4-6',
+                        model_used: 'gpt-5.6-terra',
                         prompt_version: 'daily-devotion-2026-06-09-v3',
                       },
                       error: null,
@@ -326,7 +326,7 @@ describe('runDailyDevotionPipeline', () => {
       expect(result.attempts).toBe(2);
       expect(result.violations?.content.some(v => v.family === 'banned')).toBe(true);
       expect(result.usage).toEqual({
-        model: 'claude-sonnet-4-6',
+        model: 'gpt-5.6-terra',
         tokens_in: 0,
         tokens_out: 0,
         status: 'error',
@@ -351,7 +351,7 @@ describe('runDailyDevotionStreaming', () => {
   function makeStreamAdapter(artifact: DailyDevotion): LLMAdapter {
     return {
       async generate<U>(): Promise<GenerateOutput<U>> {
-        return { parsed: artifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+        return { parsed: artifact as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
       },
       async generateStream<U>(
         _: GenerateStreamInput,
@@ -363,7 +363,7 @@ describe('runDailyDevotionStreaming', () => {
         handlers.onField?.('reflection', artifact.reflection);
         handlers.onField?.('prompt', artifact.prompt);
         handlers.onField?.('note_citations', artifact.note_citations);
-        return { parsed: artifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+        return { parsed: artifact as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
       },
     };
   }
@@ -424,7 +424,7 @@ describe('runDailyDevotionStreaming', () => {
     const controller = new AbortController();
     const llm: LLMAdapter = {
       async generate<U>(): Promise<GenerateOutput<U>> {
-        return { parsed: streamArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+        return { parsed: streamArtifact as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
       },
       async generateStream<U>(
         input: GenerateStreamInput,
@@ -436,7 +436,7 @@ describe('runDailyDevotionStreaming', () => {
         handlers.onField?.('reflection', streamArtifact.reflection);
         handlers.onField?.('prompt', streamArtifact.prompt);
         handlers.onField?.('note_citations', streamArtifact.note_citations);
-        return { parsed: streamArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+        return { parsed: streamArtifact as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
       },
     };
 
@@ -512,7 +512,7 @@ describe('runDailyDevotionStreaming', () => {
     // but NOT for 'opening' which the length gate rejects.
     const llm: LLMAdapter = {
       async generate<U>(): Promise<GenerateOutput<U>> {
-        return { parsed: cleanArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 5, completionTokens: 10 };
+        return { parsed: cleanArtifact as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 5, completionTokens: 10 };
       },
       async generateStream<U>(
         _: GenerateStreamInput,
@@ -525,7 +525,7 @@ describe('runDailyDevotionStreaming', () => {
         handlers.onField?.('note_citations', shortArtifact.note_citations);
         // Emit the short opening last — gate suppresses it (no onPiece for 'opening')
         handlers.onField?.('opening', shortArtifact.opening);
-        return { parsed: shortArtifact as unknown as U, modelUsed: 'claude-sonnet-4-6', promptTokens: 5, completionTokens: 10 };
+        return { parsed: shortArtifact as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 5, completionTokens: 10 };
       },
     };
 
