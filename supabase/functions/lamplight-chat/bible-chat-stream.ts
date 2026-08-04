@@ -11,7 +11,7 @@ import { sseResponse, sseStreamFromWriter } from '../_shared/sse.ts';
 import { runBibleChatStreaming, type BibleChatContext, type ChatPromptModule } from './bible-chat-pipeline.ts';
 import type { ChatReply } from '../_shared/validators.ts';
 import type { UsageRow } from '../_shared/usage.ts';
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import type { LLMAdapter } from '../_shared/openai.ts';
 
 type HistoryRow = { role: 'user' | 'assistant'; content: string };
 

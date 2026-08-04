@@ -9,7 +9,7 @@ import { serviceClient } from '../_shared/supabase.ts';
 import { type VoyageDeps, embedQuery } from '../_shared/voyage.ts';
 import { searchBible, searchUserNotesByQuery } from '../_shared/retrieval.ts';
 import { formatVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
-import { createAnthropicAdapter } from '../_shared/anthropic.ts';
+import { createOpenAIAdapter } from '../_shared/openai.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { hasChatAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
@@ -44,9 +44,9 @@ async function handleChat(req: Request): Promise<Response> {
   const jsonResp = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...cors, 'content-type': 'application/json' } });
 
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
   const voyageKey = Deno.env.get('VOYAGE_AI_KEY');
-  if (!anthropicKey) return jsonResp({ error: 'ANTHROPIC_API_KEY missing' }, 500);
+  if (!openaiKey) return jsonResp({ error: 'OPENAI_API_KEY missing' }, 500);
   if (!voyageKey) return jsonResp({ error: 'VOYAGE_AI_KEY missing' }, 500);
 
   let body: { book?: string; chapter?: number; message?: string; mode?: string; translation?: string; stream?: boolean };
@@ -94,7 +94,7 @@ async function handleChat(req: Request): Promise<Response> {
 
   const voyageDeps: VoyageDeps = { apiKey: voyageKey, fetch };
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
-  const llm = createAnthropicAdapter({ apiKey: anthropicKey, fetch });
+  const llm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
   const quotaCfg = resolveQuotaLimits(Deno.env);
 
   const lifecycleDeps: GenerationLifecycleDeps = {

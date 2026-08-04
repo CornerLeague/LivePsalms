@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { judgeReflectionRegister } from './reflection-judge';
-import type { LLMAdapter, GenerateInput, GenerateOutput } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateInput, GenerateOutput } from '../_shared/openai';
 import type { ReflectionArtifact } from '../_shared/artifacts';
 
 function makeAdapter(verdict: { pass: boolean; reasons: string[] }): { llm: LLMAdapter; calls: GenerateInput[] } {
@@ -8,7 +8,7 @@ function makeAdapter(verdict: { pass: boolean; reasons: string[] }): { llm: LLMA
   const llm: LLMAdapter = {
     async generate<T>(input: GenerateInput): Promise<GenerateOutput<T>> {
       calls.push(input);
-      return { parsed: verdict as unknown as T, modelUsed: 'claude-haiku-4-5-20251001', promptTokens: 5, completionTokens: 10 };
+      return { parsed: verdict as unknown as T, modelUsed: 'gpt-5.6-luna', promptTokens: 5, completionTokens: 10 };
     },
     // deno-lint-ignore no-explicit-any
     generateStream: (async () => { throw new Error('unused'); }) as any,
@@ -29,7 +29,7 @@ describe('judgeReflectionRegister', () => {
     const r = await judgeReflectionRegister({ llm, artifact: ARTIFACT, notes: NOTES, periodLabel: 'May 2026' });
     expect(r).toEqual({ pass: true, reasons: [] });
     expect(calls).toHaveLength(1);
-    expect(calls[0].model).toBe('haiku');
+    expect(calls[0].model).toBe('fast');
     expect(calls[0].tool.name).toBe('judge_reflection_register');
     expect(calls[0].system).toContain('witnessed, not reopened');
   });

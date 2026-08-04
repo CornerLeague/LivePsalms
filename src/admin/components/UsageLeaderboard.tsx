@@ -15,9 +15,9 @@ const WINDOW_OPTIONS = [
 ];
 
 function approxCostCents(row: AdminUsageRow): number {
-  // Aggregate rows don't carry model — assume claude-haiku-4-5 for ballpark display.
+  // Aggregate rows don't carry model — assume gpt-5.6-luna for ballpark display.
   // Replace with per-model breakdown when the RPC ships that shape.
-  return estCostCents('claude-haiku-4-5', row.tokensIn, row.tokensOut);
+  return estCostCents('gpt-5.6-luna', row.tokensIn, row.tokensOut);
 }
 
 export function UsageLeaderboard({ rows, loading, windowDays, onWindowChange }: UsageLeaderboardProps) {

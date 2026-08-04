@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateWithRetry, type GenerateWithRetryConfig } from './generate-with-retry';
-import type { GenerateInput, GenerateOutput, LLMAdapter, ToolSchema } from './anthropic';
+import type { GenerateInput, GenerateOutput, LLMAdapter, ToolSchema } from './openai';
 import { LAMPLIGHT_SYSTEM_FRAGMENT } from './voice';
 
 type Parsed = { text: string };
@@ -26,7 +26,7 @@ function fakeLLM(parsedPerAttempt: Parsed[]): {
       i++;
       return {
         parsed: parsed as unknown as T,
-        modelUsed: input.model === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
+        modelUsed: input.model === 'balanced' ? 'gpt-5.6-terra' : 'gpt-5.6-luna',
         promptTokens: 10,
         completionTokens: 20,
       };
@@ -40,7 +40,7 @@ function baseConfig(
 ): GenerateWithRetryConfig<Parsed, Violations> {
   return {
     llm: fakeLLM([{ text: 'ok' }]).llm,
-    model: 'sonnet',
+    model: 'balanced',
     maxTokens: 256,
     artifactSystem: 'ARTIFACT STANCE',
     messages: [{ role: 'user', content: 'hi' }],
@@ -61,7 +61,7 @@ describe('generateWithRetry', () => {
     if (out.ok) {
       expect(out.parsed).toEqual({ text: 'good' });
       expect(out.attempts).toBe(1);
-      expect(out.modelUsed).toBe('claude-sonnet-4-6');
+      expect(out.modelUsed).toBe('gpt-5.6-terra');
       expect(out.promptTokens).toBe(10);
       expect(out.completionTokens).toBe(20);
     }
@@ -103,7 +103,7 @@ describe('generateWithRetry', () => {
     const out = await generateWithRetry(
       baseConfig({
         llm: fake.llm,
-        model: 'haiku',
+        model: 'fast',
         validate: async () => {
           call++;
           return { ok: false, violations: { reasons: [`fail-${call}`] } };
@@ -114,7 +114,7 @@ describe('generateWithRetry', () => {
     if (!out.ok) {
       expect(out.violations).toEqual({ reasons: ['fail-2'] });
       expect(out.attempts).toBe(2);
-      expect(out.modelUsed).toBe('claude-haiku-4-5-20251001');
+      expect(out.modelUsed).toBe('gpt-5.6-luna');
     }
     expect(fake.calls).toBe(2);
   });

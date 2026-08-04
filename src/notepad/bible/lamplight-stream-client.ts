@@ -66,8 +66,8 @@ export function makeStreamInvoke(client: SupabaseClient): StreamInvoke {
 
     if (!res.body) return;
 
-    // Parse SSE the same way the Anthropic adapter does (see
-    // supabase/functions/_shared/anthropic.ts ~117-145): pull one line at a time
+    // Parse SSE the same way the OpenAI adapter does (see
+    // supabase/functions/_shared/openai.ts ~117-145): pull one line at a time
     // out of a rolling buffer, keep only the `data:` payloads.
     const reader = res.body.getReader();
     const decoder = new TextDecoder();

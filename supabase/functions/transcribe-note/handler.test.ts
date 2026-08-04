@@ -9,7 +9,7 @@ const goodLLM = {
       confidence: 0.82,
       uncertainWords: [{ text: 'Trusting', context: 'Trusting in Psalm' }],
     },
-    modelUsed: 'claude-sonnet-4-6',
+    modelUsed: 'gpt-5.6-terra',
     promptTokens: 100,
     completionTokens: 20,
   }),

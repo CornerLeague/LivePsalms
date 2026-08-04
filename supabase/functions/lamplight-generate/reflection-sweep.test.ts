@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runReflectionSweep, CLAIM_LIMIT, type ReflectionJobRow } from './reflection-sweep';
-import type { LLMAdapter, GenerateOutput } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateOutput } from '../_shared/openai';
 import type { ReflectionArtifact } from '../_shared/artifacts';
 import type { EdgeSupabase } from './reflection-candidates';
 
@@ -22,7 +22,7 @@ function makeAdapter(responses: unknown[]): LLMAdapter {
     async generate<U>(): Promise<GenerateOutput<U>> {
       const parsed = responses[Math.min(i, responses.length - 1)] as unknown as U;
       i++;
-      return { parsed, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      return { parsed, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
     },
     generateStream: (async () => { throw new Error('unused'); }) as unknown as LLMAdapter['generateStream'],
   };
@@ -192,7 +192,7 @@ describe('runReflectionSweep', () => {
       ...eligibleSeams(),
       buildContext: async () => makeCtx(),
     });
-    expect(outcomes[0].result).toEqual({ ok: false, reason: 'validators_failed', usage: { status: 'error', model_used: 'claude-sonnet-4-6', error_code: 'validators_failed' } });
+    expect(outcomes[0].result).toEqual({ ok: false, reason: 'validators_failed', usage: { status: 'error', model_used: 'gpt-5.6-terra', error_code: 'validators_failed' } });
     expect(jobUpdates).toEqual([{ status: 'failed', attempts: 3 }]);
     expect(jobDeletes).toHaveLength(0);
   });

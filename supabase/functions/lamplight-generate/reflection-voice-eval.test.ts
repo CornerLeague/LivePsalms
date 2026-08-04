@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runMonthlyReflectionPipeline } from './monthly-reflection-pipeline';
-import type { LLMAdapter, GenerateInput, GenerateOutput } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateInput, GenerateOutput } from '../_shared/openai';
 import type { ReflectionArtifact } from '../_shared/artifacts';
 import type { MonthlyReflectionContext } from './prompts/monthly-reflection';
 import type { EdgeSupabase } from './reflection-candidates';
@@ -23,7 +23,7 @@ function makeAdapter(responses: unknown[]): { llm: LLMAdapter; calls: GenerateIn
       calls.push(input);
       const parsed = responses[Math.min(i, responses.length - 1)] as unknown as U;
       i++;
-      return { parsed, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      return { parsed, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
     },
     generateStream: (async () => { throw new Error('unused'); }) as unknown as LLMAdapter['generateStream'],
   };
@@ -208,7 +208,7 @@ describe('reflection voice eval (Tier 3, offline, non-gating — guardrails only
       // The pipeline upserts ONLY when all six validators AND the judge pass — so result.ok is
       // itself the guardrail gate. (Voice drift is a warning, not a failure: we assert structure only.)
       expect(result.ok).toBe(true);
-      expect(calls[1].model).toBe('haiku'); // the judge was consulted
+      expect(calls[1].model).toBe('fast'); // the judge was consulted
 
       const body = upserts[0].body as ReflectionArtifact;
       expect(body.markers.length).toBeGreaterThanOrEqual(MARKER_MIN);

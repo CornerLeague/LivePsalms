@@ -7,7 +7,7 @@
 // Off-list verses are repaired to null (§6.5 abstention), not dropped, in BOTH the
 // validate fn and postGeneration. Usage is NOT written here — Task 7's runGeneration does.
 
-import type { LLMAdapter, ToolSchema } from '../_shared/anthropic.ts';
+import type { LLMAdapter, ToolSchema } from '../_shared/openai.ts';
 import type { ReflectionArtifact } from '../_shared/artifacts.ts';
 import { generateWithRetry, type RetryOutcome } from '../_shared/generate-with-retry.ts';
 import { MONTHLY_PROMPT_VERSION } from '../_shared/reflection-constants.ts';
@@ -177,7 +177,7 @@ export async function runMonthlyReflectionPipeline(deps: RunMonthlyReflectionPip
 
   const outcome = await generateWithRetry<ReflectionArtifact, ReflectionPipelineViolation[]>({
     llm,
-    model: 'sonnet',
+    model: 'balanced',
     maxTokens: 2048,
     artifactSystem: MONTHLY_REFLECTION_PROMPT.system,
     systemTokens: { period_label: ctx.periodLabel },

@@ -8,7 +8,7 @@
 //
 // No Deno or Node globals. No I/O.
 
-import type { GenerateStreamInput } from './anthropic.ts';
+import type { GenerateStreamInput } from './openai.ts';
 import { LAMPLIGHT_SYSTEM_FRAGMENT, composeSystem } from './voice.ts';
 import type { GenerateWithRetryConfig, RetryOutcome } from './generate-with-retry.ts';
 

@@ -10,7 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { sseResponse, sseStreamFromWriter } from '../_shared/sse.ts';
 import { runDailyDevotionStreaming, type DailyDevotionContext } from './daily-devotion-pipeline.ts';
 import type { UsageRow } from '../_shared/usage.ts';
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import type { LLMAdapter } from '../_shared/openai.ts';
 
 export interface DailyDevotionStreamDeps {
   cors: Record<string, string>;

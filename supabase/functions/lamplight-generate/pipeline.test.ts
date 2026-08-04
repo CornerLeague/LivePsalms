@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runSmokeTestPipeline, type SmokeTestContext } from './pipeline';
-import type { LLMAdapter, GenerateOutput } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateOutput } from '../_shared/openai';
 
 function makeCtx(overrides: Partial<SmokeTestContext> = {}): SmokeTestContext {
   return {
@@ -22,7 +22,7 @@ function adapterThatReturns<T>(responses: T[]): { llm: LLMAdapter } {
     async generate<U>(): Promise<GenerateOutput<U>> {
       const parsed = responses[Math.min(i, responses.length - 1)] as unknown as U;
       i++;
-      return { parsed, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      return { parsed, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
     },
   };
   return { llm };
@@ -46,7 +46,7 @@ describe('runSmokeTestPipeline', () => {
       expect(result.attempts).toBe(1);
       expect(result.artifact.sections).toHaveLength(1);
       expect(result.usage).toEqual({
-        model: 'claude-sonnet-4-6',
+        model: 'gpt-5.6-terra',
         tokens_in: 10,
         tokens_out: 20,
         status: 'ok',

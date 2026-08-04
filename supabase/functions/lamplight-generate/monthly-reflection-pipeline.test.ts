@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runMonthlyReflectionPipeline, repairOffListVerses } from './monthly-reflection-pipeline';
-import type { LLMAdapter, GenerateInput, GenerateOutput } from '../_shared/anthropic';
+import type { LLMAdapter, GenerateInput, GenerateOutput } from '../_shared/openai';
 import type { ReflectionArtifact } from '../_shared/artifacts';
 import type { MonthlyReflectionContext } from './prompts/monthly-reflection';
 import type { EdgeSupabase } from './reflection-candidates';
@@ -16,7 +16,7 @@ function makeAdapter(responses: unknown[]): { llm: LLMAdapter; calls: GenerateIn
       calls.push(input);
       const parsed = responses[Math.min(i, responses.length - 1)] as unknown as U;
       i++;
-      return { parsed, modelUsed: 'claude-sonnet-4-6', promptTokens: 10, completionTokens: 20 };
+      return { parsed, modelUsed: 'gpt-5.6-terra', promptTokens: 10, completionTokens: 20 };
     },
     generateStream: (async () => { throw new Error('unused'); }) as unknown as LLMAdapter['generateStream'],
   };
@@ -86,10 +86,10 @@ describe('runMonthlyReflectionPipeline', () => {
     const { supabase, upserts } = makeSupabaseMock({ upsertedId: 'artifact-99' });
     const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx: makeCtx(), userId: 'u1', periodKey: '2026-05' });
 
-    expect(result).toEqual({ ok: true, cached: false, artifactId: 'artifact-99', usage: { status: 'ok', model_used: 'claude-sonnet-4-6', prompt_tokens: 10, completion_tokens: 20 } });
+    expect(result).toEqual({ ok: true, cached: false, artifactId: 'artifact-99', usage: { status: 'ok', model_used: 'gpt-5.6-terra', prompt_tokens: 10, completion_tokens: 20 } });
     // sonnet artifact call, then haiku judge call
-    expect(calls[0].model).toBe('sonnet');
-    expect(calls[1].model).toBe('haiku');
+    expect(calls[0].model).toBe('balanced');
+    expect(calls[1].model).toBe('fast');
     expect(upserts).toHaveLength(1);
     const row = upserts[0];
     expect(row.type).toBe('reflection_recap');
@@ -139,7 +139,7 @@ describe('runMonthlyReflectionPipeline', () => {
     const { supabase, upserts } = makeSupabaseMock();
     const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx: makeCtx(), userId: 'u1', periodKey: '2026-05' });
 
-    expect(result).toEqual({ ok: false, reason: 'validators_failed', usage: { status: 'error', model_used: 'claude-sonnet-4-6', error_code: 'validators_failed' } });
+    expect(result).toEqual({ ok: false, reason: 'validators_failed', usage: { status: 'error', model_used: 'gpt-5.6-terra', error_code: 'validators_failed' } });
     expect(upserts).toHaveLength(0);
   });
 

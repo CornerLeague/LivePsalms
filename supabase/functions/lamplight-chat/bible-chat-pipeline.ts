@@ -2,7 +2,7 @@
 // content rules) → retry once. No Supabase / persistence (the handler owns
 // thread + message writes). Node-testable with a fake LLMAdapter.
 
-import type { LLMAdapter, LLMModel } from '../_shared/anthropic.ts';
+import type { LLMAdapter, LLMModel } from '../_shared/openai.ts';
 import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_shared/voice.ts';
 import {
   validateChatReplyCitations,
@@ -121,7 +121,7 @@ export async function runBibleChatPipeline(args: {
 
   const outcome = await generateWithRetry<ChatReply, ChatViolations>({
     llm: args.llm,
-    model: args.model ?? 'sonnet',
+    model: args.model ?? 'balanced',
     maxTokens: 1024,
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),
@@ -162,7 +162,7 @@ export async function runBibleChatStreaming(
 
   const outcome = await generateStreamingWithRetry<ChatReply, ChatViolations>({
     llm: args.llm,
-    model: args.model ?? 'sonnet',
+    model: args.model ?? 'balanced',
     maxTokens: 1024,
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),

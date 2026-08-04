@@ -13,7 +13,7 @@
 // cron's INSERT), never from request headers or body — so this branch cannot be used to
 // generate a reflection for an arbitrary user via a spoofed payload.
 
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import type { LLMAdapter } from '../_shared/openai.ts';
 import { buildMonthlyReflectionContext } from './monthly-reflection-context.ts';
 import type { MonthlyReflectionContext } from './prompts/monthly-reflection.ts';
 import { runMonthlyReflectionPipeline, type MonthlyReflectionPipelineResult } from './monthly-reflection-pipeline.ts';

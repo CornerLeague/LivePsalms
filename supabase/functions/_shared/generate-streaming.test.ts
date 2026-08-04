@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi } from 'vitest';
 import { generateStreamingWithRetry } from './generate-streaming';
-import type { LLMAdapter } from './anthropic';
+import type { LLMAdapter } from './openai';
 
 // Fake adapter: generateStream replays scripted field events; generate returns a fixed object.
 function fakeLlm(opts: {
@@ -11,16 +11,16 @@ function fakeLlm(opts: {
   retryParsed?: unknown;
 }): LLMAdapter {
   return {
-    generate: vi.fn(async () => ({ parsed: opts.retryParsed ?? opts.streamParsed, modelUsed: 'claude-sonnet-4-6', promptTokens: 5, completionTokens: 6 })) as any,
+    generate: vi.fn(async () => ({ parsed: opts.retryParsed ?? opts.streamParsed, modelUsed: 'gpt-5.6-terra', promptTokens: 5, completionTokens: 6 })) as any,
     generateStream: vi.fn(async (_input, handlers) => {
       for (const f of opts.streamFields) handlers.onField?.(f.field, f.value);
-      return { parsed: opts.streamParsed, modelUsed: 'claude-sonnet-4-6', promptTokens: 5, completionTokens: 9 };
+      return { parsed: opts.streamParsed, modelUsed: 'gpt-5.6-terra', promptTokens: 5, completionTokens: 9 };
     }) as any,
   };
 }
 
 const baseCfg = {
-  model: 'sonnet' as const, maxTokens: 1024, artifactSystem: 'sys',
+  model: 'balanced' as const, maxTokens: 1024, artifactSystem: 'sys',
   messages: [{ role: 'user' as const, content: 'hi' }],
   tool: { name: 'emit', description: 'd', input_schema: { type: 'object' } },
   formatStricter: () => 'stricter',

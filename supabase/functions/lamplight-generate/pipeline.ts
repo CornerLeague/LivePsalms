@@ -2,7 +2,7 @@
 // own. The HTTP shell (index.ts) builds ctx via buildSmokeTestContext and
 // hands it here. Unit-testable by injecting a fake adapter + handcrafted ctx.
 
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import type { LLMAdapter } from '../_shared/openai.ts';
 import type { UsageCore } from '../_shared/usage.ts';
 import {
   BANNED_PHRASES,
@@ -82,7 +82,7 @@ export async function runSmokeTestPipeline(args: {
 
   const outcome = await generateWithRetry<SmokeTestArtifact, SmokeViolations>({
     llm: args.llm,
-    model: 'sonnet',
+    model: 'balanced',
     maxTokens: 2048,
     artifactSystem: SMOKE_TEST_PROMPT.system,
     messages: SMOKE_TEST_PROMPT.buildMessages(ctx),

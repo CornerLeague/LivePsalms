@@ -1,10 +1,10 @@
 // supabase/functions/etymology-insight/index.ts
 // Generates + persists the shared per-(word, verse) etymology insight. Reads are
-// pure client DB queries; ONLY generation lives here so the Anthropic key stays
+// pure client DB queries; ONLY generation lives here so the OpenAI key stays
 // server-side. Gated on the 'inline' entitlement (Plus/promo) — see Open Decision.
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { serviceClient } from '../_shared/supabase.ts';
-import { createAnthropicAdapter } from '../_shared/anthropic.ts';
+import { createOpenAIAdapter } from '../_shared/openai.ts';
 import { fetchPassageText, formatVerseRef } from '../_shared/bible-passage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
@@ -24,8 +24,8 @@ serve(async (req) => {
   if (req.method !== 'POST') return jsonResp({ error: 'method not allowed' }, 405);
 
   try {
-    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!anthropicKey) return jsonResp({ error: 'ANTHROPIC_API_KEY missing' }, 500);
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) return jsonResp({ error: 'OPENAI_API_KEY missing' }, 500);
 
     let body: { strongs?: string; verse_id?: string };
     try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
@@ -48,7 +48,7 @@ serve(async (req) => {
     }
 
     const quotaCfg = resolveQuotaLimits(Deno.env);
-    const llm = createAnthropicAdapter({ apiKey: anthropicKey, fetch });
+    const llm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
     const lifecycleDeps: GenerationLifecycleDeps = {
       checkQuota: async (uid) => {
         const q = await checkQuota(supabaseQuotaDeps(supabase), quotaCfg.generation, quotaCfg.global, { userId: uid, nowMs: Date.now() });
@@ -81,7 +81,7 @@ serve(async (req) => {
           },
           generate: async (ctx) => {
             const out = await llm.generate<{ body: string }>({
-              model: 'opus', system: VERSE_INSIGHT_PROMPT.system,
+              model: 'deep', system: VERSE_INSIGHT_PROMPT.system,
               messages: VERSE_INSIGHT_PROMPT.buildMessages(ctx), tool: VERSE_INSIGHT_PROMPT.tool,
             });
             return { body: out.parsed.body, modelUsed: out.modelUsed, promptTokens: out.promptTokens, completionTokens: out.completionTokens };

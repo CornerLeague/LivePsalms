@@ -1,6 +1,6 @@
 //
 // Offline seed for bible_etymology (v1: Psalms + Hebrew). Run manually:
-//   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... ANTHROPIC_API_KEY=... \
+//   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OPENAI_API_KEY=... \
 //     npx tsx scripts/etymology/seed-etymology.ts --dry-run --limit=5
 //   (drop --dry-run to write; drop --limit to seed all Psalms Hebrew roots)
 //
@@ -9,7 +9,7 @@
 // (2) build a verified LexiconEntry map from the OpenScriptures Strong's Hebrew
 // dictionary under scripts/data/ (root pointer parsed from `derivation`, gloss
 // from `strongs_def` — v1 uses Strong's as the gloss; BDB is a post-launch
-// enrichment); (3) narrate `development` via Opus under a never-invent prompt;
+// enrichment); (3) narrate `development` via the deep tier under a never-invent prompt;
 // (4) run validateGroundedNarration — SKIP + log any row whose narration cites
 // ungrounded proper nouns; (5) upsert rows with reviewed=false.
 //
@@ -27,7 +27,7 @@ import {
 } from './etymology-grounding';
 
 export const DEVELOPMENT_PROMPT_VERSION = 'etymology-development-2026-07-09-v1';
-const MODEL = 'claude-opus-4-8';
+const MODEL = 'gpt-5.6-sol';
 const DICT_URL = new URL('../data/strongs-hebrew-dictionary.json', import.meta.url);
 const ROW_SOURCE = "Strong's Hebrew (OpenScriptures, public domain)";
 
@@ -98,7 +98,7 @@ export function buildLexicon(dict: Record<string, OsHebrewEntry>): Record<string
   return out;
 }
 
-// ── narration (Opus, tool-use, never-invent) — a study-time analogue of ──
+// ── narration (deep tier, tool-use, never-invent) — a study-time analogue of ──
 // ── supabase/functions/etymology-insight/prompts/verse-insight.ts ──
 const DEVELOPMENT_SYSTEM = [
   'You explain how one Hebrew word grew from its root, for a Bible-study aid.',
@@ -114,13 +114,16 @@ const DEVELOPMENT_SYSTEM = [
 ].join('\n');
 
 const DEVELOPMENT_TOOL = {
-  name: 'emit_development',
-  description: 'Return the one-paragraph, grounded "how it grew" note for this word.',
-  input_schema: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['body'],
-    properties: { body: { type: 'string', minLength: 12, maxLength: 400 } },
+  type: 'function',
+  function: {
+    name: 'emit_development',
+    description: 'Return the one-paragraph, grounded "how it grew" note for this word.',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['body'],
+      properties: { body: { type: 'string', minLength: 12, maxLength: 400 } },
+    },
   },
 } as const;
 
@@ -137,10 +140,10 @@ function buildDevelopmentUser(rec: GroundingRecord): string {
   );
 }
 
-// Anthropic transient statuses worth retrying: 429 rate-limit, 529 overloaded.
+// OpenAI transient statuses worth retrying: 429 rate-limit, 500/503 overloaded.
 // A full corpus run makes hundreds of back-to-back calls; without backoff a burst
 // of 429s would drop a large fraction of rows into `skipped` instead of seeding them.
-const RETRYABLE_STATUS = new Set([429, 529]);
+const RETRYABLE_STATUS = new Set([429, 500, 503]);
 const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 export interface NarrateOptions {
@@ -157,31 +160,48 @@ export async function narrateDevelopment(
   const maxRetries = opts.maxRetries ?? 5;
   const sleepImpl = opts.sleepImpl ?? defaultSleep;
   for (let attempt = 0; ; attempt++) {
-    const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
+    const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 400,
-        system: DEVELOPMENT_SYSTEM,
+        max_completion_tokens: 400,
+        // Chat Completions rejects function tools when reasoning_effort is
+        // non-'none'; this narration is a forced tool call, so reasoning is off.
+        reasoning_effort: 'none',
         tools: [DEVELOPMENT_TOOL],
-        tool_choice: { type: 'tool', name: 'emit_development' },
-        messages: [{ role: 'user', content: buildDevelopmentUser(rec) }],
+        tool_choice: { type: 'function', function: { name: 'emit_development' } },
+        messages: [
+          { role: 'system', content: DEVELOPMENT_SYSTEM },
+          { role: 'user', content: buildDevelopmentUser(rec) },
+        ],
       }),
     });
     if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
       await sleepImpl(Math.min(500 * 2 ** attempt, 8000)); // 0.5s,1s,2s,4s,8s
       continue;
     }
-    if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
-    const json = (await res.json()) as { content?: Array<{ type: string; input?: { body?: string } }> };
-    const tool = json.content?.find((b) => b.type === 'tool_use');
-    const body = tool?.input?.body;
-    if (!body) throw new Error('no emit_development tool_use in response');
+    if (!res.ok) throw new Error(`openai ${res.status}: ${await res.text()}`);
+    const json = (await res.json()) as {
+      choices?: Array<{ message?: { tool_calls?: Array<{ function?: { name?: string; arguments?: string } }> } }>;
+    };
+    const call = json.choices?.[0]?.message?.tool_calls
+      ?.find((c) => c.function?.name === 'emit_development');
+    if (typeof call?.function?.arguments !== 'string') {
+      throw new Error('no emit_development tool call in response');
+    }
+    let body: unknown;
+    try {
+      body = (JSON.parse(call.function.arguments) as { body?: unknown }).body;
+    } catch {
+      throw new Error('emit_development arguments were not valid JSON');
+    }
+    if (typeof body !== 'string' || !body.trim()) {
+      throw new Error('no emit_development tool call in response');
+    }
     return body.trim();
   }
 }
@@ -216,7 +236,7 @@ function requireEnv(name: string): string {
 
 // Parse --limit=N. A malformed value (--limit=abc, --limit=, --limit=0, --limit=-3,
 // --limit=2.5) throws rather than silently seeding the whole corpus — an unbounded
-// run spends Anthropic tokens an operator meant to cap.
+// run spends OpenAI tokens an operator meant to cap.
 export function parseLimit(argv: string[]): number {
   const limitArg = argv.find((a) => a.startsWith('--limit='));
   if (!limitArg) return Infinity;
@@ -236,7 +256,7 @@ async function main(): Promise<void> {
   const supabase = createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_SERVICE_ROLE_KEY'), {
     auth: { persistSession: false },
   });
-  const anthropicKey = requireEnv('ANTHROPIC_API_KEY');
+  const openaiKey = requireEnv('OPENAI_API_KEY');
 
   const dict = JSON.parse(await readFile(fileURLToPath(DICT_URL), 'utf8')) as Record<string, OsHebrewEntry>;
   const lexicon = buildLexicon(dict);
@@ -264,7 +284,7 @@ async function main(): Promise<void> {
     }
     let development: string;
     try {
-      development = await narrateDevelopment(record, anthropicKey);
+      development = await narrateDevelopment(record, openaiKey);
     } catch (e) {
       console.warn(`skip ${strongs} (${record.lemma}): narration failed — ${(e as Error).message}`);
       skipped++;

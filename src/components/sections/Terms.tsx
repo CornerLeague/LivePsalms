@@ -246,7 +246,7 @@ export function Terms() {
           <strong>not</strong> grant us the right to sell your User Content, distribute it to third
           parties for their independent use, or use your personal notes for advertising or marketing
           purposes. Furthermore, we contractually restrict our AI sub-processors (including
-          Anthropic and Voyage AI) from using your note content to train their public models [2]
+          OpenAI and Voyage AI) from using your note content to train their public models [2]
           [3]. No human employee or contractor at LivePsalms will ever read, review, or inspect your
           personal notes unless you explicitly request support and grant us temporary, express
           permission to access your account for troubleshooting.
@@ -282,7 +282,7 @@ export function Terms() {
 
       <p>
         Lamplight utilizes advanced large language models and text embedding technologies provided
-        by third-party sub-processors (such as Anthropic and Voyage AI) to generate devotional
+        by third-party sub-processors (such as OpenAI and Voyage AI) to generate devotional
         reflections, summaries, and note connection explanations (collectively, "Output") [2] [3].
         You acknowledge and agree that:
       </p>
@@ -907,11 +907,11 @@ export function Terms() {
         <li>
           [2]{' '}
           <a
-            href="https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training"
+            href="https://developers.openai.com/api/docs/guides/your-data"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Anthropic Commercial Terms and API Data Usage Policy
+            OpenAI Platform — Data Controls: Training, Retention, and Abuse Monitoring
           </a>
         </li>
         <li>

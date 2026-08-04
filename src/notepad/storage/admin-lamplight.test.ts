@@ -241,7 +241,7 @@ maybeDescribe('Lamplight admin RPCs (integration)', () => {
     await svc.from('lamplight_usage').insert([
       { user_id: userA.userId, model: 'voyage-3-large', artifact_kind: tag,
         tokens_in: 100, tokens_out: 0, status: 'ok' },
-      { user_id: userA.userId, model: 'claude-sonnet-4-6', artifact_kind: tag,
+      { user_id: userA.userId, model: 'gpt-5.6-terra', artifact_kind: tag,
         tokens_in: 50, tokens_out: 30, status: 'ok' },
       { user_id: userA.userId, model: 'voyage-3-large', artifact_kind: tag,
         tokens_in: 0, tokens_out: 0, status: 'error', error_code: 'voyage_429' },

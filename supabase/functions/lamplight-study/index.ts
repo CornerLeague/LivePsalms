@@ -8,7 +8,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '../_shared/supabase.ts';
 import { type VoyageDeps } from '../_shared/voyage.ts';
-import { createAnthropicAdapter } from '../_shared/anthropic.ts';
+import { createOpenAIAdapter } from '../_shared/openai.ts';
 import { hasChatAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
@@ -48,9 +48,9 @@ async function handleStudy(req: Request): Promise<Response> {
   const jsonResp = (b: unknown, status = 200) =>
     new Response(JSON.stringify(b), { status, headers: { ...cors, 'content-type': 'application/json' } });
 
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
   const voyageKey = Deno.env.get('VOYAGE_AI_KEY');
-  if (!anthropicKey) return jsonResp({ error: 'ANTHROPIC_API_KEY missing' }, 500);
+  if (!openaiKey) return jsonResp({ error: 'OPENAI_API_KEY missing' }, 500);
   if (!voyageKey) return jsonResp({ error: 'VOYAGE_AI_KEY missing' }, 500);
 
   let raw: Record<string, unknown>;
@@ -112,7 +112,7 @@ async function handleStudy(req: Request): Promise<Response> {
 
   const voyageDeps: VoyageDeps = { apiKey: voyageKey, fetch };
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
-  const llm = createAnthropicAdapter({ apiKey: anthropicKey, fetch });
+  const llm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
   const quotaCfg = resolveQuotaLimits(Deno.env);
 
   // Streaming branch: SSE over the same gates + study context as the buffered
@@ -231,7 +231,7 @@ async function handleStudy(req: Request): Promise<Response> {
       });
 
       const result = await runBibleChatPipeline({
-        llm, ctx, model: 'opus',
+        llm, ctx, model: 'deep',
         prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
       });
       if (!result.ok) {

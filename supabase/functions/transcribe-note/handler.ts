@@ -1,5 +1,5 @@
 // supabase/functions/transcribe-note/handler.ts
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import type { LLMAdapter } from '../_shared/openai.ts';
 import type { VerseFlag } from '../_shared/verse-verify.ts';
 import { TRANSCRIBE_SYSTEM, TRANSCRIBE_TOOL } from './prompt.ts';
 
@@ -56,11 +56,11 @@ export async function handleTranscribe(
   const { base64, mimeType } = await deps.downloadImage(body.image_key);
 
   let parsed: { transcription: string; confidence: number; uncertainWords: UncertainWord[] };
-  let modelUsed = 'claude-sonnet-4-6';
+  let modelUsed = 'gpt-5.6-terra';
   let tokensIn = 0, tokensOut = 0;
   try {
     const out = await deps.llm.generate<typeof parsed>({
-      model: 'sonnet',
+      model: 'balanced',
       system: TRANSCRIBE_SYSTEM,
       maxTokens: 4096,
       tool: TRANSCRIBE_TOOL,

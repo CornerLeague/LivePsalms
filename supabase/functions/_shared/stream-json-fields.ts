@@ -1,5 +1,5 @@
 // supabase/functions/_shared/stream-json-fields.ts
-// Pure streaming parser for the partial JSON object Claude emits as a tool's
+// Pure streaming parser for the partial JSON object the model emits as a tool's
 // input (input_json_delta). Given a known root object, it identifies top-level
 // (depth-1) fields, emits `text` deltas for declared string fields as they
 // grow, and a `complete` event (with the JSON-parsed value) when each field

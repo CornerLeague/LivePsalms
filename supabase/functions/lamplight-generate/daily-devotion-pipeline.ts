@@ -3,7 +3,7 @@
 // race-handling branches are added in subsequent tasks.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LLMAdapter } from '../_shared/anthropic.ts';
+import type { LLMAdapter } from '../_shared/openai.ts';
 import type { DailyDevotion } from '../_shared/artifacts.ts';
 import {
   BANNED_PHRASES,
@@ -136,7 +136,7 @@ async function devotionPreCheck(args: {
       ok: true,
       artifact: existing.data.body as DailyDevotion,
       artifact_id: existing.data.id as string,
-      model_used: (existing.data.model_used as string) ?? 'claude-sonnet-4-6',
+      model_used: (existing.data.model_used as string) ?? 'gpt-5.6-terra',
       prompt_version: (existing.data.prompt_version as string) ?? promptVersion,
       attempts: 0,
       cached: true,
@@ -252,7 +252,7 @@ async function devotionPostGeneration(args: {
 // length case by the absence of other violations. The sentinel object is returned
 // from `devotionFieldGate` for any out-of-range field. This avoids widening the
 // shared ContentRuleViolation.family union (out of scope) while keeping the
-// gate's return type as DailyViolations | null. In practice, Claude corrects
+// gate's return type as DailyViolations | null. In practice, the model corrects
 // length on a second attempt because the tool schema's minLength/maxLength
 // constraints remain in the prompt, supplemented by the explicit length reminder.
 
@@ -290,7 +290,7 @@ export async function runDailyDevotionPipeline(args: {
 
   const outcome = await generateWithRetry<DailyDevotion, DailyViolations>({
     llm: args.llm,
-    model: 'sonnet',
+    model: 'balanced',
     maxTokens: 2048,
     artifactSystem: DAILY_DEVOTION_PROMPT.system,
     systemTokens: { local_date: ctx.localDate },
@@ -334,7 +334,7 @@ export async function runDailyDevotionStreaming(
 
   const outcome = await generateStreamingWithRetry<DailyDevotion, DailyViolations>({
     llm: args.llm,
-    model: 'sonnet',
+    model: 'balanced',
     maxTokens: 2048,
     artifactSystem: DAILY_DEVOTION_PROMPT.system,
     systemTokens: { local_date: ctx.localDate },
