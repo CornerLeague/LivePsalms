@@ -254,7 +254,7 @@ All four slices are code-complete on `feat/responses-api-migration` (1a–1c, PR
 
 | Slice | Delivered | Verified |
 |---|---|---|
-| **1a** Responses API | Per-call reasoning effort across every pipeline; tier seam intact | Unit only — the live adapter smoke has **not** been run |
+| **1a** Responses API | Per-call reasoning effort across every pipeline; tier seam intact | Live adapter smoke, all four legs green (2026-08-05) |
 | **1b** Library schema + ingest | 34,076 chunks, 33,278 verse anchors, all embedded | Counts, zero orphans, retrieval baseline |
 | **1c** Retrieval fusion + prompts | Two-channel RRF retrieval into study + Today's Lamp; provenance persisted | Live: all three sources surface; lexicon resolves |
 | **1d** Verification, provenance, evals | Repair-before-reject on four surfaces; panel + Sources screen; eval harness | Live baseline 10/10, zero scripture violations |
@@ -267,10 +267,11 @@ All four slices are code-complete on `feat/responses-api-migration` (1a–1c, PR
    end-to-end against a real model.
 3. ⚠️ Provenance is persisted and the panel renders it in component tests; not
    yet seen in a browser with a real artifact.
-4. ⚠️ All pipelines run on the Responses adapter, but
-   `scripts/smoke/openai-adapter-smoke.ts` has still not been run with a live
-   key. **This is the largest untested surface in Phase 1** — it changed
-   transport for every AI path.
+4. ✅ All pipelines run on the Responses adapter, and
+   `scripts/smoke/openai-adapter-smoke.ts` passed all four legs live on
+   2026-08-05 — including the flagship at `effort: 'high'` with a forced
+   function tool, the combination Chat Completions could not do and the one
+   Waymarks depends on. This was the largest untested surface in Phase 1.
 5. ✅ `verifyArtifactScripture` wired on devotion, both chats, and etymology.
    Reflection markers deliberately excluded (see slice 1d record).
 6. ✅ Sources screen renders each source's verbatim attribution, grouped by
@@ -280,6 +281,11 @@ All four slices are code-complete on `feat/responses-api-migration` (1a–1c, PR
 8. ⚠️ tsc + full vitest + eslint green. **RLS isolation tests were NOT extended**
    to `library_sources` / `library_chunks` — both are public-read by design, but
    the "no client write" half is unasserted.
+
+**Verification tally:** five of eight acceptance criteria are met outright. The
+three that remain partial are all "generated output has not been seen end to
+end" (criteria 2 and 3) and the unasserted RLS write-denial (criterion 8) — no
+transport or retrieval path is now unverified.
 
 **Known issues carried out of Phase 1** (detail in each slice's record):
 
