@@ -5,6 +5,7 @@
 // builders in lamplight-generate/index.ts both held as byte-identical copies.
 
 import type { RetrievedItem } from './retrieval.ts';
+import { osisToBookName } from './verse-verify.ts';
 
 // Minimal typing for the supabase client slice we need (avoids pulling in the
 // full @supabase/supabase-js types in a context where the JSR import is used).
@@ -43,6 +44,28 @@ export function formatVerseRef(
   return `${p.book} ${p.chapter}:${suffix}`;
 }
 
+/**
+ * A ref fit to show a reader, and to hand a model.
+ *
+ * bible_passages.book holds the OSIS CODE, so formatVerseRef yields "psa 23:4".
+ * That is fine as an internal key but wrong everywhere it surfaces: it was
+ * rendered on the reader's Today's Lamp card, and the first eval baseline caught
+ * the model echoing the form into the reflection prose ("The image in psa 16:6
+ * is not of possessing everything…").
+ *
+ * The full book name — not the "Ps" abbreviation reflections use — is chosen so
+ * the result round-trips through parseRefToIds. An unparseable allowlist ref is
+ * how Scripture verification came to silently skip every devotion.
+ *
+ * Unknown book values pass through untouched: a raw value is ugly, a blank ref
+ * is a lie.
+ */
+export function formatDisplayVerseRef(
+  p: { book: string; chapter: number; verse_start: number; verse_end: number },
+): string {
+  return formatVerseRef({ ...p, book: osisToBookName(p.book) ?? p.book });
+}
+
 export function buildPassages(
   passageRows: BiblePassageRow[],
   retrieved: RetrievedItem[],
@@ -55,7 +78,7 @@ export function buildPassages(
     .map(r => {
       const p = passageById.get(r.source_id);
       if (!p) return null;
-      const ref = formatVerseRef(p);
+      const ref = formatDisplayVerseRef(p);
       return {
         source_id: r.source_id, text: p.text, ref,
         metadata: { book: p.book, chapter: p.chapter, similarity: r.similarity, rerank_score: r.rerank_score },

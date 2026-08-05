@@ -30,7 +30,7 @@ import {
   type DailyDevotionContext,
 } from '../supabase/functions/lamplight-generate/daily-devotion-pipeline';
 import { verifyVerseRefs } from '../supabase/functions/_shared/verse-verify';
-import { formatVerseRef } from '../supabase/functions/_shared/bible-passage';
+import { formatDisplayVerseRef } from '../supabase/functions/_shared/bible-passage';
 import { OSIS_TO_ABBREV } from '../supabase/functions/_shared/bible-books';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -509,7 +509,8 @@ async function loadPassages(
   if (error) throw new Error(`bible_passages: ${error.message}`);
   return (data ?? []).map((r) => {
     const row = r as { id: string; book: string; chapter: number; verse_start: number; verse_end: number; text: string };
-    return { source_id: row.id, ref: formatVerseRef(row), text: row.text, metadata: {} };
+    // formatDisplayVerseRef, matching buildPassages in the real devotion path.
+    return { source_id: row.id, ref: formatDisplayVerseRef(row), text: row.text, metadata: {} };
   });
 }
 

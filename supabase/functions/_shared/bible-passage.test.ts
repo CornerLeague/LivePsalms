@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatVerseRef, buildPassages, fetchPassageText, type BiblePassageRow } from './bible-passage';
+import { formatVerseRef, formatDisplayVerseRef, buildPassages, fetchPassageText, type BiblePassageRow } from './bible-passage';
+import { parseRefToIds } from './verse-verify';
 import type { RetrievedItem } from './retrieval';
 
 // Fake supabase: returns KJV for jhn.3.16 only; BSB for both ids.
@@ -121,5 +122,56 @@ describe('buildPassages', () => {
     ];
     const out = buildPassages(rows, retrieved);
     expect(out.map(p => p.source_id)).toEqual(['b', 'a']);
+  });
+});
+
+// ── Devotion refs are DISPLAY refs ───────────────────────────────────────────
+// bible_passages.book holds the OSIS code, so formatVerseRef yields "psa 23:4".
+// That string was going into the devotion's allowlist, into the prompt, into the
+// model's scripture.ref, and onto the reader's card — and the eval baseline
+// caught the model echoing it into the reflection prose too ("The image in
+// psa 16:6…"). buildPassages feeds the devotion path exclusively, so this is the
+// seam where the devotion gets human refs without touching study or chat.
+
+describe('formatDisplayVerseRef', () => {
+  it('renders the full book name for an OSIS code', () => {
+    expect(formatDisplayVerseRef({ book: 'psa', chapter: 23, verse_start: 4, verse_end: 4 }))
+      .toBe('Psalms 23:4');
+  });
+
+  it('renders a range', () => {
+    expect(formatDisplayVerseRef({ book: 'psa', chapter: 23, verse_start: 4, verse_end: 6 }))
+      .toBe('Psalms 23:4-6');
+  });
+
+  it('handles numbered books', () => {
+    expect(formatDisplayVerseRef({ book: '1jn', chapter: 4, verse_start: 8, verse_end: 8 }))
+      .toBe('1 John 4:8');
+  });
+
+  it('falls back to the raw book value for an unknown code rather than rendering blank', () => {
+    expect(formatDisplayVerseRef({ book: 'John', chapter: 3, verse_start: 16, verse_end: 16 }))
+      .toBe('John 3:16');
+  });
+});
+
+describe('buildPassages — display refs', () => {
+  const retrieved = [
+    { id: 'e1', source_id: 'psa.23.4', chunk_index: 0, chunk_text: 'x', similarity: 0.9, metadata: {} },
+  ];
+  const rows = [
+    { id: 'psa.23.4', book: 'psa', chapter: 23, verse_start: 4, verse_end: 4, text: 'Even though I walk…' },
+  ];
+
+  it('gives the devotion a human ref, not the raw OSIS code', () => {
+    expect(buildPassages(rows, retrieved)[0].ref).toBe('Psalms 23:4');
+  });
+
+  it('LOAD-BEARING: the ref it produces parses back to the same verse id', () => {
+    // The allowlist ref must be verifiable. When it was "psa 23:4" the shared
+    // parser could not read it, so Scripture verification silently skipped every
+    // devotion — the bug the first live eval run surfaced.
+    const ref = buildPassages(rows, retrieved)[0].ref;
+    expect(parseRefToIds(ref)).toEqual(['psa.23.4']);
   });
 });

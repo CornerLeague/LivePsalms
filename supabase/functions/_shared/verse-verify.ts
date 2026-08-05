@@ -50,6 +50,11 @@ const OSIS_TO_BOOK: Record<string, string> = Object.fromEntries(
   Object.entries(OSIS_BOOK_MAP).map(([name, osis]) => [osis, name]),
 );
 
+/** OSIS code → canonical book name ('psa' → 'Psalms'); null when unknown. */
+export function osisToBookName(code: string): string | null {
+  return OSIS_TO_BOOK[code.trim().toLowerCase()] ?? null;
+}
+
 function canonicalBook(raw: string): string | null {
   const collapsed = raw.replace(/\s+/g, ' ').trim();
   const aliased = BOOK_ALIASES[collapsed] ?? collapsed;
