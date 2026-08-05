@@ -115,6 +115,32 @@ select heading, verse_start from public.library_chunks
  order by verse_start limit 5;
 ```
 
+## 6b. Retrieval baseline (recorded 2026-08-05)
+
+```bash
+npx tsx scripts/library-retrieval-smoke.ts
+```
+
+Default query `"waiting on the Lord in a season of fear"` returned, top 5:
+
+| # | sim | source | heading | anchor |
+|---|---|---|---|---|
+| 1 | 0.551 | jfb | Psalm 130:5-6 | psa 130 |
+| 2 | 0.536 | treasury-of-david | Psalm 27:14 | psa 27 |
+| 3 | 0.530 | treasury-of-david | Psalm 130:5 [2] | psa 130 |
+| 4 | 0.525 | treasury-of-david | Psalm 25:5 [3] (1/2) | psa 25 |
+| 5 | 0.521 | treasury-of-david | Psalm 130:5 [3] | psa 130 |
+
+What this baseline pins, beyond "retrieval works":
+
+- **Semantic quality** — every hit is a waiting-on-God passage (Ps 130 "I wait for the LORD", Ps 27:14 "Wait on the LORD", Ps 25:5 "On thee do I wait"), and JFB's top hit independently cross-references Ps 27:14 while Treasury's Ps 27:14 ranks second. The corpus corroborates itself.
+- **The occurrence suffix is doing real work.** `Psalm 130:5 [2]` and `[3]` carry *different* text (one on waiting as "a most blessed posture", the other on waiting as "a great part of life's discipline") — Treasury's per-section comments on one verse. Before the suffix these collided on `library_chunks_ident` and the upsert kept only one.
+- **Suffix and chunk-splitting compose** — `Psalm 25:5 [3] (1/2)` is occurrence 3, piece 1 of 2.
+- **Anchors resolve** to real books/chapters.
+- **Similarity band ~0.52–0.55** for a good match on this corpus. Useful when slice 1c sets fusion/rerank thresholds — do not assume note-similarity thresholds transfer.
+
+**Watch item:** `matthew-henry-concise` did not place in the top 5. Not necessarily wrong — it is the smallest source (4,136 chunks) and its comments summarise passage blocks rather than dwelling on single verses, so a devotional single-verse query favours the other two. If MHCC never surfaces across varied slice-1c queries, investigate before assuming it is earning its place.
+
 ## 7. Re-running / rollback
 
 Chunks upsert on `library_chunks_ident (source_id, heading, book, chapter, verse_start)` with `nulls not distinct`, and sources upsert on `id` — so a re-run is safe and idempotent.
