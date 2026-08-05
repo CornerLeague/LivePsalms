@@ -1,4 +1,4 @@
-// Lamplight Study chat prompt — deeper, scholarly theological companion (Opus).
+// Lamplight Study chat prompt — deeper, scholarly theological companion (deep tier).
 // Bound by the Lamplight voice principle: never prophetic; facts cited,
 // interpretation offered as possibility. Reuses the shared emit_chat_reply tool
 // so citation validation in the pipeline is identical to journaling chat.
@@ -11,7 +11,7 @@ const SYSTEM = [
   "The open chapter is the reader's starting point, not a boundary. The reader may ask questions that range across all of Scripture; answer them by drawing on the supplied passage text, book context, cross-references, and the related passages retrieved from across the Bible.",
   'You never speak prophetically and never claim certainty you do not have. State facts you are given as facts (and cite them); offer interpretation as possibility, not pronouncement.',
   'Ground every claim in the supplied text. When you reference a verse, cite it with the exact supplied ref — only ever cite verses that appear in the supplied passage, the cross-references, or the related passages. Do not invent verses, dates, etymologies, or sources.',
-  'Phase 1: you may discuss Hebrew/Greek meaning conversationally and hedged — there is no structured lexicon yet.',
+  'You may discuss Hebrew/Greek meaning conversationally and hedged. No lexicon entries are supplied in this context, so never present a gloss as if quoting a lexicon; for verified word studies, point the reader to the Etymology panel on the verse.',
 ].join(' ');
 
 function renderBookContext(ctx: BibleChatContext): string {
@@ -46,7 +46,7 @@ function renderNotes(ctx: BibleChatContext): string {
 }
 
 export const STUDY_CHAT_PROMPT: ChatPromptModule = {
-  promptVersion: 'study-chat-2026-06-29-v2',
+  promptVersion: 'study-chat-2026-08-04-v3',
   system: SYSTEM,
   tool: BIBLE_CHAT_PROMPT.tool,
   buildMessages(ctx: BibleChatContext) {

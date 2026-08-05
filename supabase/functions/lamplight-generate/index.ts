@@ -23,6 +23,7 @@ import { embedQuery, type VoyageDeps } from '../_shared/voyage.ts';
 import { searchBible } from '../_shared/retrieval.ts';
 import { type BiblePassageRow, fetchPassageText } from '../_shared/bible-passage.ts';
 import { createOpenAIAdapter } from '../_shared/openai.ts';
+import { makeDoctrinalClassifier } from '../_shared/doctrinal-classifier.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { retrieveNoteContext, type NoteContextDeps, type RawNoteRow } from '../_shared/note-context.ts';
 import { sanitizeFirstName } from '../_shared/personalization.ts';
@@ -118,9 +119,11 @@ async function handleGenerate(req: Request): Promise<Response> {
         .from('app_config').select('value').eq('key', 'lamplight_promo_active').maybeSingle();
       return (data as { value?: unknown } | null)?.value === true;
     })();
+    const sweepLlm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
     const outcomes = await runReflectionSweep({
       supabase,
-      llm: createOpenAIAdapter({ apiKey: openaiKey, fetch }),
+      llm: sweepLlm,
+      classifier: makeDoctrinalClassifier(sweepLlm),
       claim: (limit) => claimReflectionJobs(supabase, limit),
       embed: (text) => embedQuery(text, voyageDepsForSweep),
       loadSettings: async (uid) => {
@@ -193,6 +196,7 @@ async function handleGenerate(req: Request): Promise<Response> {
   const voyageDeps: VoyageDeps = { apiKey: voyageKey, fetch };
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
   const llm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
+  const classifier = makeDoctrinalClassifier(llm);
 
   // The coordinator seam owns quota + usage recording + error classification.
   // checkQuota maps the internal QuotaResult.reason onto the lifecycle's shape;
@@ -237,7 +241,7 @@ async function handleGenerate(req: Request): Promise<Response> {
           userId, periodKey, timezone,
           embed: (text) => embedQuery(text, voyageDeps),
         });
-        const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx, userId, periodKey });
+        const result = await runMonthlyReflectionPipeline({ llm, classifier, supabase, ctx, userId, periodKey });
         return { response: result, usage: result.usage };
       },
     );
@@ -292,6 +296,7 @@ async function handleGenerate(req: Request): Promise<Response> {
           checkQuota: lifecycleDeps.checkQuota,
           recordUsage: lifecycleDeps.recordUsage,
           llm,
+          classifier,
           buildContext: () =>
             buildDailyDevotionContext(supabase, { userId, localDate, voyageDeps, rerankEnabled, translation }),
         },
@@ -306,7 +311,7 @@ async function handleGenerate(req: Request): Promise<Response> {
         const ctx = await buildDailyDevotionContext(supabase, {
           userId, localDate, voyageDeps, rerankEnabled, translation,
         });
-        const result = await runDailyDevotionPipeline({ llm, supabase, ctx, userId, localDate });
+        const result = await runDailyDevotionPipeline({ llm, classifier, supabase, ctx, userId, localDate });
         return { response: result, usage: result.usage };
       },
     );
@@ -343,7 +348,7 @@ async function handleGenerate(req: Request): Promise<Response> {
             usage: { model: null, tokens_in: 0, tokens_out: 0, status: 'error', error_code: 'not_neighbor' },
           };
         }
-        const result = await runConnectionWhyPipeline({ llm, supabase, ctx: ctxResult.context });
+        const result = await runConnectionWhyPipeline({ llm, classifier, supabase, ctx: ctxResult.context });
         return { response: result, usage: result.usage };
       },
     );

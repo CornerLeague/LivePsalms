@@ -75,8 +75,10 @@ export async function runConnectionWhyPipeline(args: {
   llm: LLMAdapter;
   supabase: SupabaseClient;
   ctx: ConnectionWhyContext;
+  // Layer C (P0-5): optional LLM doctrinal classifier for applyContentRules.
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
 }): Promise<ConnectionWhyPipelineResult> {
-  const { ctx, supabase, llm } = args;
+  const { ctx, supabase, llm, classifier } = args;
   const promptVersion = CONNECTION_WHY_PROMPT.promptVersion;
 
   // 1. Cache lookup by composite content_hash.
@@ -112,6 +114,7 @@ export async function runConnectionWhyPipeline(args: {
         banned: BANNED_PHRASES,
         contested: CONTESTED_PASSAGES,
         growth: GROWTH_BANNED_PHRASES,
+        classifier,
       });
       return {
         ok: shape.ok && content.ok,

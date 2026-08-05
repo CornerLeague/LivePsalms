@@ -26,8 +26,13 @@ import {
 } from '../_shared/reflection-validators.ts';
 import { judgeReflectionRegister } from './reflection-judge.ts';
 import type { EdgeSupabase } from './reflection-candidates.ts';
+import { applyContentRules, type ContentRuleViolation } from '../_shared/validators.ts';
+import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_shared/voice.ts';
 
-export type ReflectionPipelineViolation = ReflectionViolation | { rule: 'register_judge'; detail: string };
+export type ReflectionPipelineViolation =
+  | ReflectionViolation
+  | { rule: 'register_judge'; detail: string }
+  | { rule: 'content_rules'; detail: string };
 
 // Local usage shape recorded by Task 7's runGeneration. Field names match the daily
 // pipeline's usage object (status / model_used / prompt_tokens / completion_tokens / error_code).
@@ -49,6 +54,9 @@ export interface RunMonthlyReflectionPipelineDeps {
   ctx: MonthlyReflectionContext | null;
   userId: string;
   periodKey: string;
+  // Layer C (P0-5): optional LLM doctrinal classifier for applyContentRules.
+  // Injected by the Deno shell / sweep wiring; tests omit it.
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
 }
 
 // §6.5 abstention: a marker whose verse is not in the candidate allowlist keeps its
@@ -62,9 +70,25 @@ export function repairOffListVerses(artifact: ReflectionArtifact, allowedVerseRe
   };
 }
 
+// The letter's PROSE surface for content rules: title + letter + marker phrases.
+// Marker verse refs are deliberately EXCLUDED — a candidate verse the user
+// actually touched may fall inside a contested range (e.g. a highlighted
+// Romans 9:16), and a bare ref in a marker carries no interpretation. The
+// contested rule polices prose that interprets, not citations the allowlist
+// already vetted.
+function flattenReflectionProse(artifact: ReflectionArtifact): string {
+  return [artifact.title, artifact.letter, ...artifact.markers.map((m) => m.phrase)].join('\n');
+}
+
 // The generateWithRetry validate fn: repair off-list verses, run the 6 deterministic
-// validators, and ONLY if they all pass consult the Layer-3 register judge.
-export function makeMonthlyReflectionValidate(ctx: MonthlyReflectionContext, llm: LLMAdapter) {
+// validators, then content rules (regex + optional Layer-C classifier), and ONLY if
+// all pass consult the Layer-3 register judge — cheapest gates first, so a failed
+// deterministic check spends no extra model calls.
+export function makeMonthlyReflectionValidate(
+  ctx: MonthlyReflectionContext,
+  llm: LLMAdapter,
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>,
+) {
   return async (raw: ReflectionArtifact): Promise<{ ok: boolean; violations: ReflectionPipelineViolation[] }> => {
     const artifact = repairOffListVerses(raw, ctx.allowedVerseRefs);
     const monthNoteIds = ctx.notes.map((n) => n.id);
@@ -77,6 +101,22 @@ export function makeMonthlyReflectionValidate(ctx: MonthlyReflectionContext, llm
       ...validateProvenance({ sourceNoteIds: monthNoteIds, monthNoteIds }).violations,
     ];
     if (violations.length > 0) return { ok: false, violations };
+
+    const content = await applyContentRules(flattenReflectionProse(artifact), {
+      banned: BANNED_PHRASES,
+      contested: CONTESTED_PASSAGES,
+      growth: GROWTH_BANNED_PHRASES,
+      classifier,
+    });
+    if (!content.ok) {
+      return {
+        ok: false,
+        violations: content.violations.map((v) => ({
+          rule: 'content_rules' as const,
+          detail: `${v.family} (${v.rule}): "${v.snippet}"`,
+        })),
+      };
+    }
 
     const verdict = await judgeReflectionRegister({ llm, artifact, notes: ctx.notes, periodLabel: ctx.periodLabel });
     if (!verdict.pass) {
@@ -183,7 +223,11 @@ export async function runMonthlyReflectionPipeline(deps: RunMonthlyReflectionPip
     systemTokens: { period_label: ctx.periodLabel },
     messages: MONTHLY_REFLECTION_PROMPT.buildMessages(ctx),
     tool: MONTHLY_REFLECTION_PROMPT.tool as unknown as ToolSchema,
-    validate: makeMonthlyReflectionValidate(ctx, llm),
+    validate: makeMonthlyReflectionValidate(ctx, llm, deps.classifier),
+    // One extra attempt vs the default 2: the register judge sits inside validate,
+    // so with the default a judge failure consumed the ONLY retry. A monthly
+    // artifact earns the extra budget.
+    maxAttempts: 3,
     formatStricter: formatStricterSuffix,
   });
 

@@ -7,6 +7,8 @@
 import type { GenerationOutcome } from '../_shared/generation-lifecycle.ts';
 import type { UsageCore } from '../_shared/usage.ts';
 import { VERSE_INSIGHT_PROMPT_VERSION, type EtymologyInsightContext } from './prompts/verse-insight.ts';
+import { applyContentRules } from '../_shared/validators.ts';
+import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_shared/voice.ts';
 
 export interface EtymologyEntryFacts {
   lemma: string;
@@ -59,6 +61,22 @@ export async function buildEtymologyInsightOutcome(
     console.error('[etymology-insight] generate failed', err);
     // No row, no usage → no quota spent (spec §8). Client falls back to Ask + retry.
     return { response: { ok: false, reason: 'generation_failed' }, usage: null };
+  }
+
+  // Guardrail parity: verse-insight composes its own system prompt (it does not
+  // inherit LAMPLIGHT_SYSTEM_FRAGMENT — the 40-word contract would drown in it),
+  // so the shared content-rule families run here on the OUTPUT instead. Regex
+  // only; no Layer-C classifier for a ≤40-word descriptive line. A violating
+  // body is never inserted into the SHARED global cache — same contract as
+  // generation_failed: no row, no usage, no quota spent; client offers retry.
+  const content = await applyContentRules(gen.body, {
+    banned: BANNED_PHRASES,
+    contested: CONTESTED_PASSAGES,
+    growth: GROWTH_BANNED_PHRASES,
+  });
+  if (!content.ok) {
+    console.error('[etymology-insight] content rules rejected insight', content.violations);
+    return { response: { ok: false, reason: 'validators_failed' }, usage: null };
   }
 
   await deps.insertInsight({

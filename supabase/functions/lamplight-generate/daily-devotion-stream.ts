@@ -11,6 +11,7 @@ import { sseResponse, sseStreamFromWriter } from '../_shared/sse.ts';
 import { runDailyDevotionStreaming, type DailyDevotionContext } from './daily-devotion-pipeline.ts';
 import type { UsageRow } from '../_shared/usage.ts';
 import type { LLMAdapter } from '../_shared/openai.ts';
+import type { ContentRuleViolation } from '../_shared/validators.ts';
 
 export interface DailyDevotionStreamDeps {
   cors: Record<string, string>;
@@ -19,6 +20,8 @@ export interface DailyDevotionStreamDeps {
   checkQuota: (userId: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
   recordUsage: (row: UsageRow) => void | Promise<void>;
   llm: LLMAdapter;
+  // Layer C (P0-5) doctrinal classifier, threaded to applyContentRules.
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
   buildContext: () => Promise<DailyDevotionContext | null>;
 }
 
@@ -66,7 +69,7 @@ export async function streamDailyDevotion(
       const ctx = await deps.buildContext();
 
       const result = await runDailyDevotionStreaming(
-        { llm: deps.llm, supabase: deps.supabase, ctx, userId: args.userId, localDate: args.localDate, signal: args.signal },
+        { llm: deps.llm, supabase: deps.supabase, ctx, userId: args.userId, localDate: args.localDate, classifier: deps.classifier, signal: args.signal },
         {
           onStage: (s) => void emit({ t: 'stage', stage: s }),
           onPiece: (field, value) => void emit({ t: 'piece', field, value }),

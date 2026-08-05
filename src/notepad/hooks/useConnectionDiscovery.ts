@@ -33,8 +33,12 @@ export function useConnectionDiscovery({
   totalNoteCount,
   loadNeighborNotes,
   mode,
-  qualifyingMinWords = 10,
-  qualifyingMinVaultSize = 2,
+  // Spec values (Connection Cards spec §Decisions #6, followup P0-1). The prior
+  // dev-loosened 10/2 surfaced weak first-impression connections; app_config's
+  // lamplight_min_similarity must be raised to 0.78 alongside these (SQL in the
+  // P0-1 followup).
+  qualifyingMinWords = 100,
+  qualifyingMinVaultSize = 10,
   qualifyingMinSimilarity = 0.78,
   maxRenderedCards = 3,
 }: UseConnectionDiscoveryArgs): UseConnectionDiscoveryResult {

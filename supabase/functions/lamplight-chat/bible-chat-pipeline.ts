@@ -58,7 +58,10 @@ type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViola
 // Both buffered and streaming entries use identical validate / formatStricter.
 // Factor them here so the two entries stay in sync.
 
-function makeBibleChatValidate(ctx: BibleChatContext) {
+function makeBibleChatValidate(
+  ctx: BibleChatContext,
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>,
+) {
   return async (parsed: ChatReply): Promise<{ ok: boolean; violations: ChatViolations }> => {
     const citation = validateChatReplyCitations(parsed, {
       allowedNoteIds: ctx.allowedNoteIds,
@@ -68,6 +71,7 @@ function makeBibleChatValidate(ctx: BibleChatContext) {
       banned: BANNED_PHRASES,
       contested: CONTESTED_PASSAGES,
       growth: GROWTH_BANNED_PHRASES,
+      classifier,
     });
     return { ok: citation.ok && content.ok, violations: { citation: citation.violations, content: content.violations } };
   };
@@ -114,6 +118,9 @@ export async function runBibleChatPipeline(args: {
   ctx: BibleChatContext;
   prompt?: ChatPromptModule;
   model?: LLMModel;
+  // Layer C (P0-5): optional LLM doctrinal classifier for applyContentRules.
+  // Injected by the Deno shells (makeDoctrinalClassifier); tests omit it.
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
 }): Promise<BibleChatPipelineResult> {
   const prompt: ChatPromptModule = args.prompt ?? BIBLE_CHAT_PROMPT;
   const promptVersion = prompt.promptVersion;
@@ -128,7 +135,7 @@ export async function runBibleChatPipeline(args: {
     // `as const` on the nested schema produces literal types narrower than
     // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeBibleChatValidate(ctx),
+    validate: makeBibleChatValidate(ctx, args.classifier),
     formatStricter: formatBibleChatStricter,
   });
 
@@ -152,6 +159,7 @@ export async function runBibleChatStreaming(
     ctx: BibleChatContext;
     prompt?: ChatPromptModule;
     model?: LLMModel;
+    classifier?: (text: string) => Promise<ContentRuleViolation[]>;
     signal?: AbortSignal;
   },
   handlers: BibleChatStreamHandlers,
@@ -167,7 +175,7 @@ export async function runBibleChatStreaming(
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeBibleChatValidate(ctx),
+    validate: makeBibleChatValidate(ctx, args.classifier),
     formatStricter: formatBibleChatStricter,
     textFields: ['reply'],
     // No perFieldValidate — chat has no per-field length rule

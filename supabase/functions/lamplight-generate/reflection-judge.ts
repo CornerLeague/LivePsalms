@@ -20,6 +20,10 @@ export interface ReflectionJudgeResult {
   reasons: string[];
 }
 
+// INTENTIONAL voice-fragment bypass: the judge is not Lamplight speaking to the
+// user — it is an internal grader. Composing LAMPLIGHT_SYSTEM_FRAGMENT under it
+// would instruct the judge to write reflections, not judge them. Do not "fix"
+// this by routing through composeSystem/generateWithRetry.
 const JUDGE_SYSTEM = `You are the register guardian for Waymarks — monthly reflections that read a person's month back to them as a letter. You are given the reflection AND the month's raw notes. Judge ONLY whether it holds the register; you do not rewrite.
 
 Fail it if ANY of these are true:

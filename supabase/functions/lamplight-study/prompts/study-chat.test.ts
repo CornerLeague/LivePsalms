@@ -34,7 +34,7 @@ const ctxFull: BibleChatContext = {
 
 describe('STUDY_CHAT_PROMPT', () => {
   it('bumps the prompt version', () => {
-    expect(STUDY_CHAT_PROMPT.promptVersion).toBe('study-chat-2026-06-29-v2');
+    expect(STUDY_CHAT_PROMPT.promptVersion).toBe('study-chat-2026-08-04-v3');
   });
 
   it('renders the related-passages block when present', () => {

@@ -37,6 +37,10 @@ Personalization (only when First name is provided in the user prompt):
       additionalProperties: false,
       required: ['opening', 'scripture', 'reflection', 'prompt', 'note_citations'],
       properties: {
+        // Schema bounds are CHARACTERS approximating the prompt's word guidance
+        // (opening "20-40 words" ≈ 80-280 chars; reflection "80-140 words" ≈
+        // 400-900 chars). The streaming per-field length gate re-encodes these
+        // char bounds — keep all three in sync when changing either unit.
         opening: { type: 'string', minLength: 80, maxLength: 280 },
         scripture: {
           type: 'object',

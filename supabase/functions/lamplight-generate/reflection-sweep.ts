@@ -20,6 +20,7 @@ import { runMonthlyReflectionPipeline, type MonthlyReflectionPipelineResult } fr
 import { recordReflectionJobFailure, clearReflectionJob } from '../_shared/reflection-jobs.ts';
 import { hasReflectionAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import type { EdgeSupabase } from './reflection-candidates.ts';
+import type { ContentRuleViolation } from '../_shared/validators.ts';
 
 // CLAIM_LIMIT mirrors embed-note's CLAIM_LIMIT (index.ts) — max jobs drained per invocation,
 // keeping a single sweep call well under typical Edge Function time limits.
@@ -38,6 +39,8 @@ export type ClaimReflectionJobsFn = (limit: number) => Promise<ReflectionJobRow[
 export interface ReflectionSweepDeps {
   supabase: EdgeSupabase;
   llm: LLMAdapter;
+  /** Layer C (P0-5) doctrinal classifier, threaded into the reflection pipeline. */
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
   claim: ClaimReflectionJobsFn;
   /** Real embedQuery(text, voyageDeps); injected so tests never touch Voyage. */
   embed: (text: string) => Promise<number[]>;
@@ -133,7 +136,7 @@ export async function runReflectionSweep(deps: ReflectionSweepDeps): Promise<Ref
       userId, periodKey, timezone, embed: deps.embed,
     });
     const result = await runMonthlyReflectionPipeline({
-      llm: deps.llm, supabase: deps.supabase, ctx, userId, periodKey,
+      llm: deps.llm, classifier: deps.classifier, supabase: deps.supabase, ctx, userId, periodKey,
     });
 
     if (result.ok) {

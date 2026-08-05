@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '../_shared/supabase.ts';
 import { type VoyageDeps } from '../_shared/voyage.ts';
 import { createOpenAIAdapter } from '../_shared/openai.ts';
+import { makeDoctrinalClassifier } from '../_shared/doctrinal-classifier.ts';
 import { hasChatAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
@@ -113,6 +114,7 @@ async function handleStudy(req: Request): Promise<Response> {
   const voyageDeps: VoyageDeps = { apiKey: voyageKey, fetch };
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
   const llm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
+  const classifier = makeDoctrinalClassifier(llm);
   const quotaCfg = resolveQuotaLimits(Deno.env);
 
   // Streaming branch: SSE over the same gates + study context as the buffered
@@ -176,6 +178,8 @@ async function handleStudy(req: Request): Promise<Response> {
       },
       llm,
       prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
+      model: 'deep', // keep streaming on the same tier as the buffered path below
+      classifier,
       extraDoneFields: () => ({ offered_notes: capturedOffered }),
       artifactKind: 'bible_study',
     };
@@ -233,6 +237,7 @@ async function handleStudy(req: Request): Promise<Response> {
       const result = await runBibleChatPipeline({
         llm, ctx, model: 'deep',
         prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
+        classifier,
       });
       if (!result.ok) {
         return { response: { ok: false, reason: result.reason }, usage: result.usage };

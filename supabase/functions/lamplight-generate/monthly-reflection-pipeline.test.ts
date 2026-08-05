@@ -143,6 +143,60 @@ describe('runMonthlyReflectionPipeline', () => {
     expect(upserts).toHaveLength(0);
   });
 
+  it('content rules gate the letter BEFORE the judge: a prophetic line fails without consulting the judge', async () => {
+    const prophetic: ReflectionArtifact = {
+      ...ARTIFACT,
+      letter: ARTIFACT.letter + ' God is telling you to stop waiting now and step into what he has prepared.',
+    };
+    const { llm, calls } = makeAdapter([prophetic]);
+    const { supabase, upserts } = makeSupabaseMock();
+    const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx: makeCtx(), userId: 'u1', periodKey: '2026-05' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.reason).toBe('validators_failed');
+    expect(upserts).toHaveLength(0);
+    // every call was an artifact attempt on 'balanced' — the fast-tier judge never ran
+    expect(calls.every((c) => c.model === 'balanced')).toBe(true);
+  });
+
+  it('a marker verse inside a contested range does NOT trip content rules (refs are excluded from the prose flatten)', async () => {
+    const contestedMarker: ReflectionArtifact = {
+      ...ARTIFACT,
+      markers: [{ date: '2026-05-12', verse: 'Romans 9:16', phrase: 'the day the circling stopped' }],
+    };
+    const { llm } = makeAdapter([contestedMarker, { pass: true, reasons: [] }]);
+    const { supabase, upserts } = makeSupabaseMock();
+    const result = await runMonthlyReflectionPipeline({
+      llm, supabase,
+      ctx: makeCtx({ allowedVerseRefs: new Set(['Romans 9:16']) }),
+      userId: 'u1', periodKey: '2026-05',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(upserts).toHaveLength(1);
+  });
+
+  it('threads deps.classifier (Layer C) into content rules; its violations fail validation', async () => {
+    const seen: string[] = [];
+    const classifier = async (text: string) => {
+      seen.push(text);
+      return [{ family: 'banned' as const, rule: 'classifier:paraphrased prophetic claim', snippet: 'circling stopped' }];
+    };
+    const { llm, calls } = makeAdapter([ARTIFACT]);
+    const { supabase, upserts } = makeSupabaseMock();
+    const result = await runMonthlyReflectionPipeline({
+      llm, classifier, supabase, ctx: makeCtx(), userId: 'u1', periodKey: '2026-05',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(upserts).toHaveLength(0);
+    // classifier saw the prose flatten: title + letter + marker phrases
+    expect(seen[0]).toContain('The Month You Stopped Waiting');
+    expect(seen[0]).toContain('the day the circling stopped');
+    // judge never consulted
+    expect(calls.every((c) => c.model === 'balanced')).toBe(true);
+  });
+
   it('repairOffListVerses nulls out only the verses outside the allowlist', () => {
     const repaired = repairOffListVerses(
       { ...ARTIFACT, markers: [{ date: '2026-05-12', verse: 'Ps 27:14', phrase: 'a' }, { date: '2026-05-13', verse: 'Ps 23:1', phrase: 'b' }] },

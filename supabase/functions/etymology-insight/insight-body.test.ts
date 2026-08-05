@@ -41,6 +41,25 @@ describe('buildEtymologyInsightOutcome', () => {
     errorSpy.mockRestore();
   });
 
+  it('a body violating content rules is NEVER inserted into the shared cache (validators_failed, usage null)', async () => {
+    const insertInsight = vi.fn();
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const out = await buildEtymologyInsightOutcome(
+      makeDeps({
+        generate: async () => ({
+          body: 'God is telling you to tend the flock this week.',
+          modelUsed: 'gpt-5.6-sol', promptTokens: 100, completionTokens: 20,
+        }),
+        insertInsight,
+      }),
+      args,
+    );
+    expect(out).toEqual({ response: { ok: false, reason: 'validators_failed' }, usage: null });
+    expect(insertInsight).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
   it('on success inserts once and records ok usage (cached:false)', async () => {
     const insertInsight = vi.fn();
     const out = await buildEtymologyInsightOutcome(makeDeps({ insertInsight }), args);

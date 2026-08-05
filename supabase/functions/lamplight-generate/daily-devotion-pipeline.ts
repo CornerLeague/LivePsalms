@@ -71,7 +71,10 @@ type DailyViolations = { citation: CitationViolation[]; content: ContentRuleViol
 // Both buffered and streaming entries use identical validate / formatStricter /
 // tool / model / maxTokens. Factor them here so the two entries stay in sync.
 
-function makeDailyDevotionValidate(ctx: DailyDevotionContext) {
+function makeDailyDevotionValidate(
+  ctx: DailyDevotionContext,
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>,
+) {
   return async (parsed: DailyDevotion): Promise<{ ok: boolean; violations: DailyViolations }> => {
     const citation = validateDailyDevotionCitations(parsed, {
       allowedNoteIds: ctx.allowedNoteIds,
@@ -81,6 +84,7 @@ function makeDailyDevotionValidate(ctx: DailyDevotionContext) {
       banned: BANNED_PHRASES,
       contested: CONTESTED_PASSAGES,
       growth: GROWTH_BANNED_PHRASES,
+      classifier,
     });
     const nameViolations = applyNameRules({ artifact: parsed, firstName: ctx.firstName });
     return {
@@ -281,6 +285,9 @@ export async function runDailyDevotionPipeline(args: {
   ctx: DailyDevotionContext | null;
   userId: string;
   localDate: string;
+  // Layer C (P0-5): optional LLM doctrinal classifier for applyContentRules.
+  // Injected by the Deno shell (makeDoctrinalClassifier); tests omit it.
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
 }): Promise<DailyDevotionPipelineResult> {
   const pre = await devotionPreCheck(args);
   if (!('notCached' in pre)) return pre;
@@ -298,7 +305,7 @@ export async function runDailyDevotionPipeline(args: {
     // `as const` on the nested schema produces literal types narrower than
     // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
     tool: DAILY_DEVOTION_PROMPT.tool as unknown as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeDailyDevotionValidate(ctx),
+    validate: makeDailyDevotionValidate(ctx, args.classifier),
     formatStricter: formatStricterSuffix,
   });
 
@@ -322,6 +329,7 @@ export async function runDailyDevotionStreaming(
     ctx: DailyDevotionContext | null;
     userId: string;
     localDate: string;
+    classifier?: (text: string) => Promise<ContentRuleViolation[]>;
     signal?: AbortSignal;
   },
   handlers: DailyDevotionStreamHandlers,
@@ -340,7 +348,7 @@ export async function runDailyDevotionStreaming(
     systemTokens: { local_date: ctx.localDate },
     messages: DAILY_DEVOTION_PROMPT.buildMessages(ctx),
     tool: DAILY_DEVOTION_PROMPT.tool as unknown as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeDailyDevotionValidate(ctx),
+    validate: makeDailyDevotionValidate(ctx, args.classifier),
     formatStricter: formatStrickerSuffixWithLengthNote,
     textFields: [],
     perFieldValidate: devotionFieldGate,
