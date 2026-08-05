@@ -5,6 +5,7 @@ import {
   type NoteContextNote,
   type RawNoteRow,
   type RetrievedBibleRow,
+  isContestedRef,
 } from './note-context';
 import type { BiblePassageRow } from './bible-passage';
 import type { LibraryChunkRow, LibraryRetrievalDeps } from './library-retrieval';
@@ -159,7 +160,7 @@ describe('retrieveNoteContext', () => {
     expect(received).not.toBeNull();
     expect(received!).toEqual([{ id: 'survivor', title: 'Kept', plaintext: 'present text' }]);
     expect(fake.embedArg).toBe('THEME_QUERY');
-    expect(fake.searchArg).toEqual({ query: 'THEME_QUERY', k: 3, queryEmbedding: [0.1, 0.2, 0.3] });
+    expect(fake.searchArg).toEqual({ query: 'THEME_QUERY', k: 5, queryEmbedding: [0.1, 0.2, 0.3] });
   });
 
   it('defaults k to 3 and fetches passages for the retrieved source ids', async () => {
@@ -170,7 +171,7 @@ describe('retrieveNoteContext', () => {
       rerankEnabled: false,
       buildThemeQuery: longestStrategy,
     });
-    expect(fake.searchArg!.k).toBe(3);
+    expect(fake.searchArg!.k).toBe(5);   // 3 + contested-filter headroom
     expect(fake.fetchPassagesArg).toEqual(['p1']);
   });
 
@@ -183,7 +184,7 @@ describe('retrieveNoteContext', () => {
       buildThemeQuery: longestStrategy,
       k: 7,
     });
-    expect(fake.searchArg!.k).toBe(7);
+    expect(fake.searchArg!.k).toBe(9);   // 7 + contested-filter headroom
   });
 
   it('derives allowedNoteIds from survivors and allowedVerseRefs from built passages', async () => {
@@ -363,6 +364,112 @@ describe('retrieveNoteContext — library (slice 1c)', () => {
     );
     expect(result!.libraryExcerpts).toEqual([]);
     expect(result!.passages.map((p) => p.ref)).toEqual(['John 3:16']);
+    err.mockRestore();
+  });
+});
+
+// ── Contested passages are never offered as devotion candidates ──────────────
+// Found by the eval: retrieval served Romans 9:16 as a candidate, the model
+// anchored on it and cited the ref as instructed, and the content rule rejected
+// the artifact — twice — so the reader got an error. The stricter-retry line
+// even says "name them gently and defer", which the validator forbids. The two
+// layers disagreed; retrieval is the place to settle it.
+
+describe('isContestedRef', () => {
+  it('matches a verse-level contested ref', () => {
+    expect(isContestedRef('Romans 9:16')).toBe(true);
+  });
+
+  it('matches every verse of a chapter-level entry', () => {
+    expect(isContestedRef('Revelation 13:5')).toBe(true);
+    expect(isContestedRef('Matthew 24:14')).toBe(true);
+  });
+
+  it('leaves neighbouring verses outside the listed range alone', () => {
+    expect(isContestedRef('Romans 9:1')).toBe(false);
+    expect(isContestedRef('Romans 8:28')).toBe(false);
+  });
+
+  it('matches a range that spans a contested verse', () => {
+    expect(isContestedRef('Romans 9:15-17')).toBe(true);
+  });
+
+  it('is case-insensitive', () => {
+    expect(isContestedRef('romans 9:16')).toBe(true);
+  });
+
+  it('passes ordinary refs', () => {
+    expect(isContestedRef('Psalms 23:4')).toBe(false);
+    expect(isContestedRef('John 3:16')).toBe(false);
+  });
+
+  // The filter must be AT LEAST as strict as applyContentRules, or a surviving
+  // candidate could still trip the gate. Same substring logic, same direction.
+  it('mirrors the content rule even where that rule over-matches', () => {
+    expect(isContestedRef('1 Corinthians 11:20')).toBe(true); // '1 Corinthians 11:2' is a prefix
+  });
+});
+
+describe('retrieveNoteContext — contested candidates', () => {
+  const contestedRow: BiblePassageRow = {
+    id: 'rom.9.16', book: 'Romans', chapter: 9, verse_start: 16, verse_end: 16,
+    text: 'So then it depends not on human will or effort…',
+  };
+  const cleanRow: BiblePassageRow = {
+    id: 'psa.23.4', book: 'Psalms', chapter: 23, verse_start: 4, verse_end: 4,
+    text: 'Even though I walk…',
+  };
+  const retrieved = (ids: string[]): RetrievedBibleRow[] =>
+    ids.map((id, i) => ({ id: `e${i}`, source_id: id, chunk_index: 0, chunk_text: 'x', similarity: 0.9 - i / 100, metadata: {} }));
+
+  it('drops a contested passage from the candidates and the allowlist', async () => {
+    const fake = makeDeps({
+      notes: [note()],
+      retrieved: retrieved(['rom.9.16', 'psa.23.4']),
+      passageRows: [contestedRow, cleanRow],
+    });
+    const result = await retrieveNoteContext(fake.deps, {
+      userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: longestStrategy,
+    });
+    expect(result!.passages.map((p) => p.ref)).toEqual(['Psalms 23:4']);
+    expect(result!.allowedVerseRefs.has('Romans 9:16')).toBe(false);
+  });
+
+  it('retrieves with headroom so filtering does not leave the devotion empty-handed', async () => {
+    const fake = makeDeps({ notes: [note()] });
+    await retrieveNoteContext(fake.deps, {
+      userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: longestStrategy,
+    });
+    expect(fake.searchArg!.k).toBeGreaterThan(3);
+  });
+
+  it('still offers no more than k candidates after filtering', async () => {
+    const rows: BiblePassageRow[] = ['psa.23.4', 'psa.16.6', 'isa.43.2', 'php.4.6'].map((id, i) => ({
+      id, book: 'Psalms', chapter: 20 + i, verse_start: 1, verse_end: 1, text: 't',
+    }));
+    const fake = makeDeps({
+      notes: [note()],
+      retrieved: retrieved(rows.map((r) => r.id)),
+      passageRows: rows,
+    });
+    const result = await retrieveNoteContext(fake.deps, {
+      userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: longestStrategy, k: 3,
+    });
+    expect(result!.passages).toHaveLength(3);
+  });
+
+  it('returns a context with no passages when every candidate is contested, rather than throwing', async () => {
+    const err = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fake = makeDeps({
+      notes: [note()],
+      retrieved: retrieved(['rom.9.16']),
+      passageRows: [contestedRow],
+    });
+    const result = await retrieveNoteContext(fake.deps, {
+      userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: longestStrategy,
+    });
+    expect(result!.passages).toEqual([]);
+    expect(err).toHaveBeenCalled();
     err.mockRestore();
   });
 });

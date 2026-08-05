@@ -15,6 +15,7 @@
 import { extractTextFromNoteContent } from './tiptap-text.ts';
 import { buildPassages, type BiblePassage, type BiblePassageRow } from './bible-passage.ts';
 import type { RetrievedItem } from './retrieval.ts';
+import { CONTESTED_PASSAGES } from './voice.ts';
 import {
   searchLibrary,
   type LibraryExcerpt,
@@ -60,6 +61,34 @@ export interface NoteContextDeps {
   library?: LibraryRetrievalDeps;
 }
 
+/**
+ * Would the content rule reject an artifact that cites this ref?
+ *
+ * Retrieval and the content layer used to disagree: a user reading Romans 9
+ * could have Romans 9:16 retrieved as a devotion candidate, the model would
+ * anchor on it and cite the ref exactly as instructed, and applyContentRules
+ * would reject the artifact — on both attempts, so the reader got an error. The
+ * stricter-retry line even asks the model to "name them gently and defer",
+ * which the validator forbids. There is no wording that satisfies both, so the
+ * candidate must never be offered.
+ *
+ * This deliberately mirrors applyContentRules' substring match rather than
+ * parsing verse numbers: the filter has to be AT LEAST as strict as the gate it
+ * is protecting, and a cleverer rule could let through a ref the gate rejects.
+ * Chapter-level entries ("Revelation 13") therefore cover every verse in them,
+ * and the same benign over-match ("1 Corinthians 11:2" catching 11:20) applies
+ * to both.
+ */
+export function isContestedRef(ref: string): boolean {
+  const lower = ref.toLowerCase();
+  return CONTESTED_PASSAGES.some((p) => lower.includes(p.toLowerCase()));
+}
+
+// Retrieve a couple more candidates than the devotion needs, so filtering a
+// contested one out still leaves it something to anchor on. Costs nothing —
+// the same RPC, a slightly longer result.
+const CONTESTED_HEADROOM = 2;
+
 // Today's Lamp budget (library-and-reasoning design, §Retrieval budgets): two
 // devotional-register excerpts. Devotional-only because the devotion draws
 // substance silently — Spurgeon's warmth suits it, JFB's grammar apparatus
@@ -89,13 +118,23 @@ export async function retrieveNoteContext(
   // No surviving notes → no embed/search work happens.
   if (notes.length === 0) return null;
 
+  const k = opts.k ?? 3;
   const themeQuery = opts.buildThemeQuery(notes);
   const queryEmbedding = await deps.embedQuery(themeQuery);
-  const retrieved = await deps.searchBible({ query: themeQuery, k: opts.k ?? 3, queryEmbedding });
+  const retrieved = await deps.searchBible({ query: themeQuery, k: k + CONTESTED_HEADROOM, queryEmbedding });
 
   const sourceIds = retrieved.map((r) => r.source_id);
   const passageRows = await deps.fetchPassages(sourceIds);
-  const passages = buildPassages(passageRows, retrieved);
+  const retrievedPassages = buildPassages(passageRows, retrieved);
+  const passages = retrievedPassages.filter((p) => !isContestedRef(p.ref)).slice(0, k);
+  if (passages.length === 0 && retrievedPassages.length > 0) {
+    // Every candidate was contested. The devotion will fail its citation gate,
+    // exactly as it would have before — but silently, so say so.
+    console.warn(
+      '[note-context] every retrieved candidate is a contested passage; the devotion has nothing to anchor on:',
+      retrievedPassages.map((p) => p.ref).join(', '),
+    );
+  }
 
   // Anchored on the passages the devotion will actually quote — verse-precise,
   // not chapter-wide, because the devotion has three candidates rather than an
