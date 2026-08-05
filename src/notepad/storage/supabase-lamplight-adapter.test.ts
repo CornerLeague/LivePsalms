@@ -801,3 +801,149 @@ describe('SupabaseLamplightAdapter.generateEtymologyInsight', () => {
     expect(await boom.generateEtymologyInsight('H1', 'psa.23.1')).toEqual({ ok: false, reason: 'network' });
   });
 });
+
+// ── Slice 1d: artifact provenance ────────────────────────────────────────────
+// Fetched on demand rather than widened into getDailyDevotion/getReflection:
+// the panel is a disclosure that is closed by default, so eagerly loading its
+// data on every Today's Lamp render would be work almost nobody looks at — and
+// it keeps the devotion controller's state shape untouched.
+
+interface ProvBackend {
+  artifacts: Array<Record<string, unknown>>;
+  notes: Array<{ id: string; title: string | null }>;
+  lastSelect?: string;
+  lastFilters?: Array<[string, unknown]>;
+  lastIn?: string[];
+}
+
+function makeProvClient(backend: ProvBackend): SupabaseClient {
+  backend.lastFilters = [];
+  return {
+    from(table: string) {
+      const filters: Array<[string, unknown]> = [];
+      const chain = {
+        select(cols: string) {
+          backend.lastSelect = cols;
+          return chain;
+        },
+        eq(col: string, val: unknown) {
+          filters.push([col, val]);
+          backend.lastFilters = filters;
+          return chain;
+        },
+        in(_col: string, ids: string[]) {
+          backend.lastIn = ids;
+          return Promise.resolve({
+            data: backend.notes.filter((n) => ids.includes(n.id)),
+            error: null,
+          });
+        },
+        async maybeSingle() {
+          if (table !== 'lamplight_artifacts') return { data: null, error: null };
+          const row = backend.artifacts.find((a) =>
+            filters.every(([col, val]) => a[col] === val));
+          return { data: row ?? null, error: null };
+        },
+      };
+      return chain;
+    },
+  } as unknown as SupabaseClient;
+}
+
+const ARTIFACT_ROW = {
+  user_id: 'u1',
+  type: 'daily_devotion',
+  period_key: '2026-08-07',
+  source_note_ids: ['n1', 'n2'],
+  source_verses: ['Psalm 23:4'],
+  source_library_chunks: [{ chunk_id: 'lc1', source_id: 'treasury-of-david', heading: 'Psalm 23:4' }],
+  model_used: 'gpt-5.6-terra',
+  prompt_version: 'daily-devotion-2026-08-06-v4',
+};
+
+describe('SupabaseLamplightAdapter.getArtifactProvenance', () => {
+  it('maps snake_case to camelCase inside the adapter (house rule)', async () => {
+    const backend: ProvBackend = { artifacts: [ARTIFACT_ROW], notes: [] };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    const prov = await adapter.getArtifactProvenance('u1', 'daily_devotion', '2026-08-07');
+    expect(prov).toEqual({
+      noteIds: ['n1', 'n2'],
+      verses: ['Psalm 23:4'],
+      librarySources: [{ chunkId: 'lc1', sourceId: 'treasury-of-david', heading: 'Psalm 23:4' }],
+      modelUsed: 'gpt-5.6-terra',
+      promptVersion: 'daily-devotion-2026-08-06-v4',
+    });
+  });
+
+  it('keeps librarySources null when the library never ran', async () => {
+    const backend: ProvBackend = {
+      artifacts: [{ ...ARTIFACT_ROW, source_library_chunks: null }],
+      notes: [],
+    };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    const prov = await adapter.getArtifactProvenance('u1', 'daily_devotion', '2026-08-07');
+    expect(prov!.librarySources).toBeNull();
+  });
+
+  it('returns null when no artifact exists for that period', async () => {
+    const backend: ProvBackend = { artifacts: [], notes: [] };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    expect(await adapter.getArtifactProvenance('u1', 'daily_devotion', '2026-08-07')).toBeNull();
+  });
+
+  it('works for reflections too — one type serves both surfaces', async () => {
+    const backend: ProvBackend = {
+      artifacts: [{ ...ARTIFACT_ROW, type: 'monthly_reflection', period_key: '2026-08' }],
+      notes: [],
+    };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    const prov = await adapter.getArtifactProvenance('u1', 'monthly_reflection', '2026-08');
+    expect(prov!.verses).toEqual(['Psalm 23:4']);
+  });
+
+  it('tolerates missing provenance columns on an older row', async () => {
+    const backend: ProvBackend = {
+      artifacts: [{ user_id: 'u1', type: 'daily_devotion', period_key: '2026-08-07' }],
+      notes: [],
+    };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    const prov = await adapter.getArtifactProvenance('u1', 'daily_devotion', '2026-08-07');
+    expect(prov).toEqual({
+      noteIds: [], verses: [], librarySources: null, modelUsed: null, promptVersion: null,
+    });
+  });
+});
+
+describe('SupabaseLamplightAdapter.resolveNoteTitles', () => {
+  it('resolves ids to titles so the panel never renders a uuid at the reader', async () => {
+    const backend: ProvBackend = {
+      artifacts: [],
+      notes: [{ id: 'n1', title: 'On rest' }, { id: 'n2', title: 'Weariness' }],
+    };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    const titles = await adapter.resolveNoteTitles(['n1', 'n2']);
+    expect(titles.get('n1')).toBe('On rest');
+    expect(titles.get('n2')).toBe('Weariness');
+  });
+
+  it('falls back to (untitled) for a blank title rather than showing nothing', async () => {
+    const backend: ProvBackend = { artifacts: [], notes: [{ id: 'n1', title: '   ' }] };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    expect((await adapter.resolveNoteTitles(['n1'])).get('n1')).toBe('(untitled)');
+  });
+
+  it('does not query at all for an empty id list', async () => {
+    const backend: ProvBackend = { artifacts: [], notes: [] };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    expect((await adapter.resolveNoteTitles([])).size).toBe(0);
+    expect(backend.lastIn).toBeUndefined();
+  });
+
+  it('omits ids that no longer resolve — a deleted note is simply absent', async () => {
+    const backend: ProvBackend = { artifacts: [], notes: [{ id: 'n1', title: 'Kept' }] };
+    const adapter = new SupabaseLamplightAdapter(makeProvClient(backend));
+    const titles = await adapter.resolveNoteTitles(['n1', 'gone']);
+    expect(titles.has('gone')).toBe(false);
+    expect(titles.get('n1')).toBe('Kept');
+  });
+});

@@ -106,6 +106,38 @@ export type EtymologyInsightResult =
   | { ok: true; body: string; cached: boolean }
   | { ok: false; reason: 'no_entry' | 'network' };
 
+/**
+ * How an artifact was written, for the "How this was written" panel.
+ * snake_case → camelCase mapping happens inside the adapter (house rule).
+ *
+ * `librarySources` is null — not [] — when the library never ran for that
+ * artifact, so the panel can omit the section entirely rather than render an
+ * empty header. Slice 1c persists it; slice 1d renders it.
+ */
+export interface ArtifactProvenance {
+  noteIds: string[];
+  verses: string[];
+  librarySources: Array<{ chunkId: string; sourceId: string; heading: string }> | null;
+  modelUsed: string | null;
+  promptVersion: string | null;
+}
+
+/**
+ * A row of the grounding corpus registry (migration 058). `attribution` is a
+ * render-ready credit line shown VERBATIM — it is how the CC-BY obligations for
+ * OpenBible and STEPBible are satisfied, so never reformat or truncate it.
+ */
+export interface LibrarySource {
+  id: string;
+  title: string;
+  author: string;
+  era: string;
+  tradition: string;
+  register: string;
+  license: string;
+  attribution: string;
+}
+
 export interface LamplightAdapter {
   getSettings(userId: string): Promise<LamplightSettings | null>;
   upsertSettings(
@@ -130,6 +162,20 @@ export interface LamplightAdapter {
    * only renders cards the edge function will agree to explain.
    */
   getConnectionCardThresholds(): Promise<ConnectionCardThresholds>;
+  /**
+   * Provenance for one artifact. Read ON DEMAND rather than folded into
+   * getDailyDevotion/getReflection: the panel is a disclosure closed by default,
+   * so loading this eagerly would be work almost no render needs.
+   */
+  getArtifactProvenance(
+    userId: string,
+    artifactType: string,
+    periodKey: string,
+  ): Promise<ArtifactProvenance | null>;
+  /** The grounding corpus registry — feeds both the provenance panel's labels and the Sources screen. */
+  getLibrarySources(): Promise<LibrarySource[]>;
+  /** Note ids → titles, so the provenance panel never renders a uuid at the reader. */
+  resolveNoteTitles(noteIds: string[]): Promise<Map<string, string>>;
   /** Returns the persisted daily devotion for (userId, periodKey) if it exists, else null. */
   getDailyDevotion(userId: string, periodKey: string): Promise<DailyDevotion | null>;
   /** Invokes lamplight-generate Edge Function with kind='daily_devotion'. */

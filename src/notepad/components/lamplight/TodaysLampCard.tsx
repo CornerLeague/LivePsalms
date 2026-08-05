@@ -6,6 +6,7 @@ import { TodaysLampLoading } from './TodaysLampLoading';
 import { TodaysLampError } from './TodaysLampError';
 import { TodaysLampIntro } from './TodaysLampIntro';
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
+import { LamplightProvenancePanel } from './LamplightProvenancePanel';
 
 export interface TodaysLampCardProps {
   adapter: LamplightAdapter;
@@ -50,7 +51,7 @@ export function TodaysLampCard({
   } else if (state.phase === 'error') {
     body = <TodaysLampError reason={state.reason} firstName={firstName} onRetry={retry} />;
   } else if (state.phase === 'ready') {
-    body = <Devotion artifact={state.artifact} localDate={localDate} />;
+    body = <Devotion artifact={state.artifact} localDate={localDate} provenance={{ adapter, userId }} />;
   }
 
   return <>{body}</>;
@@ -61,8 +62,14 @@ export function Devotion(props: {
   localDate: string;
   partial?: boolean;
   prefersReducedMotion?: boolean;
+  /**
+   * Slice 1d. Supplied only on the READY phase: a mid-stream partial has no
+   * persisted artifact row yet, so there is no provenance to disclose and the
+   * trigger would dangle.
+   */
+  provenance?: { adapter: LamplightAdapter; userId: string };
 }) {
-  const { artifact, localDate, partial, prefersReducedMotion } = props;
+  const { artifact, localDate, partial, prefersReducedMotion, provenance } = props;
 
   function maybeWrap(content: React.ReactNode) {
     if (!partial) return content;
@@ -152,6 +159,15 @@ export function Devotion(props: {
             ))}
           </ul>
         </div>
+      )}
+
+      {provenance && (
+        <LamplightProvenancePanel
+          adapter={provenance.adapter}
+          userId={provenance.userId}
+          artifactType="daily_devotion"
+          periodKey={localDate}
+        />
       )}
     </div>
   );
