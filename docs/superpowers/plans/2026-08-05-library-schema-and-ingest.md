@@ -53,25 +53,25 @@
     on public.library_chunks (source_id, heading, book, chapter, verse_start)
     nulls not distinct;
   ```
-- [ ] **Step 3: hand the SQL to the user to run in the SQL Editor.** Do not attempt `supabase db push`. Wait for confirmation before Task 3.
-- [ ] **Step 4: verify** with `select count(*) from public.library_sources;` (0) and `\d public.library_chunks` equivalent — confirm `vector(512)` and the five indexes exist.
+- [x] **Step 3: hand the SQL to the user to run in the SQL Editor.** Do not attempt `supabase db push`. Wait for confirmation before Task 3.
+- [x] **Step 4: verify** with `select count(*) from public.library_sources;` (0) and `\d public.library_chunks` equivalent — confirm `vector(512)` and the five indexes exist.
 
 ### Task 2: Migration 059 — artifact provenance column
 
 **File:** `supabase/migrations/059_artifact_library_provenance.sql`
 
 - [x] **Step 1:** `alter table public.lamplight_artifacts add column source_library_chunks jsonb;` with a comment explaining the shape (`[{chunk_id, source_id, heading}]`, heading snapshotted so the transparency panel survives a re-ingest that rotates chunk ids).
-- [ ] **Step 2:** user runs it in the SQL Editor. No code reads it until 1c/1d — this lands now so 1c is a pure code change.
+- [x] **Step 2:** user runs it in the SQL Editor. No code reads it until 1c/1d — this lands now so 1c is a pure code change.
 
 ### Task 3: Adapter contract + versification + chunker (pure, TDD — no I/O)
 
 **Files:** `scripts/library-adapters/{types,versification,chunk-text}.ts` (+tests)
 
-- [ ] **Step 1: failing tests for `normalizeRef`** — Psalm 51 Hebrew-superscription offset maps KJV `psa.51.1` ↔ Hebrew numbering correctly; Joel 2:28 (KJV) → Joel 3:1 (Hebrew/BSB) or the reverse per the TVTMS table; a ref needing no transform passes through unchanged; an unmapped book token throws loudly (never silently drops — the cross-references ingest set that precedent).
-- [ ] **Step 2:** run, expect FAIL. **Step 3: implement** — load the TVTMS mapping as a static table checked into `scripts/data/` (same place other ingest data lives), expose `normalizeRef(osisRef, sourceTradition): string`.
-- [ ] **Step 4: failing tests for `chunkText`** — a 200-token passage stays one chunk; an 800-token passage splits on paragraph boundaries into ≤600-token pieces; a single 900-token paragraph falls back to sentence splitting; every emitted chunk carries a `token_count` within bounds. Reuse `_shared/chunker.ts`'s MIN/MAX/CHARS_PER_TOKEN constants rather than redefining them.
-- [ ] **Step 5:** implement; both suites green.
-- [ ] **Step 6: define `LibraryAdapter`** in `types.ts`:
+- [x] **Step 1: failing tests for `normalizeRef`** — Psalm 51 Hebrew-superscription offset maps KJV `psa.51.1` ↔ Hebrew numbering correctly; Joel 2:28 (KJV) → Joel 3:1 (Hebrew/BSB) or the reverse per the TVTMS table; a ref needing no transform passes through unchanged; an unmapped book token throws loudly (never silently drops — the cross-references ingest set that precedent).
+- [x] **Step 2:** run, expect FAIL. **Step 3: implement** — load the TVTMS mapping as a static table checked into `scripts/data/` (same place other ingest data lives), expose `normalizeRef(osisRef, sourceTradition): string`.
+- [x] **Step 4: failing tests for `chunkText`** — a 200-token passage stays one chunk; an 800-token passage splits on paragraph boundaries into ≤600-token pieces; a single 900-token paragraph falls back to sentence splitting; every emitted chunk carries a `token_count` within bounds. Reuse `_shared/chunker.ts`'s MIN/MAX/CHARS_PER_TOKEN constants rather than redefining them.
+- [x] **Step 5:** implement; both suites green.
+- [x] **Step 6: define `LibraryAdapter`** in `types.ts`:
   ```ts
   export interface LibraryChunkRow {
     source_id: string; book?: string; chapter?: number;
@@ -91,43 +91,43 @@
 
 **Files:** `scripts/library-adapters/sword-commentary.ts` (+test), fixtures under `scripts/library-adapters/__fixtures__/`
 
-- [ ] **Step 1: capture a real fixture** — dump ~3 verse-ranges per source with `diatheke -b TDavid -k Psalms 27` (etc.), save trimmed excerpts as fixture files. Record the exact diatheke commands in the runbook; they are the reproducibility contract.
-- [ ] **Step 2: failing tests** — parses a verse-range heading into `book/chapter/verse_start/verse_end`; a per-verse comment becomes one chunk; an oversize comment splits via `chunkText` while every piece keeps the same verse anchor; the embedded text is prefixed `"<author>, <era> — on <ref>:"` (retrieval carries authorship); Treasury of David's "quaint sayings" sections group under their psalm rather than emitting one chunk per aphorism; refs pass through `normalizeRef`.
-- [ ] **Step 3:** implement one parser parameterized by source config (heading regex, author, era, register) — the three sources share the diatheke output shape; do NOT write three parsers.
-- [ ] **Step 4:** tests green for all three source configs against their fixtures.
+- [x] **Step 1: capture a real fixture** — dump ~3 verse-ranges per source with `diatheke -b TDavid -k Psalms 27` (etc.), save trimmed excerpts as fixture files. Record the exact diatheke commands in the runbook; they are the reproducibility contract.
+- [x] **Step 2: failing tests** — parses a verse-range heading into `book/chapter/verse_start/verse_end`; a per-verse comment becomes one chunk; an oversize comment splits via `chunkText` while every piece keeps the same verse anchor; the embedded text is prefixed `"<author>, <era> — on <ref>:"` (retrieval carries authorship); Treasury of David's "quaint sayings" sections group under their psalm rather than emitting one chunk per aphorism; refs pass through `normalizeRef`.
+- [x] **Step 3:** implement one parser parameterized by source config (heading regex, author, era, register) — the three sources share the diatheke output shape; do NOT write three parsers.
+- [x] **Step 4:** tests green for all three source configs against their fixtures.
 
 ### Task 5: Creeds, lexicon, and topics adapters
 
 **Files:** `scripts/library-adapters/{creeds,stepbible-lexicon,openbible-topics}.ts` (+tests)
 
-- [ ] **Step 1: creeds — failing tests first.** The load-bearing one: **the 8 copyright-restricted documents are excluded**, asserted by name against a fixture that contains one of them (e.g. the Chicago Statement). Then: one chunk per article/Q&A; `register: 'confessional'`; no verse anchor; scripture proof-refs preserved inside `content`.
-- [ ] **Step 2:** implement + green.
-- [ ] **Step 3: lexicon — failing tests.** One chunk per lemma keyed by `strongs` (e.g. `H7462`); `register: 'lexical'`; glosses/definitions only (no full LSJ dumps in v1); a malformed TSV row is skipped with a counted warning, not a throw (large third-party files have dirty rows).
-- [ ] **Step 4:** implement + green.
-- [ ] **Step 5: topics — failing tests.** One chunk per topic with its top-N verses by votes; `topic` column set; `register: 'topical'`; modern-phrasing topics (anxiety, loneliness) survive normalization.
-- [ ] **Step 6:** implement + green.
+- [x] **Step 1: creeds — failing tests first.** The load-bearing one: **the 8 copyright-restricted documents are excluded**, asserted by name against a fixture that contains one of them (e.g. the Chicago Statement). Then: one chunk per article/Q&A; `register: 'confessional'`; no verse anchor; scripture proof-refs preserved inside `content`.
+- [x] **Step 2:** implement + green.
+- [x] **Step 3: lexicon — failing tests.** One chunk per lemma keyed by `strongs` (e.g. `H7462`); `register: 'lexical'`; glosses/definitions only (no full LSJ dumps in v1); a malformed TSV row is skipped with a counted warning, not a throw (large third-party files have dirty rows).
+- [x] **Step 4:** implement + green.
+- [x] **Step 5: topics — failing tests.** One chunk per topic with its top-N verses by votes; `topic` column set; `register: 'topical'`; modern-phrasing topics (anxiety, loneliness) survive normalization.
+- [x] **Step 6:** implement + green.
 
 ### Task 6: The ingest driver
 
 **Files:** `scripts/ingest-library.ts` (+test)
 
-- [ ] **Step 1: failing tests for the pure parts** — the source registry resolves `--source=<id>` to an adapter and rejects unknown ids; `--dry-run` returns counts without calling any Supabase dep (assert the injected client is never touched); chunk rows are upserted on the `library_chunks_ident` conflict target; `--embed-only` skips parsing entirely.
-- [ ] **Step 2:** implement the driver with injected `{ supabase, embed, readFile }` deps so the tests need no network (mirrors `backfill-note-embeddings.ts`).
-- [ ] **Step 3: the embedding pass**, copied in shape from `ingest-bsb.ts:226-296`: select rows where `embedding is null`; Voyage-batch at 64 via `embedDocuments`; upsert in smaller slices; `upsertWithRetry` halving on SQLSTATE 57014. Embed the **prefixed** text (author + era + ref + content), not bare content.
-- [ ] **Step 4:** `npx vitest run scripts` green.
+- [x] **Step 1: failing tests for the pure parts** — the source registry resolves `--source=<id>` to an adapter and rejects unknown ids; `--dry-run` returns counts without calling any Supabase dep (assert the injected client is never touched); chunk rows are upserted on the `library_chunks_ident` conflict target; `--embed-only` skips parsing entirely.
+- [x] **Step 2:** implement the driver with injected `{ supabase, embed, readFile }` deps so the tests need no network (mirrors `backfill-note-embeddings.ts`).
+- [x] **Step 3: the embedding pass**, copied in shape from `ingest-bsb.ts:226-296`: select rows where `embedding is null`; Voyage-batch at 64 via `embedDocuments`; upsert in smaller slices; `upsertWithRetry` halving on SQLSTATE 57014. Embed the **prefixed** text (author + era + ref + content), not bare content.
+- [x] **Step 4:** `npx vitest run scripts` green.
 
 ### Task 7: Run the ingest
 
-- [ ] **Step 1: seed `library_sources`** — one row per source with its verified `attribution` string. This is the row the Sources screen renders in 1d; get the credit lines right now (OpenBible: "Credit OpenBible.info"; STEPBible: "STEP Bible" linked to stepbible.org).
-- [ ] **Step 2: dry-run each source**, record chunk counts.
-- [ ] **Step 3: real run per source**, then the embedding pass. Expect ~8M tokens total ≈ $1.50–5 one-time on Voyage.
-- [ ] **Step 4: record every count in the runbook** — those numbers ARE the idempotency check for future re-runs.
+- [x] **Step 1: seed `library_sources`** — one row per source with its verified `attribution` string. This is the row the Sources screen renders in 1d; get the credit lines right now (OpenBible: "Credit OpenBible.info"; STEPBible: "STEP Bible" linked to stepbible.org).
+- [x] **Step 2: dry-run each source**, record chunk counts.
+- [x] **Step 3: real run per source**, then the embedding pass. Expect ~8M tokens total ≈ $1.50–5 one-time on Voyage.
+- [x] **Step 4: record every count in the runbook** — those numbers ARE the idempotency check for future re-runs.
 
 ### Task 8: Acceptance + runbook
 
 **File:** `docs/runbooks/library-ingest.md`
 
-- [ ] **Step 1: acceptance SQL** (paste results into the runbook):
+- [x] **Step 1: acceptance SQL** (paste results into the runbook):
   ```sql
   -- per-source chunk counts must match the recorded numbers
   select source_id, count(*), sum(token_count) from public.library_chunks group by 1 order by 1;
@@ -142,12 +142,43 @@
   -- TVTMS canaries
   select heading from public.library_chunks where source_id='treasury-of-david' and book='psa' and chapter=51 limit 5;
   ```
-- [ ] **Step 2: a live retrieval sanity check** (proves the RPC works before 1c depends on it): embed the phrase "waiting on the Lord in a season of fear" with the same Voyage config and call `match_library_chunks(vector, 5)`. Expect Psalm 27 material from Treasury of David near the top. Record the result.
-- [ ] **Step 3: write the runbook** — diatheke commands, source URLs, **the license evidence trail with quoted terms per source**, the exact run order, recorded counts, and the re-run/rollback procedure (`delete from library_chunks where source_id = '…'` then re-run; `library_sources` upserts by id).
-- [ ] **Step 4: final gates** — `npx tsc -b`, `npx vitest run scripts`, `npx eslint` on touched files.
+- [x] **Step 2: a live retrieval sanity check** (proves the RPC works before 1c depends on it): embed the phrase "waiting on the Lord in a season of fear" with the same Voyage config and call `match_library_chunks(vector, 5)`. Expect Psalm 27 material from Treasury of David near the top. Record the result.
+- [x] **Step 3: write the runbook** — diatheke commands, source URLs, **the license evidence trail with quoted terms per source**, the exact run order, recorded counts, and the re-run/rollback procedure (`delete from library_chunks where source_id = '…'` then re-run; `library_sources` upserts by id).
+- [x] **Step 4: final gates** — `npx tsc -b`, `npx vitest run scripts`, `npx eslint` on touched files.
 
 ## Open questions (resolve during execution, none blocking)
 
 - Matthew Henry **Complete** in this slice or after 1c retrieval-quality data? Default: **after** — Concise first (~800k tokens vs ~6–7M for overlapping coverage).
 - Berean interlinear: migration 041's `bible_interlinear` may already cover it. Task 5 skips it; reconcile in 1c if the lexical channel proves thin.
 - Whether `library_chunks_ident` should include `topic`/`strongs` — only matters if a source emits both anchored and unanchored chunks with the same heading. Revisit if an adapter hits a conflict collision during Task 7.
+
+---
+
+## Completion record (2026-08-05)
+
+**Slice 1b is complete for the three commentary sources.** Migrations 058/059 applied via SQL Editor; 34,076 chunks parsed, upserted, and embedded; all acceptance checks pass.
+
+| Source | Chunks | Verse-anchored | Tokens | Embedded |
+|---|---|---|---|---|
+| treasury-of-david | 12,745 | 11,947 | 2,912,484 | 12,745 |
+| matthew-henry-concise | 4,136 | 4,136 | 934,146 | 4,136 |
+| jfb | 17,195 | 17,195 | 2,343,707 | 17,195 |
+| **total** | **34,076** | **33,278** | **6,190,337** | **34,076** |
+
+Acceptance: unembedded = **0**; orphan verse anchors = **0** (every anchored chunk resolves against `bible_passages`, confirming versification across all 33,278 anchors); retrieval smoke returns apt, correctly-anchored results from two sources. Baseline recorded in the runbook §6b.
+
+**Deviations from the plan:**
+
+1. **Lexical source dropped.** `bible_strongs` + `bible_interlinear` (migration 041) already hold Strong's lexicon data publicly. Slice 1c's lexicon block reads them directly rather than duplicating into `library_chunks`.
+2. **Commentary adapter consumes a JSONL intermediate**, not raw diatheke output — the format could not be verified before the modules were installed, and writing a parser against a guessed format would have looked finished while failing on real data. `dump-sword-commentary.ts` owns the acquisition; the runbook documents it.
+3. **Idempotency index uses plain columns with `nulls not distinct`**, not the sketched `coalesce(...)` expression index: PostgREST's `on_conflict` takes a column list and cannot target an expression index.
+4. **Task 5 (creeds + topics adapters) NOT done** — neither Creeds.json nor the OpenBible topical TSV is in `scripts/data/`. Deferred; the two sources remain planned but unwritten.
+
+**Bugs found only against real data or a real database** (each fixed with a regression test):
+
+- Three modules key content three different ways. JFB/MHCC are verse-range keyed and diatheke repeats a range's text per verse; **TDavid puts the entire psalm on verse 1** with inline `* Verse N. *` markers. Splitting on those markers is what makes Spurgeon verse-anchored (11,947 anchors) rather than 150 chapter blobs.
+- Treasury comments on the same verse once per section, so refs repeat. Without an occurrence suffix those rows **collide on `library_chunks_ident` and the upsert silently keeps one** — verified fixed: the retrieval baseline shows `Psalm 130:5 [2]` and `[3]` carrying different text.
+- `supabase-js` constructs a Realtime client at `createClient`, which throws on Node 20 (no global WebSocket). Fixed with an unused transport rather than a `ws` dependency (`ed11e7fd`).
+- **The embedding pass hit PostgREST's ~1000-row response cap** and silently embedded only 1,000 per source — all three reported success while 31,076 of 34,076 chunks had no vector, which would have left slice 1c retrieving from ~9% of the corpus with nothing downstream complaining. Fixed with paging + a 1,200-row regression test (`f74d23d3`). Surfaced only because the reported counts were suspiciously round.
+
+**Watch item:** `matthew-henry-concise` did not place in the baseline top-5. Plausible (smallest source, summarises blocks rather than single verses) but worth confirming during 1c that it surfaces on some queries.
