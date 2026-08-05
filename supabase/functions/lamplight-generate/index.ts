@@ -52,6 +52,7 @@ import { runReflectionSweep, claimReflectionJobs } from './reflection-sweep.ts';
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
+import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
 import { classifyGenerateError } from './classify-error.ts';
 export { classifyGenerateError };
 
@@ -298,6 +299,7 @@ async function handleGenerate(req: Request): Promise<Response> {
           recordUsage: lifecycleDeps.recordUsage,
           llm,
           classifier,
+          verifyScripture: makeScriptureDeps(supabase, translation),
           buildContext: () =>
             buildDailyDevotionContext(supabase, { userId, localDate, voyageDeps, rerankEnabled, translation }),
         },
@@ -312,7 +314,10 @@ async function handleGenerate(req: Request): Promise<Response> {
         const ctx = await buildDailyDevotionContext(supabase, {
           userId, localDate, voyageDeps, rerankEnabled, translation,
         });
-        const result = await runDailyDevotionPipeline({ llm, classifier, supabase, ctx, userId, localDate });
+        const result = await runDailyDevotionPipeline({
+          llm, classifier, supabase, ctx, userId, localDate,
+          verifyScripture: makeScriptureDeps(supabase, translation),
+        });
         return { response: result, usage: result.usage };
       },
     );

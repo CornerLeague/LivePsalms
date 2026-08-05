@@ -24,6 +24,11 @@ import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { DAILY_DEVOTION_PROMPT } from './prompts/daily-devotion.ts';
 import type { UsageCore } from '../_shared/usage.ts';
 import type { LibraryExcerpt } from '../_shared/library-retrieval.ts';
+import {
+  verifyArtifactScripture,
+  verifyVerseField,
+  type ScriptureDeps,
+} from '../_shared/scripture-verify.ts';
 
 export interface DailyDevotionPassage {
   source_id: string;
@@ -78,8 +83,11 @@ type DailyViolations = { citation: CitationViolation[]; content: ContentRuleViol
 function makeDailyDevotionValidate(
   ctx: DailyDevotionContext,
   classifier?: (text: string) => Promise<ContentRuleViolation[]>,
+  verifyScripture?: ScriptureDeps,
 ) {
-  return async (parsed: DailyDevotion): Promise<{ ok: boolean; violations: DailyViolations }> => {
+  return async (
+    parsed: DailyDevotion,
+  ): Promise<{ ok: boolean; violations: DailyViolations; repaired?: DailyDevotion }> => {
     const citation = validateDailyDevotionCitations(parsed, {
       allowedNoteIds: ctx.allowedNoteIds,
       allowedVerseRefs: ctx.allowedVerseRefs,
@@ -91,10 +99,58 @@ function makeDailyDevotionValidate(
       classifier,
     });
     const nameViolations = applyNameRules({ artifact: parsed, firstName: ctx.firstName });
-    return {
-      ok: citation.ok && content.ok && nameViolations.length === 0,
-      violations: { citation: citation.violations, content: [...content.violations, ...nameViolations] },
+    const violations: DailyViolations = {
+      citation: citation.violations,
+      content: [...content.violations, ...nameViolations],
     };
+    const baseOk = citation.ok && content.ok && nameViolations.length === 0;
+
+    // Scripture verification runs LAST: cheapest gates first, and a citation
+    // failure makes verification moot (the artifact is being retried anyway).
+    if (!baseOk || !verifyScripture) return { ok: baseOk, violations };
+
+    const scripture = await verifyDevotionScripture(verifyScripture, parsed);
+    violations.content.push(...scripture.violations);
+    return {
+      ok: scripture.violations.length === 0,
+      violations,
+      ...(scripture.repaired ? { repaired: scripture.repaired } : {}),
+    };
+  };
+}
+
+/**
+ * scripture.text is checked as a STRUCTURED field — it sits beside its ref with
+ * no quote marks, so the prose scanner cannot see it, and it is the verse the
+ * reader actually reads. The reflection is scanned as prose. The opening and
+ * the closing prompt are not scanned: neither carries verse quotation by design.
+ */
+async function verifyDevotionScripture(
+  deps: ScriptureDeps,
+  parsed: DailyDevotion,
+): Promise<{ violations: ContentRuleViolation[]; repaired?: DailyDevotion }> {
+  const [field, prose] = await Promise.all([
+    verifyVerseField(deps, {
+      ref: parsed.scripture.ref,
+      text: parsed.scripture.text,
+      translation: deps.translation,
+    }),
+    verifyArtifactScripture(deps, { text: parsed.reflection, translation: deps.translation }),
+  ]);
+
+  const violations: ContentRuleViolation[] = [...field.violations, ...prose.violations]
+    .map((v) => ({ family: 'scripture' as const, rule: v.rule, snippet: v.snippet }));
+
+  if (violations.length > 0) return { violations };
+  if (field.repairedText === undefined && prose.repairedText === undefined) return { violations };
+
+  return {
+    violations,
+    repaired: {
+      ...parsed,
+      scripture: { ...parsed.scripture, text: field.repairedText ?? parsed.scripture.text },
+      reflection: prose.repairedText ?? parsed.reflection,
+    },
   };
 }
 
@@ -301,6 +357,8 @@ export async function runDailyDevotionPipeline(args: {
   // Layer C (P0-5): optional LLM doctrinal classifier for applyContentRules.
   // Injected by the Deno shell (makeDoctrinalClassifier); tests omit it.
   classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+  /** Slice 1d, OPTIONAL: omit and generation behaves exactly as it did before. */
+  verifyScripture?: ScriptureDeps;
 }): Promise<DailyDevotionPipelineResult> {
   const pre = await devotionPreCheck(args);
   if (!('notCached' in pre)) return pre;
@@ -320,7 +378,7 @@ export async function runDailyDevotionPipeline(args: {
     // `as const` on the nested schema produces literal types narrower than
     // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
     tool: DAILY_DEVOTION_PROMPT.tool as unknown as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeDailyDevotionValidate(ctx, args.classifier),
+    validate: makeDailyDevotionValidate(ctx, args.classifier, args.verifyScripture),
     formatStricter: formatStricterSuffix,
   });
 
@@ -345,6 +403,7 @@ export async function runDailyDevotionStreaming(
     userId: string;
     localDate: string;
     classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+    verifyScripture?: ScriptureDeps;
     signal?: AbortSignal;
   },
   handlers: DailyDevotionStreamHandlers,
@@ -365,7 +424,7 @@ export async function runDailyDevotionStreaming(
     systemTokens: { local_date: ctx.localDate },
     messages: DAILY_DEVOTION_PROMPT.buildMessages(ctx),
     tool: DAILY_DEVOTION_PROMPT.tool as unknown as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeDailyDevotionValidate(ctx, args.classifier),
+    validate: makeDailyDevotionValidate(ctx, args.classifier, args.verifyScripture),
     formatStricter: formatStrickerSuffixWithLengthNote,
     textFields: [],
     perFieldValidate: devotionFieldGate,

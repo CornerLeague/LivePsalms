@@ -16,6 +16,7 @@ import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generati
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
+import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
 import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
 import { runBibleChatPipeline } from '../lamplight-chat/bible-chat-pipeline.ts';
 import { streamBibleChat, type BibleChatStreamDeps } from '../lamplight-chat/bible-chat-stream.ts';
@@ -197,6 +198,7 @@ async function handleStudy(req: Request): Promise<Response> {
       effort: STUDY_EFFORT[mode],
       maxTokens: STUDY_MAX_TOKENS[mode],
       classifier,
+      verifyScripture: makeScriptureDeps(supabase, translation),
       extraDoneFields: () => ({ offered_notes: capturedOffered }),
       artifactKind: 'bible_study',
     };
@@ -258,6 +260,7 @@ async function handleStudy(req: Request): Promise<Response> {
         maxTokens: STUDY_MAX_TOKENS[mode],
         prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
         classifier,
+        verifyScripture: makeScriptureDeps(supabase, translation),
       });
       if (!result.ok) {
         return { response: { ok: false, reason: result.reason }, usage: result.usage };

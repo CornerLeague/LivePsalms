@@ -75,7 +75,11 @@ export function validateCitations<T extends ArtifactLike>(
  * - 'name'     — first-name misuse (overuse or spurious salutation).
  */
 export interface ContentRuleViolation {
-  family: 'banned' | 'contested' | 'growth' | 'name';
+  // 'scripture' (slice 1d) rides this same channel deliberately: it is another
+  // post-generation text check whose violations feed the same stricter retry,
+  // and every pipeline already threads content violations through. Only
+  // verification emits it — the doctrinal classifier's allowlist does not.
+  family: 'banned' | 'contested' | 'growth' | 'name' | 'scripture';
   rule: string;
   snippet: string;
 }
@@ -110,6 +114,11 @@ export function formatContentFamilyStricter(violations: ContentRuleViolation[]):
   if (families.has('contested')) {
     parts.push(
       'On retry: avoid interpreting the contested passages mentioned. Name them gently and defer.',
+    );
+  }
+  if (families.has('scripture')) {
+    parts.push(
+      'On retry: quote Scripture only in the exact wording supplied to you, and cite only references you were given. Do not reconstruct a verse from memory.',
     );
   }
   if (families.has('growth')) {

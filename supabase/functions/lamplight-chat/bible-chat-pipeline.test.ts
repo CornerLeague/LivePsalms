@@ -232,3 +232,86 @@ describe('runBibleChatStreaming', () => {
     }
   });
 });
+
+// ── Slice 1d: Scripture verification on both chat surfaces ───────────────────
+// Study and journaling chat share makeBibleChatValidate, so one wiring covers
+// both. Repairs land before persistence; on the streaming path they also fire
+// the `refining` beat, because both clients re-render the reply from the `done`
+// payload and would otherwise swap text under the reader silently.
+
+const PS23_1_CANON = 'The LORD is my shepherd; I shall not want.';
+
+function chatScriptureDeps(opts: { notFound?: string[]; throws?: boolean } = {}) {
+  const notFound = new Set(opts.notFound ?? []);
+  return {
+    translation: 'BSB',
+    verifyRefs: async (refs: string[]) => {
+      if (opts.throws) throw new Error('lookup down');
+      return refs.map((ref) =>
+        notFound.has(ref) || ref !== 'Psalm 23:1'
+          ? { ref, status: 'not_found' as const }
+          : { ref, status: 'found' as const, canonicalText: PS23_1_CANON });
+    },
+  };
+}
+
+const nearMissReply = {
+  reply: `Consider how it opens: "The LORD is my shepherd; I shall not lack." (Psalm 23:1) — the claim is about provision.`,
+  citations: [],
+};
+
+describe('bible chat — Scripture verification', () => {
+  it('repairs a near-miss quotation in the reply', async () => {
+    const result = await runBibleChatPipeline({
+      llm: fakeLLM(nearMissReply),
+      ctx: { ...baseCtx, allowedVerseRefs: new Set(['Psalm 23:1']) },
+      verifyScripture: chatScriptureDeps(),
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.reply).toContain(PS23_1_CANON);
+      expect(result.reply).not.toContain('shall not lack');
+    }
+  });
+
+  it('leaves the reply untouched when no verification dep is injected', async () => {
+    const result = await runBibleChatPipeline({
+      llm: fakeLLM(nearMissReply),
+      ctx: { ...baseCtx, allowedVerseRefs: new Set(['Psalm 23:1']) },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.reply).toContain('shall not lack');
+  });
+
+  it('fails a fabricated quotation and retries', async () => {
+    const bogus = {
+      reply: `He writes "the earth was formless and void and darkness covered it" (Psalm 23:1).`,
+      citations: [],
+    };
+    let call = 0;
+    const llm: LLMAdapter = {
+      async generate<U>(): Promise<GenerateOutput<U>> {
+        const next = call++ === 0 ? bogus : { reply: 'A plain answer with no quotation.', citations: [] };
+        return { parsed: next as unknown as U, modelUsed: 'm', promptTokens: 1, completionTokens: 2 };
+      },
+    };
+    const result = await runBibleChatPipeline({
+      llm,
+      ctx: { ...baseCtx, allowedVerseRefs: new Set(['Psalm 23:1']) },
+      verifyScripture: chatScriptureDeps(),
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.attempts).toBe(2);
+  });
+
+  it('does not fail a reply when the verse lookup throws', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await runBibleChatPipeline({
+      llm: fakeLLM(nearMissReply),
+      ctx: { ...baseCtx, allowedVerseRefs: new Set(['Psalm 23:1']) },
+      verifyScripture: chatScriptureDeps({ throws: true }),
+    });
+    expect(result.ok).toBe(true);
+    err.mockRestore();
+  });
+});

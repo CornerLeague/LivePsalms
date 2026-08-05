@@ -8,6 +8,7 @@ import type { GenerationOutcome } from '../_shared/generation-lifecycle.ts';
 import type { UsageCore } from '../_shared/usage.ts';
 import { VERSE_INSIGHT_PROMPT_VERSION, type EtymologyInsightContext } from './prompts/verse-insight.ts';
 import { applyContentRules } from '../_shared/validators.ts';
+import { verifyArtifactScripture, type ScriptureDeps } from '../_shared/scripture-verify.ts';
 import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_shared/voice.ts';
 
 export interface EtymologyEntryFacts {
@@ -27,6 +28,8 @@ export interface EtymologyInsightBodyDeps {
     strongs: string; verse_id: string; body: string; model_used: string; prompt_version: string; created_by: string;
   }): Promise<void>; // ON CONFLICT (strongs, verse_id) DO NOTHING
   reloadInsight(strongs: string, verseId: string): Promise<string | null>;
+  /** Slice 1d, OPTIONAL: omit and the insight path behaves exactly as before. */
+  verifyScripture?: ScriptureDeps;
 }
 
 export async function buildEtymologyInsightOutcome(
@@ -79,12 +82,29 @@ export async function buildEtymologyInsightOutcome(
     return { response: { ok: false, reason: 'validators_failed' }, usage: null };
   }
 
+  // Scripture verification, same gate and same contract. This cache is GLOBAL:
+  // one misquoted row is served to every reader who opens that word, and there
+  // is no retry loop here to correct it later — so a repair is applied in place
+  // and an unrepairable body is refused rather than cached.
+  let body = gen.body;
+  if (deps.verifyScripture) {
+    const scripture = await verifyArtifactScripture(deps.verifyScripture, {
+      text: gen.body,
+      translation: deps.verifyScripture.translation,
+    });
+    if (!scripture.ok) {
+      console.error('[etymology-insight] scripture verification rejected insight', scripture.violations);
+      return { response: { ok: false, reason: 'validators_failed' }, usage: null };
+    }
+    body = scripture.repairedText ?? gen.body;
+  }
+
   await deps.insertInsight({
-    strongs, verse_id: verseId, body: gen.body,
+    strongs, verse_id: verseId, body,
     model_used: gen.modelUsed, prompt_version: VERSE_INSIGHT_PROMPT_VERSION, created_by: userId,
   });
-  const winner = (await deps.reloadInsight(strongs, verseId)) ?? gen.body;
-  const cached = winner !== gen.body; // a conflict-loser reads someone else's winning row
+  const winner = (await deps.reloadInsight(strongs, verseId)) ?? body;
+  const cached = winner !== body; // a conflict-loser reads someone else's winning row
 
   const usage: UsageCore = {
     model: gen.modelUsed, tokens_in: gen.promptTokens, tokens_out: gen.completionTokens, status: 'ok',

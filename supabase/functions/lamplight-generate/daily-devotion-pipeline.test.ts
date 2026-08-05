@@ -633,3 +633,142 @@ describe('daily devotion — source_library_chunks provenance', () => {
     if (result.ok) expect(result.cached).toBe(true);
   });
 });
+
+// ── Slice 1d: Scripture verification ─────────────────────────────────────────
+// scripture.text is the verse the reader actually sees, so it is checked as a
+// structured field; the reflection is scanned as prose. Repairs land BEFORE
+// persistence — the assertions read the inserted body, not just the return.
+
+const PS23_4 = 'Even though I walk through the valley of the shadow of death, I will fear no evil.';
+
+function scriptureDeps(opts: { canonical?: Record<string, string>; notFound?: string[]; throws?: boolean } = {}) {
+  const canonical = opts.canonical ?? { 'Psalm 23:4': PS23_4 };
+  const notFound = new Set(opts.notFound ?? []);
+  return {
+    translation: 'BSB',
+    verifyRefs: async (refs: string[]) => {
+      if (opts.throws) throw new Error('bible_passages down');
+      return refs.map((ref) =>
+        notFound.has(ref) || !canonical[ref]
+          ? { ref, status: 'not_found' as const }
+          : { ref, status: 'found' as const, canonicalText: canonical[ref] });
+    },
+  };
+}
+
+const devotionWith = (over: Partial<DailyDevotion>): DailyDevotion => ({ ...cleanArtifact, ...over });
+
+describe('daily devotion — Scripture verification', () => {
+  it('repairs a paraphrased scripture.text in the PERSISTED artifact', async () => {
+    const { supabase, inserts } = makeSupabaseMock();
+    const paraphrased = devotionWith({
+      scripture: { ref: 'Psalm 23:4', text: 'Even though I walk through the valley of the shadow of death, I will fear no harm.' },
+    });
+    const result = await runDailyDevotionPipeline({
+      llm: makeAdapter([paraphrased]),
+      supabase,
+      ctx: makeCtx(),
+      userId: 'user-1',
+      localDate: '2026-05-27',
+      verifyScripture: scriptureDeps(),
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.artifact.scripture.text).toBe(PS23_4);
+    expect((inserts[0].body as DailyDevotion).scripture.text).toBe(PS23_4);
+  });
+
+  it('repairs a near-miss quotation inside the reflection prose', async () => {
+    const { supabase, inserts } = makeSupabaseMock();
+    const withQuote = devotionWith({
+      reflection: `The line "Even though I walk through the valley of the shadow of death, I will fear no harm." (Psalm 23:4) sits at the centre of this psalm, and it is worth staying with it a while longer than feels comfortable, because the promise it makes is smaller and better than the one we usually want from it.`,
+    });
+    const result = await runDailyDevotionPipeline({
+      llm: makeAdapter([withQuote]),
+      supabase,
+      ctx: makeCtx(),
+      userId: 'user-1',
+      localDate: '2026-05-27',
+      verifyScripture: scriptureDeps(),
+    });
+    expect(result.ok).toBe(true);
+    expect((inserts[0].body as DailyDevotion).reflection).toContain('I will fear no evil');
+    expect((inserts[0].body as DailyDevotion).reflection).not.toContain('fear no harm');
+  });
+
+  it('fails a wholly wrong quotation and feeds the stricter retry', async () => {
+    const { supabase } = makeSupabaseMock();
+    const wrong = devotionWith({
+      scripture: { ref: 'Psalm 23:4', text: 'In the beginning God created the heavens and the earth.' },
+    });
+    const systems: string[] = [];
+    let call = 0;
+    const llm: LLMAdapter = {
+      async generate<U>(input: Parameters<LLMAdapter['generate']>[0]): Promise<GenerateOutput<U>> {
+        systems.push(input.system);
+        const next = call++ === 0 ? wrong : cleanArtifact;
+        return { parsed: next as unknown as U, modelUsed: 'gpt-5.6-terra', promptTokens: 1, completionTokens: 2 };
+      },
+    };
+    const result = await runDailyDevotionPipeline({
+      llm, supabase, ctx: makeCtx(), userId: 'user-1', localDate: '2026-05-27',
+      verifyScripture: scriptureDeps(),
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.attempts).toBe(2);
+    expect(systems[1]).toContain('quote Scripture only in the exact wording supplied');
+  });
+
+  it('fails an unresolvable ref', async () => {
+    const { supabase } = makeSupabaseMock();
+    const bogus = devotionWith({ scripture: { ref: 'Psalm 23:4', text: PS23_4 } });
+    const result = await runDailyDevotionPipeline({
+      llm: makeAdapter([bogus]),
+      supabase, ctx: makeCtx(), userId: 'user-1', localDate: '2026-05-27',
+      verifyScripture: scriptureDeps({ notFound: ['Psalm 23:4'] }),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.violations!.content.some((v) => v.family === 'scripture')).toBe(true);
+    }
+  });
+
+  it('behaves exactly as before when no verification dep is injected', async () => {
+    const { supabase, inserts } = makeSupabaseMock();
+    const paraphrased = devotionWith({
+      scripture: { ref: 'Psalm 23:4', text: 'a paraphrase nobody checked' },
+    });
+    const result = await runDailyDevotionPipeline({
+      llm: makeAdapter([paraphrased]), supabase, ctx: makeCtx(), userId: 'user-1', localDate: '2026-05-27',
+    });
+    expect(result.ok).toBe(true);
+    expect((inserts[0].body as DailyDevotion).scripture.text).toBe('a paraphrase nobody checked');
+  });
+
+  it('does not fail an artifact when the verse lookup throws', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { supabase } = makeSupabaseMock();
+    const result = await runDailyDevotionPipeline({
+      llm: makeAdapter([cleanArtifact]), supabase, ctx: makeCtx(), userId: 'user-1', localDate: '2026-05-27',
+      verifyScripture: scriptureDeps({ throws: true }),
+    });
+    expect(result.ok).toBe(true);
+    err.mockRestore();
+  });
+
+  it('skips verification when a cheaper gate already failed', async () => {
+    const { supabase } = makeSupabaseMock();
+    let verifyCalls = 0;
+    const deps = scriptureDeps();
+    const counting = {
+      ...deps,
+      verifyRefs: async (refs: string[]) => { verifyCalls++; return deps.verifyRefs(refs); },
+    };
+    // Citing a ref outside the allowlist fails the citation gate first.
+    const badCitation = devotionWith({ scripture: { ref: 'Made Up 1:1', text: 'fake' } });
+    await runDailyDevotionPipeline({
+      llm: makeAdapter([badCitation]), supabase, ctx: makeCtx(), userId: 'user-1', localDate: '2026-05-27',
+      verifyScripture: counting,
+    });
+    expect(verifyCalls).toBe(0);
+  });
+});

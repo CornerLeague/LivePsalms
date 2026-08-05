@@ -65,3 +65,39 @@ describe('verifyVerseRefs', () => {
     expect(flags).toEqual([]);
   });
 });
+
+// ── Slice 1d: OSIS book codes ────────────────────────────────────────────────
+// bible_passages stores the OSIS code in its `book` column, so formatVerseRef
+// yields "psa 34:18" — and that is the exact form the devotion pipeline puts in
+// allowedVerseRefs and hands to the model. The parser only understood full book
+// names, so those refs parsed to nothing and were silently skipped. Verification
+// then had no flag to read. Found by the first live eval run.
+
+describe('parseRefToIds — OSIS book codes', () => {
+  it('parses the OSIS form that bible_passages actually produces', () => {
+    expect(parseRefToIds('psa 34:18')).toEqual(['psa.34.18']);
+  });
+
+  it('still parses full book names', () => {
+    expect(parseRefToIds('Psalm 34:18')).toEqual(['psa.34.18']);
+    expect(parseRefToIds('Psalms 34:18')).toEqual(['psa.34.18']);
+  });
+
+  it('parses numbered-book OSIS codes', () => {
+    expect(parseRefToIds('1jn 4:8')).toEqual(['1jn.4.8']);
+    expect(parseRefToIds('2co 5:17')).toEqual(['2co.5.17']);
+  });
+
+  it('is case-insensitive on the OSIS code', () => {
+    expect(parseRefToIds('PSA 34:18')).toEqual(['psa.34.18']);
+  });
+
+  it('expands an OSIS-form range', () => {
+    expect(parseRefToIds('psa 34:18-19')).toEqual(['psa.34.18', 'psa.34.19']);
+  });
+
+  it('still returns null for a book that does not exist', () => {
+    expect(parseRefToIds('phl 4:6')).toBeNull();   // Philippians is 'php'
+    expect(parseRefToIds('Hezekiah 3:16')).toBeNull();
+  });
+});

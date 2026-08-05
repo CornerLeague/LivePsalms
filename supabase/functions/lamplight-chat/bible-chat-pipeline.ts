@@ -17,6 +17,7 @@ import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { BIBLE_CHAT_PROMPT } from './prompts/bible-chat.ts';
 import type { UsageCore } from '../_shared/usage.ts';
 import type { LibraryExcerpt, LexiconEntry } from '../_shared/library-retrieval.ts';
+import { verifyArtifactScripture, type ScriptureDeps } from '../_shared/scripture-verify.ts';
 
 export interface ChatPromptModule {
   promptVersion: string;
@@ -71,8 +72,11 @@ type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViola
 function makeBibleChatValidate(
   ctx: BibleChatContext,
   classifier?: (text: string) => Promise<ContentRuleViolation[]>,
+  verifyScripture?: ScriptureDeps,
 ) {
-  return async (parsed: ChatReply): Promise<{ ok: boolean; violations: ChatViolations }> => {
+  return async (
+    parsed: ChatReply,
+  ): Promise<{ ok: boolean; violations: ChatViolations; repaired?: ChatReply }> => {
     const citation = validateChatReplyCitations(parsed, {
       allowedNoteIds: ctx.allowedNoteIds,
       allowedVerseRefs: ctx.allowedVerseRefs,
@@ -83,7 +87,26 @@ function makeBibleChatValidate(
       growth: GROWTH_BANNED_PHRASES,
       classifier,
     });
-    return { ok: citation.ok && content.ok, violations: { citation: citation.violations, content: content.violations } };
+    const violations: ChatViolations = { citation: citation.violations, content: content.violations };
+    const baseOk = citation.ok && content.ok;
+
+    // Cheapest gates first; a citation failure makes verification moot.
+    if (!baseOk || !verifyScripture) return { ok: baseOk, violations };
+
+    const scripture = await verifyArtifactScripture(verifyScripture, {
+      text: parsed.reply ?? '',
+      translation: verifyScripture.translation,
+    });
+    violations.content.push(
+      ...scripture.violations.map((v) => ({ family: 'scripture' as const, rule: v.rule, snippet: v.snippet })),
+    );
+    return {
+      ok: scripture.violations.length === 0,
+      violations,
+      ...(scripture.repairedText !== undefined
+        ? { repaired: { ...parsed, reply: scripture.repairedText } }
+        : {}),
+    };
   };
 }
 
@@ -135,6 +158,8 @@ export async function runBibleChatPipeline(args: {
   // Layer C (P0-5): optional LLM doctrinal classifier for applyContentRules.
   // Injected by the Deno shells (makeDoctrinalClassifier); tests omit it.
   classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+  /** Slice 1d, OPTIONAL: omit and the turn behaves exactly as it did before. */
+  verifyScripture?: ScriptureDeps;
 }): Promise<BibleChatPipelineResult> {
   const prompt: ChatPromptModule = args.prompt ?? BIBLE_CHAT_PROMPT;
   const promptVersion = prompt.promptVersion;
@@ -150,7 +175,7 @@ export async function runBibleChatPipeline(args: {
     // `as const` on the nested schema produces literal types narrower than
     // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeBibleChatValidate(ctx, args.classifier),
+    validate: makeBibleChatValidate(ctx, args.classifier, args.verifyScripture),
     formatStricter: formatBibleChatStricter,
   });
 
@@ -177,6 +202,7 @@ export async function runBibleChatStreaming(
     effort?: ReasoningEffort;
     maxTokens?: number;
     classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+    verifyScripture?: ScriptureDeps;
     signal?: AbortSignal;
   },
   handlers: BibleChatStreamHandlers,
@@ -193,7 +219,7 @@ export async function runBibleChatStreaming(
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeBibleChatValidate(ctx, args.classifier),
+    validate: makeBibleChatValidate(ctx, args.classifier, args.verifyScripture),
     formatStricter: formatBibleChatStricter,
     textFields: ['reply'],
     // No perFieldValidate — chat has no per-field length rule

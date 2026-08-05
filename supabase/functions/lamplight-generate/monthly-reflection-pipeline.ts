@@ -84,6 +84,17 @@ function flattenReflectionProse(artifact: ReflectionArtifact): string {
 // validators, then content rules (regex + optional Layer-C classifier), and ONLY if
 // all pass consult the Layer-3 register judge — cheapest gates first, so a failed
 // deterministic check spends no extra model calls.
+//
+// Slice 1d deliberately does NOT add Scripture verification here. The plan asked
+// for an unresolvable_ref check on markers, but that check cannot fire: markers
+// carry no quotations (validateScriptureAllowlist forbids verse-level citations
+// in the letter, so there is nothing to quote-match), and every marker verse is
+// already constrained to ctx.allowedVerseRefs, a set built exclusively from refs
+// the database already resolved — transcription flags with status 'found',
+// bible_highlights verse ids, and bible_passages candidates. A runtime lookup
+// would add a round trip per reflection whose only possible failure mode is an
+// internal display/parse mirror bug failing a reader's monthly letter. The
+// guarantee is kept deterministically and for free by the allowlist gate below.
 export function makeMonthlyReflectionValidate(
   ctx: MonthlyReflectionContext,
   llm: LLMAdapter,

@@ -12,6 +12,7 @@ import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/qu
 import { hasInlineInsightAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
+import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
 import { buildEtymologyInsightOutcome } from './insight-body.ts';
 import { VERSE_INSIGHT_PROMPT } from './prompts/verse-insight.ts';
 
@@ -93,6 +94,7 @@ serve(async (req) => {
               .upsert(row, { onConflict: 'strongs,verse_id', ignoreDuplicates: true });
             if (error) throw new Error(error.message);
           },
+          verifyScripture: makeScriptureDeps(supabase, 'BSB'),
           reloadInsight: async (s, v) => {
             const { data } = await supabase.from('bible_etymology_verse_insight').select('body').eq('strongs', s).eq('verse_id', v).maybeSingle();
             return (data as { body?: string } | null)?.body ?? null;

@@ -76,9 +76,17 @@ export async function generateStreamingWithRetry<TParsed, TViolations>(
     : await cfg.validate(stream.parsed);
 
   if (crossFail.ok) {
+    // A repair rewrites text the reader has ALREADY watched arrive: both chat
+    // clients re-render the reply from the `done` payload rather than keeping
+    // the streamed deltas (LamplightStudyPanel.tsx:162, LamplightChat.tsx:129).
+    // A repair passes validation, so the refining beat below — which only covers
+    // the retry path — would never fire, and the swap would be silent. Announce
+    // it, unless nothing was on screen to swap.
+    const repaired = 'repaired' in crossFail ? crossFail.repaired : undefined;
+    if (repaired !== undefined && emittedAnything) cfg.onRefining?.();
     return {
       ok: true,
-      parsed: stream.parsed,
+      parsed: repaired ?? stream.parsed,
       modelUsed: stream.modelUsed,
       promptTokens: stream.promptTokens,
       completionTokens: stream.completionTokens,
@@ -112,7 +120,7 @@ export async function generateStreamingWithRetry<TParsed, TViolations>(
   if (retryValidate.ok) {
     return {
       ok: true,
-      parsed: retry.parsed,
+      parsed: retryValidate.repaired ?? retry.parsed,
       modelUsed: retry.modelUsed,
       promptTokens: retry.promptTokens,
       completionTokens: retry.completionTokens,

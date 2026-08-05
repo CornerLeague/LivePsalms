@@ -168,3 +168,54 @@ describe('generateWithRetry', () => {
     expect(fake.systems[0]).toContain('Today is 2026-06-04.');
   });
 });
+
+// ── Slice 1d: repaired artifacts flow through the validate seam ──────────────
+// Verification repairs a near-miss verse quote in place of failing the artifact.
+// The repair is returned from validate rather than mutating `parsed`, so the
+// hand-off is visible in the type instead of depending on object identity.
+
+describe('generateWithRetry — repaired', () => {
+  const cfg = (validate: GenerateWithRetryConfig<{ v: string }, string[]>['validate']) => ({
+    llm: {
+      async generate<U>() {
+        return { parsed: { v: 'original' } as unknown as U, modelUsed: 'm', promptTokens: 1, completionTokens: 2 };
+      },
+    } as unknown as LLMAdapter,
+    model: 'balanced' as const,
+    maxTokens: 100,
+    artifactSystem: 'sys',
+    messages: [],
+    tool: { name: 't', description: 'd', input_schema: {} } as never,
+    validate,
+    formatStricter: () => 'stricter',
+  });
+
+  it('returns the repaired artifact when validate supplies one', async () => {
+    const outcome = await generateWithRetry(cfg(
+      async () => ({ ok: true, violations: [], repaired: { v: 'repaired' } }),
+    ));
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.parsed).toEqual({ v: 'repaired' });
+  });
+
+  it('returns the original artifact when validate supplies no repair', async () => {
+    const outcome = await generateWithRetry(cfg(async () => ({ ok: true, violations: [] })));
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.parsed).toEqual({ v: 'original' });
+  });
+
+  it('ignores a repair on a failing attempt — a violation still drives the retry', async () => {
+    let calls = 0;
+    const outcome = await generateWithRetry(cfg(async () => {
+      calls++;
+      return calls === 1
+        ? { ok: false, violations: ['bad'], repaired: { v: 'ignored' } }
+        : { ok: true, violations: [] };
+    }));
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.parsed).toEqual({ v: 'original' });
+      expect(outcome.attempts).toBe(2);
+    }
+  });
+});

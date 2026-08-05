@@ -35,9 +35,20 @@ export const OSIS_BOOK_MAP: Record<string, string> = {
 // Accept "Psalm" (singular) as an alias of the canonical "Psalms". This map is
 // exact-case only; the case-insensitive scan in canonicalBook() handles all
 // other casing variants (e.g. OCR output like "psalm 23:1").
-const BOOK_ALIASES: Record<string, string> = { 'Psalm': 'Psalms' };
+// Exported for scripture-verify.ts, which scans prose for refs and needs the
+// same alternation of accepted book spellings. No behavior change here.
+export const BOOK_ALIASES: Record<string, string> = { 'Psalm': 'Psalms' };
 
 const REF_RE = /^(.+?)\s+(\d{1,3}):(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?$/;
+
+// OSIS code → canonical book name. bible_passages stores the CODE in its `book`
+// column, so formatVerseRef produces "psa 34:18" — the exact form the devotion
+// pipeline puts in allowedVerseRefs and hands to the model. Without this the
+// parser skipped those refs entirely and Scripture verification had nothing to
+// check. (Found by the first live eval run, 2026-08-05.)
+const OSIS_TO_BOOK: Record<string, string> = Object.fromEntries(
+  Object.entries(OSIS_BOOK_MAP).map(([name, osis]) => [osis, name]),
+);
 
 function canonicalBook(raw: string): string | null {
   const collapsed = raw.replace(/\s+/g, ' ').trim();
@@ -45,7 +56,7 @@ function canonicalBook(raw: string): string | null {
   for (const key of Object.keys(OSIS_BOOK_MAP)) {
     if (key.toLowerCase() === aliased.toLowerCase()) return key;
   }
-  return null;
+  return OSIS_TO_BOOK[collapsed.toLowerCase()] ?? null;
 }
 
 /** Parse "Psalm 23:1" → ['psa.23.1']; ranges expand. Null if unparseable/unknown. */
