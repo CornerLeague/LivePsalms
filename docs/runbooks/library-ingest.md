@@ -90,7 +90,9 @@ Repeat per source. The run upserts the source row, then the chunks in slices of 
 
 Embedding ~6.19M tokens on `voyage-context-3` costs roughly **$1.11** one-time at $0.18/M.
 
-To re-embed only (after a failed pass): `--embed-only --source=<id>`.
+To embed only (resuming after a partial or failed pass): `--embed-only --source=<id>`. The pass is resumable by construction — it repeatedly claims the next 500 chunks whose `embedding` is null, so re-running picks up exactly what is left and a completed corpus is a no-op.
+
+**Always check `embedded` in the final report against the source's chunk count in §4.** A suspiciously round number (500, 1000) means paging regressed; PostgREST caps a single response at ~1000 rows, which silently truncated this pass before it was fixed on 2026-08-05.
 
 ## 6. Acceptance queries
 
