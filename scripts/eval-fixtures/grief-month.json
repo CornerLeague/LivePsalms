@@ -1,0 +1,46 @@
+{
+  "name": "grief-month",
+  "description": "A month shaped by a death. Tests that the voice accompanies rather than explains.",
+  "firstName": "Ruth",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "g1",
+      "title": "The service",
+      "text": "We buried her on Tuesday. I read the passage she had underlined and could not finish it.",
+      "daysAgo": 12
+    },
+    {
+      "id": "g2",
+      "title": "Quiet house",
+      "text": "The house is very quiet now. I keep making two cups of tea.",
+      "daysAgo": 5
+    },
+    {
+      "id": "g3",
+      "title": "Anger",
+      "text": "I am angrier than I expected to be, and not at anyone in particular.",
+      "daysAgo": 1
+    }
+  ],
+  "highlights": [
+    {
+      "verseId": "psa.23.4",
+      "daysAgo": 11
+    },
+    {
+      "verseId": "psa.34.18",
+      "daysAgo": 4
+    }
+  ],
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "closure",
+      "everything happens for a reason",
+      "in a better place",
+      "God needed her"
+    ]
+  }
+}

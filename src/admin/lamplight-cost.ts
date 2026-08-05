@@ -10,7 +10,9 @@
 // bill their reasoning as OUTPUT tokens, and lamplight_usage.tokens_out already
 // includes them. No separate rate is needed — but expect out-token counts on
 // those artifact kinds to sit well above their pre-migration baseline.
-const PRICE_PER_M_TOKENS_CENTS: Record<string, { in: number; out: number }> = {
+// Exported so the eval harness tallies spend from the SAME table the admin
+// dashboard reads — one place to correct when a provider changes rates.
+export const PRICE_PER_M_TOKENS_CENTS: Record<string, { in: number; out: number }> = {
   'voyage-3-large':             { in: 18,   out: 0    },  // $0.18 / 1M
   'voyage-context-3':           { in: 18,   out: 0    },  // $0.18 / 1M — cross-check against voyageai.com/pricing at deploy
   'gpt-5.6-luna':               { in: 20,   out: 120  },  // $0.20 / $1.20 — verify against OpenAI pricing page before merge
@@ -31,4 +33,14 @@ export function estCostCents(model: string | null, tokensIn: number, tokensOut: 
 
 export function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+/**
+ * Unrounded cents. estCostCents rounds to whole cents, which reads a single
+ * artifact as $0.00 — fine for a dashboard aggregate, useless for a per-run
+ * eval tally.
+ */
+export function estCostCentsPrecise(model: string | null, tokensIn: number, tokensOut: number): number {
+  const p = (model && PRICE_PER_M_TOKENS_CENTS[model]) || { in: 0, out: 0 };
+  return (tokensIn * p.in + tokensOut * p.out) / 1_000_000;
 }

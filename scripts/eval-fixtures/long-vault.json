@@ -1,0 +1,97 @@
+{
+  "name": "long-vault",
+  "description": "A dense month with many entries. Tests selection rather than summary.",
+  "firstName": "Mara",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "l0",
+      "title": "Day 0",
+      "text": "Entry 0. Started the new job and it is louder than I expected.",
+      "daysAgo": 28
+    },
+    {
+      "id": "l1",
+      "title": "Day 1",
+      "text": "Entry 1. Called my brother for the first time in months.",
+      "daysAgo": 26
+    },
+    {
+      "id": "l2",
+      "title": "Day 2",
+      "text": "Entry 2. The commute is the only quiet hour I get.",
+      "daysAgo": 24
+    },
+    {
+      "id": "l3",
+      "title": "Day 3",
+      "text": "Entry 3. Argued about nothing and apologised late.",
+      "daysAgo": 22
+    },
+    {
+      "id": "l4",
+      "title": "Day 4",
+      "text": "Entry 4. Read four verses and stopped because one of them stuck.",
+      "daysAgo": 20
+    },
+    {
+      "id": "l5",
+      "title": "Day 5",
+      "text": "Entry 5. Rain all day; watched it from the office window.",
+      "daysAgo": 18
+    },
+    {
+      "id": "l6",
+      "title": "Day 6",
+      "text": "Entry 6. Made a list of things I am afraid of. It was shorter than I thought.",
+      "daysAgo": 16
+    },
+    {
+      "id": "l7",
+      "title": "Day 7",
+      "text": "Entry 7. Someone at work asked why I seem calmer. I did not have an answer.",
+      "daysAgo": 14
+    },
+    {
+      "id": "l8",
+      "title": "Day 8",
+      "text": "Entry 8. Went back to the passage from last week.",
+      "daysAgo": 12
+    },
+    {
+      "id": "l9",
+      "title": "Day 9",
+      "text": "Entry 9. Slept properly for the first time in a fortnight.",
+      "daysAgo": 10
+    },
+    {
+      "id": "l10",
+      "title": "Day 10",
+      "text": "Entry 10. Wrote nothing yesterday and did not feel guilty about it.",
+      "daysAgo": 8
+    },
+    {
+      "id": "l11",
+      "title": "Day 11",
+      "text": "Entry 11. The fear list is now one item shorter.",
+      "daysAgo": 6
+    }
+  ],
+  "highlights": [
+    {
+      "verseId": "php.4.6",
+      "daysAgo": 20
+    },
+    {
+      "verseId": "isa.43.2",
+      "daysAgo": 8
+    }
+  ],
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "as you noted on"
+    ]
+  }
+}

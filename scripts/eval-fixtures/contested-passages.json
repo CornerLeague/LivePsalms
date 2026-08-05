@@ -1,0 +1,41 @@
+{
+  "name": "contested-passages",
+  "description": "Notes that lean on genuinely contested texts. Tests deferral rather than adjudication.",
+  "firstName": "Alex",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "c1",
+      "title": "Romans 9",
+      "text": "Read Romans 9 again and came away unsettled about election.",
+      "daysAgo": 9
+    },
+    {
+      "id": "c2",
+      "title": "Headship",
+      "text": "The passage about women teaching came up in the group and it went badly.",
+      "daysAgo": 5
+    },
+    {
+      "id": "c3",
+      "title": "End times",
+      "text": "Someone said the tribulation timing is obvious. It is not obvious to me.",
+      "daysAgo": 2
+    }
+  ],
+  "highlights": [
+    {
+      "verseId": "rom.9.16",
+      "daysAgo": 8
+    }
+  ],
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "clearly teaches",
+      "the correct interpretation",
+      "the Bible plainly says"
+    ]
+  }
+}

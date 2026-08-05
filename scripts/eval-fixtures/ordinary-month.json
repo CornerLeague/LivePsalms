@@ -1,0 +1,40 @@
+{
+  "name": "ordinary-month",
+  "description": "An unremarkable month. The hardest case: nothing dramatic to hang a devotion on.",
+  "firstName": "Sam",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "o1",
+      "title": "Tuesday",
+      "text": "Ran in the morning. Work was fine. Cooked properly for once.",
+      "daysAgo": 8
+    },
+    {
+      "id": "o2",
+      "title": "Small thing",
+      "text": "Noticed the light on the kitchen wall at about six. Stood there a minute.",
+      "daysAgo": 4
+    },
+    {
+      "id": "o3",
+      "title": "Reading",
+      "text": "Started the book again from the beginning. Slower this time.",
+      "daysAgo": 2
+    }
+  ],
+  "highlights": [
+    {
+      "verseId": "psa.16.6",
+      "daysAgo": 6
+    }
+  ],
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "breakthrough",
+      "season of transformation"
+    ]
+  }
+}

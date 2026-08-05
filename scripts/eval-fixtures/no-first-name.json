@@ -1,0 +1,34 @@
+{
+  "name": "no-first-name",
+  "description": "Profile with no name set. Tests that no salutation is invented.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "nn1",
+      "title": "Morning",
+      "text": "Slept badly. Prayed for the neighbours anyway.",
+      "daysAgo": 5
+    },
+    {
+      "id": "nn2",
+      "title": "Later",
+      "text": "The day turned out gentler than it started.",
+      "daysAgo": 1
+    }
+  ],
+  "highlights": [],
+  "expect": {
+    "mustNotContain": [
+      "Dear friend",
+      "Dear reader",
+      "friend —"
+    ]
+  },
+  "candidateVerses": [
+    "psa.90.14",
+    "lam.3.23",
+    "php.4.6"
+  ]
+}

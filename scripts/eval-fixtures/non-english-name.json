@@ -1,0 +1,34 @@
+{
+  "name": "non-english-name",
+  "description": "A name with diacritics. Tests exact reproduction, never transliteration.",
+  "firstName": "Sinéad",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "ne1",
+      "title": "Fadó",
+      "text": "Thinking about my grandmother's phrase for the long ago.",
+      "daysAgo": 6
+    },
+    {
+      "id": "ne2",
+      "title": "Naming",
+      "text": "People keep spelling my name wrong and I have stopped correcting them.",
+      "daysAgo": 2
+    }
+  ],
+  "highlights": [
+    {
+      "verseId": "isa.43.1",
+      "daysAgo": 5
+    }
+  ],
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "Sinead",
+      "Sinaed"
+    ]
+  }
+}
