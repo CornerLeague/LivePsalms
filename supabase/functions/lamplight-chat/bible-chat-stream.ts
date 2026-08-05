@@ -11,7 +11,7 @@ import { sseResponse, sseStreamFromWriter } from '../_shared/sse.ts';
 import { runBibleChatStreaming, type BibleChatContext, type ChatPromptModule } from './bible-chat-pipeline.ts';
 import type { ChatReply, ContentRuleViolation } from '../_shared/validators.ts';
 import type { UsageRow } from '../_shared/usage.ts';
-import type { LLMAdapter, LLMModel } from '../_shared/openai.ts';
+import type { LLMAdapter, LLMModel, ReasoningEffort } from '../_shared/openai.ts';
 
 type HistoryRow = { role: 'user' | 'assistant'; content: string };
 
@@ -32,6 +32,10 @@ export interface BibleChatStreamDeps {
   // passes 'deep' so streaming matches its buffered path — omitting this was the
   // tier-drift bug where production Study chat silently ran a tier below design.
   model?: LLMModel;
+  /** Reasoning effort for the streamed turn; omitted means the adapter's tier default. */
+  effort?: ReasoningEffort;
+  /** Output budget; defaults to 2048 downstream. Raise where reasoning is on. */
+  maxTokens?: number;
   // Layer C (P0-5) doctrinal classifier, threaded to applyContentRules.
   classifier?: (text: string) => Promise<ContentRuleViolation[]>;
   // Optional extra fields spread into the `done` event payload (after the base
@@ -104,7 +108,11 @@ export async function streamBibleChat(
       const ctx = await deps.buildContext({ history });
 
       const result = await runBibleChatStreaming(
-        { llm: deps.llm, ctx, prompt: deps.prompt, model: deps.model, classifier: deps.classifier, signal: args.signal },
+        {
+          llm: deps.llm, ctx, prompt: deps.prompt,
+          model: deps.model, effort: deps.effort, maxTokens: deps.maxTokens,
+          classifier: deps.classifier, signal: args.signal,
+        },
         {
           onStage: (s) => void emit({ t: 'stage', stage: s }),
           onText: (field, delta) => void emit({ t: 'text', field, delta }),

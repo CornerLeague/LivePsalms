@@ -61,6 +61,10 @@ export async function handleTranscribe(
   try {
     const out = await deps.llm.generate<typeof parsed>({
       model: 'balanced',
+      // Verbatim OCR: there is nothing to deliberate about, and reasoning tokens
+      // would be spend with no quality return. Pinned rather than left to the
+      // tier default so a future default change cannot silently tax scanning.
+      effort: 'none',
       system: TRANSCRIBE_SYSTEM,
       maxTokens: 4096,
       tool: TRANSCRIBE_TOOL,

@@ -15,13 +15,16 @@ const TOOL: ToolSchema = { name: 'emit', description: '', input_schema: {} };
 function fakeLLM(parsedPerAttempt: Parsed[]): {
   llm: LLMAdapter;
   systems: string[];
+  inputs: GenerateInput[];
   calls: number;
 } {
   const systems: string[] = [];
+  const inputs: GenerateInput[] = [];
   let i = 0;
   const llm: LLMAdapter = {
     async generate<T>(input: GenerateInput): Promise<GenerateOutput<T>> {
       systems.push(input.system);
+      inputs.push(input);
       const parsed = parsedPerAttempt[Math.min(i, parsedPerAttempt.length - 1)];
       i++;
       return {
@@ -32,7 +35,7 @@ function fakeLLM(parsedPerAttempt: Parsed[]): {
       };
     },
   };
-  return { llm, get systems() { return systems; }, get calls() { return i; } };
+  return { llm, get systems() { return systems; }, get inputs() { return inputs; }, get calls() { return i; } };
 }
 
 function baseConfig(
@@ -131,6 +134,26 @@ describe('generateWithRetry', () => {
     expect(out.ok).toBe(false);
     if (!out.ok) expect(out.attempts).toBe(3);
     expect(fake.calls).toBe(3);
+  });
+
+  it('forwards cfg.effort on the first attempt AND the stricter retry', async () => {
+    const fake = fakeLLM([{ text: 'bad' }, { text: 'bad' }]);
+    let n = 0;
+    await generateWithRetry(
+      baseConfig({
+        llm: fake.llm,
+        effort: 'high',
+        validate: async () => ({ ok: n++ > 1, violations: { reasons: ['r'] } }),
+      }),
+    );
+    expect(fake.calls).toBe(2);
+    expect(fake.inputs.map((i) => i.effort)).toEqual(['high', 'high']);
+  });
+
+  it('leaves effort undefined when the config names none (adapter applies the tier default)', async () => {
+    const fake = fakeLLM([{ text: 'ok' }]);
+    await generateWithRetry(baseConfig({ llm: fake.llm }));
+    expect(fake.inputs[0].effort).toBeUndefined();
   });
 
   it('substitutes systemTokens into the composed prompt', async () => {

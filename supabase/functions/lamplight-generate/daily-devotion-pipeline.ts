@@ -298,7 +298,9 @@ export async function runDailyDevotionPipeline(args: {
   const outcome = await generateWithRetry<DailyDevotion, DailyViolations>({
     llm: args.llm,
     model: 'balanced',
-    maxTokens: 2048,
+    // Tier-default effort ('low'); the budget is raised because reasoning tokens
+    // now share the output ceiling with the artifact itself.
+    maxTokens: 4096,
     artifactSystem: DAILY_DEVOTION_PROMPT.system,
     systemTokens: { local_date: ctx.localDate },
     messages: DAILY_DEVOTION_PROMPT.buildMessages(ctx),
@@ -343,7 +345,9 @@ export async function runDailyDevotionStreaming(
   const outcome = await generateStreamingWithRetry<DailyDevotion, DailyViolations>({
     llm: args.llm,
     model: 'balanced',
-    maxTokens: 2048,
+    // Tier-default effort ('low'); the budget is raised because reasoning tokens
+    // now share the output ceiling with the artifact itself.
+    maxTokens: 4096,
     artifactSystem: DAILY_DEVOTION_PROMPT.system,
     systemTokens: { local_date: ctx.localDate },
     messages: DAILY_DEVOTION_PROMPT.buildMessages(ctx),

@@ -10,13 +10,15 @@
 //
 // Node-testable with a fake LLMAdapter; no Supabase fakes required.
 
-import type { GenerateInput, LLMAdapter, LLMModel, ToolSchema } from './openai.ts';
+import type { GenerateInput, LLMAdapter, LLMModel, ReasoningEffort, ToolSchema } from './openai.ts';
 import { LAMPLIGHT_SYSTEM_FRAGMENT, composeSystem } from './voice.ts';
 
 export interface GenerateWithRetryConfig<TParsed, TViolations> {
   llm: LLMAdapter;
   model: LLMModel;
   maxTokens: number;
+  /** Reasoning effort; omitted means the adapter's per-tier default. Applies to every attempt. */
+  effort?: ReasoningEffort;
   /** The per-artifact system stance. LAMPLIGHT_SYSTEM_FRAGMENT is baked in as the base. */
   artifactSystem: string;
   /** Template tokens substituted into the composed system prompt (e.g. { local_date }). */
@@ -71,6 +73,7 @@ export async function generateWithRetry<TParsed, TViolations>(
       messages: cfg.messages,
       tool: cfg.tool,
       maxTokens: cfg.maxTokens,
+      effort: cfg.effort,
     });
     lastModelUsed = modelUsed;
 

@@ -4,6 +4,12 @@
 // Rates are cents per 1M tokens. The Claude entries are retained deliberately:
 // lamplight_usage rows written before the OpenAI switch still carry those model
 // ids, and dropping them here would silently report historical spend as $0.
+//
+// Reasoning tokens: since the Responses API migration, pipelines that run with
+// reasoning effort above 'none' (Waymarks at 'high', Study at 'low'/'medium')
+// bill their reasoning as OUTPUT tokens, and lamplight_usage.tokens_out already
+// includes them. No separate rate is needed — but expect out-token counts on
+// those artifact kinds to sit well above their pre-migration baseline.
 const PRICE_PER_M_TOKENS_CENTS: Record<string, { in: number; out: number }> = {
   'voyage-3-large':             { in: 18,   out: 0    },  // $0.18 / 1M
   'voyage-context-3':           { in: 18,   out: 0    },  // $0.18 / 1M — cross-check against voyageai.com/pricing at deploy

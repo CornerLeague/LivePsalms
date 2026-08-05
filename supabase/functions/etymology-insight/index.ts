@@ -81,7 +81,9 @@ serve(async (req) => {
           },
           generate: async (ctx) => {
             const out = await llm.generate<{ body: string }>({
-              model: 'deep', system: VERSE_INSIGHT_PROMPT.system,
+              // Flagship tier for a ≤40-word line, but only light reasoning: the
+              // facts are supplied and the job is to connect them, not derive them.
+              model: 'deep', effort: 'low', system: VERSE_INSIGHT_PROMPT.system,
               messages: VERSE_INSIGHT_PROMPT.buildMessages(ctx), tool: VERSE_INSIGHT_PROMPT.tool,
             });
             return { body: out.parsed.body, modelUsed: out.modelUsed, promptTokens: out.promptTokens, completionTokens: out.completionTokens };

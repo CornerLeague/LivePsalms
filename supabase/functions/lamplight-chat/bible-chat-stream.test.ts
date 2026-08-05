@@ -240,31 +240,33 @@ describe('streamBibleChat', () => {
     expect(recordUsage.mock.calls[0][0].artifact_kind).toBe('bible_chat');
   });
 
-  it('forwards deps.model to the LLM call (study passes "deep")', async () => {
-    const seen: string[] = [];
+  it('forwards deps.model/effort/maxTokens to the LLM call (study passes "deep")', async () => {
+    const seen: GenerateStreamInput[] = [];
     const base = makeStreamAdapter();
     const recording: LLMAdapter = {
       generate: base.generate,
       async generateStream<U>(input: GenerateStreamInput, handlers: StreamHandlers): Promise<GenerateOutput<U>> {
-        seen.push(input.model);
+        seen.push(input);
         return base.generateStream<U>(input, handlers);
       },
     };
     const res = await streamBibleChat(
-      makeDeps({ llm: recording, model: 'deep' }),
+      makeDeps({ llm: recording, model: 'deep', effort: 'low', maxTokens: 4096 }),
       { userId: 'user-1', mode: 'chat', message: 'hi', threadTitle: 't' },
     );
     await drainSse(res);
-    expect(seen).toEqual(['deep']);
+    expect(seen.map((i) => i.model)).toEqual(['deep']);
+    expect(seen[0].effort).toBe('low');
+    expect(seen[0].maxTokens).toBe(4096);
   });
 
-  it('defaults the LLM tier to "balanced" when deps.model is omitted (bible chat unchanged)', async () => {
-    const seen: string[] = [];
+  it('defaults tier "balanced", budget 2048, and no explicit effort when deps omit them', async () => {
+    const seen: GenerateStreamInput[] = [];
     const base = makeStreamAdapter();
     const recording: LLMAdapter = {
       generate: base.generate,
       async generateStream<U>(input: GenerateStreamInput, handlers: StreamHandlers): Promise<GenerateOutput<U>> {
-        seen.push(input.model);
+        seen.push(input);
         return base.generateStream<U>(input, handlers);
       },
     };
@@ -273,7 +275,10 @@ describe('streamBibleChat', () => {
       { userId: 'user-1', mode: 'chat', message: 'hi', threadTitle: 't' },
     );
     await drainSse(res);
-    expect(seen).toEqual(['balanced']);
+    expect(seen.map((i) => i.model)).toEqual(['balanced']);
+    // undefined effort → the adapter applies TIER_DEFAULT_EFFORT.balanced ('low')
+    expect(seen[0].effort).toBeUndefined();
+    expect(seen[0].maxTokens).toBe(2048);
   });
 
   it('validators_failed: error beat, user message persisted, no assistant row', async () => {

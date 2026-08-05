@@ -6,8 +6,8 @@ import type { MonthlyReflectionContext } from './prompts/monthly-reflection';
 import type { EdgeSupabase } from './reflection-candidates';
 
 // Returns each response in sequence; the last is repeated (so a validator-failing
-// artifact is re-served on the stricter retry). generate() serves BOTH the sonnet
-// artifact call and the haiku judge call, so a happy path passes [artifact, verdict].
+// artifact is re-served on the stricter retry). generate() serves BOTH the flagship
+// artifact call and the fast-tier judge call, so a happy path passes [artifact, verdict].
 function makeAdapter(responses: unknown[]): { llm: LLMAdapter; calls: GenerateInput[] } {
   const calls: GenerateInput[] = [];
   let i = 0;
@@ -87,8 +87,10 @@ describe('runMonthlyReflectionPipeline', () => {
     const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx: makeCtx(), userId: 'u1', periodKey: '2026-05' });
 
     expect(result).toEqual({ ok: true, cached: false, artifactId: 'artifact-99', usage: { status: 'ok', model_used: 'gpt-5.6-terra', prompt_tokens: 10, completion_tokens: 20 } });
-    // sonnet artifact call, then haiku judge call
-    expect(calls[0].model).toBe('balanced');
+    // flagship artifact call at high reasoning effort, then the cheap judge call
+    expect(calls[0].model).toBe('deep');
+    expect(calls[0].effort).toBe('high');
+    expect(calls[0].maxTokens).toBe(8192);
     expect(calls[1].model).toBe('fast');
     expect(upserts).toHaveLength(1);
     const row = upserts[0];
@@ -155,8 +157,8 @@ describe('runMonthlyReflectionPipeline', () => {
     expect(result.ok).toBe(false);
     expect(!result.ok && result.reason).toBe('validators_failed');
     expect(upserts).toHaveLength(0);
-    // every call was an artifact attempt on 'balanced' — the fast-tier judge never ran
-    expect(calls.every((c) => c.model === 'balanced')).toBe(true);
+    // every call was an artifact attempt — the fast-tier judge never ran
+    expect(calls.some((c) => c.model === 'fast')).toBe(false);
   });
 
   it('a marker verse inside a contested range does NOT trip content rules (refs are excluded from the prose flatten)', async () => {
@@ -194,7 +196,7 @@ describe('runMonthlyReflectionPipeline', () => {
     expect(seen[0]).toContain('The Month You Stopped Waiting');
     expect(seen[0]).toContain('the day the circling stopped');
     // judge never consulted
-    expect(calls.every((c) => c.model === 'balanced')).toBe(true);
+    expect(calls.some((c) => c.model === 'fast')).toBe(false);
   });
 
   it('repairOffListVerses nulls out only the verses outside the allowlist', () => {

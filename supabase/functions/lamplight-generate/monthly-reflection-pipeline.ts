@@ -217,8 +217,13 @@ export async function runMonthlyReflectionPipeline(deps: RunMonthlyReflectionPip
 
   const outcome = await generateWithRetry<ReflectionArtifact, ReflectionPipelineViolation[]>({
     llm,
-    model: 'balanced',
-    maxTokens: 2048,
+    // The month's letter is the highest-stakes artifact Lamplight writes and it
+    // is generated off the cron sweep (nobody is waiting on it), so it gets the
+    // flagship tier at high reasoning effort. Reasoning tokens count against
+    // maxTokens, hence 8192 for a ≤350-word letter plus markers.
+    model: 'deep',
+    effort: 'high',
+    maxTokens: 8192,
     artifactSystem: MONTHLY_REFLECTION_PROMPT.system,
     systemTokens: { period_label: ctx.periodLabel },
     messages: MONTHLY_REFLECTION_PROMPT.buildMessages(ctx),

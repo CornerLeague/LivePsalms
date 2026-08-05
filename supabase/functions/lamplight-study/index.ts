@@ -31,6 +31,13 @@ const HISTORY_LIMIT = 10;
 const NOTE_K = 4;
 const CROSSREF_K = 5;
 
+// Study runs the flagship tier; effort differs by mode. Chat streams while the
+// reader waits, so it stays low to protect first-token latency; insight fires on
+// passage-open with nobody typing, so it can afford to think longer. Reasoning
+// tokens share the output budget, hence the raised ceilings.
+const STUDY_EFFORT = { chat: 'low', insight: 'medium' } as const;
+const STUDY_MAX_TOKENS = { chat: 4096, insight: 3072 } as const;
+
 serve(async (req) => {
   const cors = corsHeaders(req, resolveAllowedOrigins(Deno.env));
   const jsonResp = (b: unknown, status = 200) =>
@@ -178,7 +185,11 @@ async function handleStudy(req: Request): Promise<Response> {
       },
       llm,
       prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
-      model: 'deep', // keep streaming on the same tier as the buffered path below
+      // Streaming and buffered MUST stay on the same tier/effort — they diverged
+      // once already (streaming silently ran a tier below design).
+      model: 'deep',
+      effort: STUDY_EFFORT[mode],
+      maxTokens: STUDY_MAX_TOKENS[mode],
       classifier,
       extraDoneFields: () => ({ offered_notes: capturedOffered }),
       artifactKind: 'bible_study',
@@ -236,6 +247,8 @@ async function handleStudy(req: Request): Promise<Response> {
 
       const result = await runBibleChatPipeline({
         llm, ctx, model: 'deep',
+        effort: STUDY_EFFORT[mode],
+        maxTokens: STUDY_MAX_TOKENS[mode],
         prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
         classifier,
       });

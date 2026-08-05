@@ -4,14 +4,16 @@
 //
 //   OPENAI_API_KEY=sk-... npx tsx scripts/smoke/openai-adapter-smoke.ts
 //
-// Exercises the three things the unit tests can only mock:
+// Exercises the four things the unit tests can only mock:
 //   1. buffered generate on the `balanced` tier (devotions, chat, transcription)
 //   2. streaming generateStream, printing deltas as they land — the riskiest
 //      path, since it depends on partial tool-call JSON arriving the way the
 //      stream parser expects
-//   3. the `deep` tier (gpt-5.6-sol) — the flagship. Chat Completions rejects
-//      function tools with reasoning enabled, so reasoning is off here too; this
-//      leg proves the flagship still returns a well-formed forced tool call
+//   3. the `deep` tier (gpt-5.6-sol) — the flagship, at its default effort
+//   4. the flagship at HIGH reasoning effort — the leg that proves the whole
+//      Responses migration: on Chat Completions a forced function tool required
+//      reasoning_effort 'none', so this combination was impossible. Waymarks
+//      runs exactly this configuration.
 //
 // Exit code is non-zero if any leg fails, so this is CI-usable as-is.
 
@@ -106,22 +108,40 @@ await leg('streaming generateStream (balanced)', async () => {
     throw new Error('assembled artifact does not match the concatenated deltas');
   }
   if (!fields.includes('citations')) throw new Error('citations field never completed');
-  if (out.completionTokens === 0) throw new Error('usage missing — stream_options.include_usage did not take');
+  // On Responses, usage rides the terminal response.completed event (there is no
+  // stream_options opt-in); a zero here means that event was missed or reshaped.
+  if (out.completionTokens === 0) throw new Error('usage missing — response.completed carried no usage');
   return `first delta ${firstDeltaMs}ms, ${streamed.length} chars, ${out.promptTokens} in / ${out.completionTokens} out`;
 });
 
 // ── 3. flagship tier ──────────────────────────────────────────────────────────
 await leg('buffered generate (deep, flagship)', async () => {
   const out = await llm.generate<{ reply: string; citations: string[] }>({
-    model: 'deep', system: SYSTEM, messages: MESSAGES, tool: REFLECTION_TOOL, maxTokens: 1024,
+    model: 'deep', system: SYSTEM, messages: MESSAGES, tool: REFLECTION_TOOL, maxTokens: 2048,
   });
   if (typeof out.parsed?.reply !== 'string' || !out.parsed.reply.trim()) {
     // The failure this leg exists to catch: the flagship rejecting or failing
-    // the forced tool call (e.g. a reasoning/tool incompatibility on the model).
+    // the forced tool call.
     throw new Error('empty artifact from the flagship tier');
   }
   console.log(`\n[deep] ${out.modelUsed}\n  ${out.parsed.reply.trim()}`);
   return `${out.modelUsed}, ${out.promptTokens} in / ${out.completionTokens} out`;
+});
+
+// ── 4. flagship + high reasoning (the Waymarks configuration) ─────────────────
+// This leg is the point of the Responses migration: a forced function tool AND
+// reasoning at the same time. It was a 400 on Chat Completions.
+await leg('buffered generate (deep, effort=high) — forced tool + reasoning', async () => {
+  const out = await llm.generate<{ reply: string; citations: string[] }>({
+    model: 'deep', effort: 'high', system: SYSTEM, messages: MESSAGES,
+    tool: REFLECTION_TOOL, maxTokens: 8192,
+  });
+  if (typeof out.parsed?.reply !== 'string' || !out.parsed.reply.trim()) {
+    throw new Error('empty artifact from the flagship tier at high effort');
+  }
+  console.log(`\n[deep · high] ${out.modelUsed}\n  ${out.parsed.reply.trim()}`);
+  // Reasoning tokens are billed as output tokens; expect this to exceed leg 3.
+  return `${out.modelUsed}, ${out.promptTokens} in / ${out.completionTokens} out (incl. reasoning)`;
 });
 
 // ── report ────────────────────────────────────────────────────────────────────

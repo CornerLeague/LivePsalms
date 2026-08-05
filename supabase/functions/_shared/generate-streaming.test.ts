@@ -27,6 +27,21 @@ const baseCfg = {
 };
 
 describe('generateStreamingWithRetry', () => {
+  it('forwards cfg.effort to the streamed attempt AND the non-streaming retry', async () => {
+    const llm = fakeLlm({ streamFields: [], streamParsed: { a: 1 }, retryParsed: { a: 1 } });
+    let n = 0;
+    await generateStreamingWithRetry({
+      ...baseCfg,
+      llm,
+      effort: 'medium',
+      validate: async () => ({ ok: n++ > 0, violations: null }),
+    });
+    const streamInput = (llm.generateStream as any).mock.calls[0][0];
+    const retryInput = (llm.generate as any).mock.calls[0][0];
+    expect(streamInput.effort).toBe('medium');
+    expect(retryInput.effort).toBe('medium');
+  });
+
   it('emits pieces as fields complete and returns ok when validate passes', async () => {
     const pieces: string[] = [];
     const out = await generateStreamingWithRetry({

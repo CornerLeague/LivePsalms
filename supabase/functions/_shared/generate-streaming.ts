@@ -41,6 +41,7 @@ export async function generateStreamingWithRetry<TParsed, TViolations>(
     messages: cfg.messages,
     tool: cfg.tool,
     maxTokens: cfg.maxTokens,
+    effort: cfg.effort,
     textFields: cfg.textFields,
     signal: cfg.signal,
   };
@@ -104,6 +105,7 @@ export async function generateStreamingWithRetry<TParsed, TViolations>(
     messages: cfg.messages,
     tool: cfg.tool,
     maxTokens: cfg.maxTokens,
+    effort: cfg.effort,
   });
 
   const retryValidate = await cfg.validate(retry.parsed);

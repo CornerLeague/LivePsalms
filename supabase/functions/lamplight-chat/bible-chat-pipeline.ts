@@ -2,7 +2,7 @@
 // content rules) → retry once. No Supabase / persistence (the handler owns
 // thread + message writes). Node-testable with a fake LLMAdapter.
 
-import type { LLMAdapter, LLMModel } from '../_shared/openai.ts';
+import type { LLMAdapter, LLMModel, ReasoningEffort } from '../_shared/openai.ts';
 import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_shared/voice.ts';
 import {
   validateChatReplyCitations,
@@ -118,6 +118,10 @@ export async function runBibleChatPipeline(args: {
   ctx: BibleChatContext;
   prompt?: ChatPromptModule;
   model?: LLMModel;
+  /** Reasoning effort; omitted means the adapter's per-tier default. */
+  effort?: ReasoningEffort;
+  /** Output budget; reasoning tokens share this ceiling, hence the 2048 default. */
+  maxTokens?: number;
   // Layer C (P0-5): optional LLM doctrinal classifier for applyContentRules.
   // Injected by the Deno shells (makeDoctrinalClassifier); tests omit it.
   classifier?: (text: string) => Promise<ContentRuleViolation[]>;
@@ -129,7 +133,8 @@ export async function runBibleChatPipeline(args: {
   const outcome = await generateWithRetry<ChatReply, ChatViolations>({
     llm: args.llm,
     model: args.model ?? 'balanced',
-    maxTokens: 1024,
+    effort: args.effort,
+    maxTokens: args.maxTokens ?? 2048,
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),
     // `as const` on the nested schema produces literal types narrower than
@@ -159,6 +164,8 @@ export async function runBibleChatStreaming(
     ctx: BibleChatContext;
     prompt?: ChatPromptModule;
     model?: LLMModel;
+    effort?: ReasoningEffort;
+    maxTokens?: number;
     classifier?: (text: string) => Promise<ContentRuleViolation[]>;
     signal?: AbortSignal;
   },
@@ -171,7 +178,8 @@ export async function runBibleChatStreaming(
   const outcome = await generateStreamingWithRetry<ChatReply, ChatViolations>({
     llm: args.llm,
     model: args.model ?? 'balanced',
-    maxTokens: 1024,
+    effort: args.effort,
+    maxTokens: args.maxTokens ?? 2048,
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
