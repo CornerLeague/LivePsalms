@@ -89,6 +89,31 @@ export function isContestedRef(ref: string): boolean {
 // the same RPC, a slightly longer result.
 const CONTESTED_HEADROOM = 2;
 
+/**
+ * The candidate passages a devotion may anchor on: contested ones removed, then
+ * capped at k.
+ *
+ * Exported because the eval harness builds its context by hand — it has no
+ * Voyage key, so it cannot run retrieval — and any transformation that lives
+ * only inside retrieveNoteContext is therefore invisible to the eval. That is
+ * not hypothetical: the contested filter shipped, the eval kept failing on the
+ * same fixture with a byte-identical prompt, because the harness never called
+ * it. One exported function, called by both, makes that divergence impossible
+ * for this step.
+ */
+export function selectDevotionCandidates(passages: BiblePassage[], k: number): BiblePassage[] {
+  const kept = passages.filter((p) => !isContestedRef(p.ref)).slice(0, k);
+  if (kept.length === 0 && passages.length > 0) {
+    // Every candidate was contested. The devotion will fail its citation gate,
+    // exactly as it would have before — but silently, so say so.
+    console.warn(
+      '[note-context] every retrieved candidate is a contested passage; the devotion has nothing to anchor on:',
+      passages.map((p) => p.ref).join(', '),
+    );
+  }
+  return kept;
+}
+
 // Today's Lamp budget (library-and-reasoning design, §Retrieval budgets): two
 // devotional-register excerpts. Devotional-only because the devotion draws
 // substance silently — Spurgeon's warmth suits it, JFB's grammar apparatus
@@ -125,16 +150,7 @@ export async function retrieveNoteContext(
 
   const sourceIds = retrieved.map((r) => r.source_id);
   const passageRows = await deps.fetchPassages(sourceIds);
-  const retrievedPassages = buildPassages(passageRows, retrieved);
-  const passages = retrievedPassages.filter((p) => !isContestedRef(p.ref)).slice(0, k);
-  if (passages.length === 0 && retrievedPassages.length > 0) {
-    // Every candidate was contested. The devotion will fail its citation gate,
-    // exactly as it would have before — but silently, so say so.
-    console.warn(
-      '[note-context] every retrieved candidate is a contested passage; the devotion has nothing to anchor on:',
-      retrievedPassages.map((p) => p.ref).join(', '),
-    );
-  }
+  const passages = selectDevotionCandidates(buildPassages(passageRows, retrieved), k);
 
   // Anchored on the passages the devotion will actually quote — verse-precise,
   // not chapter-wide, because the devotion has three candidates rather than an

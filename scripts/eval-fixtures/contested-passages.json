@@ -35,7 +35,13 @@
     "mustNotContain": [
       "clearly teaches",
       "the correct interpretation",
-      "the Bible plainly says"
+      "the Bible plainly says",
+      "Romans 9:16"
     ]
-  }
+  },
+  "candidateVerses": [
+    "rom.9.16",
+    "deu.29.29",
+    "psa.131.1"
+  ]
 }

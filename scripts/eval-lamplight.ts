@@ -30,6 +30,7 @@ import {
   type DailyDevotionContext,
 } from '../supabase/functions/lamplight-generate/daily-devotion-pipeline';
 import { verifyVerseRefs } from '../supabase/functions/_shared/verse-verify';
+import { selectDevotionCandidates } from '../supabase/functions/_shared/note-context';
 import { formatDisplayVerseRef } from '../supabase/functions/_shared/bible-passage';
 import { OSIS_TO_ABBREV } from '../supabase/functions/_shared/bible-books';
 
@@ -521,11 +522,18 @@ async function runDevotionFixture(args: {
 }): Promise<FixtureRun> {
   const { fixture, llm, supabase } = args;
   const wanted = candidateVerseIds(fixture);
-  const passages = await loadPassages(supabase, wanted);
+  const loaded = await loadPassages(supabase, wanted);
 
   // A fixture that claims grounding it does not have would score a devotion
-  // built on less than it advertised. Fail loudly instead.
-  const unresolved = wanted.length - passages.length;
+  // built on less than it advertised. Fail loudly instead. Counted BEFORE the
+  // contested filter: a filtered candidate resolved fine — it was removed on
+  // purpose. Conflating the two re-reported the deliberate rom.9.16 filter as
+  // a data error (contested-fix2 run, 2026-08-05).
+  const unresolved = wanted.length - loaded.length;
+
+  // Same filter production applies — the harness hand-builds its context, so any
+  // transformation not shared here silently makes the eval test a fiction.
+  const passages = selectDevotionCandidates(loaded, wanted.length);
 
   const ctx: DailyDevotionContext | null = fixture.notes.length === 0 ? null : {
     notes: fixture.notes.map((n) => ({ id: n.id, title: n.title || '(untitled)', plaintext: n.text })),
