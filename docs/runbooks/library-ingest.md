@@ -131,3 +131,9 @@ delete from public.library_sources where id = '<id>';
 - **Creeds.json** (Unlicense subset — the 8 copyright-restricted documents must be excluded by name) and **OpenBible topical scores** (CC BY) are planned v1 sources with adapters not yet written; neither file is in `scripts/data/` yet.
 - **Matthew Henry Complete** (`MHC`, ~6–7M tokens) is deferred until slice 1c produces retrieval-quality data — Concise covers the same ground at an eighth the size.
 - If a module is ever updated, re-run §4 and diff against the recorded counts before loading; a large swing means the module's keying changed and the dumper needs re-verification.
+
+## 9. Troubleshooting
+
+**`Cannot find module '/Users/<you>/scripts/ingest-library.ts'`** — the command ran outside the repo. All commands here are relative to the repo root; `cd` there first. A second tell is `npx` fetching `tsx` into `~/.npm/_npx` instead of using the repo's local copy.
+
+**`Node.js 20 detected without native WebSocket support`** — `supabase-js` constructs a Realtime client at `createClient` time, and Node < 22 has no global `WebSocket`. `ingest-library.ts` handles this itself by handing Realtime an unused transport (it only ever issues REST calls), so this should not recur. Note that the *other* ingest scripts in `scripts/` have the same latent issue and would need either `--experimental-websocket` or the same treatment if they're ever run on Node 20.

@@ -153,6 +153,26 @@ function requiredEnv(name: string): string {
   return v;
 }
 
+/**
+ * supabase-js builds a Realtime client during createClient, and on Node < 22
+ * (no native WebSocket) that construction throws. This script only ever issues
+ * REST calls, so we hand Realtime a transport that would throw IF it were used —
+ * it never is, because nothing here opens a channel. Avoids both a `ws`
+ * dependency and making the operator remember `--experimental-websocket`.
+ */
+class UnusedRealtimeTransport {
+  constructor() {
+    throw new Error('ingest-library does not use Supabase Realtime');
+  }
+}
+
+export function createIngestClient(url: string, key: string): SupabaseClient {
+  return createClient(url, key, {
+    auth: { persistSession: false },
+    realtime: { transport: UnusedRealtimeTransport as never },
+  });
+}
+
 function makeDeps(supabase: SupabaseClient): IngestDeps {
   return {
     readFile: (path) => readFileSync(path, 'utf8'),
@@ -190,7 +210,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const supabase = args.dryRun
     ? (null as unknown as SupabaseClient)
-    : createClient(requiredEnv('SUPABASE_URL'), requiredEnv('SUPABASE_SERVICE_ROLE_KEY'));
+    : createIngestClient(requiredEnv('SUPABASE_URL'), requiredEnv('SUPABASE_SERVICE_ROLE_KEY'));
 
   const deps = args.dryRun
     ? { ...makeDeps({} as SupabaseClient), readFile: (p: string) => readFileSync(p, 'utf8') }
