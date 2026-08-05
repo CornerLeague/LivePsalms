@@ -67,14 +67,25 @@ export interface IngestDeps {
   readFile(path: string): string;
   upsertSource(row: LibraryAdapter['source']): Promise<void>;
   upsertChunks(rows: LibraryChunkRow[]): Promise<void>;
-  fetchUnembedded(sourceId: string | undefined): Promise<Array<{ id: string; content: string }>>;
+  /**
+   * The next `limit` chunks still missing an embedding. MUST be limited:
+   * PostgREST caps a single response at ~1000 rows, so an unlimited select
+   * silently returns only the first 1000 and the pass looks complete when it is
+   * not (see backfill-note-embeddings.ts, which pages for the same reason).
+   */
+  fetchUnembedded(sourceId: string | undefined, limit: number): Promise<Array<{ id: string; content: string }>>;
   writeEmbeddings(rows: Array<{ id: string; embedding: number[] }>): Promise<void>;
+  /** One vector per input text. Injected so the pass is testable without Voyage. */
+  embed(texts: string[]): Promise<number[][]>;
   log(msg: string): void;
 }
 
 const CHUNK_UPSERT_SLICE = 200;
 const EMBED_BATCH = 64;
 const EMBED_UPSERT_SLICE = 16;
+// Well under PostgREST's ~1000-row response cap, matching the paging size
+// backfill-note-embeddings.ts settled on.
+const EMBED_PAGE = 500;
 
 export interface IngestReport {
   sourceId?: string;
@@ -120,26 +131,34 @@ export async function runIngest(deps: IngestDeps, args: IngestArgs): Promise<Ing
 
   if (args.dryRun) return report;
 
-  // Embedding pass. Voyage batches at EMBED_BATCH; writes go in smaller slices
-  // because HNSW index maintenance is O(M·log N) per row and a large upsert can
-  // exceed the statement timeout (same reasoning as ingest-bsb.ts).
-  const pending = await deps.fetchUnembedded(args.embedOnly ? args.sourceId : args.sourceId);
-  deps.log(`${pending.length} chunks need embedding`);
+  // Embedding pass. Paged: each fetch asks for the next EMBED_PAGE chunks that
+  // still have a null embedding, and writing embeddings removes them from that
+  // set — so re-fetching the "first page" walks the whole backlog and
+  // terminates naturally, without offsets that would shift under us.
+  //
+  // Voyage batches at EMBED_BATCH; writes go in smaller slices because HNSW
+  // index maintenance is O(M·log N) per row and a large upsert can exceed the
+  // statement timeout (same reasoning as ingest-bsb.ts).
+  for (;;) {
+    const pending = await deps.fetchUnembedded(args.sourceId, EMBED_PAGE);
+    if (pending.length === 0) break;
 
-  for (let i = 0; i < pending.length; i += EMBED_BATCH) {
-    const batch = pending.slice(i, i + EMBED_BATCH);
-    // voyage-context-3 takes each document as an array of chunks; ours are
-    // single-chunk documents, so unwrap vectors[idx][0] on the way back.
-    const { vectors } = await embedDocuments(
-      batch.map((r) => [r.content]),
-      { apiKey: requiredEnv('VOYAGE_AI_KEY'), fetch },
-    );
-    const embedded = batch.map((r, idx) => ({ id: r.id, embedding: vectors[idx][0] }));
-    for (let j = 0; j < embedded.length; j += EMBED_UPSERT_SLICE) {
-      await deps.writeEmbeddings(embedded.slice(j, j + EMBED_UPSERT_SLICE));
+    const before = report.embedded;
+    for (let i = 0; i < pending.length; i += EMBED_BATCH) {
+      const batch = pending.slice(i, i + EMBED_BATCH);
+      const vectors = await deps.embed(batch.map((r) => r.content));
+      const embedded = batch.map((r, idx) => ({ id: r.id, embedding: vectors[idx] }));
+      for (let j = 0; j < embedded.length; j += EMBED_UPSERT_SLICE) {
+        await deps.writeEmbeddings(embedded.slice(j, j + EMBED_UPSERT_SLICE));
+      }
+      report.embedded += batch.length;
+      deps.log(`embedded ${report.embedded}`);
     }
-    report.embedded += batch.length;
-    deps.log(`embedded ${report.embedded}/${pending.length}`);
+
+    // Guard against an infinite loop if writes silently stop taking effect.
+    if (report.embedded === before) {
+      throw new Error('embedding pass made no progress; aborting to avoid a loop');
+    }
   }
 
   return report;
@@ -177,6 +196,15 @@ function makeDeps(supabase: SupabaseClient): IngestDeps {
   return {
     readFile: (path) => readFileSync(path, 'utf8'),
     log: (msg) => console.log(msg),
+    // voyage-context-3 takes each document as an ARRAY of chunks; ours are
+    // single-chunk documents, so wrap on the way in and unwrap on the way out.
+    embed: async (texts) => {
+      const { vectors } = await embedDocuments(
+        texts.map((t) => [t]),
+        { apiKey: requiredEnv('VOYAGE_AI_KEY'), fetch },
+      );
+      return vectors.map((v) => v[0]);
+    },
     upsertSource: async (row) => {
       const { error } = await supabase.from('library_sources').upsert(row, { onConflict: 'id' });
       if (error) throw new Error(`upsertSource: ${error.message}`);
@@ -187,10 +215,10 @@ function makeDeps(supabase: SupabaseClient): IngestDeps {
       });
       if (error) throw new Error(`upsertChunks: ${error.message}`);
     },
-    fetchUnembedded: async (sourceId) => {
+    fetchUnembedded: async (sourceId, limit) => {
       let q = supabase.from('library_chunks').select('id, content').is('embedding', null);
       if (sourceId) q = q.eq('source_id', sourceId);
-      const { data, error } = await q;
+      const { data, error } = await q.limit(limit);
       if (error) throw new Error(`fetchUnembedded: ${error.message}`);
       return (data ?? []) as Array<{ id: string; content: string }>;
     },

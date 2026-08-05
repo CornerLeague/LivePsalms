@@ -12,6 +12,7 @@ function makeDeps(over: Partial<IngestDeps> = {}): IngestDeps & {
     upsertChunks: async (rows) => { upsertedChunks.push(rows); },
     fetchUnembedded: async () => [],
     writeEmbeddings: async () => {},
+    embed: async (texts) => texts.map(() => [0.1, 0.2]),
     log: () => {},
     upsertedChunks,
     upsertedSources,
@@ -104,6 +105,48 @@ describe('runIngest', () => {
     expect(deps.upsertedChunks).toHaveLength(3);
     expect(deps.upsertedChunks[0]).toHaveLength(200);
     expect(deps.upsertedChunks[2]).toHaveLength(50);
+  });
+
+  it('REGRESSION: pages the embedding backlog instead of stopping at one response', async () => {
+    // PostgREST caps a response at ~1000 rows. An unlimited select silently
+    // returned only the first page, so a 12,745-chunk source reported
+    // "embedded: 1000" and looked done while 11,745 rows had no vector.
+    let remaining = 1200;
+    const requestedLimits: number[] = [];
+    const deps = makeDeps({
+      fetchUnembedded: async (_src, limit) => {
+        requestedLimits.push(limit);
+        const n = Math.min(limit, remaining);
+        remaining -= n;                       // writing embeddings shrinks the set
+        return Array.from({ length: n }, (_, i) => ({ id: `c${i}`, content: 'text' }));
+      },
+    });
+
+    const report = await runIngest(deps, { ...base, embedOnly: true, sourceId: 'jfb' });
+
+    expect(report.embedded).toBe(1200);       // not 500, not 1000
+    expect(requestedLimits.every((l) => l <= 500)).toBe(true);
+    expect(requestedLimits.length).toBeGreaterThan(1);
+  });
+
+  it('writes one vector per chunk, batching the embed calls', async () => {
+    const batchSizes: number[] = [];
+    const written: string[] = [];
+    let remaining = 100;
+    const deps = makeDeps({
+      fetchUnembedded: async (_s, limit) => {
+        const n = Math.min(limit, remaining);
+        remaining -= n;
+        return Array.from({ length: n }, (_, i) => ({ id: `c${i}`, content: `text ${i}` }));
+      },
+      embed: async (texts) => { batchSizes.push(texts.length); return texts.map(() => [0.5]); },
+      writeEmbeddings: async (rows) => { written.push(...rows.map((r) => r.id)); },
+    });
+
+    const report = await runIngest(deps, { ...base, embedOnly: true, sourceId: 'jfb' });
+    expect(report.embedded).toBe(100);
+    expect(written).toHaveLength(100);
+    expect(batchSizes.every((n) => n <= 64)).toBe(true);   // Voyage batch ceiling
   });
 
   it('propagates an adapter parse failure instead of writing partial data', async () => {
