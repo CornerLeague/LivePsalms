@@ -89,6 +89,15 @@ export function parseHeadingRef(raw: string): ParsedHeadingRef | null {
 export interface CommentaryEntry {
   ref: string;
   body: string;
+  /**
+   * Optional display/idempotency label. Defaults to `ref`. REQUIRED when a
+   * source repeats the same ref — Spurgeon's Treasury comments on each verse
+   * once per section (exposition, explanatory notes, hints to the preacher), so
+   * "Psalm 27:1" legitimately occurs several times. Without a distinct heading
+   * those rows collide on library_chunks_ident and the upsert silently keeps
+   * only the last one.
+   */
+  heading?: string;
 }
 
 /** One JSONL line → entry. Blank lines yield null; malformed JSON throws. */
@@ -99,7 +108,11 @@ export function parseEntryLine(line: string): CommentaryEntry | null {
   if (typeof parsed.ref !== 'string' || typeof parsed.body !== 'string') {
     throw new Error(`commentary: line missing ref/body: ${trimmed.slice(0, 120)}`);
   }
-  return { ref: parsed.ref, body: parsed.body };
+  return {
+    ref: parsed.ref,
+    body: parsed.body,
+    ...(typeof parsed.heading === 'string' ? { heading: parsed.heading } : {}),
+  };
 }
 
 export interface CommentaryConfig {
@@ -143,12 +156,13 @@ export function makeCommentaryAdapter(config: CommentaryConfig): LibraryAdapter 
         const body = entry.body.trim();
         if (!body) continue;
 
+        const label = entry.heading ?? entry.ref;
         const pieces = chunkText(body);
         pieces.forEach((piece, idx) => {
           // A split section keeps ONE anchor but distinct headings, so the
           // idempotency key (source, heading, book, chapter, verse_start) stays
           // unique across a re-run.
-          const heading = pieces.length > 1 ? `${entry.ref} (${idx + 1}/${pieces.length})` : entry.ref;
+          const heading = pieces.length > 1 ? `${label} (${idx + 1}/${pieces.length})` : label;
           rows.push({
             source_id: source.id,
             book: normalized.book,
