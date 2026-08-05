@@ -46,13 +46,12 @@
 
 **File:** `supabase/migrations/058_library.sql`
 
-- [ ] **Step 1: write the migration** exactly as specified in the design doc's §Data model — `library_sources` (id, title, author, era, tradition, register CHECK, license, attribution, ingest_version, created_at), `library_chunks` (id uuid, source_id FK cascade, book/chapter/verse_start/verse_end nullable, strongs, topic, heading, content, token_count, embedding vector(512), created_at), the four btree indexes + the HNSW index (m=16, ef_construction=64), RLS enabled with public-read-only policies on both, and `match_library_chunks(p_query_vector vector(512), p_limit int, p_registers text[] default null)`.
-- [ ] **Step 2: add a chunk uniqueness key** the ingest can upsert on — the design didn't name one and idempotency needs it:
+- [x] **Step 1: write the migration** exactly as specified in the design doc's §Data model — `library_sources` (id, title, author, era, tradition, register CHECK, license, attribution, ingest_version, created_at), `library_chunks` (id uuid, source_id FK cascade, book/chapter/verse_start/verse_end nullable, strongs, topic, heading, content, token_count, embedding vector(512), created_at), the four btree indexes + the HNSW index (m=16, ef_construction=64), RLS enabled with public-read-only policies on both, and `match_library_chunks(p_query_vector vector(512), p_limit int, p_registers text[] default null)`.
+- [x] **Step 2: add a chunk uniqueness key** the ingest can upsert on — the design didn't name one and idempotency needs it. **Written as plain columns with `nulls not distinct`, NOT the coalesce-expression index this plan first sketched:** PostgREST's `on_conflict` takes a column list, so an expression index cannot be an upsert target. `nulls not distinct` (PG15+) makes the nullable anchor columns compare as equal, which is the same pattern `lamplight_embeddings` already uses.
   ```sql
-  -- Idempotency key for re-runnable ingest. `heading` is the source's own
-  -- section label, unique within a source once verse-anchored.
   create unique index library_chunks_ident
-    on public.library_chunks (source_id, heading, coalesce(book, ''), coalesce(chapter, 0), coalesce(verse_start, 0));
+    on public.library_chunks (source_id, heading, book, chapter, verse_start)
+    nulls not distinct;
   ```
 - [ ] **Step 3: hand the SQL to the user to run in the SQL Editor.** Do not attempt `supabase db push`. Wait for confirmation before Task 3.
 - [ ] **Step 4: verify** with `select count(*) from public.library_sources;` (0) and `\d public.library_chunks` equivalent — confirm `vector(512)` and the five indexes exist.
@@ -61,7 +60,7 @@
 
 **File:** `supabase/migrations/059_artifact_library_provenance.sql`
 
-- [ ] **Step 1:** `alter table public.lamplight_artifacts add column source_library_chunks jsonb;` with a comment explaining the shape (`[{chunk_id, source_id, heading}]`, heading snapshotted so the transparency panel survives a re-ingest that rotates chunk ids).
+- [x] **Step 1:** `alter table public.lamplight_artifacts add column source_library_chunks jsonb;` with a comment explaining the shape (`[{chunk_id, source_id, heading}]`, heading snapshotted so the transparency panel survives a re-ingest that rotates chunk ids).
 - [ ] **Step 2:** user runs it in the SQL Editor. No code reads it until 1c/1d — this lands now so 1c is a pure code change.
 
 ### Task 3: Adapter contract + versification + chunker (pure, TDD — no I/O)
