@@ -141,6 +141,8 @@ What this baseline pins, beyond "retrieval works":
 
 **Watch item:** `matthew-henry-concise` did not place in the top 5. Not necessarily wrong — it is the smallest source (4,136 chunks) and its comments summarise passage blocks rather than dwelling on single verses, so a devotional single-verse query favours the other two. If MHCC never surfaces across varied slice-1c queries, investigate before assuming it is earning its place.
 
+**Resolved 2026-08-06 (slice 1c).** `npx tsx scripts/library-fusion-smoke.ts` — which runs the real two-channel fusion rather than the bare RPC — surfaces all three sources across its four queries, MHCC included. The verse-anchor channel plus block-level questions are what reach it; a single-verse semantic query alone does not. MHCC is earning its place; Matthew Henry *Complete* stays deferred.
+
 ## 7. Re-running / rollback
 
 Chunks upsert on `library_chunks_ident (source_id, heading, book, chapter, verse_start)` with `nulls not distinct`, and sources upsert on `id` — so a re-run is safe and idempotent.
