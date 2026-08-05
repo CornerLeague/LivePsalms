@@ -258,6 +258,10 @@ Order-of-magnitude conclusion: the depth upgrade lands within cents-per-user-per
 
 **Progress:** Phase-0 quick fixes implemented 2026-08-04 (tier fix, stale lexicon line, Layer C wired across all pipelines, content rules on reflections + etymology, spec thresholds, retry budget, intentional-bypass documentation). Phase 1 design: `2026-08-04-lamplight-library-and-reasoning-design.md`.
 
+**Phase 1 complete 2026-08-05** — all four slices (1a Responses API, 1b library schema + ingest, 1c retrieval fusion + prompts, 1d verification + provenance + evals). Completion record and the caveats worth reading before Phase 2 are in the design doc's Phase-1 completion record; per-slice records live in each plan under `docs/superpowers/plans/`. The corpus is live (34,076 chunks), Scripture verification repairs before it rejects on four surfaces, and there is now a live eval baseline to compare future prompt changes against.
+
+**Phase 2 (Journey Thread, note distillates, crisis layer) is next to design.** Nothing in it is blocked by the Phase-1 carry-outs.
+
 ---
 
 *Prepared 2026-08-04 on `feat/lamplight-gpt-migration`. Research: `docs/superpowers/research/2026-08-04-{theological-source-library, ai-faith-landscape-and-techniques, intertextuality-and-character-resonance, lamplight-system-map}.md`.*

@@ -116,10 +116,11 @@ Planned features that round out Lamplight's surface area. Each is a "small slice
 - **Current state:** `lamplight_artifacts.saved_to_notes` column exists, no write path.
 - **What to do:** Button on `TodaysLampCard`. Click → create a new note in the user's vault with the devotion content + backlink to the artifact id. Flip `saved_to_notes = true` to prevent showing the button twice.
 
-### P2-2. "How was this written?" transparency panel
+### P2-2. "How was this written?" transparency panel — ✅ CLOSED (depth-overhaul slice 1d, 2026-08-05)
 - **Source:** Today's Lamp spec follow-up #4.
-- **Current state:** `source_note_ids`, `source_verses`, `model_used`, `prompt_version` all persisted; no UI.
-- **What to do:** Side panel reachable from a small icon on `TodaysLampCard`. Renders provenance plainly. Signals to users that Lamplight is grounded, not generated wholesale.
+- **Shipped as:** `src/notepad/components/lamplight/LamplightProvenancePanel.tsx`, mounted on `TodaysLampCard` and `WaymarksPeriodDetail`. A disclosure closed by default: note **titles** (never uuids), scripture refs, library sources, and a de-emphasised model + prompt_version footer.
+- **Notes:** provenance is read on demand (`getArtifactProvenance`), not folded into the artifact read — the panel is closed by default, so eager loading would be work almost no render needs. The library section is omitted entirely when `source_library_chunks` is null, so "the library never ran" never renders as an empty header.
+- **Also closed by this:** P2-9's "bundle with P2-2" note — `prompt_version` for devotions/reflections is now surfaced. `lamplight_connections` still lacks the column; P2-9 stays open for Connection Cards.
 
 ### P2-3. "This wasn't helpful" feedback signal
 - **Source:** Today's Lamp spec follow-up #5.
@@ -146,10 +147,12 @@ Planned features that round out Lamplight's surface area. Each is a "small slice
 - **Current state:** Why strings generate on expand only.
 - **What to do:** Once P2-3 telemetry is live, decide whether to pre-warm top-3 neighbor whys on `ready`. Triples Haiku cost — only do this if data justifies. **Defer to P3 if telemetry isn't promising.**
 
-### P2-8. Inline verse refs validation in `reflection` + Connection Why
+### P2-8. Inline verse refs validation — ✅ CLOSED for the four AI surfaces, with REPAIR semantics (slice 1d, 2026-08-05)
 - **Source:** Today's Lamp follow-up #8 + Connection Cards follow-up #4.
-- **Current state:** Inline refs are unvalidated to avoid false positives.
-- **What to do:** Run `reference-parser` against `reflection` / `artifact.why`; flag refs not in `allowedVerseRefs` (Today's Lamp) or not present in either note (Connection Cards). Only land this once you have data showing the model actually slips unsupplied refs in.
+- **Shipped as:** `supabase/functions/_shared/scripture-verify.ts`, wired into the daily devotion, both chat surfaces, and etymology insight.
+- **Wider than described:** the entry asked for flag-only validation. What shipped **repairs before it rejects** — a quote that fuzzy-matches its canonical verse is rewritten to the canonical rendering before persistence, and only an unresolvable ref or an unmatchable quote becomes a violation feeding the stricter retry. The reader is never shown a misquote, and an artifact one splice could save is never failed.
+- **Deliberately NOT wired:** monthly-reflection markers. The check cannot fire there — markers carry no quotations, and every marker verse is already constrained to an allowlist built from DB-resolved refs. See the comment in `monthly-reflection-pipeline.ts`.
+- **Still open:** Connection Why (`artifact.why`) is not covered. Its refs come from note content rather than a supplied allowlist, so it needs a different rule.
 
 ### P2-9. `prompt_version` column on `lamplight_connections`
 - **Source:** Connection Cards spec decision #14 + follow-up #5.

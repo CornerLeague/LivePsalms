@@ -243,3 +243,57 @@ Each numbered slice gets its own implementation plan in `docs/superpowers/plans/
 - Library rerank default on or off? (Default: follow existing `RERANK_ENABLED`; A/B rides backlog P3-5.)
 - Does the Sources screen live under Profile → About or the Study side panel footer? (Default: both link the same screen.)
 - Effort for study chat once latency data exists (`low` → `medium`?).
+
+---
+
+## Phase 1 completion record (2026-08-05)
+
+All four slices are code-complete on `feat/responses-api-migration` (1a–1c, PR
+[#110](https://github.com/LivePsalms/LivePsalms/pull/110)) and
+`feat/verification-provenance-evals` (1d, stacked on it).
+
+| Slice | Delivered | Verified |
+|---|---|---|
+| **1a** Responses API | Per-call reasoning effort across every pipeline; tier seam intact | Unit only — the live adapter smoke has **not** been run |
+| **1b** Library schema + ingest | 34,076 chunks, 33,278 verse anchors, all embedded | Counts, zero orphans, retrieval baseline |
+| **1c** Retrieval fusion + prompts | Two-channel RRF retrieval into study + Today's Lamp; provenance persisted | Live: all three sources surface; lexicon resolves |
+| **1d** Verification, provenance, evals | Repair-before-reject on four surfaces; panel + Sources screen; eval harness | Live baseline 10/10, zero scripture violations |
+
+**Against the acceptance criteria in this document:**
+
+1. ✅ Corpus counts match; every anchor resolves.
+2. ⚠️ Study chat surfaces Treasury excerpts and cites only supplied refs — the
+   *retrieval* half is verified live, but no study reply has been generated
+   end-to-end against a real model.
+3. ⚠️ Provenance is persisted and the panel renders it in component tests; not
+   yet seen in a browser with a real artifact.
+4. ⚠️ All pipelines run on the Responses adapter, but
+   `scripts/smoke/openai-adapter-smoke.ts` has still not been run with a live
+   key. **This is the largest untested surface in Phase 1** — it changed
+   transport for every AI path.
+5. ✅ `verifyArtifactScripture` wired on devotion, both chats, and etymology.
+   Reflection markers deliberately excluded (see slice 1d record).
+6. ✅ Sources screen renders each source's verbatim attribution, grouped by
+   licence. The three shipped sources are public domain, so no CC-BY obligation
+   is currently outstanding; the surface exists for when OpenBible/STEPBible land.
+7. ✅ Baseline report checked in at `docs/lamplight/evals/2026-08-05-baseline/`.
+8. ⚠️ tsc + full vitest + eslint green. **RLS isolation tests were NOT extended**
+   to `library_sources` / `library_chunks` — both are public-read by design, but
+   the "no client write" half is unasserted.
+
+**Known issues carried out of Phase 1** (detail in each slice's record):
+
+- Devotions render raw OSIS refs (`psa 23:4`) to the user, and the model echoes
+  the form into prose. Reflections already avoid this.
+- Psalm superscriptions appear inside the devotion's anchor verse text.
+- Devotion register drifts toward commentary; openings are templated.
+- `scripts/` is **not covered by `npx tsc -b`** — `tsconfig.node.json` includes
+  only `vite.config.ts` and three test files. Two real type errors in the eval
+  harness passed the gate before being caught by a standalone check.
+- Phase-0's `app_config` threshold SQL (`lamplight_min_similarity` 0.3 → 0.78)
+  still needs applying.
+- Creeds and OpenBible-topics adapters remain unwritten, so the `confessional`
+  and `topical` registers are empty (retrieval tolerates this).
+
+**Next:** Phase 2 (Journey Thread, note distillates, crisis layer) needs a design
+doc. Nothing in Phase 2 is blocked by the items above.
