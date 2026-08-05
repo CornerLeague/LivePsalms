@@ -10,7 +10,9 @@ Each item is tagged with priority, source spec, and the **why** so a future plan
 
 These must be resolved before flipping `lamplight_promo_active` off or making any public AI claim. Most are not engineering — they're governance / config decisions that have been deferred phase after phase.
 
-### P0-1. Tighten Connection Cards qualification thresholds to spec values
+### P0-1. Tighten Connection Cards qualification thresholds to spec values — ✅ DONE 2026-08-05
+Client defaults (100 words / 10 notes) shipped in `c1173be7`; `app_config.lamplight_min_similarity` set to `0.78` via the SQL Editor. Note the user-visible effect: weak connections that previously surfaced no longer do.
+
 - **Source:** Connection Cards spec §"Decisions log" #6 + memory note (`project_lamplight_test_thresholds.md`).
 - **Current state:** `useConnectionCards.ts` defaults to `qualifyingMinWords=10`, `qualifyingMinVaultSize=2`, and `app_config.lamplight_min_similarity` is seeded at `0.3` by migration 017 (dev). Spec values: 100 words / 10 notes / 0.78 similarity.
 - **What to do:** Flip the three to spec values *before* the promo period opens to the public. SQL one-liner for the similarity:
@@ -44,7 +46,9 @@ These must be resolved before flipping `lamplight_promo_active` off or making an
 - **What to do:** Brief a separate slice. Stripe / RevenueCat / Apple / Google integration, plan upgrade UX, billing portal, receipt webhooks. Replace `PaywallCard` placeholder. Wire entitlement granting to webhooks.
 - **Why P0 (relative to promo end):** Only blocking *if* you intend to charge when the promo ends. If the plan is to extend the promo until billing is ready, drop to P1. Either way the decision needs to land before P0-3 is meaningful.
 
-### P0-5. Layer C — LLM doctrinal classifier
+### P0-5. Layer C — LLM doctrinal classifier — ✅ DONE 2026-08-05 (`c1173be7`)
+`_shared/doctrinal-classifier.ts`: a fast-tier, fail-open second pass wired into every pipeline (daily devotion, connection-why, both chats, monthly reflection, sweep) via the previously-declared `applyContentRules` classifier slot. Monthly reflections also gained content-rule checks they never had.
+
 - **Source:** Reasoning Layer spec §"Out" + follow-up #2.
 - **Current state:** `applyContentRules` has a `classifier?: (text) => Promise<Violation[]>` slot, never wired.
 - **What to do:** Haiku 4.5 second-pass that reads the artifact + rule lists and returns extra violations. Wires in as `await opts.classifier?.(text)` after regex checks. Same violation shape, no callsite changes.
