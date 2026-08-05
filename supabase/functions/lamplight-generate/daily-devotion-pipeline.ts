@@ -23,6 +23,7 @@ import { generateWithRetry } from '../_shared/generate-with-retry.ts';
 import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { DAILY_DEVOTION_PROMPT } from './prompts/daily-devotion.ts';
 import type { UsageCore } from '../_shared/usage.ts';
+import type { LibraryExcerpt } from '../_shared/library-retrieval.ts';
 
 export interface DailyDevotionPassage {
   source_id: string;
@@ -39,6 +40,9 @@ export interface DailyDevotionContext {
   allowedNoteIds: Set<string>;
   allowedVerseRefs: Set<string>;
   rerankUsed: boolean;
+  // Slice 1c. Absent when no library dep was injected or nothing matched.
+  // Feeds the prompt silently and the source_library_chunks provenance column.
+  libraryExcerpts?: LibraryExcerpt[];
 }
 
 export type DailyDevotionPipelineResult =
@@ -186,6 +190,14 @@ async function devotionPostGeneration(args: {
 
   const sourceNoteIds = parsed.note_citations.map(c => c.note_id);
   const sourceVerses = [parsed.scripture.ref];
+  // Library provenance (slice 1c, migration 059). Heading is SNAPSHOTTED, not
+  // referenced: a re-ingest rotates chunk ids, and the panel must still be able
+  // to say which excerpt was used. null rather than [] when nothing reached the
+  // prompt, so the panel can tell "no library material" from a real empty list.
+  const excerpts = ctx.libraryExcerpts ?? [];
+  const sourceLibraryChunks = excerpts.length > 0
+    ? excerpts.map(e => ({ chunk_id: e.chunkId, source_id: e.sourceId, heading: e.heading }))
+    : null;
   const insertRes = await args.supabase
     .from('lamplight_artifacts')
     .insert({
@@ -196,6 +208,7 @@ async function devotionPostGeneration(args: {
       body: parsed,
       source_note_ids: sourceNoteIds,
       source_verses: sourceVerses,
+      source_library_chunks: sourceLibraryChunks,
       model_used: modelUsed,
       prompt_version: promptVersion,
     })

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { runDailyDevotionPipeline, runDailyDevotionStreaming, type DailyDevotionContext } from './daily-devotion-pipeline';
 import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/openai';
 import type { DailyDevotion } from '../_shared/artifacts';
+import type { LibraryExcerpt } from '../_shared/library-retrieval';
 
 function makeCtx(overrides: Partial<DailyDevotionContext> = {}): DailyDevotionContext {
   return {
@@ -180,7 +181,7 @@ describe('runDailyDevotionPipeline', () => {
       period_key: '2026-05-27',
       source_note_ids: ['note-1'],
       source_verses: ['Psalm 23:4'],
-      prompt_version: 'daily-devotion-2026-06-09-v3',
+      prompt_version: 'daily-devotion-2026-08-06-v4',
     });
     await Promise.resolve(); // drain any stray microtask
     // The pipeline no longer records usage — the lifecycle (runGeneration) does.
@@ -268,7 +269,7 @@ describe('runDailyDevotionPipeline', () => {
                         id: 'race-id',
                         body: cleanArtifact,
                         model_used: 'gpt-5.6-terra',
-                        prompt_version: 'daily-devotion-2026-06-09-v3',
+                        prompt_version: 'daily-devotion-2026-08-06-v4',
                       },
                       error: null,
                     };
@@ -555,5 +556,80 @@ describe('runDailyDevotionStreaming', () => {
       expect(result.artifact.opening).toBe(cleanArtifact.opening);
     }
     expect(inserts).toHaveLength(1);
+  });
+});
+
+// ── Slice 1c: library provenance ────────────────────────────────────────────
+
+const EXCERPTS: LibraryExcerpt[] = [
+  {
+    chunkId: 'lc1', sourceId: 'treasury-of-david',
+    sourceLabel: 'The Treasury of David · Charles H. Spurgeon, 1869–1885',
+    heading: 'Psalm 23:4', content: 'The valley is a place of passage.', score: 0.9,
+  },
+  {
+    chunkId: 'lc2', sourceId: 'matthew-henry-concise',
+    sourceLabel: 'Matthew Henry\'s Concise Commentary · Matthew Henry, 1706',
+    heading: 'Psalm 23', content: 'The shepherd leads through, not around.', score: 0.6,
+  },
+];
+
+describe('daily devotion — source_library_chunks provenance', () => {
+  it('persists a chunk_id/source_id/heading snapshot for exactly the excerpts supplied', async () => {
+    const { supabase, inserts } = makeSupabaseMock();
+    const result = await runDailyDevotionPipeline({
+      llm: makeAdapter([cleanArtifact]),
+      supabase,
+      ctx: makeCtx({ libraryExcerpts: EXCERPTS }),
+      userId: 'user-1',
+      localDate: '2026-05-27',
+    });
+    expect(result.ok).toBe(true);
+    expect(inserts[0].source_library_chunks).toEqual([
+      { chunk_id: 'lc1', source_id: 'treasury-of-david', heading: 'Psalm 23:4' },
+      { chunk_id: 'lc2', source_id: 'matthew-henry-concise', heading: 'Psalm 23' },
+    ]);
+    // The existing provenance columns are untouched.
+    expect(inserts[0]).toMatchObject({
+      source_note_ids: ['note-1'],
+      source_verses: ['Psalm 23:4'],
+    });
+  });
+
+  it('persists null (not []) when no library excerpts reached the prompt', async () => {
+    for (const ctx of [makeCtx(), makeCtx({ libraryExcerpts: [] })]) {
+      const { supabase, inserts } = makeSupabaseMock();
+      await runDailyDevotionPipeline({
+        llm: makeAdapter([cleanArtifact]), supabase, ctx, userId: 'user-1', localDate: '2026-05-27',
+      });
+      expect(inserts[0].source_library_chunks).toBeNull();
+    }
+  });
+
+  it('snapshots the heading rather than referencing it, so a re-ingest cannot blank the panel', async () => {
+    const { supabase, inserts } = makeSupabaseMock();
+    await runDailyDevotionPipeline({
+      llm: makeAdapter([cleanArtifact]),
+      supabase,
+      ctx: makeCtx({ libraryExcerpts: [EXCERPTS[0]] }),
+      userId: 'user-1',
+      localDate: '2026-05-27',
+    });
+    const snapshot = (inserts[0].source_library_chunks as Array<Record<string, unknown>>)[0];
+    expect(snapshot).toEqual({ chunk_id: 'lc1', source_id: 'treasury-of-david', heading: 'Psalm 23:4' });
+    expect(snapshot).not.toHaveProperty('content');   // provenance, not a copy of the corpus
+  });
+
+  it('leaves the insert-race re-read path unaffected', async () => {
+    const { supabase } = makeSupabaseMock({ existing: cleanArtifact, insertError: { message: 'duplicate key' } });
+    const result = await runDailyDevotionPipeline({
+      llm: makeAdapter([cleanArtifact]),
+      supabase,
+      ctx: makeCtx({ libraryExcerpts: EXCERPTS }),
+      userId: 'user-1',
+      localDate: '2026-05-27',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.cached).toBe(true);
   });
 });

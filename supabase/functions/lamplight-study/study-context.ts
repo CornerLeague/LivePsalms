@@ -5,6 +5,16 @@ import { type VoyageDeps, embedQuery } from '../_shared/voyage.ts';
 import { searchUserNotesByQuery, searchBible } from '../_shared/retrieval.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { formatVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
+import {
+  searchLibrary,
+  fetchLexiconEntries,
+  makeLibraryDeps,
+  type LibraryExcerpt,
+  type LibraryRetrievalDeps,
+  type LexiconDeps,
+  type LexiconEntry,
+  type RefAnchor,
+} from '../_shared/library-retrieval.ts';
 import type { BibleChatContext, BookContext } from '../lamplight-chat/bible-chat-pipeline.ts';
 
 export interface RelevantNote { id: string; title: string; plaintext: string; similarity: number }
@@ -73,6 +83,32 @@ export async function retrieveRelatedPassages(
   }
 }
 
+/**
+ * The two slice-1c grounding blocks, retrieved together. Both callees own their
+ * own degradation, so this never rejects — a missing library leaves the turn on
+ * today's chapter + cross-ref + related-passage grounding.
+ */
+export async function retrieveStudyLibrary(
+  deps: LibraryRetrievalDeps & LexiconDeps,
+  args: {
+    anchors: RefAnchor[]; queryEmbedding: number[]; query: string; k: number;
+    book: string; chapter: number; rerankEnabled: boolean; registers?: string[];
+  },
+): Promise<{ libraryExcerpts: LibraryExcerpt[]; lexiconEntries: LexiconEntry[] }> {
+  const [libraryExcerpts, lexiconEntries] = await Promise.all([
+    searchLibrary(deps, {
+      refs: args.anchors,
+      queryEmbedding: args.queryEmbedding,
+      query: args.query,
+      k: args.k,
+      registers: args.registers,
+      rerankEnabled: args.rerankEnabled,
+    }),
+    fetchLexiconEntries(deps, { book: args.book, chapter: args.chapter }),
+  ]);
+  return { libraryExcerpts, lexiconEntries };
+}
+
 export async function buildStudyContext(
   supabase: SupabaseClient,
   args: {
@@ -84,6 +120,8 @@ export async function buildStudyContext(
     voyageDeps: VoyageDeps; rerankEnabled: boolean;
     crossRefK: number; noteK: number;
     translation: string;
+    /** Library excerpts to retrieve. 0 (the default) skips the library entirely. */
+    libraryK?: number;
   },
 ): Promise<{ ctx: BibleChatContext; offered: OfferedNote[] }> {
   // Open chapter text.
@@ -126,15 +164,20 @@ export async function buildStudyContext(
   const xrefs = (xrefRows ?? []) as Array<{ to_book: string; to_chapter: number; to_verse_start: number; to_verse_end: number }>;
   const crossRefs: BibleChatContext['crossRefs'] = [];
   const crossRefSet = new Set<string>();
+  // Library anchors: the open chapter, plus each RESOLVED cross-ref target, so
+  // a commentary on a cross-referenced verse can surface too.
+  const libraryAnchors: RefAnchor[] = [{ book: args.book, chapter: args.chapter }];
   for (const x of xrefs) {
     const id = `${x.to_book}.${x.to_chapter}.${x.to_verse_start}`;
     const { data: tgt } = await supabase
       .from('bible_passages').select('book, chapter, verse_start, verse_end, text')
       .eq('id', id).eq('translation', args.translation).maybeSingle();
     if (tgt) {
-      const ref = formatVerseRef(tgt as { book: string; chapter: number; verse_start: number; verse_end: number });
+      const t = tgt as { book: string; chapter: number; verse_start: number; verse_end: number };
+      const ref = formatVerseRef(t);
       crossRefSet.add(ref.toLowerCase());
       crossRefs.push({ ref, text: (tgt as { text: string }).text });
+      libraryAnchors.push({ book: t.book, chapter: t.chapter, verseStart: t.verse_start, verseEnd: t.verse_end });
     }
   }
 
@@ -158,14 +201,25 @@ export async function buildStudyContext(
   }
   const { included, offered } = selectOfferedNotes(relevant, { includeNotes: args.includeNotes, noteIds: args.noteIds });
 
-  // A1: whole-Bible related passages (reuses the embedding computed for notes).
-  const relatedPassages = await retrieveRelatedPassages(
-    { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
-    {
-      query: args.retrievalQuery, k: VERSE_K, translation: args.translation, queryEmbedding,
-      chapterVerseRefs, crossRefSet,
-    },
-  );
+  // A1 (related passages) and 1c (library + lexicon) both reuse the embedding
+  // computed for notes above — one query embedding serves all three channels.
+  // Run concurrently so the library costs only its own latency, not a sum.
+  const libraryK = args.libraryK ?? 0;
+  const [relatedPassages, library] = await Promise.all([
+    retrieveRelatedPassages(
+      { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
+      {
+        query: args.retrievalQuery, k: VERSE_K, translation: args.translation, queryEmbedding,
+        chapterVerseRefs, crossRefSet,
+      },
+    ),
+    libraryK > 0
+      ? retrieveStudyLibrary(makeLibraryDeps(supabase, args.voyageDeps), {
+          anchors: libraryAnchors, queryEmbedding, query: args.retrievalQuery, k: libraryK,
+          book: args.book, chapter: args.chapter, rerankEnabled: args.rerankEnabled,
+        })
+      : Promise.resolve({ libraryExcerpts: [] as LibraryExcerpt[], lexiconEntries: [] as LexiconEntry[] }),
+  ]);
 
   const ctx: BibleChatContext = {
     passageRef: `${args.book} ${args.chapter}`,
@@ -175,6 +229,10 @@ export async function buildStudyContext(
     history: args.history,
     userMessage: args.message,
     allowedNoteIds: new Set(included.map((n) => n.id)),
+    // LOAD-BEARING: the library is deliberately absent from this set. A voice
+    // quoting Isaiah 40:31 does not put Isaiah 40:31 in reach — only supplied
+    // verse TEXT authorises a citation. Adding library refs here would defeat
+    // the citation validator.
     allowedVerseRefs: new Set<string>([
       ...chapterVerseRefs,
       ...crossRefSet,
@@ -182,6 +240,8 @@ export async function buildStudyContext(
     ]),
     bookContext,
     relatedPassages,
+    libraryExcerpts: library.libraryExcerpts,
+    lexiconEntries: library.lexiconEntries,
   };
   return { ctx, offered };
 }

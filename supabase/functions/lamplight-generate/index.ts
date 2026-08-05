@@ -26,6 +26,7 @@ import { createOpenAIAdapter } from '../_shared/openai.ts';
 import { makeDoctrinalClassifier } from '../_shared/doctrinal-classifier.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { retrieveNoteContext, type NoteContextDeps, type RawNoteRow } from '../_shared/note-context.ts';
+import { makeLibraryDeps } from '../_shared/library-retrieval.ts';
 import { sanitizeFirstName } from '../_shared/personalization.ts';
 import {
   extractVerseRefsFromNoteContent,
@@ -367,8 +368,12 @@ function noteContextDeps(
   voyageDeps: VoyageDeps,
   rerankEnabled: boolean,
   translation = 'BSB',
+  // Slice 1c: opt-in per caller. Today's Lamp takes the library; the smoke-test
+  // builder deliberately does not (it proves plumbing, not depth).
+  withLibrary = false,
 ): NoteContextDeps {
   return {
+    ...(withLibrary ? { library: makeLibraryDeps(supabase, voyageDeps) } : {}),
     async fetchRecentNotes(userId, limit) {
       const { data, error } = await supabase
         .from('notes')
@@ -411,7 +416,7 @@ async function buildDailyDevotionContext(
   supabase: SupabaseClient,
   args: { userId: string; localDate: string; voyageDeps: VoyageDeps; rerankEnabled: boolean; translation?: string },
 ): Promise<DailyDevotionContext | null> {
-  const base = await retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled, args.translation), {
+  const base = await retrieveNoteContext(noteContextDeps(supabase, args.voyageDeps, args.rerankEnabled, args.translation, true), {
     userId: args.userId,
     noteLimit: 3,
     rerankEnabled: args.rerankEnabled,

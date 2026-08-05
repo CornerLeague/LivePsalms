@@ -15,6 +15,12 @@
 import { extractTextFromNoteContent } from './tiptap-text.ts';
 import { buildPassages, type BiblePassage, type BiblePassageRow } from './bible-passage.ts';
 import type { RetrievedItem } from './retrieval.ts';
+import {
+  searchLibrary,
+  type LibraryExcerpt,
+  type LibraryRetrievalDeps,
+  type RefAnchor,
+} from './library-retrieval.ts';
 
 export interface NoteContextNote {
   id: string;
@@ -28,6 +34,10 @@ export interface NoteContext {
   allowedNoteIds: Set<string>;
   allowedVerseRefs: Set<string>;
   rerankUsed: boolean;
+  // Slice 1c. Undefined when no library dep was injected — the smoke-test
+  // builder and any future caller opt in explicitly. NEVER contributes to
+  // allowedVerseRefs.
+  libraryExcerpts?: LibraryExcerpt[];
 }
 
 // A raw notes row as fetched by the caller's `.from('notes')…select('id, title, content')`.
@@ -46,7 +56,16 @@ export interface NoteContextDeps {
   embedQuery(text: string): Promise<number[]>;
   searchBible(args: { query: string; k: number; queryEmbedding: number[] }): Promise<RetrievedBibleRow[]>;
   fetchPassages(sourceIds: string[]): Promise<BiblePassageRow[]>;
+  /** Slice 1c, OPTIONAL: omit and this seam behaves exactly as it did before. */
+  library?: LibraryRetrievalDeps;
 }
+
+// Today's Lamp budget (library-and-reasoning design, §Retrieval budgets): two
+// devotional-register excerpts. Devotional-only because the devotion draws
+// substance silently — Spurgeon's warmth suits it, JFB's grammar apparatus
+// does not.
+const DEVOTION_LIBRARY_K = 2;
+const DEVOTION_REGISTERS = ['devotional'];
 
 export async function retrieveNoteContext(
   deps: NoteContextDeps,
@@ -78,11 +97,35 @@ export async function retrieveNoteContext(
   const passageRows = await deps.fetchPassages(sourceIds);
   const passages = buildPassages(passageRows, retrieved);
 
+  // Anchored on the passages the devotion will actually quote — verse-precise,
+  // not chapter-wide, because the devotion has three candidates rather than an
+  // open chapter. searchLibrary owns its own degradation, so a library failure
+  // here can never fail a devotion.
+  const rowById = new Map(passageRows.map((r) => [r.id, r]));
+  const anchors: RefAnchor[] = passages
+    .map((p) => rowById.get(p.source_id))
+    .filter((r): r is BiblePassageRow => r !== undefined)
+    .map((r) => ({ book: r.book, chapter: r.chapter, verseStart: r.verse_start, verseEnd: r.verse_end }));
+
+  const libraryExcerpts = deps.library
+    ? await searchLibrary(deps.library, {
+        refs: anchors,
+        queryEmbedding,
+        query: themeQuery,
+        k: DEVOTION_LIBRARY_K,
+        registers: DEVOTION_REGISTERS,
+        rerankEnabled: opts.rerankEnabled,
+      })
+    : undefined;
+
   return {
     notes,
     passages,
     allowedNoteIds: new Set(notes.map((n) => n.id)),
+    // Deliberately passages only. A devotional excerpt that quotes a verse does
+    // not make that verse quotable — its text was never supplied.
     allowedVerseRefs: new Set(passages.map((p) => p.ref)),
     rerankUsed: opts.rerankEnabled && passages.length > 0,
+    ...(libraryExcerpts ? { libraryExcerpts } : {}),
   };
 }

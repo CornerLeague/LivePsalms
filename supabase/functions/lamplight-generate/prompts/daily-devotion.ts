@@ -7,7 +7,7 @@
 import type { DailyDevotionContext } from '../daily-devotion-pipeline.ts';
 
 export const DAILY_DEVOTION_PROMPT = {
-  promptVersion: 'daily-devotion-2026-06-09-v3',
+  promptVersion: 'daily-devotion-2026-08-06-v4',
 
   system: `Write a brief daily devotion for someone who has been journaling. The user has shared up to 3 recent notes (or fewer, if their vault is small). You have 3 candidate Scripture passages. Write something glanceable — they will read this in under a minute.
 
@@ -23,6 +23,11 @@ Hard rules (these compound the rules in your system fragment):
 - Quote no more than 25 words verbatim from any note.
 - If you cannot ground a sentence in the supplied notes or passages, do not write it.
 - Today is {{local_date}}. Do not refer to other dates.
+
+Study excerpts (only when a "Study excerpts" block appears in the user prompt):
+- Draw substance from them — a detail of the passage's argument, imagery, or setting you would not otherwise reach. This is what keeps the reflection from being generic.
+- Do not name the authors, do not quote them at length, and do not write "one commentator says". Their names belong to the provenance panel, not the devotion. The insight should read as your own plain reading of the passage.
+- The excerpts are background, never citable: a verse an excerpt mentions does not become a ref you may use. Cite only from the supplied candidate passages.
 
 Personalization (only when First name is provided in the user prompt):
 - Begin the opening with: "<First name> — " (use the exact form supplied; do not modify capitalization or characters).
@@ -84,6 +89,18 @@ Personalization (only when First name is provided in the user prompt):
     const passagesBlock = ctx.passages
       .map(p => `[${p.ref}]\n${p.text}`)
       .join('\n\n');
+    // Deliberate asymmetry with Study chat, which names its voices in prose:
+    // the devotion is a minute-long word for someone's morning, not a lesson.
+    // A named 1870s commentator changes its register from "a word for you" to
+    // "a citation about you". Same corpus, opposite visibility — the by-surface
+    // decision (library-and-reasoning design, decision 5). Provenance still
+    // rides on the artifact row, so the panel can name every voice used.
+    const excerpts = ctx.libraryExcerpts ?? [];
+    const excerptsBlock = excerpts.length === 0
+      ? ''
+      : 'Study excerpts (do not name these authors in the devotion):\n' +
+        excerpts.map(e => `[${e.sourceLabel} · ${e.heading}]\n${e.content}`).join('\n\n') +
+        '\n\n';
     const refsList = [...ctx.allowedVerseRefs].join(', ');
     const noteIdsList = [...ctx.allowedNoteIds].join(', ');
     const firstNameLine = ctx.firstName
@@ -96,6 +113,7 @@ Personalization (only when First name is provided in the user prompt):
         `${firstNameLine}\n\n` +
         `User's recent notes:\n${notesBlock}\n\n` +
         `Candidate Scripture passages:\n${passagesBlock}\n\n` +
+        excerptsBlock +
         `Cite Scripture using exactly one of: ${refsList}. ` +
         `Cite notes using exactly one of: ${noteIdsList}.\n\n` +
         `Write the devotion now.`,

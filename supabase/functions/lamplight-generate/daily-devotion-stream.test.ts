@@ -170,3 +170,39 @@ describe('streamDailyDevotion', () => {
     expect(json).toEqual({ error: 'quota_exceeded', reason: 'tier_cap' });
   });
 });
+
+// ── Slice 1c: the streaming path shares devotionPostGeneration, so provenance
+// must land identically here. Asserted rather than assumed — the Phase-0 tier
+// drift (streaming silently a tier below design) is the cautionary tale.
+
+describe('streamDailyDevotion — source_library_chunks provenance', () => {
+  it('persists the same snapshot shape as the buffered path', async () => {
+    const { supabase, inserts } = makeSupabaseMock();
+    const res = await streamDailyDevotion(
+      makeDeps({
+        supabase,
+        buildContext: async () => makeCtx({
+          libraryExcerpts: [{
+            chunkId: 'lc1', sourceId: 'treasury-of-david',
+            sourceLabel: 'The Treasury of David · Charles H. Spurgeon, 1869–1885',
+            heading: 'Psalm 23:4', content: 'The valley is a place of passage.', score: 0.9,
+          }],
+        }),
+      }),
+      { userId: 'user-1', localDate: '2026-05-27' },
+    );
+    await drainSse(res);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0].source_library_chunks).toEqual([
+      { chunk_id: 'lc1', source_id: 'treasury-of-david', heading: 'Psalm 23:4' },
+    ]);
+    expect(inserts[0].prompt_version).toBe('daily-devotion-2026-08-06-v4');
+  });
+
+  it('persists null when the streaming turn had no library excerpts', async () => {
+    const { supabase, inserts } = makeSupabaseMock();
+    const res = await streamDailyDevotion(makeDeps({ supabase }), { userId: 'user-1', localDate: '2026-05-27' });
+    await drainSse(res);
+    expect(inserts[0].source_library_chunks).toBeNull();
+  });
+});

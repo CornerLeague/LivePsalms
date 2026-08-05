@@ -6,7 +6,9 @@ const SYSTEM = STUDY_CHAT_PROMPT.system +
   ' The reader has just opened this passage and has not asked anything yet. Offer one short, grounded opening observation that invites deeper study — name a historical-cultural detail, a cross-reference worth following, or an Old-to-New-Testament connection. Keep the non-prophetic voice: a possibility to explore, not a pronouncement.';
 
 export const STUDY_INSIGHT_PROMPT: ChatPromptModule = {
-  promptVersion: 'study-insight-2026-06-17-v1',
+  // Bumped with slice 1c: this system composes STUDY_CHAT_PROMPT.system, and
+  // buildMessages inherits its voices/lexicon blocks, so both changed here too.
+  promptVersion: 'study-insight-2026-08-06-v2',
   system: SYSTEM,
   tool: STUDY_CHAT_PROMPT.tool,
   buildMessages(ctx: BibleChatContext) {

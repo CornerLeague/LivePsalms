@@ -16,6 +16,7 @@ import { generateWithRetry } from '../_shared/generate-with-retry.ts';
 import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { BIBLE_CHAT_PROMPT } from './prompts/bible-chat.ts';
 import type { UsageCore } from '../_shared/usage.ts';
+import type { LibraryExcerpt, LexiconEntry } from '../_shared/library-retrieval.ts';
 
 export interface ChatPromptModule {
   promptVersion: string;
@@ -46,6 +47,15 @@ export interface BibleChatContext {
   allowedVerseRefs: Set<string>;
   bookContext?: BookContext | null;    // study apparatus grounding (optional; chat leaves undefined)
   relatedPassages?: Array<{ ref: string; text: string }>; // A1: whole-Bible retrieval (study only; chat leaves undefined)
+  // Slice 1c. Optional BY DESIGN: journaling chat gets no library in v1
+  // (library-and-reasoning design, decision 6), so leaving these undefined
+  // makes that path identical to today by construction rather than by care.
+  //
+  // These NEVER widen allowedVerseRefs. A voice mentioning Isaiah 40:31 does
+  // not authorise citing it — that verse's text was never supplied, and the
+  // citation validator exists precisely to stop it.
+  libraryExcerpts?: LibraryExcerpt[];
+  lexiconEntries?: LexiconEntry[];
 }
 
 export type BibleChatPipelineResult =

@@ -18,3 +18,27 @@ describe('STUDY_INSIGHT_PROMPT', () => {
     expect(msgs[0].content).toContain('rom 8');
   });
 });
+
+describe('STUDY_INSIGHT_PROMPT — slice 1c', () => {
+  it('bumps its version alongside the study system it composes', () => {
+    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v2');
+  });
+
+  it('inherits the voices block and the naming rules', () => {
+    const msgs = STUDY_INSIGHT_PROMPT.buildMessages({
+      ...ctx,
+      libraryExcerpts: [{
+        chunkId: 'lc1', sourceId: 'treasury-of-david',
+        sourceLabel: 'The Treasury of David · Charles H. Spurgeon, 1869–1885',
+        heading: 'Romans 8:1', content: 'No condemnation — the charter of liberty.', score: 0.8,
+      }],
+    });
+    expect(msgs[0].content).toContain("Voices from the church's study:");
+    expect(msgs[0].content).toContain('No condemnation — the charter of liberty.');
+    expect(STUDY_INSIGHT_PROMPT.system).toMatch(/name (it|them|the voice)/i);
+  });
+
+  it('omits the voices block on a chapter with no library coverage', () => {
+    expect(STUDY_INSIGHT_PROMPT.buildMessages(ctx)[0].content).not.toContain('Voices');
+  });
+});

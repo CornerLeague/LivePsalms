@@ -38,6 +38,11 @@ const CROSSREF_K = 5;
 const STUDY_EFFORT = { chat: 'low', insight: 'medium' } as const;
 const STUDY_MAX_TOKENS = { chat: 4096, insight: 3072 } as const;
 
+// Library excerpts per turn (design §Retrieval budgets). Chat carries a real
+// question worth answering from the church's study; insight is one opening
+// observation, so it takes half. 0 disables the library for a mode.
+const LIBRARY_K = { chat: 4, insight: 2 } as const;
+
 serve(async (req) => {
   const cors = corsHeaders(req, resolveAllowedOrigins(Deno.env));
   const jsonResp = (b: unknown, status = 200) =>
@@ -179,6 +184,7 @@ async function handleStudy(req: Request): Promise<Response> {
           voyageDeps, rerankEnabled,
           crossRefK: CROSSREF_K, noteK: NOTE_K,
           translation,
+          libraryK: LIBRARY_K[mode],
         });
         capturedOffered = offered;
         return ctx;
@@ -243,6 +249,7 @@ async function handleStudy(req: Request): Promise<Response> {
         voyageDeps, rerankEnabled,
         crossRefK: CROSSREF_K, noteK: NOTE_K,
         translation,
+        libraryK: LIBRARY_K[mode],
       });
 
       const result = await runBibleChatPipeline({
