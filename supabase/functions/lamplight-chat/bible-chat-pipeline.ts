@@ -70,6 +70,15 @@ export interface BibleChatContext {
   // citation validator exists precisely to stop it.
   libraryExcerpts?: LibraryExcerpt[];
   lexiconEntries?: LexiconEntry[];
+  /**
+   * Verse scope only: the selected verse and its immediate neighbours, with the
+   * selection marked. Insights Door 1 asks what comes *before and after* a
+   * verse, which is unanswerable from a chapter blob alone.
+   *
+   * Optional and absent at chapter scope, so every existing surface is
+   * unchanged by construction.
+   */
+  focusVerses?: Array<{ ref: string; text: string; isFocus: boolean }>;
 }
 
 export type BibleChatPipelineResult =
