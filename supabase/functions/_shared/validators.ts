@@ -2,6 +2,21 @@
 // validateCitations + applyContentRules + flattenArtifactText are all reusable
 // across future artifact types (Today's Lamp, Weekly Insight, etc.).
 
+import { buildContestedIndex, findContestedRefs, type ContestedIndex } from './contested-refs.ts';
+
+// The contested list is a module constant in practice, so normalize it once per
+// distinct list rather than on every reply. Keyed by identity: callers pass the
+// same frozen array every time.
+const contestedIndexCache = new WeakMap<readonly string[], ContestedIndex>();
+
+function contestedIndex(entries: readonly string[]): ContestedIndex {
+  const cached = contestedIndexCache.get(entries);
+  if (cached) return cached;
+  const built = buildContestedIndex(entries);
+  contestedIndexCache.set(entries, built);
+  return built;
+}
+
 export interface Citation {
   type: 'note' | 'verse';
   ref: string;
@@ -157,18 +172,15 @@ export async function applyContentRules(
     }
   }
 
-  const textLower = text.toLowerCase();
-  for (const ref of rules.contested) {
-    const refLower = ref.toLowerCase();
-    let i = textLower.indexOf(refLower);
-    while (i !== -1) {
-      violations.push({
-        family: 'contested',
-        rule: ref,
-        snippet: snippetAround(text, i, i + refLower.length),
-      });
-      i = textLower.indexOf(refLower, i + refLower.length);
-    }
+  // Reference-aware, not substring: the configured entries are spelled
+  // "Romans 9:16" while study chat cites the ref it was supplied, "rom 9:16".
+  // See contested-refs.ts for why both directions were wrong before.
+  for (const hit of findContestedRefs(text, contestedIndex(rules.contested))) {
+    violations.push({
+      family: 'contested',
+      rule: hit.rule,
+      snippet: snippetAround(text, hit.index, hit.index + hit.matched.length),
+    });
   }
 
   for (const re of rules.growth) {

@@ -16,6 +16,7 @@ import { extractTextFromNoteContent } from './tiptap-text.ts';
 import { buildPassages, type BiblePassage, type BiblePassageRow } from './bible-passage.ts';
 import type { RetrievedItem } from './retrieval.ts';
 import { CONTESTED_PASSAGES } from './voice.ts';
+import { buildContestedIndex, findContestedRefs } from './contested-refs.ts';
 import {
   searchLibrary,
   type LibraryExcerpt,
@@ -72,16 +73,15 @@ export interface NoteContextDeps {
  * which the validator forbids. There is no wording that satisfies both, so the
  * candidate must never be offered.
  *
- * This deliberately mirrors applyContentRules' substring match rather than
- * parsing verse numbers: the filter has to be AT LEAST as strict as the gate it
- * is protecting, and a cleverer rule could let through a ref the gate rejects.
- * Chapter-level entries ("Revelation 13") therefore cover every verse in them,
- * and the same benign over-match ("1 Corinthians 11:2" catching 11:20) applies
- * to both.
+ * The filter has to agree with the gate exactly, so both now call the SAME
+ * matcher (contested-refs.ts) rather than each running its own substring test
+ * and hoping they line up. That used to be a comment promising they matched;
+ * it is now true by construction. Chapter-level entries ("Revelation 13") still
+ * cover every verse in them, and the old shared over-match ("1 Corinthians
+ * 11:2" catching 11:20) is gone from both sides at once.
  */
 export function isContestedRef(ref: string): boolean {
-  const lower = ref.toLowerCase();
-  return CONTESTED_PASSAGES.some((p) => lower.includes(p.toLowerCase()));
+  return findContestedRefs(ref, buildContestedIndex(CONTESTED_PASSAGES)).length > 0;
 }
 
 // Retrieve a couple more candidates than the devotion needs, so filtering a

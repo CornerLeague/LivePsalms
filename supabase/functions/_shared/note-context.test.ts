@@ -403,10 +403,17 @@ describe('isContestedRef', () => {
     expect(isContestedRef('John 3:16')).toBe(false);
   });
 
-  // The filter must be AT LEAST as strict as applyContentRules, or a surviving
-  // candidate could still trip the gate. Same substring logic, same direction.
-  it('mirrors the content rule even where that rule over-matches', () => {
-    expect(isContestedRef('1 Corinthians 11:20')).toBe(true); // '1 Corinthians 11:2' is a prefix
+  // The filter must agree with applyContentRules exactly, or a surviving
+  // candidate could still trip the gate. Both now call the same matcher, so
+  // this holds by construction rather than by two substring tests lining up.
+  it('no longer over-matches a verse that merely starts like a contested one', () => {
+    expect(isContestedRef('1 Corinthians 11:20')).toBe(false);  // 11:2 is a prefix, not a match
+    expect(isContestedRef('1 Corinthians 11:2')).toBe(true);
+  });
+
+  it('catches the OSIS spelling the gate now catches', () => {
+    expect(isContestedRef('rom 9:16')).toBe(true);
+    expect(isContestedRef('rev 13:1')).toBe(true);
   });
 });
 
