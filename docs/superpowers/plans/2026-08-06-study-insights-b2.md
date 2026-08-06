@@ -89,7 +89,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Progress
 
-**Tasks 1–9 complete, 2026-08-06. The door is REGISTERED and reachable.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 4,007 tests, `tsc -b` clean, lint at its 163-problem baseline.
+**Tasks 1–10 complete, 2026-08-06. The door is REGISTERED and reachable.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 4,039 tests, `tsc -b` clean, lint at its 163-problem baseline.
 
 **Live baseline:** `docs/lamplight/evals/2026-08-06-b2-passage-door` — 3/3 pass, $0.17, zero Scripture violations, zero display-ref leaks. Regression evidence that study chat was untouched: `docs/lamplight/evals/2026-08-06-b2-studychat-regression` (free, grounding-only).
 
@@ -104,8 +104,8 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 7 — edge function | done, **DEPLOYED 2026-08-06** | `89efd307` |
 | 8 — client hook + door | done | `b896463f` |
 | 9 — eval + registration | done | `960052c7` |
-| 10 — refresh script | **next** | — |
-| 11 — completion gate | pending | — |
+| 10 — refresh script | done | see below |
+| 11 — completion gate | **next** | — |
 
 **Still true:** the `bible_passage_insight` corpus is **0 rows**. The eval harness exercises the pipeline directly, not the edge function, so nothing has yet gone through `passage-insight` end-to-end and written a cache row. Task 11's live check is where that first happens — and where "a second reader gets the cached door instantly" is actually proven.
 
@@ -131,6 +131,9 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
   - **Second sweep caught the half-fix:** cross-refs and focus verses were in reader form but `ctx.passageRef` still read `nam 1`, so the model generalised from the header and cited `nam 1:1`…`nam 1:15` for the passage's own verses — none of which the now-display-form allowlist accepted, and the whole Nahum door failed validation. The header is a ref too.
   - **Now machine-caught:** `checkDisplayRefs` in the harness fails any prose carrying an OSIS-shaped ref, matched against the real code list so "Job 1:1" and "Nahum 1:2" never trip it. Without it the next person reads a green report and ships the leak.
   - **⚠️ STUDY CHAT STILL LEAKS.** `2026-08-06-study-baseline` shows `rom 9:16`, `psa 27:4` in shipped replies. Fixing it means flipping `displayRefs` there too, which changes a live prompt's grounding and allowlist — so it needs its own eval sweep and a `promptVersion` bump. **Not done here; it is a separate slice.**
+- **The refresh script is DRY BY DEFAULT, and `--dry-run` beats `--apply`.** Running it bare reports; it does not regenerate a corpus. A script that spends money should resolve an ambiguous invocation toward the safe reading. `--limit` is validated rather than coerced — a silently-dropped limit would refresh everything at full price.
+- **The refresh script writes NO usage row, and that is a deliberate gap.** `lamplight_usage.user_id` is `not null references profiles(id)` and a maintenance sweep has no user; `recordLamplightUsage` swallows insert errors, so a null would vanish silently, and a fabricated id would corrupt the dashboard's per-user cost attribution. The spend is printed to the operator who ran it instead. **Consequence worth knowing: a refresh does not count against the global daily ceiling either.** If refresh spend ever needs dashboard visibility, that wants a nullable `user_id` or a service-actor row, not a fake id.
+- **Cost estimates are measured, not guessed:** `MEASURED_TOKENS_PER_DOOR` comes from the checked-in baseline (11,870 in / 3,708 out across three doors), same discipline as `CHARS_PER_WORD`.
 - **⚠️ The cache key is written in two places and pinned by test in both.** `parsePassageInsightBody` (server) composes the `ref_id` that gets WRITTEN; `passageRefId` (client) composes the one that gets READ. They cannot import each other across the `src` / `supabase/functions` boundary. If they ever drift, nothing breaks loudly — the cache simply never hits, and every reader pays to generate a door already sitting in the table. Both sides assert the exact strings `psa.27` and `psa.27.4`, including the lowercasing.
 - **A failed generation returns `sections` to `null`, not to the partial text.** The server wrote nothing, so there is no door: leaving fragments on screen would render one that does not exist, and leaving four empty strings would strand the reader with no way to press the button again.
 - **⚠️ B3 landmine: `door` is not in the primary key.** `primary key (scope, ref_id, section)` means `('chapter','psa.27','overview')` is unique across ALL doors, so if B3's Deeper door ever names a section the Passage door also names, the two collide and overwrite each other. B3's four sections (Hermeneutics, Theology, Read With Care, Historical Background) don't collide today, but the constraint is one careless section name away from silent data loss. Fix by widening the PK to include `door` when B3 lands.
@@ -200,9 +203,10 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Task 10 — Refresh script
 
-- [ ] Failing test: selects rows whose `prompt_version` is behind current, filtered by scope/ref.
-- [ ] Failing test: `--dry-run` reports row count and estimated cost, and writes nothing.
-- [ ] Implement, mirroring the ingest scripts' reporting discipline. Carries the Node 20 `createIngestClient` treatment — every other ingest script needed it.
+- [x] Failing test: selects rows whose `prompt_version` is behind current, filtered by scope/ref.
+- [x] Failing test: `--dry-run` reports row count and estimated cost, and writes nothing.
+- [x] Implement, mirroring the ingest scripts' reporting discipline. Carries the Node 20 `createIngestClient` treatment — every other ingest script needed it.
+- [x] Ran against the live (empty) corpus: reports *"Nothing to refresh"* and exits 0. The selection and reporting layers were exercised against a fabricated stale corpus, which is the case the empty table cannot show.
 
 ## Task 11 — Completion gate
 
