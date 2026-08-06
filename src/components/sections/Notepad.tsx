@@ -6,6 +6,7 @@ import { useAuthSession } from '@/auth/context/useAuthSession';
 import { useNotepadActions } from '@/notepad/context/useNotepadActions';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
 import { NotepadToolbar } from '@/notepad/components/NotepadToolbar';
+import { ReflectionsButton } from '@/notepad/components/ReflectionsButton';
 import { NotepadSidebar } from '@/notepad/components/Sidebar';
 import { NotepadEditor } from '@/notepad/components/Editor';
 import { BacklinksPanel } from '@/notepad/components/BacklinksPanel';
@@ -204,9 +205,12 @@ function DesktopNotepadWorkspace() {
             overflow: 'hidden',
           }}
         >
-          {/* Tab Bar */}
+          {/* Tab Bar — scrolls horizontally rather than clipping when the editor
+              pane is narrow (open sidebar + open study pane can squeeze it under
+              ~500px), so Reflections and Lamplight stay reachable instead of
+              being cut off past main's overflow-hidden edge. */}
           <div
-            className="flex items-center gap-0 border-b shrink-0"
+            className="flex items-center gap-0 border-b shrink-0 overflow-x-auto scrollbar-hide"
             style={{ borderColor: 'var(--pale-stone)' }}
           >
             {(['content', 'backlinks', 'info'] as const).map((tab) => (
@@ -235,6 +239,11 @@ function DesktopNotepadWorkspace() {
             >
               |
             </span>
+            {/* Reflections — its own top-level destination, sitting right before
+                the Lamplight tab so the two "path" doors read as a pair. It
+                navigates away (a door) rather than switching tabs, so it keeps
+                its distinct pill look instead of the flat tab styling. */}
+            <ReflectionsButton className="mr-2" />
             <button
               data-tour="lamplight-panel-entry"
               onClick={() => setActiveTab('lamplight')}
