@@ -538,6 +538,12 @@ async function main(): Promise<void> {
  * live there — the anon key is public by design — so a live run should not make
  * the operator hand-extract values the repo already has. Never overwrites a var
  * that is already set, so an explicit export always wins.
+ *
+ * NOTE: this is indiscriminate — it fills ANY missing var it finds, secrets
+ * included, so OPENAI_API_KEY in .env.local is picked up like anything else.
+ * That file is gitignored, so this is a convenience rather than a leak, but it
+ * is worth knowing when auditing where a key can come from. (The requiredEnv
+ * message used to claim the opposite.)
  */
 function loadDotEnvLocal(): void {
   let raw: string;
@@ -562,7 +568,11 @@ function requiredEnv(name: string): string {
       `${name} is required for a live run. ` +
       (name.startsWith('VITE_')
         ? 'It is normally read from .env.local — check that file exists at the repo root.'
-        : 'Export it in your shell; it is a secret and is never read from a file in the repo.'),
+        // Accurate as of 2026-08-06: this used to claim secrets are "never read
+        // from a file in the repo", which loadDotEnvLocal has never honoured —
+        // it fills ANY missing var from .env.local. Misdescribing where a
+        // secret can come from is worse than the leniency itself.
+        : 'Export it in your shell, or add it to .env.local (gitignored). An explicit export wins.'),
     );
   }
   return v;
