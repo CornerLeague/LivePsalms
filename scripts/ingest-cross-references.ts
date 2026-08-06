@@ -3,8 +3,31 @@
 // Download cross_references.txt from https://www.openbible.info/labs/cross-references/
 // and pass its path as argv[2]. Idempotent: re-running upserts on the unique key.
 import { readFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { osisToBook, crossesTestament } from './osis-book-map';
+
+/**
+ * supabase-js builds a Realtime client during createClient, and on Node < 22
+ * (no native WebSocket) that construction throws. This script only ever issues
+ * REST calls, so we hand Realtime a transport that would throw IF it were used —
+ * it never is, because nothing here opens a channel. Avoids both a `ws`
+ * dependency and making the operator remember `--experimental-websocket`.
+ *
+ * Same treatment as ingest-library.ts, whose runbook flagged that the other
+ * ingest scripts carried this latent issue.
+ */
+class UnusedRealtimeTransport {
+  constructor() {
+    throw new Error('ingest-cross-references does not use Supabase Realtime');
+  }
+}
+
+export function createIngestClient(url: string, key: string): SupabaseClient {
+  return createClient(url, key, {
+    auth: { persistSession: false },
+    realtime: { transport: UnusedRealtimeTransport as never },
+  });
+}
 
 export interface CrossRefRow {
   from_book: string; from_chapter: number; from_verse: number;
@@ -49,7 +72,7 @@ async function main() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY required');
-  const supabase = createClient(url, key);
+  const supabase = createIngestClient(url, key);
 
   const rows = readFileSync(path, 'utf8').split('\n')
     .map(parseCrossRefLine)
