@@ -296,8 +296,6 @@ transport or retrieval path is now unverified.
 - `scripts/` is **not covered by `npx tsc -b`** — `tsconfig.node.json` includes
   only `vite.config.ts` and three test files. Two real type errors in the eval
   harness passed the gate before being caught by a standalone check.
-- Phase-0's `app_config` threshold SQL (`lamplight_min_similarity` 0.3 → 0.78)
-  still needs applying.
 - Creeds and OpenBible-topics adapters remain unwritten, so the `confessional`
   and `topical` registers are empty (retrieval tolerates this).
 
