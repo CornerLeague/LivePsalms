@@ -5,7 +5,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 afterEach(cleanup);
 
 const useApparatus = vi.fn();
-vi.mock('../useApparatus', () => ({ useApparatus: (b: string, c: number) => useApparatus(b, c) }));
+vi.mock('../useApparatus', () => ({ useApparatus: (b: string, c: number, t: string) => useApparatus(b, c, t) }));
 
 const panelProps = vi.fn();
 vi.mock('../lexicon/OriginalLanguagePanel', () => ({
@@ -30,14 +30,14 @@ describe('ApparatusRail', () => {
       crossRefs: [{ to_book: 'mat', to_chapter: 1, to_verse_start: 23, to_verse_end: 23, votes: 50, crossesTestament: true, text: 'the virgin will conceive' }],
       loading: false, error: null,
     });
-    render(<ApparatusRail book="isa" chapter={7} />);
+    render(<ApparatusRail translation="BSB" book="isa" chapter={7} />);
     expect(screen.getByText('Isaiah')).toBeTruthy();
     expect(screen.getByText(/authorship debated/)).toBeTruthy();
     expect(screen.getByText(/OT ↔ NT/)).toBeTruthy();
   });
   it('hides the book card when metadata is absent (degrades quietly)', () => {
     useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
-    const { container } = render(<ApparatusRail book="xyz" chapter={1} />);
+    const { container } = render(<ApparatusRail translation="BSB" book="xyz" chapter={1} />);
     expect(container.textContent).not.toContain('undefined');
   });
   it('renders the region map block between book context and cross-references', () => {
@@ -47,7 +47,7 @@ describe('ApparatusRail', () => {
       crossRefs: [{ to_book: 'mat', to_chapter: 1, to_verse_start: 1, to_verse_end: 1, votes: 1, crossesTestament: true, text: 't' }],
       loading: false, error: null,
     });
-    render(<ApparatusRail book="lam" chapter={1} />);
+    render(<ApparatusRail translation="BSB" book="lam" chapter={1} />);
     expect(regionMapBlock).toHaveBeenCalledWith({ book: 'lam' });
     const heading = screen.getByRole('heading', { level: 2, name: 'Lamentations' });
     const block = screen.getByTestId('region-map-block');
@@ -62,14 +62,14 @@ describe('ApparatusRail original-language panel', () => {
   it('passes the selected verse to OriginalLanguagePanel as an OSIS verseId + reference', () => {
     panelProps.mockReset();
     useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
-    render(<ApparatusRail book="jhn" chapter={3} selectedVerse={16} />);
+    render(<ApparatusRail translation="BSB" book="jhn" chapter={3} selectedVerse={16} />);
     expect(panelProps).toHaveBeenCalledWith({ verseId: 'jhn.3.16', reference: 'John 3:16' });
   });
 
   it('passes null verseId when no verse is selected', () => {
     panelProps.mockReset();
     useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
-    render(<ApparatusRail book="jhn" chapter={3} selectedVerse={null} />);
+    render(<ApparatusRail translation="BSB" book="jhn" chapter={3} selectedVerse={null} />);
     expect(panelProps).toHaveBeenCalledWith({ verseId: null, reference: null });
   });
 
@@ -79,7 +79,7 @@ describe('ApparatusRail original-language panel', () => {
       book: { full_name: 'John', author: 'John', author_note: '', date_label: '', region: '', cultural_context: '', genre: '', summary: 'The Word.' },
       crossRefs: [], loading: false, error: null,
     });
-    render(<ApparatusRail book="jhn" chapter={3} selectedVerse={null} />);
+    render(<ApparatusRail translation="BSB" book="jhn" chapter={3} selectedVerse={null} />);
     expect(screen.getByRole('heading', { level: 2, name: 'John' })).toBeTruthy();
   });
 });
@@ -87,7 +87,7 @@ describe('ApparatusRail original-language panel', () => {
 describe('ApparatusRail etymology panel', () => {
   it('mounts EtymologyPanel with the OSIS verseId and threaded userId', () => {
     useApparatus.mockReturnValue({ book: null, crossRefs: [], loading: false, error: null });
-    render(<ApparatusRail book="psa" chapter={23} selectedVerse={1} userId="u1" adapter={null} />);
+    render(<ApparatusRail translation="BSB" book="psa" chapter={23} selectedVerse={1} userId="u1" adapter={null} />);
     const panel = screen.getByTestId('etymology');
     expect(panel).toHaveAttribute('data-verse', 'psa.23.1');
     expect(panel).toHaveAttribute('data-user', 'u1');

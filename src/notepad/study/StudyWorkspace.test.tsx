@@ -4,7 +4,21 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ThemeContext, type ThemeContextValue } from '../theme/theme-context';
 
 vi.mock('./panes/ApparatusRail', () => ({ ApparatusRail: () => <div>rail</div> }));
-vi.mock('./panes/StudySidePanel', () => ({ StudySidePanel: () => <div>panel</div> }));
+vi.mock('./panes/StudySidePanel', () => ({
+  StudySidePanel: (p: { onOpenInsights?: () => void }) => (
+    <div>
+      panel
+      {p.onOpenInsights && <button onClick={p.onOpenInsights}>Open Insights</button>}
+    </div>
+  ),
+}));
+vi.mock('./insights/InsightsOverlay', () => ({
+  InsightsOverlay: (p: { book: string; chapter: number; selectedVerse: number | null; onClose: () => void }) => (
+    <div data-testid="insights-overlay" data-book={p.book} data-chapter={String(p.chapter)} data-verse={String(p.selectedVerse)}>
+      <button onClick={p.onClose}>Close overlay</button>
+    </div>
+  ),
+}));
 vi.mock('./StudyModeToggle', () => ({ StudyModeToggle: () => <div>toggle</div> }));
 vi.mock('@/notepad/components/NotepadAuthControls', () => ({ NotepadAuthControls: () => <div>auth</div> }));
 vi.mock('@/notepad/recordings/RecordingsDock', () => ({ RecordingsDock: () => <div>recordings-dock</div> }));
@@ -26,6 +40,9 @@ vi.mock('./panes/StudyReader', async () => {
   };
 });
 vi.mock('@/auth/context/useAuthSession', () => ({ useAuthSession: () => ({ user: { id: 'u1' }, loading: false }) }));
+// The workspace reads the reader's translation to thread it into ApparatusRail
+// (bible_passages is keyed (translation, id) — see useApparatus).
+vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({ useBiblePrefs: () => ({ translation: 'BSB' }) }));
 
 const isMobile = { value: false };
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => isMobile.value }));
@@ -43,6 +60,20 @@ afterEach(() => {
 });
 
 const themeValue: ThemeContextValue = { theme: 'system', resolvedTheme: 'light', setTheme: vi.fn() };
+
+// useEnsureStudyFolder reaches for the real folder hierarchy, so the workspace
+// needs its provider even when every pane around it is mocked.
+function renderWorkspace() {
+  return render(
+    <ThemeContext.Provider value={themeValue}>
+      <MemoryRouter>
+        <FolderHierarchyContext.Provider value={new FolderHierarchy(new FakeStorageAdapter())}>
+          <StudyWorkspace />
+        </FolderHierarchyContext.Provider>
+      </MemoryRouter>
+    </ThemeContext.Provider>,
+  );
+}
 
 describe('StudyWorkspace', () => {
   it('renders the toggle and three panes under data-mode="study" without an update loop', () => {
@@ -91,5 +122,25 @@ describe('StudyWorkspace', () => {
       </ThemeContext.Provider>,
     );
     expect(screen.getByText('mobile-study')).toBeInTheDocument();
+  });
+
+  it('owns the Insights overlay — it covers the workspace, not just the side pane', () => {
+    renderWorkspace();
+    expect(screen.queryByTestId('insights-overlay')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /open insights/i }));
+    expect(screen.getByTestId('insights-overlay')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /close overlay/i }));
+    expect(screen.queryByTestId('insights-overlay')).toBeNull();
+  });
+
+  it('hands the reader’s open passage to the overlay', () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByRole('button', { name: /open insights/i }));
+
+    const overlay = screen.getByTestId('insights-overlay');
+    expect(overlay.getAttribute('data-book')).toBe('jhn');   // DEFAULT_PASSAGE
+    expect(overlay.getAttribute('data-chapter')).toBe('1');
   });
 });

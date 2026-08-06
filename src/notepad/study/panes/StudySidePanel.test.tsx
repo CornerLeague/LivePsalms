@@ -50,6 +50,27 @@ describe('StudySidePanel', () => {
     );
   }
 
+  it('offers the Insights door and opens it on click', () => {
+    const onOpenInsights = vi.fn();
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" onOpenInsights={onOpenInsights} />, { wrapper });
+
+    const door = screen.getByRole('button', { name: /open insights/i });
+    fireEvent.click(door);
+    expect(onOpenInsights).toHaveBeenCalledOnce();
+  });
+
+  it('reads as a door rather than a fourth tab', () => {
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" onOpenInsights={vi.fn()} />, { wrapper });
+
+    expect(screen.getByRole('button', { name: /open insights/i }).getAttribute('role')).not.toBe('tab');
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+  });
+
+  it('hides the Insights door when the host offers no handler', () => {
+    render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
+    expect(screen.queryByRole('button', { name: /open insights/i })).toBeNull();
+  });
+
   it('defaults to the Notes tab (aria-selected true) and Chat tab false', () => {
     render(<StudySidePanel book="jhn" chapter={10} userId="u1" />, { wrapper });
     expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('true');

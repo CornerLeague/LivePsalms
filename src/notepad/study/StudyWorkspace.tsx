@@ -19,6 +19,9 @@ import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-a
 import { supabase } from '@/lib/supabase';
 import { saveBiblePassage } from '@/notepad/session/session-storage';
 import { loadInitialPassage } from '@/notepad/bible/initial-passage';
+import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
+import { InsightsOverlay } from './insights/InsightsOverlay';
+import { referenceDoor } from './insights/doors';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
 
@@ -44,6 +47,7 @@ export function DesktopStudyWorkspace() {
   );
   const navigate = useNavigate();
   const { collection } = useNoteCollection();
+  const { translation } = useBiblePrefs();
   useEnsureStudyFolder();
   const [passage, setPassage] = useState(loadInitialPassage);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
@@ -51,6 +55,13 @@ export function DesktopStudyWorkspace() {
   useEffect(() => { setSelectedVerse(null); }, [passage.book, passage.chapter]);
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [sideMode, setSideMode] = useState<SidePanelMode>('normal');
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  // The overlay covers the whole workspace, so its state lives here rather than
+  // in the side panel that hosts the door.
+  const doors = useMemo(
+    () => [referenceDoor({ translation, userId, adapter: lamplightAdapter })],
+    [translation, userId, lamplightAdapter],
+  );
 
   // BibleReader reports its passage from an effect keyed on this callback. A fresh
   // identity (or a fresh object on every update) would re-trigger that effect
@@ -136,7 +147,7 @@ export function DesktopStudyWorkspace() {
               </button>
             </div>
             <div style={{ flex: '1 1 0%', overflow: 'auto' }}>
-              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
+              <ApparatusRail book={passage.book} chapter={passage.chapter} translation={translation} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
             </div>
           </aside>
         )}
@@ -193,10 +204,20 @@ export function DesktopStudyWorkspace() {
               expanded={sideMode === 'expanded'}
               onToggleExpand={() => setSideMode((m) => (m === 'expanded' ? 'normal' : 'expanded'))}
               onCollapse={() => setSideMode('collapsed')}
+              onOpenInsights={() => setInsightsOpen(true)}
             />
           </aside>
         )}
       </div>
+      {insightsOpen && (
+        <InsightsOverlay
+          book={passage.book}
+          chapter={passage.chapter}
+          selectedVerse={selectedVerse}
+          doors={doors}
+          onClose={() => setInsightsOpen(false)}
+        />
+      )}
       <RecordingsDock variant="desktop" onOpenNote={(id) => collection.openNote(id)} />
     </div>
   );
