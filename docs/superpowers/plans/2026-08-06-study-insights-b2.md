@@ -94,7 +94,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 1 — migration 060 | written, **NOT APPLIED** | `2ac36bf9` |
 | 2 — uncharged quota scope | done | `2ac36bf9` |
 | 3 — prompt + four-field tool | done | `350aba75` |
-| 4 — verse-scope grounding | done | `f2ab48f1` |
+| 4 — verse-scope grounding | done | `8ed1cd3c` |
 | 5 — the pipeline | **next** | — |
 
 **Blocking:** migration `060_passage_insight.sql` has not been run against the database. Task 5 does not need it; Tasks 6–7 cannot be verified without it.
