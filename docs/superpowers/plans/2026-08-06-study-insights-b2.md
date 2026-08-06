@@ -103,7 +103,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 6 — cache read/write | done | `e7d34c88` |
 | 7 — edge function | done, **DEPLOYED 2026-08-06** | `89efd307` |
 | 8 — client hook + door | done | `b896463f` |
-| 9 — eval + registration | done | see below |
+| 9 — eval + registration | done | `960052c7` |
 | 10 — refresh script | **next** | — |
 | 11 — completion gate | pending | — |
 
