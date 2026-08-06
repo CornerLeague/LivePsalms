@@ -11,7 +11,9 @@ type ToolShape = {
   name: string;
   input_schema: {
     required: string[];
-    properties: Record<string, { type: string; minLength: number; maxLength: number }>;
+    properties: Record<string, { type: string; minLength: number; maxLength: number }> & {
+      citations: { type: string; items: { properties: { type: { enum: string[] } } } };
+    };
   };
 };
 
@@ -70,9 +72,21 @@ describe('ceilingFor', () => {
 });
 
 describe('PASSAGE_INSIGHT_PROMPT — the tool', () => {
-  it('emits four named fields, one per section — not one reply string', () => {
+  it('emits four named section fields, one per section — not one reply string', () => {
     expect(tool.name).toBe('emit_passage_insight');
-    expect(tool.input_schema.required).toEqual(PASSAGE_INSIGHT_SECTIONS.map((s) => s.key));
+    expect(tool.input_schema.required)
+      .toEqual([...PASSAGE_INSIGHT_SECTIONS.map((s) => s.key), 'citations']);
+  });
+
+  it('carries a citations array, so the allowlist has something to check', () => {
+    // Four prose fields and nothing else would leave `allowedVerseRefs`
+    // unenforced — the validator works on a structured citations array, and
+    // the cache row's `sources` column has nothing else to fill it.
+    expect(tool.input_schema.properties.citations.type).toBe('array');
+  });
+
+  it('cites verses only — Door 1 is a public asset, with no reader’s notes in it', () => {
+    expect(tool.input_schema.properties.citations.items.properties.type.enum).toEqual(['verse']);
   });
 
   it('bounds every field, with the ceiling derived from its target', () => {
@@ -115,6 +129,14 @@ describe('PASSAGE_INSIGHT_PROMPT — the system prompt', () => {
     // guardrail quietly stops matching the one it was meant to mirror.
     expect(system).toContain('never claim certainty you do not have');
     expect(system).toContain('only ever cite verses that appear in the supplied passage');
+  });
+
+  it('asks for the citations array it now declares', () => {
+    // A declared field the prompt never mentions is a field the model fills
+    // inconsistently — and an empty citations array validates vacuously.
+    // Matched on the FIELD, not the bare word: STUDY_GROUNDING_RULES already
+    // says "not citations", which would satisfy a looser assertion by accident.
+    expect(system).toMatch(/citations array/i);
   });
 
   it('does NOT take study chat’s contested-passage exemption', () => {

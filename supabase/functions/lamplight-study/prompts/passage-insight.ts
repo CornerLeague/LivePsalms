@@ -100,6 +100,11 @@ const SYSTEM = [
   // with no target gets written up to and truncated.
   'Stay inside each word range and finish every sentence you begin — never break off mid-thought to fit.',
   'If the supplied grounding gives you nothing real to say for a section, return it empty. An empty section is a legitimate answer and is rendered as nothing at all; padding it with generalities is worse than omitting it.',
+  // ── Citations ──
+  // The allowlist validator reads this array, not the prose. A field the prompt
+  // never asks for is a field the model fills inconsistently, and an empty
+  // citations array passes the allowlist check vacuously.
+  'In the citations array, list every verse you actually leaned on across the four sections, using exactly the refs supplied to you. If you genuinely leaned on none, return an empty array.',
 ].join(' ');
 
 export const PASSAGE_INSIGHT_PROMPT: ChatPromptModule = {
@@ -112,21 +117,43 @@ export const PASSAGE_INSIGHT_PROMPT: ChatPromptModule = {
     input_schema: {
       type: 'object',
       additionalProperties: false,
-      required: PASSAGE_INSIGHT_SECTIONS.map((s) => s.key),
-      properties: Object.fromEntries(
-        PASSAGE_INSIGHT_SECTIONS.map((s) => [
-          s.key,
-          {
-            type: 'string',
-            // minLength 0: a section with no warrant must be able to come back
-            // empty. Requiring at least one character would force the model to
-            // invent filler precisely where it has nothing grounded to say.
-            minLength: 0,
-            maxLength: ceilingFor(s.maxWords),
-            description: `${s.label} — ${s.brief}. Target ${s.minWords}–${s.maxWords} words; empty if unwarranted.`,
+      required: [...PASSAGE_INSIGHT_SECTIONS.map((s) => s.key), 'citations'],
+      properties: {
+        ...Object.fromEntries(
+          PASSAGE_INSIGHT_SECTIONS.map((s) => [
+            s.key,
+            {
+              type: 'string',
+              // minLength 0: a section with no warrant must be able to come back
+              // empty. Requiring at least one character would force the model to
+              // invent filler precisely where it has nothing grounded to say.
+              minLength: 0,
+              maxLength: ceilingFor(s.maxWords),
+              description: `${s.label} — ${s.brief}. Target ${s.minWords}–${s.maxWords} words; empty if unwarranted.`,
+            },
+          ]),
+        ),
+        // Door-level, not per-section: the sections are plain strings so the
+        // streaming path can emit per-field deltas over them (D3), and a door
+        // is cached and invalidated as a unit anyway.
+        //
+        // `verse` only — Door 1 is generated once and served to everyone from a
+        // shared cache, so no reader's notes are ever in scope. Study chat's
+        // tool allows `note` because a reader's own vault is grounding there.
+        citations: {
+          type: 'array',
+          description: 'Every verse leaned on across the four sections. Empty if none.',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['type', 'ref'],
+            properties: {
+              type: { type: 'string', enum: ['verse'] },
+              ref: { type: 'string', description: 'Exactly one of the supplied verse refs.' },
+            },
           },
-        ]),
-      ),
+        },
+      },
     },
   },
   buildMessages(ctx: BibleChatContext) {

@@ -87,17 +87,18 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Progress
 
-**Tasks 1–4 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,889 tests, `tsc -b` clean, lint at its 163-problem baseline.
+**Tasks 1–5 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,907 tests, `tsc -b` clean, lint at its 163-problem baseline.
 
 | Task | State | Commit |
 |---|---|---|
 | 1 — migration 060 | written, **NOT APPLIED** | `2ac36bf9` |
 | 2 — uncharged quota scope | done | `2ac36bf9` |
-| 3 — prompt + four-field tool | done | `350aba75` |
+| 3 — prompt + four-field tool | done | `350aba75`, amended by Task 5 (citations) |
 | 4 — verse-scope grounding | done | `8ed1cd3c` |
-| 5 — the pipeline | **next** | — |
+| 5 — the pipeline | done | see below |
+| 6 — cache read/write | **next**, blocked on the migration | — |
 
-**Blocking:** migration `060_passage_insight.sql` has not been run against the database. Task 5 does not need it; Tasks 6–7 cannot be verified without it.
+**Blocking:** migration `060_passage_insight.sql` has not been run against the database. **Task 6 is the first task that needs it** — it is read/write against `bible_passage_insight`. Its unit tests can be written against a Supabase fake, but nothing can be verified end-to-end until the SQL is applied.
 
 ### Decisions made while implementing, that are not in the design
 
@@ -108,6 +109,9 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - **Focus neighbours are counted in ROWS, not verse numbers.** `bible_passages` genuinely stores multi-verse rows (`psa 27:5-6`), so verse arithmetic would slice through one and ask for text that has no row. `FOCUS_NEIGHBOURS = 2` either side of the row containing the selection; clamping is then just array-slice clamping. `selectFocusVerses` in `study-context.ts` is the authority.
 - **Verse scope narrows the library anchor, NOT `allowedVerseRefs`.** The whole chapter text is still supplied, so the whole chapter stays citable — *The Chapter's Shape* cites across the chapter constantly, and a narrowed allowlist would make that section unwritable. Design §2 only ever asked for the anchor.
 - **A verse in no row of its chapter degrades to chapter grounding**, with a `console.warn`. Narrowing an anchor onto a verse that does not exist would blank the library rather than widen it; a bad `ref_id` should cost a warning, not the door.
+- **⚠️ Task 5 added a `citations` array to the four-field tool — Task 3's "exactly four fields" no longer holds.** The plan and design both require the citation allowlist, but `validateChatReplyCitations` reads a *structured* array and the Task 3 tool had none, so the allowlist was enforcing nothing. The design's own data model settles it: `bible_passage_insight.sources jsonb` (§3) has no other column to fill it. Verse-only — `type: { enum: ['verse'] }` — because Door 1 is a public asset with no reader's notes in scope, unlike study chat. Door-level rather than per-section: the sections must stay plain strings for `textFields` per-field streaming (D3), and a door is cached and invalidated as a unit anyway.
+- **`promptVersion` stays at `v1`.** The tool and system prompt changed in Task 5, but `PASSAGE_INSIGHT_PROMPT` was unreachable from any generation path in the Task 3 commit, so no row can exist under a v1 that means anything else. v1 names the first prompt that can actually generate. Bump normally from here.
+- **Section keys are read defensively.** `sectionsOf()` normalises a missing or non-string field to `''` rather than trusting the schema's `required`. Omission and emptiness are the same first-class answer, and the four-bound design's whole point is that a section can legitimately have nothing in it.
 
 ## Task 4 — Verse-scope grounding
 
@@ -118,12 +122,12 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Task 5 — The pipeline
 
-- [ ] Failing test: composes study grounding with the four-field emit and returns all four sections.
-- [ ] Failing test: runs the full validator stack — citations, content rules, Scripture verification with repair.
-- [ ] Failing test: a contested-passage violation fails the generation (Door 1 keeps the rejection).
-- [ ] Failing test: a section the model returns empty is preserved as empty, not defaulted to filler.
-- [ ] Failing test: on `validators_failed`, the result carries its violations — the lesson from #114, applied at birth rather than retrofitted.
-- [ ] Implement over `generateWithRetry` for the buffered path.
+- [x] Failing test: composes study grounding with the four-field emit and returns all four sections.
+- [x] Failing test: runs the full validator stack — citations, content rules, Scripture verification with repair.
+- [x] Failing test: a contested-passage violation fails the generation (Door 1 keeps the rejection).
+- [x] Failing test: a section the model returns empty is preserved as empty, not defaulted to filler.
+- [x] Failing test: on `validators_failed`, the result carries its violations — the lesson from #114, applied at birth rather than retrofitted.
+- [x] Implement over `generateWithRetry` for the buffered path.
 
 ## Task 6 — Cache read/write
 
@@ -190,6 +194,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 - If per-section streaming makes the four-field tool awkward under `generateWithRetry`'s stricter-retry, consider whether a failed section can be regenerated alone rather than the whole door. Do not build that speculatively.
 - The `door` check constraint needs widening in B3; note it there rather than pre-widening now.
+- **A door whose four sections all come back empty is a hole Task 5 deliberately left open.** The pipeline returns `ok: true` with four empty strings, because omission per section is legitimate and the pipeline has no business deciding what is worth caching. But writing that door would cache nothing, permanently, for every reader. **Task 6 or 7 must refuse to write an all-empty door** — it belongs with "a partial write never lands", not in the validator stack.
 
 ---
 
