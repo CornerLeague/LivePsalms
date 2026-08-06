@@ -13,6 +13,7 @@ import { TreeViewStateProvider } from '@/notepad/sidebar/tree-view-state';
 import { buildFolderTreeView } from '@/notepad/sidebar/folder-tree-view';
 import { LamplightStudyPanel } from './LamplightStudyPanel';
 import { MemorizePanel } from '../memorize/MemorizePanel';
+import { InsightsButton } from '../insights/InsightsButton';
 
 type StudyTab = 'notes' | 'chat' | 'memorize';
 
@@ -26,6 +27,8 @@ export interface StudySidePanelProps {
   onToggleExpand?: () => void;
   /** Collapse the pane to a thin strip. When omitted, the collapse control is hidden. */
   onCollapse?: () => void;
+  /** Open the Insights overlay. When omitted, the Insights door is hidden. */
+  onOpenInsights?: () => void;
 }
 
 const iconBtnStyle: React.CSSProperties = {
@@ -173,15 +176,18 @@ export function StudyNotesTab() {
   );
 }
 
-export function StudySidePanel({ book, chapter, userId, expanded = false, onToggleExpand, onCollapse }: StudySidePanelProps) {
+export function StudySidePanel({ book, chapter, userId, expanded = false, onToggleExpand, onCollapse, onOpenInsights }: StudySidePanelProps) {
   const [tab, setTab] = useState<StudyTab>('notes');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
-        style={{ display: 'flex', alignItems: 'stretch', flex: '0 0 auto', borderBottom: '1px solid var(--pale-stone)' }}
+        style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto', borderBottom: '1px solid var(--pale-stone)' }}
       >
-        <div role="tablist" aria-label="Study side panel" style={{ display: 'flex', flex: '1 1 0%' }}>
+        {/* A door, not a tab — it opens the full-screen study rather than
+            switching this pane, so it keeps the pill shape Reflections uses. */}
+        {onOpenInsights && <InsightsButton onClick={onOpenInsights} className="ml-2 my-1.5" />}
+        <div role="tablist" aria-label="Study side panel" style={{ display: 'flex', flex: '1 1 0%', alignSelf: 'stretch' }}>
           <button role="tab" aria-selected={tab === 'notes'} onClick={() => setTab('notes')} style={tabStyle(tab === 'notes')}>
             Notes
           </button>

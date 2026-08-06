@@ -31,10 +31,10 @@ describe('LibraryVoices', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('names the source and the passage it comments on', () => {
+  it('names the source and how much it has to say', () => {
     render(<LibraryVoices voices={[spurgeon]} loading={false} />);
     expect(screen.getByText(/The Treasury of David · Charles H. Spurgeon, 1869–1885/)).toBeTruthy();
-    expect(screen.getByText('Psalm 27:4')).toBeTruthy();
+    expect(screen.getByText('1 note on this passage')).toBeTruthy();
   });
 
   it('keeps the excerpt collapsed until the reader opens it', () => {
@@ -43,6 +43,7 @@ describe('LibraryVoices', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Treasury of David/ }));
     expect(screen.getByText(/holy singleness of aim/)).toBeTruthy();
+    expect(screen.getByText('Psalm 27:4')).toBeTruthy();
   });
 
   it('expands each voice independently', () => {
@@ -55,6 +56,33 @@ describe('LibraryVoices', () => {
     fireEvent.click(screen.getByRole('button', { name: /Matthew Henry/ }));
     expect(screen.getByText(/holy singleness of aim/)).toBeTruthy();
     expect(screen.getByText(/professes his faith/)).toBeTruthy();
+  });
+
+  // A verse-keyed commentary yields one chunk PER VERSE, so a whole chapter of
+  // John produces 45 JFB notes. One card each is a wall of near-identical
+  // headings; one card per voice is what the section's name promises.
+  it('collapses a chapter’s worth of notes into one card per source', () => {
+    const many = Array.from({ length: 45 }, (_, i) => ({
+      ...spurgeon, chunkId: `c${i}`, heading: `Psalm 27:${i + 1}`, content: `Note ${i + 1}.`,
+    }));
+    render(<LibraryVoices voices={many} loading={false} />);
+
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByText('45 notes on this passage')).toBeTruthy();
+  });
+
+  it('lists every note under the source once opened, each with its own heading', () => {
+    const two = [
+      { ...spurgeon, chunkId: 'a', heading: 'Psalm 27:4', content: 'First note.' },
+      { ...spurgeon, chunkId: 'b', heading: 'Psalm 27:5', content: 'Second note.' },
+    ];
+    render(<LibraryVoices voices={two} loading={false} />);
+    fireEvent.click(screen.getByRole('button', { name: /Treasury of David/ }));
+
+    expect(screen.getByText('Psalm 27:4')).toBeTruthy();
+    expect(screen.getByText('Psalm 27:5')).toBeTruthy();
+    expect(screen.getByText('First note.')).toBeTruthy();
+    expect(screen.getByText('Second note.')).toBeTruthy();
   });
 
   it('collapses again on a second click', () => {

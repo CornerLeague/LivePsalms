@@ -20,6 +20,8 @@ import { supabase } from '@/lib/supabase';
 import { saveBiblePassage } from '@/notepad/session/session-storage';
 import { loadInitialPassage } from '@/notepad/bible/initial-passage';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
+import { InsightsOverlay } from './insights/InsightsOverlay';
+import { referenceDoor } from './insights/doors';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
 
@@ -53,6 +55,13 @@ export function DesktopStudyWorkspace() {
   useEffect(() => { setSelectedVerse(null); }, [passage.book, passage.chapter]);
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [sideMode, setSideMode] = useState<SidePanelMode>('normal');
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  // The overlay covers the whole workspace, so its state lives here rather than
+  // in the side panel that hosts the door.
+  const doors = useMemo(
+    () => [referenceDoor({ translation, userId, adapter: lamplightAdapter })],
+    [translation, userId, lamplightAdapter],
+  );
 
   // BibleReader reports its passage from an effect keyed on this callback. A fresh
   // identity (or a fresh object on every update) would re-trigger that effect
@@ -195,10 +204,20 @@ export function DesktopStudyWorkspace() {
               expanded={sideMode === 'expanded'}
               onToggleExpand={() => setSideMode((m) => (m === 'expanded' ? 'normal' : 'expanded'))}
               onCollapse={() => setSideMode('collapsed')}
+              onOpenInsights={() => setInsightsOpen(true)}
             />
           </aside>
         )}
       </div>
+      {insightsOpen && (
+        <InsightsOverlay
+          book={passage.book}
+          chapter={passage.chapter}
+          selectedVerse={selectedVerse}
+          doors={doors}
+          onClose={() => setInsightsOpen(false)}
+        />
+      )}
       <RecordingsDock variant="desktop" onOpenNote={(id) => collection.openNote(id)} />
     </div>
   );

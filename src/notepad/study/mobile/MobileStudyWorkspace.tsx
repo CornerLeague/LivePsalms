@@ -18,6 +18,8 @@ import { loadInitialPassage } from '@/notepad/bible/initial-passage';
 import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-adapter';
 import { supabase } from '@/lib/supabase';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
+import { InsightsOverlay } from '../insights/InsightsOverlay';
+import { referenceDoor } from '../insights/doors';
 import '../study-theme.css';
 
 export function MobileStudyWorkspace() {
@@ -40,6 +42,13 @@ export function MobileStudyWorkspace() {
   // in the Context tab (desktop lifts this in StudyWorkspace; mobile omitted it,
   // so Original Language never populated here).
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
+  // Full-screen over the tab bar. The panes below stay mounted, so closing
+  // Insights returns the reader to its scroll position and selected verse.
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const doors = useMemo(
+    () => [referenceDoor({ translation, userId, adapter: lamplightAdapter })],
+    [translation, userId, lamplightAdapter],
+  );
 
   // Stable + guarded so BibleReader's passage effect can't loop (see DesktopStudyWorkspace).
   const handlePassageChange = useCallback((ref: { book: string; chapter: number }) => {
@@ -96,7 +105,12 @@ export function MobileStudyWorkspace() {
               <StudyReader book={passage.book} chapter={passage.chapter} onPassageChange={handlePassageChange} onSelectVerse={(ref) => setSelectedVerse(ref.verse)} />
             </div>
             <div style={{ height: '100%', display: tab === 'study' ? 'block' : 'none' }}>
-              <StudySidePanel book={passage.book} chapter={passage.chapter} userId={userId} />
+              <StudySidePanel
+                book={passage.book}
+                chapter={passage.chapter}
+                userId={userId}
+                onOpenInsights={() => setInsightsOpen(true)}
+              />
             </div>
             <div style={{ height: '100%', display: tab === 'context' ? 'block' : 'none', overflow: 'auto' }}>
               <ApparatusRail book={passage.book} chapter={passage.chapter} translation={translation} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
@@ -104,6 +118,16 @@ export function MobileStudyWorkspace() {
           </>
         )}
       </div>
+
+      {insightsOpen && (
+        <InsightsOverlay
+          book={passage.book}
+          chapter={passage.chapter}
+          selectedVerse={selectedVerse}
+          doors={doors}
+          onClose={() => setInsightsOpen(false)}
+        />
+      )}
 
       <RecordingsDock variant="mobile" onOpenNote={(id) => collection.openNote(id)} />
 
