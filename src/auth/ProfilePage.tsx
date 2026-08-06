@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { LamplightSettingsSection } from './components/LamplightSettingsSection';
 import { BibleReadingSettingsSection } from './settings/BibleReadingSettingsSection';
+import { SourcesSection } from './settings/SourcesSection';
 import { ApplePersonalTokensSection } from './components/ApplePersonalTokensSection';
 import { UsernameSection } from './components/UsernameSection';
 import { AdminEntryLink } from './components/AdminEntryLink';
@@ -338,6 +339,15 @@ export function ProfilePage() {
         {/* Lamplight */}
         {user && lamplightAdapter && (
           <LamplightSettingsSection adapter={lamplightAdapter} userId={user.id} />
+        )}
+
+        {/* Sources — the CC-BY credit surface for the grounding corpus */}
+        {lamplightAdapter && (
+          <SourcesSection
+            adapter={lamplightAdapter}
+            sectionStyle={sectionStyle}
+            labelStyle={labelStyle}
+          />
         )}
 
         {/* Connect Apple Notes */}

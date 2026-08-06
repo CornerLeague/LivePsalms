@@ -1,0 +1,274 @@
+{
+  "report": {
+    "ok": true,
+    "passed": 10,
+    "failed": 0,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "devotion": {
+        "runs": 10,
+        "tokensIn": 15151,
+        "tokensOut": 3460,
+        "costCents": 7.1822
+      }
+    },
+    "totalCostCents": 7.1822,
+    "failures": [],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "brand-new-user",
+      "artifact": "devotion",
+      "model": "unknown",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "expect_no_artifact",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "fixture": "contested-passages",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1612,
+      "tokensOut": 380,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# contested-passages · devotion\n\n_Notes that lean on genuinely contested texts. Tests deferral rather than adjudication._\n\nAlex — when certainty is demanded from passages that have long divided earnest readers, the pressure can make honest questions feel like failures rather than invitations to attend more carefully.\n\nrom 9:16\n\nSo then, it does not depend on man’s desire or effort, but on God’s mercy.\n\nRomans 9 turns on mercy rather than human leverage. In its larger argument, Paul is wrestling with God’s faithfulness amid Israel’s unbelief; he does not offer election as a puzzle to master or a weapon for sorting people. Read beside your unsettled reading, rom 9:16 may locate the center of gravity outside the intensity of your conclusions: neither desire nor effort can secure mercy. That same restraint matters where debates about headship and the end times become tests of certainty. Scripture can hold weighty questions without making confidence in one’s reading the ground of belonging. The passage leaves mercy—not interpretive dominance—as the decisive word.\n\nWhere have questions about difficult passages begun to feel like a demand to prove certainty?\n"
+    },
+    {
+      "fixture": "doubt-season",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1677,
+      "tokensOut": 383,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# doubt-season · devotion\n\n_Sustained honest doubt. Tests that it is not resolved on the reader's behalf._\n\nTom — beneath the words you keep singing and the prayers that seem to meet only plaster, a harder question persists: why does absence hurt if longing has nowhere to go?\n\npsa 13:1\n\nFor the choirmaster. A Psalm of David. How long, O LORD? Will You forget me forever? How long will You hide Your face from me?\n\nPsalm 13 begins not by resolving silence but by giving it words fit for worship: “How long, O LORD?” The heading places this cry in Israel’s sung prayer, so David’s sense of being forgotten is not excluded from prayer; it becomes its address. Read against your notes, the passage holds the same tension: you speak toward God while unsure anyone hears, and you sing while belief feels fractured. The psalm does not call that tension hypocrisy. Its repeated “How long” names a relationship strained by hiddenness, not a question treated as trivial. Your longing and your protest are already turned toward the One whose face seems hidden (psa 13:1).\n\nWhat changes in the question of God’s silence when you let it remain addressed to the LORD?\n"
+    },
+    {
+      "fixture": "grief-month",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1666,
+      "tokensOut": 371,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# grief-month · devotion\n\n_A month shaped by a death. Tests that the voice accompanies rather than explains._\n\nRuth — grief has altered the smallest rituals, leaving absence at the table and anger without a clear address.\n\npsa 23:4\n\nEven though I walk through the valley of the shadow of death, I will fear no evil, for You are with me; Your rod and Your staff, they comfort me.\n\nPsalm 23:4 does not rush the walker out of the valley; it names the path as one that passes through death’s shadow. Read beside the unfinished reading at the service and the second cup of tea, the verse makes room for grief that interrupts speech and rearranges ordinary habits. Its center is not an explanation for loss, but “You are with me.” The rod and staff are shepherd’s tools: images of guarding and guiding when the way is dark. Your anger, too, need not be made tidy before it can be brought into this valley. Scripture holds the shadow and the Shepherd’s presence in the same sentence.\n\nWhere does the valley feel most tangible in the ordinary rooms of your house?\n"
+    },
+    {
+      "fixture": "heavy-study-month",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1724,
+      "tokensOut": 390,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# heavy-study-month · devotion\n\n_A month of dense study notes. Tests that depth is matched without lecturing._\n\nPriya — The psalm’s final word does not erase its longing for home; it gives longing a posture when the door has not yet opened.\n\npsa 27:14\n\nWait patiently for the LORD; be strong and courageous. Wait patiently for the LORD!\n\nThe abrupt turn you noticed—from confidence to pleading—makes the ending weightier. psa 27:14 does not close with arrival in the house sought earlier; it repeats “Wait patiently,” as though faith must speak again when resolution has not appeared. The passage turns on the LORD as the object of waiting, not merely the hoped-for change. Read beside your attention to “dwell,” this waiting need not mean a visit to God postponed until circumstances settle. The psalm holds desire and delay together: courage is named in the same breath as remaining turned toward the Lord. Its final repetition leaves the prayer open, yet not empty.\n\nWhat changes when waiting is understood as remaining oriented toward the LORD rather than merely postponement?\n"
+    },
+    {
+      "fixture": "long-vault",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1939,
+      "tokensOut": 381,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# long-vault · devotion\n\n_A dense month with many entries. Tests selection rather than summary._\n\nMara — amid a louder life, the most revealing change may be that fear has begun to lose some of its inventory.\n\nphp 4:6\n\nBe anxious for nothing, but in everything, by prayer and petition, with thanksgiving, present your requests to God.\n\nThe passage turns on movement: anxiety is not treated as a private problem to master, but as material to bring before God. “In everything” gives even the fears that made your list a place in prayer; “with thanksgiving” keeps petition from becoming a catalogue of threats alone. Read against what you have written, the shorter list and the calmer impression others notice may point less to having every pressure resolved than to fear no longer occupying the whole field. php 4:6 does not deny the loudness of work or the strain of relationships. It places them before the Lord as requests, where gratitude and need can stand together.\n\nWhat fear, now small enough to name, do you want to place before the Lord?\n"
+    },
+    {
+      "fixture": "no-first-name",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1646,
+      "tokensOut": 319,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# no-first-name · devotion\n\n_Profile with no name set. Tests that no salutation is invented._\n\nA hard night did not keep the morning from becoming a place of prayer, nor did its first weather define the whole day.\n\nlam 3:23\n\nThey are new every morning; great is Your faithfulness!\n\nThe brief turn in your day—from poor sleep to prayer for neighbours, then to unexpected gentleness—fits the morning language of lam 3:23. The passage does not deny that a morning can begin depleted; it locates newness in God’s faithfulness rather than in the strength of the one waking up. Read beside your notes, prayer becomes more than proof that you felt composed. It is a small turning outward while the night’s weight is still near. The later gentleness need not erase the difficult start. Together, they make visible the contrast the verse holds: each morning arrives with need, and God’s faithfulness is not exhausted by it.\n\nWhere did today’s gentleness meet the part of the morning that felt most worn?\n"
+    },
+    {
+      "fixture": "non-english-name",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1611,
+      "tokensOut": 413,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# non-english-name · devotion\n\n_A name with diacritics. Tests exact reproduction, never transliteration._\n\nSinéad — a name can become a small place of disappearance when others handle it carelessly, especially beside the remembered weight of words carried from long ago.\n\nisa 43:1\n\nBut now, this is what the LORD says—He who created you, O Jacob, and He who formed you, O Israel: “Do not fear, for I have redeemed you; I have called you by your name; you are Mine!\n\nIn isa 43:1, the LORD addresses a people with two names: Jacob, the one formed, and Israel, the one called into covenant. The passage turns on God’s prior claim: creation, redemption, then the intimate language of being called by name. Read beside your weariness at letting others misspell Sinéad, this is not a slogan about asserting yourself; it places the ache of being misnamed before the One whose naming is neither careless nor forgetful. Your grandmother’s phrase for “the long ago” also lingers here: identity can be carried through remembered words and inherited speech. Yet isa 43:1 locates the deepest belonging not in how accurately others hold a name, but in the LORD who says, “you are Mine.”\n\nWhat changes in the ache of being overlooked when you linger with being known by name?\n"
+    },
+    {
+      "fixture": "ordinary-month",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1609,
+      "tokensOut": 382,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# ordinary-month · devotion\n\n_An unremarkable month. The hardest case: nothing dramatic to hang a devotion on._\n\nSam — A morning run, a properly made meal, light held briefly on a wall, and a slower return to a book: attention is finding its boundaries.\n\npsa 16:6\n\nThe lines of my boundary have fallen in pleasant places; surely my inheritance is delightful.\n\nThe image in psa 16:6 is not of possessing everything, but of receiving a marked-out portion and discovering delight within it. Your notes keep returning to ordinary limits: one morning’s run, work that was fine, a meal prepared, a minute before light, a book begun again more slowly. Read against them, the verse makes a different kind of abundance visible. The boundary lines are not merely restrictions; they can become the place where an inheritance is noticed. The slower reading especially belongs here: delight is not seized by rushing past what is given, but recognized as attention rests within it. Scripture holds the small and the sufficient together.\n\nWhere have the edges of an ordinary day become a place of delight?\n"
+    },
+    {
+      "fixture": "sparse-month",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1667,
+      "tokensOut": 441,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# sparse-month · devotion\n\n_Two short notes in a whole month. Tests that thin input produces restraint rather than padding._\n\nDana — After a long week, even choosing a place near the back can carry the weight of wanting to be present without having much left to offer.\n\npsa 62:1\n\nFor the choirmaster. According to Jeduthun. A Psalm of David. In God alone my soul finds rest; my salvation comes from Him.\n\nThe passage turns on the word “alone.” David does not present rest as something he manufactures after a hard week; he locates it in God, who is also his salvation (psa 62:1). Your brief words and your seat at the back suggest not indifference, but a limited reserve: you came, even when speech and visibility may have felt costly. Scripture does not romanticize exhaustion here. It names a soul that finds its resting place not in having more to say, but in God Himself. Read against your notes, the early service becomes less a performance of energy than a small act of being near the One in whom rest is found.\n\nWhat changes if being present before God does not require you to arrive with many words?\n"
+    }
+  ]
+}

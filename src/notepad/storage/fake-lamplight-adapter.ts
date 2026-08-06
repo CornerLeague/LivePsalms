@@ -16,6 +16,8 @@ import type {
   ReflectionListItem,
   ReflectionRecord,
   ReflectionState,
+  ArtifactProvenance,
+  LibrarySource,
 } from './lamplight-adapter';
 import type { DailyDevotion } from './lamplight-artifacts';
 
@@ -42,6 +44,51 @@ export class FakeLamplightAdapter implements LamplightAdapter {
 
   async getDailyDevotion(userId: string, periodKey: string): Promise<DailyDevotion | null> {
     return this.dailyDevotions.get(`${userId}:${periodKey}`) ?? null;
+  }
+
+  // ── Slice 1d: provenance, so component tests can drive the panel ───────────
+  // key = `${userId}:${artifactType}:${periodKey}`
+  provenance = new Map<string, ArtifactProvenance>();
+  noteTitles = new Map<string, string>();
+
+  __seedProvenance(
+    userId: string,
+    artifactType: string,
+    periodKey: string,
+    prov: ArtifactProvenance,
+  ): void {
+    this.provenance.set(`${userId}:${artifactType}:${periodKey}`, prov);
+  }
+
+  __seedNoteTitles(titles: Record<string, string>): void {
+    for (const [id, title] of Object.entries(titles)) this.noteTitles.set(id, title);
+  }
+
+  async getArtifactProvenance(
+    userId: string,
+    artifactType: string,
+    periodKey: string,
+  ): Promise<ArtifactProvenance | null> {
+    return this.provenance.get(`${userId}:${artifactType}:${periodKey}`) ?? null;
+  }
+
+  librarySources: LibrarySource[] = [];
+
+  __seedLibrarySources(sources: LibrarySource[]): void {
+    this.librarySources = sources;
+  }
+
+  async getLibrarySources(): Promise<LibrarySource[]> {
+    return this.librarySources;
+  }
+
+  async resolveNoteTitles(noteIds: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    for (const id of noteIds) {
+      const title = this.noteTitles.get(id);
+      if (title !== undefined) out.set(id, title.trim() || '(untitled)');
+    }
+    return out;
   }
 
   async getSettings(userId: string): Promise<LamplightSettings | null> {

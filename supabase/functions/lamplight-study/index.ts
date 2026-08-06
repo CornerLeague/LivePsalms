@@ -9,12 +9,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '../_shared/supabase.ts';
 import { type VoyageDeps } from '../_shared/voyage.ts';
 import { createOpenAIAdapter } from '../_shared/openai.ts';
+import { makeDoctrinalClassifier } from '../_shared/doctrinal-classifier.ts';
 import { hasChatAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
+import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
 import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
 import { runBibleChatPipeline } from '../lamplight-chat/bible-chat-pipeline.ts';
 import { streamBibleChat, type BibleChatStreamDeps } from '../lamplight-chat/bible-chat-stream.ts';
@@ -29,6 +31,18 @@ export { parseStudyBody, type ParsedStudyBody };
 const HISTORY_LIMIT = 10;
 const NOTE_K = 4;
 const CROSSREF_K = 5;
+
+// Study runs the flagship tier; effort differs by mode. Chat streams while the
+// reader waits, so it stays low to protect first-token latency; insight fires on
+// passage-open with nobody typing, so it can afford to think longer. Reasoning
+// tokens share the output budget, hence the raised ceilings.
+const STUDY_EFFORT = { chat: 'low', insight: 'medium' } as const;
+const STUDY_MAX_TOKENS = { chat: 4096, insight: 3072 } as const;
+
+// Library excerpts per turn (design §Retrieval budgets). Chat carries a real
+// question worth answering from the church's study; insight is one opening
+// observation, so it takes half. 0 disables the library for a mode.
+const LIBRARY_K = { chat: 4, insight: 2 } as const;
 
 serve(async (req) => {
   const cors = corsHeaders(req, resolveAllowedOrigins(Deno.env));
@@ -113,6 +127,7 @@ async function handleStudy(req: Request): Promise<Response> {
   const voyageDeps: VoyageDeps = { apiKey: voyageKey, fetch };
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
   const llm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
+  const classifier = makeDoctrinalClassifier(llm);
   const quotaCfg = resolveQuotaLimits(Deno.env);
 
   // Streaming branch: SSE over the same gates + study context as the buffered
@@ -170,12 +185,20 @@ async function handleStudy(req: Request): Promise<Response> {
           voyageDeps, rerankEnabled,
           crossRefK: CROSSREF_K, noteK: NOTE_K,
           translation,
+          libraryK: LIBRARY_K[mode],
         });
         capturedOffered = offered;
         return ctx;
       },
       llm,
       prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
+      // Streaming and buffered MUST stay on the same tier/effort — they diverged
+      // once already (streaming silently ran a tier below design).
+      model: 'deep',
+      effort: STUDY_EFFORT[mode],
+      maxTokens: STUDY_MAX_TOKENS[mode],
+      classifier,
+      verifyScripture: makeScriptureDeps(supabase, translation),
       extraDoneFields: () => ({ offered_notes: capturedOffered }),
       artifactKind: 'bible_study',
     };
@@ -228,11 +251,16 @@ async function handleStudy(req: Request): Promise<Response> {
         voyageDeps, rerankEnabled,
         crossRefK: CROSSREF_K, noteK: NOTE_K,
         translation,
+        libraryK: LIBRARY_K[mode],
       });
 
       const result = await runBibleChatPipeline({
         llm, ctx, model: 'deep',
+        effort: STUDY_EFFORT[mode],
+        maxTokens: STUDY_MAX_TOKENS[mode],
         prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
+        classifier,
+        verifyScripture: makeScriptureDeps(supabase, translation),
       });
       if (!result.ok) {
         return { response: { ok: false, reason: result.reason }, usage: result.usage };

@@ -1,0 +1,34 @@
+{
+  "name": "sparse-month",
+  "description": "Two short notes in a whole month. Tests that thin input produces restraint rather than padding.",
+  "firstName": "Dana",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "sp1",
+      "title": "",
+      "text": "Long week. Not much to say.",
+      "daysAgo": 9
+    },
+    {
+      "id": "sp2",
+      "title": "Sunday",
+      "text": "Went to the early service. Sat at the back.",
+      "daysAgo": 2
+    }
+  ],
+  "highlights": [],
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "as you have written extensively",
+      "your many reflections"
+    ]
+  },
+  "candidateVerses": [
+    "psa.62.1",
+    "psa.131.2",
+    "mat.11.28"
+  ]
+}

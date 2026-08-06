@@ -6,8 +6,8 @@ import type { MonthlyReflectionContext } from './prompts/monthly-reflection';
 import type { EdgeSupabase } from './reflection-candidates';
 
 // Returns each response in sequence; the last is repeated (so a validator-failing
-// artifact is re-served on the stricter retry). generate() serves BOTH the sonnet
-// artifact call and the haiku judge call, so a happy path passes [artifact, verdict].
+// artifact is re-served on the stricter retry). generate() serves BOTH the flagship
+// artifact call and the fast-tier judge call, so a happy path passes [artifact, verdict].
 function makeAdapter(responses: unknown[]): { llm: LLMAdapter; calls: GenerateInput[] } {
   const calls: GenerateInput[] = [];
   let i = 0;
@@ -87,8 +87,10 @@ describe('runMonthlyReflectionPipeline', () => {
     const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx: makeCtx(), userId: 'u1', periodKey: '2026-05' });
 
     expect(result).toEqual({ ok: true, cached: false, artifactId: 'artifact-99', usage: { status: 'ok', model_used: 'gpt-5.6-terra', prompt_tokens: 10, completion_tokens: 20 } });
-    // sonnet artifact call, then haiku judge call
-    expect(calls[0].model).toBe('balanced');
+    // flagship artifact call at high reasoning effort, then the cheap judge call
+    expect(calls[0].model).toBe('deep');
+    expect(calls[0].effort).toBe('high');
+    expect(calls[0].maxTokens).toBe(8192);
     expect(calls[1].model).toBe('fast');
     expect(upserts).toHaveLength(1);
     const row = upserts[0];
@@ -141,6 +143,60 @@ describe('runMonthlyReflectionPipeline', () => {
 
     expect(result).toEqual({ ok: false, reason: 'validators_failed', usage: { status: 'error', model_used: 'gpt-5.6-terra', error_code: 'validators_failed' } });
     expect(upserts).toHaveLength(0);
+  });
+
+  it('content rules gate the letter BEFORE the judge: a prophetic line fails without consulting the judge', async () => {
+    const prophetic: ReflectionArtifact = {
+      ...ARTIFACT,
+      letter: ARTIFACT.letter + ' God is telling you to stop waiting now and step into what he has prepared.',
+    };
+    const { llm, calls } = makeAdapter([prophetic]);
+    const { supabase, upserts } = makeSupabaseMock();
+    const result = await runMonthlyReflectionPipeline({ llm, supabase, ctx: makeCtx(), userId: 'u1', periodKey: '2026-05' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.reason).toBe('validators_failed');
+    expect(upserts).toHaveLength(0);
+    // every call was an artifact attempt — the fast-tier judge never ran
+    expect(calls.some((c) => c.model === 'fast')).toBe(false);
+  });
+
+  it('a marker verse inside a contested range does NOT trip content rules (refs are excluded from the prose flatten)', async () => {
+    const contestedMarker: ReflectionArtifact = {
+      ...ARTIFACT,
+      markers: [{ date: '2026-05-12', verse: 'Romans 9:16', phrase: 'the day the circling stopped' }],
+    };
+    const { llm } = makeAdapter([contestedMarker, { pass: true, reasons: [] }]);
+    const { supabase, upserts } = makeSupabaseMock();
+    const result = await runMonthlyReflectionPipeline({
+      llm, supabase,
+      ctx: makeCtx({ allowedVerseRefs: new Set(['Romans 9:16']) }),
+      userId: 'u1', periodKey: '2026-05',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(upserts).toHaveLength(1);
+  });
+
+  it('threads deps.classifier (Layer C) into content rules; its violations fail validation', async () => {
+    const seen: string[] = [];
+    const classifier = async (text: string) => {
+      seen.push(text);
+      return [{ family: 'banned' as const, rule: 'classifier:paraphrased prophetic claim', snippet: 'circling stopped' }];
+    };
+    const { llm, calls } = makeAdapter([ARTIFACT]);
+    const { supabase, upserts } = makeSupabaseMock();
+    const result = await runMonthlyReflectionPipeline({
+      llm, classifier, supabase, ctx: makeCtx(), userId: 'u1', periodKey: '2026-05',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(upserts).toHaveLength(0);
+    // classifier saw the prose flatten: title + letter + marker phrases
+    expect(seen[0]).toContain('The Month You Stopped Waiting');
+    expect(seen[0]).toContain('the day the circling stopped');
+    // judge never consulted
+    expect(calls.some((c) => c.model === 'fast')).toBe(false);
   });
 
   it('repairOffListVerses nulls out only the verses outside the allowlist', () => {

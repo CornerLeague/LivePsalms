@@ -1,0 +1,12 @@
+{
+  "name": "brand-new-user",
+  "description": "An empty vault. Tests that the devotion refuses rather than inventing a reader.",
+  "firstName": "Jo",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "expect": {
+    "expectNoArtifact": true
+  }
+}

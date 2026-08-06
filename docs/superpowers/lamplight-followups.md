@@ -10,7 +10,9 @@ Each item is tagged with priority, source spec, and the **why** so a future plan
 
 These must be resolved before flipping `lamplight_promo_active` off or making any public AI claim. Most are not engineering — they're governance / config decisions that have been deferred phase after phase.
 
-### P0-1. Tighten Connection Cards qualification thresholds to spec values
+### P0-1. Tighten Connection Cards qualification thresholds to spec values — ✅ DONE 2026-08-05
+Client defaults (100 words / 10 notes) shipped in `c1173be7`; `app_config.lamplight_min_similarity` set to `0.78` via the SQL Editor. Note the user-visible effect: weak connections that previously surfaced no longer do.
+
 - **Source:** Connection Cards spec §"Decisions log" #6 + memory note (`project_lamplight_test_thresholds.md`).
 - **Current state:** `useConnectionCards.ts` defaults to `qualifyingMinWords=10`, `qualifyingMinVaultSize=2`, and `app_config.lamplight_min_similarity` is seeded at `0.3` by migration 017 (dev). Spec values: 100 words / 10 notes / 0.78 similarity.
 - **What to do:** Flip the three to spec values *before* the promo period opens to the public. SQL one-liner for the similarity:
@@ -44,7 +46,9 @@ These must be resolved before flipping `lamplight_promo_active` off or making an
 - **What to do:** Brief a separate slice. Stripe / RevenueCat / Apple / Google integration, plan upgrade UX, billing portal, receipt webhooks. Replace `PaywallCard` placeholder. Wire entitlement granting to webhooks.
 - **Why P0 (relative to promo end):** Only blocking *if* you intend to charge when the promo ends. If the plan is to extend the promo until billing is ready, drop to P1. Either way the decision needs to land before P0-3 is meaningful.
 
-### P0-5. Layer C — LLM doctrinal classifier
+### P0-5. Layer C — LLM doctrinal classifier — ✅ DONE 2026-08-05 (`c1173be7`)
+`_shared/doctrinal-classifier.ts`: a fast-tier, fail-open second pass wired into every pipeline (daily devotion, connection-why, both chats, monthly reflection, sweep) via the previously-declared `applyContentRules` classifier slot. Monthly reflections also gained content-rule checks they never had.
+
 - **Source:** Reasoning Layer spec §"Out" + follow-up #2.
 - **Current state:** `applyContentRules` has a `classifier?: (text) => Promise<Violation[]>` slot, never wired.
 - **What to do:** Haiku 4.5 second-pass that reads the artifact + rule lists and returns extra violations. Wires in as `await opts.classifier?.(text)` after regex checks. Same violation shape, no callsite changes.
@@ -112,10 +116,11 @@ Planned features that round out Lamplight's surface area. Each is a "small slice
 - **Current state:** `lamplight_artifacts.saved_to_notes` column exists, no write path.
 - **What to do:** Button on `TodaysLampCard`. Click → create a new note in the user's vault with the devotion content + backlink to the artifact id. Flip `saved_to_notes = true` to prevent showing the button twice.
 
-### P2-2. "How was this written?" transparency panel
+### P2-2. "How was this written?" transparency panel — ✅ CLOSED (depth-overhaul slice 1d, 2026-08-05)
 - **Source:** Today's Lamp spec follow-up #4.
-- **Current state:** `source_note_ids`, `source_verses`, `model_used`, `prompt_version` all persisted; no UI.
-- **What to do:** Side panel reachable from a small icon on `TodaysLampCard`. Renders provenance plainly. Signals to users that Lamplight is grounded, not generated wholesale.
+- **Shipped as:** `src/notepad/components/lamplight/LamplightProvenancePanel.tsx`, mounted on `TodaysLampCard` and `WaymarksPeriodDetail`. A disclosure closed by default: note **titles** (never uuids), scripture refs, library sources, and a de-emphasised model + prompt_version footer.
+- **Notes:** provenance is read on demand (`getArtifactProvenance`), not folded into the artifact read — the panel is closed by default, so eager loading would be work almost no render needs. The library section is omitted entirely when `source_library_chunks` is null, so "the library never ran" never renders as an empty header.
+- **Also closed by this:** P2-9's "bundle with P2-2" note — `prompt_version` for devotions/reflections is now surfaced. `lamplight_connections` still lacks the column; P2-9 stays open for Connection Cards.
 
 ### P2-3. "This wasn't helpful" feedback signal
 - **Source:** Today's Lamp spec follow-up #5.
@@ -142,10 +147,12 @@ Planned features that round out Lamplight's surface area. Each is a "small slice
 - **Current state:** Why strings generate on expand only.
 - **What to do:** Once P2-3 telemetry is live, decide whether to pre-warm top-3 neighbor whys on `ready`. Triples Haiku cost — only do this if data justifies. **Defer to P3 if telemetry isn't promising.**
 
-### P2-8. Inline verse refs validation in `reflection` + Connection Why
+### P2-8. Inline verse refs validation — ✅ CLOSED for the four AI surfaces, with REPAIR semantics (slice 1d, 2026-08-05)
 - **Source:** Today's Lamp follow-up #8 + Connection Cards follow-up #4.
-- **Current state:** Inline refs are unvalidated to avoid false positives.
-- **What to do:** Run `reference-parser` against `reflection` / `artifact.why`; flag refs not in `allowedVerseRefs` (Today's Lamp) or not present in either note (Connection Cards). Only land this once you have data showing the model actually slips unsupplied refs in.
+- **Shipped as:** `supabase/functions/_shared/scripture-verify.ts`, wired into the daily devotion, both chat surfaces, and etymology insight.
+- **Wider than described:** the entry asked for flag-only validation. What shipped **repairs before it rejects** — a quote that fuzzy-matches its canonical verse is rewritten to the canonical rendering before persistence, and only an unresolvable ref or an unmatchable quote becomes a violation feeding the stricter retry. The reader is never shown a misquote, and an artifact one splice could save is never failed.
+- **Deliberately NOT wired:** monthly-reflection markers. The check cannot fire there — markers carry no quotations, and every marker verse is already constrained to an allowlist built from DB-resolved refs. See the comment in `monthly-reflection-pipeline.ts`.
+- **Still open:** Connection Why (`artifact.why`) is not covered. Its refs come from note content rather than a supplied allowlist, so it needs a different rule.
 
 ### P2-9. `prompt_version` column on `lamplight_connections`
 - **Source:** Connection Cards spec decision #14 + follow-up #5.

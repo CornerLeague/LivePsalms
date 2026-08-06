@@ -1,0 +1,49 @@
+{
+  "name": "heavy-study-month",
+  "description": "A month of dense study notes. Tests that depth is matched without lecturing.",
+  "firstName": "Priya",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "h1",
+      "title": "Psalm 27 structure",
+      "text": "Verses 1-6 confident, 7-12 pleading, 13-14 resolve. The hinge at 7 is abrupt. Is this two psalms stitched?",
+      "daysAgo": 11
+    },
+    {
+      "id": "h2",
+      "title": "Hebrew: dwell",
+      "text": "The word in 27:4 keeps coming back. Sitting, remaining, not visiting.",
+      "daysAgo": 7
+    },
+    {
+      "id": "h3",
+      "title": "Cross refs",
+      "text": "Ps 23:6 and Ps 84 both circle the same idea of a house one stays in.",
+      "daysAgo": 3
+    },
+    {
+      "id": "h4",
+      "title": "Question",
+      "text": "Why is waiting the last word rather than arrival?",
+      "daysAgo": 1
+    }
+  ],
+  "highlights": [
+    {
+      "verseId": "psa.27.4",
+      "daysAgo": 10
+    },
+    {
+      "verseId": "psa.27.14",
+      "daysAgo": 2
+    }
+  ],
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "the original Greek"
+    ]
+  }
+}

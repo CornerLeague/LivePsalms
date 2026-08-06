@@ -2,7 +2,7 @@
 // content rules) → retry once. No Supabase / persistence (the handler owns
 // thread + message writes). Node-testable with a fake LLMAdapter.
 
-import type { LLMAdapter, LLMModel } from '../_shared/openai.ts';
+import type { LLMAdapter, LLMModel, ReasoningEffort } from '../_shared/openai.ts';
 import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_shared/voice.ts';
 import {
   validateChatReplyCitations,
@@ -16,6 +16,8 @@ import { generateWithRetry } from '../_shared/generate-with-retry.ts';
 import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { BIBLE_CHAT_PROMPT } from './prompts/bible-chat.ts';
 import type { UsageCore } from '../_shared/usage.ts';
+import type { LibraryExcerpt, LexiconEntry } from '../_shared/library-retrieval.ts';
+import { verifyArtifactScripture, type ScriptureDeps } from '../_shared/scripture-verify.ts';
 
 export interface ChatPromptModule {
   promptVersion: string;
@@ -46,6 +48,15 @@ export interface BibleChatContext {
   allowedVerseRefs: Set<string>;
   bookContext?: BookContext | null;    // study apparatus grounding (optional; chat leaves undefined)
   relatedPassages?: Array<{ ref: string; text: string }>; // A1: whole-Bible retrieval (study only; chat leaves undefined)
+  // Slice 1c. Optional BY DESIGN: journaling chat gets no library in v1
+  // (library-and-reasoning design, decision 6), so leaving these undefined
+  // makes that path identical to today by construction rather than by care.
+  //
+  // These NEVER widen allowedVerseRefs. A voice mentioning Isaiah 40:31 does
+  // not authorise citing it — that verse's text was never supplied, and the
+  // citation validator exists precisely to stop it.
+  libraryExcerpts?: LibraryExcerpt[];
+  lexiconEntries?: LexiconEntry[];
 }
 
 export type BibleChatPipelineResult =
@@ -58,8 +69,14 @@ type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViola
 // Both buffered and streaming entries use identical validate / formatStricter.
 // Factor them here so the two entries stay in sync.
 
-function makeBibleChatValidate(ctx: BibleChatContext) {
-  return async (parsed: ChatReply): Promise<{ ok: boolean; violations: ChatViolations }> => {
+function makeBibleChatValidate(
+  ctx: BibleChatContext,
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>,
+  verifyScripture?: ScriptureDeps,
+) {
+  return async (
+    parsed: ChatReply,
+  ): Promise<{ ok: boolean; violations: ChatViolations; repaired?: ChatReply }> => {
     const citation = validateChatReplyCitations(parsed, {
       allowedNoteIds: ctx.allowedNoteIds,
       allowedVerseRefs: ctx.allowedVerseRefs,
@@ -68,8 +85,28 @@ function makeBibleChatValidate(ctx: BibleChatContext) {
       banned: BANNED_PHRASES,
       contested: CONTESTED_PASSAGES,
       growth: GROWTH_BANNED_PHRASES,
+      classifier,
     });
-    return { ok: citation.ok && content.ok, violations: { citation: citation.violations, content: content.violations } };
+    const violations: ChatViolations = { citation: citation.violations, content: content.violations };
+    const baseOk = citation.ok && content.ok;
+
+    // Cheapest gates first; a citation failure makes verification moot.
+    if (!baseOk || !verifyScripture) return { ok: baseOk, violations };
+
+    const scripture = await verifyArtifactScripture(verifyScripture, {
+      text: parsed.reply ?? '',
+      translation: verifyScripture.translation,
+    });
+    violations.content.push(
+      ...scripture.violations.map((v) => ({ family: 'scripture' as const, rule: v.rule, snippet: v.snippet })),
+    );
+    return {
+      ok: scripture.violations.length === 0,
+      violations,
+      ...(scripture.repairedText !== undefined
+        ? { repaired: { ...parsed, reply: scripture.repairedText } }
+        : {}),
+    };
   };
 }
 
@@ -114,6 +151,15 @@ export async function runBibleChatPipeline(args: {
   ctx: BibleChatContext;
   prompt?: ChatPromptModule;
   model?: LLMModel;
+  /** Reasoning effort; omitted means the adapter's per-tier default. */
+  effort?: ReasoningEffort;
+  /** Output budget; reasoning tokens share this ceiling, hence the 2048 default. */
+  maxTokens?: number;
+  // Layer C (P0-5): optional LLM doctrinal classifier for applyContentRules.
+  // Injected by the Deno shells (makeDoctrinalClassifier); tests omit it.
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+  /** Slice 1d, OPTIONAL: omit and the turn behaves exactly as it did before. */
+  verifyScripture?: ScriptureDeps;
 }): Promise<BibleChatPipelineResult> {
   const prompt: ChatPromptModule = args.prompt ?? BIBLE_CHAT_PROMPT;
   const promptVersion = prompt.promptVersion;
@@ -122,13 +168,14 @@ export async function runBibleChatPipeline(args: {
   const outcome = await generateWithRetry<ChatReply, ChatViolations>({
     llm: args.llm,
     model: args.model ?? 'balanced',
-    maxTokens: 1024,
+    effort: args.effort,
+    maxTokens: args.maxTokens ?? 2048,
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),
     // `as const` on the nested schema produces literal types narrower than
     // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeBibleChatValidate(ctx),
+    validate: makeBibleChatValidate(ctx, args.classifier, args.verifyScripture),
     formatStricter: formatBibleChatStricter,
   });
 
@@ -152,6 +199,10 @@ export async function runBibleChatStreaming(
     ctx: BibleChatContext;
     prompt?: ChatPromptModule;
     model?: LLMModel;
+    effort?: ReasoningEffort;
+    maxTokens?: number;
+    classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+    verifyScripture?: ScriptureDeps;
     signal?: AbortSignal;
   },
   handlers: BibleChatStreamHandlers,
@@ -163,11 +214,12 @@ export async function runBibleChatStreaming(
   const outcome = await generateStreamingWithRetry<ChatReply, ChatViolations>({
     llm: args.llm,
     model: args.model ?? 'balanced',
-    maxTokens: 1024,
+    effort: args.effort,
+    maxTokens: args.maxTokens ?? 2048,
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeBibleChatValidate(ctx),
+    validate: makeBibleChatValidate(ctx, args.classifier, args.verifyScripture),
     formatStricter: formatBibleChatStricter,
     textFields: ['reply'],
     // No perFieldValidate — chat has no per-field length rule

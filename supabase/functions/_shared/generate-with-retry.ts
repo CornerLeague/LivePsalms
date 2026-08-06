@@ -10,21 +10,33 @@
 //
 // Node-testable with a fake LLMAdapter; no Supabase fakes required.
 
-import type { GenerateInput, LLMAdapter, LLMModel, ToolSchema } from './openai.ts';
+import type { GenerateInput, LLMAdapter, LLMModel, ReasoningEffort, ToolSchema } from './openai.ts';
 import { LAMPLIGHT_SYSTEM_FRAGMENT, composeSystem } from './voice.ts';
 
 export interface GenerateWithRetryConfig<TParsed, TViolations> {
   llm: LLMAdapter;
   model: LLMModel;
   maxTokens: number;
+  /** Reasoning effort; omitted means the adapter's per-tier default. Applies to every attempt. */
+  effort?: ReasoningEffort;
   /** The per-artifact system stance. LAMPLIGHT_SYSTEM_FRAGMENT is baked in as the base. */
   artifactSystem: string;
   /** Template tokens substituted into the composed system prompt (e.g. { local_date }). */
   systemTokens?: Record<string, string>;
   messages: GenerateInput['messages'];
   tool: ToolSchema;
-  /** Validate one generation. `ok` stops the loop; `violations` is threaded into the next stricter prompt. */
-  validate: (parsed: TParsed) => Promise<{ ok: boolean; violations: TViolations }>;
+  /**
+   * Validate one generation. `ok` stops the loop; `violations` is threaded into
+   * the next stricter prompt.
+   *
+   * `repaired` lets a validator hand back a CORRECTED artifact rather than
+   * failing one it could fix — Scripture verification uses it to splice a
+   * near-miss verse quote to its canonical text (slice 1d). Returned rather than
+   * mutating `parsed` in place so the hand-off is visible in the type; it is
+   * honoured only on a passing attempt, since a failing one is being retried
+   * anyway.
+   */
+  validate: (parsed: TParsed) => Promise<{ ok: boolean; violations: TViolations; repaired?: TParsed }>;
   /** Turn the previous attempt's violations into a stricter-prompt suffix. Called only on retry. */
   formatStricter: (violations: TViolations) => string;
   /** Total attempts including the first. Default 2 (one retry). */
@@ -71,12 +83,13 @@ export async function generateWithRetry<TParsed, TViolations>(
       messages: cfg.messages,
       tool: cfg.tool,
       maxTokens: cfg.maxTokens,
+      effort: cfg.effort,
     });
     lastModelUsed = modelUsed;
 
-    const { ok, violations } = await cfg.validate(parsed);
+    const { ok, violations, repaired } = await cfg.validate(parsed);
     if (ok) {
-      return { ok: true, parsed, modelUsed, promptTokens, completionTokens, attempts };
+      return { ok: true, parsed: repaired ?? parsed, modelUsed, promptTokens, completionTokens, attempts };
     }
     lastViolations = violations;
   }

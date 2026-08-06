@@ -6,6 +6,7 @@ import { ReflectionLetter } from './ReflectionLetter';
 import { MarkerPath } from './MarkerPath';
 import { useReflections } from '../../hooks/useReflections';
 import type { LamplightAdapter, ReflectionRecord } from '../../storage/lamplight-adapter';
+import { LamplightProvenancePanel } from '../lamplight/LamplightProvenancePanel';
 
 export interface WaymarksPeriodDetailProps {
   adapter: LamplightAdapter;
@@ -143,6 +144,13 @@ export function WaymarksPeriodDetail({ adapter, userId, canAccess, onSaveToNotes
       <div className="wm-fade">
         <ReflectionLetter artifact={artifact} annotation={annotation} />
         <MarkerPath markers={artifact.markers} />
+
+        <LamplightProvenancePanel
+          adapter={adapter}
+          userId={userId}
+          artifactType="reflection_recap"
+          periodKey={periodKey}
+        />
 
         <div className="wm-annotate">
           <span className="wm-annotate__prompt wm-caption">＋ Add your words.</span>

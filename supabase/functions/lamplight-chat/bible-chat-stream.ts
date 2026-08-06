@@ -9,9 +9,10 @@
 
 import { sseResponse, sseStreamFromWriter } from '../_shared/sse.ts';
 import { runBibleChatStreaming, type BibleChatContext, type ChatPromptModule } from './bible-chat-pipeline.ts';
-import type { ChatReply } from '../_shared/validators.ts';
+import type { ChatReply, ContentRuleViolation } from '../_shared/validators.ts';
 import type { UsageRow } from '../_shared/usage.ts';
-import type { LLMAdapter } from '../_shared/openai.ts';
+import type { LLMAdapter, LLMModel, ReasoningEffort } from '../_shared/openai.ts';
+import type { ScriptureDeps } from '../_shared/scripture-verify.ts';
 
 type HistoryRow = { role: 'user' | 'assistant'; content: string };
 
@@ -28,6 +29,18 @@ export interface BibleChatStreamDeps {
   buildContext: (input: { history: HistoryRow[] }) => Promise<BibleChatContext>;
   llm: LLMAdapter;
   prompt?: ChatPromptModule; // insight passes BIBLE_INSIGHT_PROMPT; chat leaves undefined
+  // Model tier for the streamed turn; defaults to 'balanced' downstream. Study
+  // passes 'deep' so streaming matches its buffered path — omitting this was the
+  // tier-drift bug where production Study chat silently ran a tier below design.
+  model?: LLMModel;
+  /** Reasoning effort for the streamed turn; omitted means the adapter's tier default. */
+  effort?: ReasoningEffort;
+  /** Output budget; defaults to 2048 downstream. Raise where reasoning is on. */
+  maxTokens?: number;
+  // Layer C (P0-5) doctrinal classifier, threaded to applyContentRules.
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+  /** Slice 1d, OPTIONAL: Scripture verification for the streamed reply. */
+  verifyScripture?: ScriptureDeps;
   // Optional extra fields spread into the `done` event payload (after the base
   // fields). Study supplies offered_notes here; bible chat omits it → unchanged.
   extraDoneFields?: () => Record<string, unknown>;
@@ -98,7 +111,11 @@ export async function streamBibleChat(
       const ctx = await deps.buildContext({ history });
 
       const result = await runBibleChatStreaming(
-        { llm: deps.llm, ctx, prompt: deps.prompt, signal: args.signal },
+        {
+          llm: deps.llm, ctx, prompt: deps.prompt,
+          model: deps.model, effort: deps.effort, maxTokens: deps.maxTokens,
+          classifier: deps.classifier, verifyScripture: deps.verifyScripture, signal: args.signal,
+        },
         {
           onStage: (s) => void emit({ t: 'stage', stage: s }),
           onText: (field, delta) => void emit({ t: 'text', field, delta }),

@@ -27,6 +27,21 @@ const baseCfg = {
 };
 
 describe('generateStreamingWithRetry', () => {
+  it('forwards cfg.effort to the streamed attempt AND the non-streaming retry', async () => {
+    const llm = fakeLlm({ streamFields: [], streamParsed: { a: 1 }, retryParsed: { a: 1 } });
+    let n = 0;
+    await generateStreamingWithRetry({
+      ...baseCfg,
+      llm,
+      effort: 'medium',
+      validate: async () => ({ ok: n++ > 0, violations: null }),
+    });
+    const streamInput = (llm.generateStream as any).mock.calls[0][0];
+    const retryInput = (llm.generate as any).mock.calls[0][0];
+    expect(streamInput.effort).toBe('medium');
+    expect(retryInput.effort).toBe('medium');
+  });
+
   it('emits pieces as fields complete and returns ok when validate passes', async () => {
     const pieces: string[] = [];
     const out = await generateStreamingWithRetry({
@@ -66,5 +81,64 @@ describe('generateStreamingWithRetry', () => {
     expect(pieces).not.toContain('reflection'); // suppressed on attempt 1
     expect(refining).toHaveBeenCalled();
     expect(out.ok).toBe(true);
+  });
+});
+
+// ── Slice 1d: a repair after streaming must be announced ─────────────────────
+// Both chat clients re-render the reply from the `done` payload
+// (LamplightStudyPanel.tsx:162, LamplightChat.tsx:129/242), so a server-side
+// repair DOES reach the screen and replaces text the reader already watched
+// arrive. A repair passes validation, so the existing refining beat — which
+// only fires on the retry path — would not cover it. Announce it explicitly.
+
+// A streamed attempt that emits one text delta (or none) and parses to { text }.
+function streamCfg(opts: { emitText?: boolean } = {}) {
+  const emitText = opts.emitText ?? true;
+  return {
+    ...baseCfg,
+    llm: {
+      generate: vi.fn(async () => ({ parsed: { text: 'retry' }, modelUsed: 'm', promptTokens: 1, completionTokens: 2 })) as any,
+      generateStream: vi.fn(async (_input: unknown, handlers: any) => {
+        if (emitText) handlers.onText?.('text', 'streamed');
+        return { parsed: { text: 'streamed' }, modelUsed: 'm', promptTokens: 1, completionTokens: 2 };
+      }) as any,
+    } as LLMAdapter,
+  };
+}
+
+describe('generateStreamingWithRetry — repaired', () => {
+  it('returns the repaired artifact and emits refining when text was already on screen', async () => {
+    const beats: string[] = [];
+    const outcome = await generateStreamingWithRetry({
+      ...streamCfg(),
+      validate: async () => ({ ok: true, violations: { reasons: [] }, repaired: { text: 'REPAIRED' } }),
+      onText: () => { beats.push('text'); },
+      onRefining: () => { beats.push('refining'); },
+    });
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) expect(outcome.parsed).toEqual({ text: 'REPAIRED' });
+    expect(beats).toContain('refining');
+    expect(beats.indexOf('text')).toBeLessThan(beats.indexOf('refining'));
+  });
+
+  it('does not flash refining when nothing had been emitted yet', async () => {
+    const beats: string[] = [];
+    const outcome = await generateStreamingWithRetry({
+      ...streamCfg({ emitText: false }),
+      validate: async () => ({ ok: true, violations: { reasons: [] }, repaired: { text: 'REPAIRED' } }),
+      onRefining: () => { beats.push('refining'); },
+    });
+    expect(outcome.ok).toBe(true);
+    expect(beats).toEqual([]);
+  });
+
+  it('does not emit refining when nothing was repaired', async () => {
+    const beats: string[] = [];
+    await generateStreamingWithRetry({
+      ...streamCfg(),
+      validate: async () => ({ ok: true, violations: { reasons: [] } }),
+      onRefining: () => { beats.push('refining'); },
+    });
+    expect(beats).toEqual([]);
   });
 });

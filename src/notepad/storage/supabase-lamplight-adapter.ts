@@ -20,6 +20,8 @@ import type {
   ReflectionListItem,
   ReflectionRecord,
   ReflectionState,
+  ArtifactProvenance,
+  LibrarySource,
 } from './lamplight-adapter';
 import type { DailyDevotion, ReflectionArtifact } from './lamplight-artifacts';
 import { makeStreamInvoke } from '../bible/lamplight-stream-client';
@@ -120,6 +122,63 @@ export class SupabaseLamplightAdapter implements LamplightAdapter {
       .maybeSingle();
     if (error) throw error;
     return data ? this.#mapEntitlement(data) : null;
+  }
+
+  async getArtifactProvenance(
+    userId: string,
+    artifactType: string,
+    periodKey: string,
+  ): Promise<ArtifactProvenance | null> {
+    const { data, error } = await this.#client
+      .from('lamplight_artifacts')
+      .select('source_note_ids, source_verses, source_library_chunks, model_used, prompt_version')
+      .eq('user_id', userId)
+      .eq('type', artifactType)
+      .eq('period_key', periodKey)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const row = data as {
+      source_note_ids?: string[] | null;
+      source_verses?: string[] | null;
+      source_library_chunks?: Array<{ chunk_id: string; source_id: string; heading: string }> | null;
+      model_used?: string | null;
+      prompt_version?: string | null;
+    };
+    return {
+      noteIds: row.source_note_ids ?? [],
+      verses: row.source_verses ?? [],
+      librarySources: row.source_library_chunks
+        ? row.source_library_chunks.map((c) => ({
+            chunkId: c.chunk_id, sourceId: c.source_id, heading: c.heading,
+          }))
+        : null,
+      modelUsed: row.model_used ?? null,
+      promptVersion: row.prompt_version ?? null,
+    };
+  }
+
+  async getLibrarySources(): Promise<LibrarySource[]> {
+    const { data, error } = await this.#client
+      .from('library_sources')
+      .select('id, title, author, era, tradition, register, license, attribution')
+      .order('title', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as LibrarySource[];
+  }
+
+  async resolveNoteTitles(noteIds: string[]): Promise<Map<string, string>> {
+    const titles = new Map<string, string>();
+    if (noteIds.length === 0) return titles;
+    const { data, error } = await this.#client
+      .from('notes')
+      .select('id, title')
+      .in('id', noteIds);
+    if (error) throw error;
+    for (const n of (data ?? []) as Array<{ id: string; title: string | null }>) {
+      titles.set(n.id, (n.title ?? '').trim() || '(untitled)');
+    }
+    return titles;
   }
 
   async getDailyDevotion(userId: string, periodKey: string): Promise<DailyDevotion | null> {

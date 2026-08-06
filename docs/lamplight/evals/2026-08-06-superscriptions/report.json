@@ -1,0 +1,274 @@
+{
+  "report": {
+    "ok": true,
+    "passed": 10,
+    "failed": 0,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "devotion": {
+        "runs": 10,
+        "tokensIn": 15206,
+        "tokensOut": 3329,
+        "costCents": 7.0360000000000005
+      }
+    },
+    "totalCostCents": 7.0360000000000005,
+    "failures": [],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "brand-new-user",
+      "artifact": "devotion",
+      "model": "unknown",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "expect_no_artifact",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "fixture": "contested-passages",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1676,
+      "tokensOut": 377,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# contested-passages · devotion\n\n_Notes that lean on genuinely contested texts. Tests deferral rather than adjudication._\n\nAlex — Some questions become strained when a group treats mystery as a defect, rather than noticing where Scripture itself draws a boundary around what has been disclosed.\n\nDeuteronomy 29:29\n\nThe secret things belong to the LORD our God, but the things revealed belong to us and to our children forever, so that we may follow all the words of this law.\n\nDeuteronomy 29:29 does not make difficult questions unreal; it distinguishes between what God has kept in his own counsel and what he has made known. That distinction matters where election has left you unsettled, where a discussion of women teaching became painful, and where confidence about tribulation timing has exceeded clarity. The passage turns on belonging: the “secret things” belong to the LORD, while the revealed things are given to God’s people. Read against your notes, this can expose a pressure to make every debated matter feel equally settled. Scripture makes room for intellectual humility without treating revealed truth as empty or optional.\n\nWhere do you feel pressure to sound certain when Scripture has not spoken with the same degree of clarity?\n"
+    },
+    {
+      "fixture": "doubt-season",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1666,
+      "tokensOut": 344,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# doubt-season · devotion\n\n_Sustained honest doubt. Tests that it is not resolved on the reader's behalf._\n\nTom — the unanswered room has become part of the argument: silence presses against belief, yet longing has not left the room.\n\nPsalms 13:1\n\nHow long, O LORD? Will You forget me forever? How long will You hide Your face from me?\n\nPsalms 13:1 gives biblical speech to the very strangeness you are naming: not indifference, but a cry addressed to the LORD when His face seems hidden. The passage turns on “How long?”—a question born where relationship is felt as absence. Read against your notes, singing words you cannot presently affirm need not erase the honesty of saying that no one seems to listen. The psalmist does not solve the silence in this line; he brings the silence into prayer. Your longing and your argument remain together here, not as proof of certainty, but as the language of someone still turning toward God amid doubt.\n\nWhat changes when the question “How long?” is allowed to remain a prayer rather than become a conclusion?\n"
+    },
+    {
+      "fixture": "grief-month",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1668,
+      "tokensOut": 359,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# grief-month · devotion\n\n_A month shaped by a death. Tests that the voice accompanies rather than explains._\n\nRuth — grief has entered the ordinary rituals of the house, while anger moves through the loss without yet finding a name.\n\nPsalms 34:18\n\nThe LORD is near to the brokenhearted; He saves the contrite in spirit.\n\nPsalms 34:18 does not make brokenheartedness a failure of faith or ask it to become orderly. It names the place where the LORD draws near. Read beside the unfinished reading at the service and the extra cup of tea, the verse gives dignity to grief’s interruptions: love has been severed, and the body keeps reaching for the person who is gone. The anger in your note may belong to this same rupture—not necessarily aimed at someone, but arising where death has torn through what was cherished. The passage holds nearness and devastation together. “Brokenhearted” is not a condition from which one must first escape to be met by the LORD; it is the very place the verse says He approaches.\n\nWhere does loss most interrupt the ordinary shape of your day?\n"
+    },
+    {
+      "fixture": "heavy-study-month",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1726,
+      "tokensOut": 391,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# heavy-study-month · devotion\n\n_A month of dense study notes. Tests that depth is matched without lecturing._\n\nPriya — the psalm’s final word does not erase the plea; it gives the unsettled middle a place to stand.\n\nPsalms 27:14\n\nWait patiently for the LORD; be strong and courageous. Wait patiently for the LORD!\n\nThe passage turns on repetition: “Wait patiently for the LORD” is both command and final line, after the psalm has moved from confidence into pleading. Read against your question, waiting is not presented as a detour from knowing the LORD, nor as arrival postponed into meaninglessness. It is the posture left when the singer has named fear, sought the LORD’s face, and cannot yet narrate a resolution. The strength and courage named here are therefore not triumphal. They belong inside dependence—remaining before the LORD rather than treating His house as a brief refuge. Psalms 27:14 lets the unresolved hinge of the psalm remain visible, while refusing to make that hinge its conclusion.\n\nWhat changes if the final waiting is part of dwelling before the LORD, rather than the opposite of arrival?\n"
+    },
+    {
+      "fixture": "long-vault",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1943,
+      "tokensOut": 418,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# long-vault · devotion\n\n_A dense month with many entries. Tests selection rather than summary._\n\nMara — the noise of a new place has not erased the smaller movements beneath it: a fear shrinking, a call made, an apology finally offered.\n\nIsaiah 43:2\n\nWhen you pass through the waters, I will be with you; and when you go through the rivers, they will not overwhelm you. When you walk through the fire, you will not be scorched; the flames will not set you ablaze.\n\nIsaiah 43:2 does not picture a life routed around deep water or fire. Its repeated “when” faces the reality of passage through what feels too large, while its center is God’s presence: “I will be with you.” Read against your notes, the louder workplace and the narrowed fear list belong together. The pressure has not vanished, yet it has not had the final word over every part of your life. A conversation with your brother, a delayed apology, and rest returning each mark places where overwhelm is not the only story. The passage holds hardship and accompaniment together, without pretending either is unreal.\n\nWhere have you noticed that difficulty is present, yet not the whole story?\n"
+    },
+    {
+      "fixture": "no-first-name",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1653,
+      "tokensOut": 344,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# no-first-name · devotion\n\n_Profile with no name set. Tests that no salutation is invented._\n\nA restless night did not prevent love from crossing the fence line, and the day’s later softness suggests that its first hour was not its final measure.\n\nLamentations 3:23\n\nThey are new every morning; great is Your faithfulness!\n\nLamentations speaks from a place of devastation, not from an easy optimism. Its claim that God’s mercies are new each morning meets a morning that began depleted and yet still made room for prayer. The passage turns on God’s faithfulness rather than the steadiness of our sleep, mood, or circumstances. Read beside your notes, the prayer for neighbours appears before the day became gentler; it was not a reward for feeling well, but a small act of attention amid weariness. The later change in the day does not erase the hard night. It does, however, keep the night from having the last word. Lamentations 3:23 names that horizon: God’s faithfulness can meet a day at its beginning and unfold within it.\n\nWhere did the day’s gentleness become visible after its difficult beginning?\n"
+    },
+    {
+      "fixture": "non-english-name",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1612,
+      "tokensOut": 407,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# non-english-name · devotion\n\n_A name with diacritics. Tests exact reproduction, never transliteration._\n\nSinéad — When a name is repeatedly mishandled, even a small correction can begin to feel like asking for too much room.\n\nIsaiah 43:1\n\nBut now, this is what the LORD says—He who created you, O Jacob, and He who formed you, O Israel: “Do not fear, for I have redeemed you; I have called you by your name; you are Mine!\n\nIsaiah 43:1 addresses Jacob and Israel as a people marked by fear and displacement, yet the passage begins not with their response but with the LORD as Creator and Former. The words “called you by your name” make naming more than correct pronunciation: it is recognition within a covenant belonging. Read against what you have written, the weariness of being misnamed may touch a deeper question of whether it is worth being known accurately at all. Scripture does not make the wound trivial. It places identity first in the God who knows the name, claims the person, and redeems what fear threatens to diminish. Your grandmother’s word for the long ago also lingers here: the One who formed Israel is not forgetful across time.\n\nWhat changes when being known by the LORD is held beside the places where your name is overlooked?\n"
+    },
+    {
+      "fixture": "ordinary-month",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1610,
+      "tokensOut": 366,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# ordinary-month · devotion\n\n_An unremarkable month. The hardest case: nothing dramatic to hang a devotion on._\n\nSam — ordinary care, a passing wash of evening light, and a slower return to a book suggest attention widening around the life already in your hands.\n\nPsalms 16:6\n\nThe lines of my boundary have fallen in pleasant places; surely my inheritance is delightful.\n\nPsalms 16:6 does not make delight dependent on a larger life elsewhere; it speaks of received boundaries and an inheritance recognized as good. Read beside your notes, the passage turns on noticing: a meal prepared, light held on a kitchen wall, pages revisited without haste. None of these is spectacular, yet each belongs within the portion you have been given. The slower beginning of the book especially echoes the verse’s movement from possession to perception: inheritance becomes “delightful” as it is received rather than rushed past. Scripture holds contentment here not as denial of longing, but as clear-eyed gratitude for what is present within the lines of a day.\n\nWhat in the boundaries of this day has become easier to see when you slow down?\n"
+    },
+    {
+      "fixture": "sparse-month",
+      "artifact": "devotion",
+      "model": "gpt-5.6-terra",
+      "tokensIn": 1652,
+      "tokensOut": 323,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "fixture_verses_resolve",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        },
+        {
+          "name": "max_first_name_mentions",
+          "pass": true
+        }
+      ],
+      "snapshot": "# sparse-month · devotion\n\n_Two short notes in a whole month. Tests that thin input produces restraint rather than padding._\n\nDana — Some weeks leave only a few words behind, and even a place near the back can carry more weariness than it shows.\n\nMatthew 11:28\n\nCome to Me, all you who are weary and burdened, and I will give you rest.\n\nJesus’ invitation in Matthew 11:28 begins not with an account of why the burden is there, but with the burdened person coming to him. Read beside your sparse words and your place at the early service, the passage makes room for a faith that arrives tired rather than articulate. “All you who are weary” does not require a polished report of the week. The rest Jesus names is his gift, not a reward for having explained oneself well. Your notes seem to hold a small but real movement toward him: not much to say, yet present. Scripture lets both realities stand together—weariness honestly named and Christ’s welcome held out.\n\nWhat does it mean to be present before Jesus when you have little language for the week?\n"
+    }
+  ]
+}

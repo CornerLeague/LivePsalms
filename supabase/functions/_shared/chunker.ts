@@ -11,7 +11,10 @@ export interface NoteChunk {
   tokenCount: number;  // estimated via ceil(len / CHARS_PER_TOKEN)
 }
 
-function approxTokens(s: string): number {
+// Exported so the library ingest (scripts/library-adapters/chunk-text.ts) sizes
+// its chunks with the SAME estimator notes use — retrieval compares the two
+// corpora against each other, so a divergent estimate would skew granularity.
+export function approxTokens(s: string): number {
   return Math.ceil(s.length / CHARS_PER_TOKEN);
 }
 

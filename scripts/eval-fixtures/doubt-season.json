@@ -1,0 +1,46 @@
+{
+  "name": "doubt-season",
+  "description": "Sustained honest doubt. Tests that it is not resolved on the reader's behalf.",
+  "firstName": "Tom",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    {
+      "id": "d1",
+      "title": "Praying to the ceiling",
+      "text": "I am not sure anyone is listening. I said so out loud and felt nothing either way.",
+      "daysAgo": 10
+    },
+    {
+      "id": "d2",
+      "title": "Still going",
+      "text": "Went anyway. Sang the words I do not currently believe. Not sure if that is honesty or habit.",
+      "daysAgo": 6
+    },
+    {
+      "id": "d3",
+      "title": "The argument",
+      "text": "If it is all true then the silence is strange. If it is not then the longing is stranger.",
+      "daysAgo": 1
+    }
+  ],
+  "highlights": [
+    {
+      "verseId": "mrk.9.24",
+      "daysAgo": 9
+    },
+    {
+      "verseId": "psa.13.1",
+      "daysAgo": 3
+    }
+  ],
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "just have faith",
+      "God is telling you",
+      "simply trust",
+      "doubt is a sin"
+    ]
+  }
+}

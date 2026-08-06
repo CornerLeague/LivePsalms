@@ -4,3 +4,10 @@ bsb.json
 # Do NOT commit these large corpora (~4-5 MB each)
 kjv.txt
 web.txt
+
+# Operator-produced commentary corpora — dumped from CrossWire SWORD modules by
+# dump-sword-commentary.ts (~3-12 MB each). Regenerate rather than commit; the
+# exact commands + recorded counts live in docs/runbooks/library-ingest.md.
+tdavid.jsonl
+mhcc.jsonl
+jfb.jsonl

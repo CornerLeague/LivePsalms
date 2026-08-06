@@ -1,6 +1,10 @@
 // supabase/functions/transcribe-note/prompt.ts
 import type { ToolSchema } from '../_shared/openai.ts';
 
+// INTENTIONAL voice-fragment bypass: transcription is verbatim OCR, not Lamplight
+// speaking to the user. LAMPLIGHT_SYSTEM_FRAGMENT's persona/citation rules would
+// actively fight the transcribe-exactly contract. Do not route through
+// composeSystem/generateWithRetry.
 export const TRANSCRIBE_SYSTEM = `You are transcribing a handwritten note from a Psalms / Bible-study devotional journal. The writer may reference verses ("Psalm 23:1"), psalm titles, prayers, and scriptural language — use this context to resolve messy handwriting.
 
 Transcribe EXACTLY what is written, preserving line breaks and the writer's own spelling. Do NOT paraphrase, correct, complete, or add commentary. If a word is illegible, give your single best guess and add it to uncertainWords. Never invent text, and never insert Scripture the writer did not write.`;

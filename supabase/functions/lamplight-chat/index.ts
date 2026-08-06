@@ -10,6 +10,7 @@ import { type VoyageDeps, embedQuery } from '../_shared/voyage.ts';
 import { searchBible, searchUserNotesByQuery } from '../_shared/retrieval.ts';
 import { formatVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
 import { createOpenAIAdapter } from '../_shared/openai.ts';
+import { makeDoctrinalClassifier } from '../_shared/doctrinal-classifier.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { hasChatAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
@@ -17,6 +18,7 @@ import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generati
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
+import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
 import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
 import { runBibleChatPipeline, type BibleChatContext } from './bible-chat-pipeline.ts';
 import { BIBLE_INSIGHT_PROMPT } from './prompts/bible-insight.ts';
@@ -95,6 +97,7 @@ async function handleChat(req: Request): Promise<Response> {
   const voyageDeps: VoyageDeps = { apiKey: voyageKey, fetch };
   const rerankEnabled = Deno.env.get('RERANK_ENABLED') === 'true';
   const llm = createOpenAIAdapter({ apiKey: openaiKey, fetch });
+  const classifier = makeDoctrinalClassifier(llm);
   const quotaCfg = resolveQuotaLimits(Deno.env);
 
   const lifecycleDeps: GenerationLifecycleDeps = {
@@ -156,6 +159,8 @@ async function handleChat(req: Request): Promise<Response> {
       },
       llm,
       prompt: mode === 'insight' ? BIBLE_INSIGHT_PROMPT : undefined,
+      classifier,
+      verifyScripture: makeScriptureDeps(supabase, translation),
     });
     return await streamBibleChat(buildStreamDeps(), {
       userId, mode, message, threadTitle: message || `Study of ${book} ${chapter}`, signal: req.signal,
@@ -207,6 +212,8 @@ async function handleChat(req: Request): Promise<Response> {
       const result = await runBibleChatPipeline({
         llm, ctx,
         prompt: mode === 'insight' ? BIBLE_INSIGHT_PROMPT : undefined,
+        classifier,
+        verifyScripture: makeScriptureDeps(supabase, translation),
       });
       if (!result.ok) {
         return { response: { ok: false, reason: result.reason }, usage: result.usage };
