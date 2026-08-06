@@ -100,7 +100,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 5 — the pipeline | done | `d01d56dc` |
 | 6 — cache read/write | done | `e7d34c88` |
 | 7 — edge function | done, **DEPLOYED 2026-08-06** | `89efd307` |
-| 8 — client hook + door | done, **unregistered** | see below |
+| 8 — client hook + door | done, **unregistered** | `b896463f` |
 | 9 — eval, then registration | **next** | — |
 
 **No door has been generated yet.** Migration 060 is applied and `passage-insight` is deployed and boots clean, but the corpus is still 0 rows — nothing has run against a real model. Every claim about B2's output quality rests on unit tests with fake adapters. **Task 9's live sweep is the first real exercise of the prompt**, and it is also the gate on registering the door.
