@@ -89,7 +89,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Progress
 
-**Tasks 1–10 complete, 2026-08-06. The door is REGISTERED and reachable.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 4,039 tests, `tsc -b` clean, lint at its 163-problem baseline.
+**Tasks 1–10 complete and Task 11 all but the live checks, 2026-08-06. The door is REGISTERED and reachable.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 4,039 tests, `tsc -b` clean, lint at its 163-problem baseline.
 
 **Live baseline:** `docs/lamplight/evals/2026-08-06-b2-passage-door` — 3/3 pass, $0.17, zero Scripture violations, zero display-ref leaks. Regression evidence that study chat was untouched: `docs/lamplight/evals/2026-08-06-b2-studychat-regression` (free, grounding-only).
 
@@ -105,7 +105,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 8 — client hook + door | done | `b896463f` |
 | 9 — eval + registration | done | `960052c7` |
 | 10 — refresh script | done | `8144279c` |
-| 11 — completion gate | **next** | — |
+| 11 — completion gate | **partly done — 3 live checks blocked on auth** | see below |
 
 **Still true:** the `bible_passage_insight` corpus is **0 rows**. The eval harness exercises the pipeline directly, not the edge function, so nothing has yet gone through `passage-insight` end-to-end and written a cache row. Task 11's live check is where that first happens — and where "a second reader gets the cached door instantly" is actually proven.
 
@@ -210,11 +210,16 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Task 11 — Completion gate
 
-- [ ] `npx tsc -b` clean · `eslint .` at its baseline · `vitest run` green.
-- [ ] Live check on a Psalm (dense coverage), a non-Psalm OT chapter (thin), and a verse scope.
-- [ ] Confirm a second reader gets the cached door instantly, with no generation and no entitlement prompt.
-- [ ] Confirm an interrupted generation leaves the door uncached rather than half-written.
-- [ ] Runbook note or design-doc update recording the applied migration date and the first warmed passages.
+- [x] `npx tsc -b` clean · `eslint .` at its baseline (163) · `vitest run` green (4,039).
+- [x] Live check on a Psalm (dense), a non-Psalm OT chapter (thin), and a verse scope — **at the pipeline level**, via the eval sweep: `docs/lamplight/evals/2026-08-06-b2-passage-door`, 3/3.
+- [x] **Redeployed `passage-insight`.** It had gone stale: Task 9's `displayRefs` fix lives in `study-context.ts`, which the function bundles, so the live door was still printing `psa 27:2` at readers until the redeploy. Boot re-verified (401 unauthenticated, 400 on a bad body).
+- [x] Client read path checked against the real table: the exact query `usePassageInsight` issues returns `200 []` for `psa.27`, `psa.27.4` and `nam.1`, so a reader today correctly gets *Study this passage* rather than an error.
+- [x] Runbook: `docs/runbooks/passage-insight.md` — migration date, deploy procedure, warming, refresh, known issues, and the verification table.
+- [ ] **BLOCKED, human-only — needs an authenticated Plus/promo session.** Three checks have never run, and all three are about the edge function rather than the pipeline the eval drives:
+  - [ ] End-to-end generate through the deployed function, writing real cache rows. **The corpus is still 0 rows.**
+  - [ ] A second reader gets the cached door instantly, with no generation and no entitlement prompt.
+  - [ ] An interrupted generation leaves the door uncached rather than half-written.
+  - [ ] Record the first warmed passages in the runbook (§6 carries the step-by-step).
 
 ---
 
