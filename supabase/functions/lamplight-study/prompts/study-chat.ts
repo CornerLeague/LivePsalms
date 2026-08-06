@@ -2,8 +2,22 @@
 // Bound by the Lamplight voice principle: never prophetic; facts cited,
 // interpretation offered as possibility. Reuses the shared emit_chat_reply tool
 // so citation validation in the pipeline is identical to journaling chat.
-import { BIBLE_CHAT_PROMPT } from '../../lamplight-chat/prompts/bible-chat.ts';
+import { makeChatReplyTool } from '../../lamplight-chat/prompts/bible-chat.ts';
 import type { ChatPromptModule, BibleChatContext } from '../../lamplight-chat/bible-chat-pipeline.ts';
+
+/**
+ * Study answers carry more than a journaling reply does — a named voice, a
+ * cross-reference, the hedge a contested reading needs — so the surface gets its
+ * own ceiling rather than inheriting journaling's 1400.
+ *
+ * The ceiling is a backstop set comfortably ABOVE the word target in SYSTEM
+ * below. It has to be: without `strict`, the model writes up to `maxLength` and
+ * stops mid-word when it arrives. Sharing journaling's tool while saying nothing
+ * about length is exactly how study replies came to be chopped at 1400
+ * characters — two of three in the 2026-08-06 eval baseline, one of them
+ * emitting corrupted text at the boundary.
+ */
+const STUDY_REPLY_MAX_CHARS = 3000;
 
 // The voices/lexicon rules are phrased conditionally ("when … is supplied
 // below") rather than injected per-context: ChatPromptModule.system is a static
@@ -23,6 +37,17 @@ const SYSTEM = [
   'The voices are grounding, not citations: a verse a commentator merely mentions does not become citable. Quoting a voice never widens the set of refs you may cite — that set is the supplied passage, cross-references, and related passages, and nothing else.',
   // ── Lexicon (replaces the Phase-0 "no lexicon supplied" hedge) ──
   'You may discuss Hebrew/Greek meaning conversationally and hedged. When a lexicon block is supplied below, you may lean on it and say so ("the lexicon glosses this as…"), using only the entries given. When no lexicon block is supplied, never present a gloss as if quoting a lexicon; for verified word studies, point the reader to the Etymology panel on the verse.',
+  // ── Contested questions ──
+  // Study chat is exempt from the blanket CONTESTED_PASSAGES rejection (see
+  // ChatPromptModule.allowContestedRefs), so the requirement lives here instead
+  // of in a validator. This is the surface readers bring hard questions to;
+  // refusing to name the verses would have been an answer nobody wanted.
+  'On questions the church is genuinely divided about, do not adjudicate. Name the readings and who holds them ("Reformed readings emphasize…", "Wesleyan readings…", "Catholic teaching holds…"), give the textual reasoning behind each, say plainly that it is disputed among orthodox Christians, and point the reader to their own pastor or church. Discuss and cite the passage freely — but never settle it, and never imply the matter is obvious.',
+  // ── Length ──
+  // Load-bearing. Without a target the model writes to the schema ceiling and
+  // stops mid-word; this is set well below it so a reply always finishes its
+  // own last sentence. Finishing the thought matters more than the number.
+  'Aim for 200–400 words: enough to develop one line of thought with its grounding, and then stop. Finish your final sentence — never break off mid-thought.',
 ].join(' ');
 
 function renderBookContext(ctx: BibleChatContext): string {
@@ -77,9 +102,13 @@ function renderLexicon(ctx: BibleChatContext): string {
 }
 
 export const STUDY_CHAT_PROMPT: ChatPromptModule = {
-  promptVersion: 'study-chat-2026-08-06-v4',
+  // v6: own reply ceiling (3000, was journaling's 1400) + the word target that
+  // keeps the model away from it; exempt from the contested-passage rejection,
+  // with the labeled-readings requirement moved into SYSTEM above.
+  promptVersion: 'study-chat-2026-08-06-v6',
   system: SYSTEM,
-  tool: BIBLE_CHAT_PROMPT.tool,
+  allowContestedRefs: true,
+  tool: makeChatReplyTool({ maxReplyChars: STUDY_REPLY_MAX_CHARS }),
   buildMessages(ctx: BibleChatContext) {
     const blocks = [
       `Passage: ${ctx.passageRef}`,

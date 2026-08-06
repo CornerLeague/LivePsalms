@@ -1,0 +1,145 @@
+{
+  "report": {
+    "ok": true,
+    "passed": 4,
+    "failed": 0,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "study-chat": {
+        "runs": 4,
+        "tokensIn": 18178,
+        "tokensOut": 2199,
+        "costCents": 15.686
+      }
+    },
+    "totalCostCents": 15.686,
+    "failures": [],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "study-genesis-1",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4618,
+      "tokensOut": 598,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# study-genesis-1 · study-chat\n\n_Heavily cross-referenced and a standing invitation to overreach into cosmology the text does not address._\n\n**Passage:** gen 1 · **Question:** What is the significance of the repeated phrase 'and God saw that it was good'?\n\n## Grounding supplied\n\n- cross-references: 5 — jhn 1:1, heb 11:3, isa 45:18, rev 4:11, heb 1:10\n- library excerpts: 4 — jfb\n- lexicon entries: 12\n- book context: Genesis\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n## Reply\n\nThe refrain “God saw that it was good” functions as God’s own evaluation of creation. “Good” here is not merely “pleasant-looking”; within the chapter, it means that what God has made is fitting, ordered, and serving the purpose assigned to it. Light is distinguished from darkness, land from sea, and living things reproduce according to their kinds; after these acts of ordering and filling, God declares them good (Genesis 1:4, 10, 12, 18, 21, 25).\n\nThe phrase also establishes that creation is good because it comes from God—not because the created world is divine, but because it faithfully bears the intention of its Maker. The sun and moon, for example, are not named as deities, as they often were in the ancient Near Eastern setting; they are simply created “lights” appointed to govern times and illuminate the earth (Genesis 1:14–18). Their goodness lies in their creaturely place and task. Revelation echoes this God-centered vision: all things exist by the Lord’s will, so creation summons worship of the Creator rather than worship of creation (Revelation 4:11).\n\nThe repetition builds toward a deliberate climax. Individual works are repeatedly called “good,” but after humanity is created in God’s image and commissioned to rule within the created order, God sees the whole and calls it “very good” (Genesis 1:26–31). The passage turns on wholeness: each part is good, and the integrated creation is exceedingly fitting.\n\nThis also gives Genesis’s later account of sin its proper backdrop. Disorder and corruption are not presented as the Creator’s original workmanship. Genesis 1 begins with darkness and an unformed earth, yet the Spirit hovers, God speaks, boundaries emerge, life flourishes, and emptiness becomes an inhabited world (Genesis 1:2–3; Isaiah 45:18). The refrain therefore teaches both the goodness of embodied creation and its complete dependence upon the Lord’s ordering word.\n\n_citations: {\"type\":\"verse\",\"ref\":\"gen 1:4\"}, {\"type\":\"verse\",\"ref\":\"gen 1:10\"}, {\"type\":\"verse\",\"ref\":\"gen 1:12\"}, {\"type\":\"verse\",\"ref\":\"gen 1:18\"}, {\"type\":\"verse\",\"ref\":\"gen 1:21\"}, {\"type\":\"verse\",\"ref\":\"gen 1:25\"}, {\"type\":\"verse\",\"ref\":\"gen 1:14–18\"}, {\"type\":\"verse\",\"ref\":\"rev 4:11\"}, {\"type\":\"verse\",\"ref\":\"gen 1:26–31\"}, {\"type\":\"verse\",\"ref\":\"gen 1:2–3\"}, {\"type\":\"verse\",\"ref\":\"isa 45:18\"}_\n"
+    },
+    {
+      "fixture": "study-hebrews-11",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4934,
+      "tokensOut": 577,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# study-hebrews-11 · study-chat\n\n_An NT chapter whose cross-references reach back across the testament divide. Tests OT-to-NT grounding._\n\n**Passage:** heb 11 · **Question:** How does this chapter define faith, and how does that definition work with the examples that follow?\n\n## Grounding supplied\n\n- cross-references: 5 — 2co 5:7, 2co 4:18, pro 8:17, rom 8:24, jer 29:13\n- library excerpts: 4 — jfb\n- lexicon entries: 12\n- book context: Hebrews\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n## Reply\n\nHebrews 11:1 functions less as an exhaustive dictionary definition and more as a description of faith under pressure. Jamieson, Fausset & Brown rightly emphasize that the chapter’s subject is perseverance: faith gives present solidity to God’s promised future—“assurance of what we hope for”—and conviction concerning realities unavailable to sight—“certainty of what we do not see” (Heb 11:1). The lexicon’s range for *pistis* includes persuasion, conviction, reliance, and constancy. Here all of those converge as durable reliance on God’s trustworthiness.\n\nThe examples then make that description visible. Each person acts upon God’s word before its fulfillment can be seen. Noah builds for an unseen flood; Abraham travels without knowing his destination; Sarah regards the Promiser as faithful despite bodily impossibility; Moses exchanges visible Egyptian privilege for an unseen reward (Heb 11:7–11; Heb 11:24–27). Faith is therefore not imagination or optimism. Its confidence rests not in a desired outcome by itself, but in the God who speaks and promises.\n\nThe chapter’s decisive turn comes in verses 35–39. Some believers conquer, escape death, and receive the dead back; others are tortured, imprisoned, displaced, and killed (Heb 11:33–38). Both groups are commended (Heb 11:39). That prevents us from defining faith by visible success. Faith may receive a promise within one’s lifetime, or die still welcoming it “from afar” (Heb 11:13).\n\nThus faith’s common denominator is not the result but the orientation: it treats God and his promised future as more substantial than present appearances. This is why the chapter repeatedly joins faith to action, endurance, and hope. “We walk by faith, not by sight,” because what is seen is temporary while what is unseen is eternal (2co 5:7; 2co 4:18). The final horizon is communal and fulfilled in God’s completed purpose: the earlier faithful and later believers are “made perfect” together (Heb 11:39–40).\n\n_citations: {\"type\":\"verse\",\"ref\":\"Heb 11:1\"}, {\"type\":\"verse\",\"ref\":\"Heb 11:7–11\"}, {\"type\":\"verse\",\"ref\":\"Heb 11:24–27\"}, {\"type\":\"verse\",\"ref\":\"Heb 11:33–38\"}, {\"type\":\"verse\",\"ref\":\"Heb 11:39\"}, {\"type\":\"verse\",\"ref\":\"Heb 11:13\"}, {\"type\":\"verse\",\"ref\":\"2co 5:7\"}, {\"type\":\"verse\",\"ref\":\"2co 4:18\"}, {\"type\":\"verse\",\"ref\":\"Heb 11:39–40\"}_\n"
+    },
+    {
+      "fixture": "study-psalm-27",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 3811,
+      "tokensOut": 453,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# study-psalm-27 · study-chat\n\n_A psalm with the densest commentary coverage we hold. Rich grounding should produce depth without lecturing._\n\n**Passage:** psa 27 · **Question:** What does David mean by wanting to dwell in the house of the LORD all the days of his life?\n\n## Grounding supplied\n\n- cross-references: 5 — isa 40:31, heb 13:6, psa 118:6, exo 15:2, psa 31:24\n- library excerpts: 4 — treasury-of-david, jfb\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n## Reply\n\nDavid’s wish is best read as a desire for **an entire life lived in the LORD’s presence**, not merely permanent residence inside a building. Psalm 27:4 unfolds the thought through three expressions: dwelling in the LORD’s house, gazing upon his beauty, and seeking him in his temple. Together they describe sustained communion, worship, and attentive dependence on God (Psalm 27:4).\n\nThe “house of the LORD” in David’s setting refers to Israel’s sanctuary—the place where God made his presence known among his covenant people. Yet David’s emphasis falls less on architecture than on access. His “one thing” is not first the removal of enemies, although enemies surround the psalm; it is the LORD himself. Even the lexicon’s sense of “seek” includes searching after God in worship or prayer. David wants every threatened day to be oriented around God’s face and character (Psalm 27:4, 8).\n\n“To gaze on the beauty of the LORD” does not suggest seeing God physically. In the movement of the psalm, his “beauty” is encountered in who he proves to be: light, salvation, stronghold, shelter, and faithful receiver of the forsaken (Psalm 27:1, 5, 10). The sanctuary is therefore pictured both as a place of contemplation and as refuge. David longs to know the LORD so deeply that danger no longer determines the center of his life.\n\n“All the days of my life” gives this desire its scope. He is not asking for a brief religious experience in a crisis, but for lifelong fellowship. The later prayer, “Your face, O LORD, I will seek,” makes the inward meaning explicit: dwelling with God means continually turning toward him (Psalm 27:8).\n\n_citations: {\"type\":\"verse\",\"ref\":\"psa 27:4\"}, {\"type\":\"verse\",\"ref\":\"psa 27:8\"}, {\"type\":\"verse\",\"ref\":\"psa 27:1\"}, {\"type\":\"verse\",\"ref\":\"psa 27:5\"}, {\"type\":\"verse\",\"ref\":\"psa 27:10\"}_\n"
+    },
+    {
+      "fixture": "study-romans-9",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4815,
+      "tokensOut": 571,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# study-romans-9 · study-chat\n\n_A genuinely divided question asked directly. Tests labeled readings and deferral, not adjudication._\n\n**Passage:** rom 9 · **Question:** Does this chapter teach that God chooses individuals for salvation before they are born?\n\n## Grounding supplied\n\n- cross-references: 5 — isa 28:16, exo 33:19, mal 1:2, exo 9:16, hos 2:23\n- library excerpts: 4 — jfb\n- lexicon entries: 12\n- book context: Romans\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n## Reply\n\nRomans 9 plainly teaches that God’s choice precedes human works: Jacob was chosen over Esau “before the twins were born or had done anything good or bad,” so that God’s purpose would rest “not by works but by Him who calls” (rom 9:11–12). The chapter also says mercy “does not depend on man’s desire or effort” (rom 9:16). Reformed Christians therefore read this as teaching the unconditional election of particular individuals to salvation.\n\nBut whether *individual eternal salvation* is the chapter’s sole or immediate subject is disputed among orthodox Christians. Paul begins with Israel’s apparent unbelief and asks whether God’s covenant word has failed (rom 9:1–6). Isaac and Jacob are individuals, yet they also represent covenant lines and peoples; the argument eventually concerns Jews and Gentiles being called into God’s people (rom 9:24–26). On this reading, many Wesleyan/Arminian interpreters emphasize God’s sovereign choice of the covenant people and the historical roles through which the promise advances, while holding that individuals participate through faith. Paul’s conclusion explicitly contrasts righteousness received “by faith” with pursuit “as if it were by works” (rom 9:30–33).\n\nThe hardest language—the potter and vessels of mercy or wrath—supports a strong claim about God’s freedom and initiative (rom 9:20–24). Yet Paul also describes God as bearing the vessels of wrath “with great patience,” and he closes by placing real weight upon believing or stumbling (rom 9:22, 32–33).\n\nSo the careful answer is: **Romans 9 can coherently be read as teaching God’s pre-birth choice of individuals for salvation, but the chapter does not settle that interpretation beyond dispute.** It certainly teaches that salvation originates in God’s merciful calling rather than ancestry, merit, desire, or effort (rom 9:6–16). The precise relation between sovereign election and human faith remains disputed among orthodox Christians and is worth discussing within your own church tradition.\n\n_citations: {\"type\":\"verse\",\"ref\":\"rom 9:11–12\"}, {\"type\":\"verse\",\"ref\":\"rom 9:16\"}, {\"type\":\"verse\",\"ref\":\"rom 9:1–6\"}, {\"type\":\"verse\",\"ref\":\"rom 9:24–26\"}, {\"type\":\"verse\",\"ref\":\"rom 9:30–33\"}, {\"type\":\"verse\",\"ref\":\"rom 9:20–24\"}, {\"type\":\"verse\",\"ref\":\"rom 9:22\"}, {\"type\":\"verse\",\"ref\":\"rom 9:32–33\"}, {\"type\":\"verse\",\"ref\":\"rom 9:6–16\"}_\n"
+    }
+  ]
+}

@@ -327,3 +327,88 @@ describe('buildStudyContext — library + lexicon', () => {
     expect(ctx.lexiconEntries).toEqual([]);
   });
 });
+
+describe('buildStudyContext — skipSemanticRetrieval (the eval harness seam)', () => {
+  // A deps object that throws if touched: if the flag ever fails to skip, the
+  // test fails loudly instead of quietly making a call with an empty key.
+  const forbiddenVoyage = {
+    apiKey: '',
+    fetch: (() => { throw new Error('voyage must not be called when skipSemanticRetrieval is set'); }) as never,
+  } as unknown as VoyageDeps;
+
+  it('never embeds, and never calls a semantic RPC', async () => {
+    const rpcCalls: string[] = [];
+    const supabase = makeSupabase({
+      table: defaultTables(),
+      rpc: (name) => { rpcCalls.push(name); return []; },
+    });
+
+    await buildStudyContext(
+      supabase,
+      studyArgs(forbiddenVoyage, { skipSemanticRetrieval: true }),
+    );
+
+    // match_user_note_embeddings, match_bible_embeddings and match_library_chunks
+    // are all revoked from public — the harness runs on the anon key and would
+    // get an error, not an empty list, if any of them were reached.
+    expect(rpcCalls).toEqual([]);
+  });
+
+  it('still builds the deterministic grounding: chapter, book, cross-refs, library anchors, lexicon', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(forbiddenVoyage, { skipSemanticRetrieval: true }),
+    );
+
+    expect(ctx.passageText.length).toBeGreaterThan(0);
+    expect(ctx.bookContext).not.toBeNull();
+    expect(ctx.crossRefs.length).toBeGreaterThan(0);
+    // The verse-anchor channel is the half that survives, including the
+    // cross-ref-anchored excerpt — which is exactly what was dark while
+    // bible_cross_references sat empty.
+    expect(ctx.libraryExcerpts!.map((e) => e.chunkId)).toContain('lc2');
+    expect(ctx.lexiconEntries!.length).toBeGreaterThan(0);
+  });
+
+  it('empties only the semantic channels', async () => {
+    const { ctx, offered } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(forbiddenVoyage, { skipSemanticRetrieval: true }),
+    );
+
+    expect(ctx.relatedPassages).toEqual([]);
+    expect(ctx.notes).toEqual([]);
+    expect(offered).toEqual([]);
+  });
+
+  it('keeps the citation allowlist honest — no related passages means no extra refs', async () => {
+    const voyage = makeVoyage();
+    const full = await buildStudyContext(makeSupabase({ table: defaultTables() }), studyArgs(voyage.deps));
+    const skipped = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(forbiddenVoyage, { skipSemanticRetrieval: true }),
+    );
+
+    // Every ref the skipped run allows is one the full run allows too: the flag
+    // can only ever narrow the allowlist, never widen it.
+    for (const ref of skipped.ctx.allowedVerseRefs) {
+      expect(full.ctx.allowedVerseRefs.has(ref)).toBe(true);
+    }
+  });
+
+  it('is off by default — production still embeds and still calls the semantic RPCs', async () => {
+    const voyage = makeVoyage();
+    const rpcCalls: string[] = [];
+    const supabase = makeSupabase({
+      table: defaultTables(),
+      rpc: (name) => { rpcCalls.push(name); return []; },
+    });
+
+    await buildStudyContext(supabase, studyArgs(voyage.deps));
+
+    expect(voyage.state.embedCalls).toBe(1);
+    expect(rpcCalls).toContain('match_user_note_embeddings');
+    expect(rpcCalls).toContain('match_bible_embeddings');
+    expect(rpcCalls).toContain('match_library_chunks');
+  });
+});

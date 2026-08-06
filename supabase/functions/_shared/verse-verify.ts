@@ -55,7 +55,13 @@ export function osisToBookName(code: string): string | null {
   return OSIS_TO_BOOK[code.trim().toLowerCase()] ?? null;
 }
 
-function canonicalBook(raw: string): string | null {
+/**
+ * Book text → canonical display name, accepting display names, aliases, and
+ * OSIS codes alike ('Hebrews', 'Heb', 'heb'). Exported because scripture-verify
+ * kept its own narrower copy that knew only display names, so a reply citing
+ * "Heb 11:1" was resolvable here and "fabricated" there at the same time.
+ */
+export function canonicalBook(raw: string): string | null {
   const collapsed = raw.replace(/\s+/g, ' ').trim();
   const aliased = BOOK_ALIASES[collapsed] ?? collapsed;
   for (const key of Object.keys(OSIS_BOOK_MAP)) {

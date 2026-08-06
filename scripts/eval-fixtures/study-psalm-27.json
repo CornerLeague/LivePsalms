@@ -1,0 +1,27 @@
+{
+  "name": "study-psalm-27",
+  "description": "A psalm with the densest commentary coverage we hold. Rich grounding should produce depth without lecturing.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "studyChat": {
+    "book": "psa",
+    "chapter": 27,
+    "question": "What does David mean by wanting to dwell in the house of the LORD all the days of his life?",
+    "expectGrounding": {
+      "minCrossRefs": 3,
+      "minLibraryExcerpts": 2,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "clearly teaches",
+      "the correct interpretation",
+      "God is telling you"
+    ]
+  }
+}

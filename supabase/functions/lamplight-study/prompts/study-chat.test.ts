@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { STUDY_CHAT_PROMPT } from './study-chat.ts';
+import { BIBLE_CHAT_PROMPT } from '../../lamplight-chat/prompts/bible-chat.ts';
+
+type ToolShape = { input_schema: { properties: { reply: { maxLength: number } } } };
 import type { BibleChatContext } from '../../lamplight-chat/bible-chat-pipeline.ts';
 import type { LibraryExcerpt, LexiconEntry } from '../../_shared/library-retrieval.ts';
 
@@ -56,7 +59,7 @@ const ctxFull: BibleChatContext = {
 
 describe('STUDY_CHAT_PROMPT', () => {
   it('bumps the prompt version', () => {
-    expect(STUDY_CHAT_PROMPT.promptVersion).toBe('study-chat-2026-08-06-v4');
+    expect(STUDY_CHAT_PROMPT.promptVersion).toBe('study-chat-2026-08-06-v6');
   });
 
   it('renders the related-passages block when present', () => {
@@ -83,6 +86,41 @@ describe('STUDY_CHAT_PROMPT', () => {
   it('has a versioned id and emits the shared chat-reply tool', () => {
     expect(STUDY_CHAT_PROMPT.promptVersion).toMatch(/^study-chat-/);
     expect((STUDY_CHAT_PROMPT.tool as { name: string }).name).toBe('emit_chat_reply');
+  });
+
+  // The 2026-08-06 eval baseline caught study replies stopping at exactly 1400
+  // characters mid-word, one of them emitting corrupted text at the boundary.
+  // Two things fix that together, so both are pinned.
+  it('carries its own reply ceiling, not the journaling one', () => {
+    const reply = (STUDY_CHAT_PROMPT.tool as ToolShape).input_schema.properties.reply;
+    expect(reply.maxLength).toBe(3000);
+    expect((BIBLE_CHAT_PROMPT.tool as ToolShape).input_schema.properties.reply.maxLength).toBe(1400);
+  });
+
+  // Study chat opts out of the blanket CONTESTED_PASSAGES rejection, so the
+  // requirement it replaces has to be carried in prose. Losing either half
+  // quietly would be worse than the bug that prompted the change.
+  it('opts out of the blanket contested-passage rejection', () => {
+    expect(STUDY_CHAT_PROMPT.allowContestedRefs).toBe(true);
+    expect(BIBLE_CHAT_PROMPT.allowContestedRefs).toBeUndefined();   // journaling keeps it
+  });
+
+  it('carries the labeled-readings requirement the exemption depends on', () => {
+    expect(STUDY_CHAT_PROMPT.system).toContain('do not adjudicate');
+    expect(STUDY_CHAT_PROMPT.system).toMatch(/Reformed readings/);
+    expect(STUDY_CHAT_PROMPT.system).toMatch(/pastor or church/);
+    expect(STUDY_CHAT_PROMPT.system).toContain('never settle it');
+  });
+
+  it('states a word target, without which the model writes to the ceiling', () => {
+    expect(STUDY_CHAT_PROMPT.system).toMatch(/200.{0,3}400 words/);
+    expect(STUDY_CHAT_PROMPT.system).toContain('Finish your final sentence');
+  });
+
+  it('keeps the ceiling comfortably above the target — a backstop, not a goal', () => {
+    const reply = (STUDY_CHAT_PROMPT.tool as ToolShape).input_schema.properties.reply;
+    // 400 words is roughly 2400 characters at ~6 chars/word.
+    expect(reply.maxLength).toBeGreaterThan(400 * 6);
   });
 
   it('grounds messages in the book context, cross refs, and the question', () => {

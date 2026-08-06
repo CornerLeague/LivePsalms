@@ -1,16 +1,30 @@
-// Opening study insight (no user question). Same tool + voice as STUDY_CHAT_PROMPT.
+// Opening study insight (no user question). Same voice as STUDY_CHAT_PROMPT,
+// but a much shorter register — and therefore its own ceiling.
 import { STUDY_CHAT_PROMPT } from './study-chat.ts';
+import { makeChatReplyTool } from '../../lamplight-chat/prompts/bible-chat.ts';
 import type { ChatPromptModule, BibleChatContext } from '../../lamplight-chat/bible-chat-pipeline.ts';
 
 const SYSTEM = STUDY_CHAT_PROMPT.system +
-  ' The reader has just opened this passage and has not asked anything yet. Offer one short, grounded opening observation that invites deeper study — name a historical-cultural detail, a cross-reference worth following, or an Old-to-New-Testament connection. Keep the non-prophetic voice: a possibility to explore, not a pronouncement.';
+  ' The reader has just opened this passage and has not asked anything yet. Offer one short, grounded opening observation that invites deeper study — name a historical-cultural detail, a cross-reference worth following, or an Old-to-New-Testament connection. Keep the non-prophetic voice: a possibility to explore, not a pronouncement.' +
+  // Overrides the 200–400 word target inherited from STUDY_CHAT_PROMPT.system.
+  // An opener is a doorway, not an answer. Stated explicitly because the two
+  // instructions would otherwise contradict each other in the same prompt.
+  ' Ignore the word target above: this opener is 60–120 words, two or three sentences. Finish your final sentence.';
 
 export const STUDY_INSIGHT_PROMPT: ChatPromptModule = {
-  // Bumped with slice 1c: this system composes STUDY_CHAT_PROMPT.system, and
-  // buildMessages inherits its voices/lexicon blocks, so both changed here too.
-  promptVersion: 'study-insight-2026-08-06-v2',
+  // v4. Two changes, both tracking the study system this composes:
+  //  · its own reply ceiling and an explicit word target. It previously
+  //    inherited journaling's 1400 with no length guidance at all — the same
+  //    shape of bug the eval caught on study chat, where the model writes to
+  //    the wall and stops mid-word. 1400 stays, now as a backstop above the
+  //    target rather than the target itself.
+  //  · exempt from the contested-passage rejection, since an opener on a
+  //    divided chapter needs the same freedom to name the text — and inherits
+  //    the same duty not to settle it.
+  promptVersion: 'study-insight-2026-08-06-v4',
   system: SYSTEM,
-  tool: STUDY_CHAT_PROMPT.tool,
+  allowContestedRefs: true,
+  tool: makeChatReplyTool({ maxReplyChars: 1400 }),
   buildMessages(ctx: BibleChatContext) {
     // Reuse the chat grounding, drop the trailing question turn.
     const grounded = STUDY_CHAT_PROMPT.buildMessages({ ...ctx, userMessage: '', history: [] });

@@ -24,6 +24,19 @@ export interface ChatPromptModule {
   system: string;
   tool: unknown;
   buildMessages: (ctx: BibleChatContext) => Array<{ role: 'user' | 'assistant'; content: string }>;
+  /**
+   * Opt out of the blanket CONTESTED_PASSAGES rejection. Default (absent) keeps
+   * it, so every existing surface is unchanged.
+   *
+   * The rule means "do not build on a divisive text", which is right for a
+   * devotion and wrong for the surface whose whole purpose is hard questions:
+   * decision §14.6 asks study chat to present labeled readings and point to the
+   * reader's pastor, and a validator that rejects any mention of the verses
+   * makes that answer impossible to write. Study chat carries the requirement
+   * in its prompt instead, backed by the Layer C classifier — which, unlike a
+   * regex, can tell citing a contested passage from adjudicating it.
+   */
+  allowContestedRefs?: boolean;
 }
 
 export interface BookContext {
@@ -61,9 +74,13 @@ export interface BibleChatContext {
 
 export type BibleChatPipelineResult =
   | { ok: true; reply: string; citations: ChatReply['citations']; modelUsed: string; promptVersion: string; attempts: number; usage: UsageCore | null }
-  | { ok: false; reason: 'validators_failed'; promptVersion: string; attempts: number; usage: UsageCore | null };
+  // `violations` carries WHY. Without it a caller sees only "validators_failed"
+  // and goes looking at the model, when the answer is already computed right
+  // here — the daily-devotion pipeline surfaces its violations for exactly this
+  // reason, and this one dropping them made every study-chat failure opaque.
+  | { ok: false; reason: 'validators_failed'; violations: ChatViolations; promptVersion: string; attempts: number; usage: UsageCore | null };
 
-type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViolation[] };
+export type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViolation[] };
 
 // ── Shared generate config ────────────────────────────────────────────────────
 // Both buffered and streaming entries use identical validate / formatStricter.
@@ -71,6 +88,7 @@ type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViola
 
 function makeBibleChatValidate(
   ctx: BibleChatContext,
+  prompt: ChatPromptModule,
   classifier?: (text: string) => Promise<ContentRuleViolation[]>,
   verifyScripture?: ScriptureDeps,
 ) {
@@ -83,7 +101,9 @@ function makeBibleChatValidate(
     });
     const content = await applyContentRules(parsed.reply ?? '', {
       banned: BANNED_PHRASES,
-      contested: CONTESTED_PASSAGES,
+      // Empty, not absent, when the surface opts out — the other families and
+      // the classifier still run.
+      contested: prompt.allowContestedRefs ? [] : CONTESTED_PASSAGES,
       growth: GROWTH_BANNED_PHRASES,
       classifier,
     });
@@ -127,6 +147,7 @@ function bibleChatResult(
     return {
       ok: false,
       reason: 'validators_failed',
+      violations: outcome.violations ?? { citation: [], content: [] },
       promptVersion,
       attempts: outcome.attempts,
       usage: { model: outcome.modelUsed, tokens_in: 0, tokens_out: 0, status: 'error', error_code: 'validators_failed' },
@@ -175,7 +196,7 @@ export async function runBibleChatPipeline(args: {
     // `as const` on the nested schema produces literal types narrower than
     // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeBibleChatValidate(ctx, args.classifier, args.verifyScripture),
+    validate: makeBibleChatValidate(ctx, prompt, args.classifier, args.verifyScripture),
     formatStricter: formatBibleChatStricter,
   });
 
@@ -219,7 +240,7 @@ export async function runBibleChatStreaming(
     artifactSystem: prompt.system,
     messages: prompt.buildMessages(ctx),
     tool: prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makeBibleChatValidate(ctx, args.classifier, args.verifyScripture),
+    validate: makeBibleChatValidate(ctx, prompt, args.classifier, args.verifyScripture),
     formatStricter: formatBibleChatStricter,
     textFields: ['reply'],
     // No perFieldValidate — chat has no per-field length rule

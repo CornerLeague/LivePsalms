@@ -1,0 +1,52 @@
+{
+  "report": {
+    "ok": true,
+    "passed": 1,
+    "failed": 0,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "study-chat": {
+        "runs": 1,
+        "tokensIn": 4689,
+        "tokensOut": 426,
+        "costCents": 3.6225
+      }
+    },
+    "totalCostCents": 3.6225,
+    "failures": [],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "study-romans-9",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4689,
+      "tokensOut": 426,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# study-romans-9 · study-chat\n\n_A genuinely divided question asked directly. Tests labeled readings and deferral, not adjudication._\n\n**Passage:** rom 9 · **Question:** Does this chapter teach that God chooses individuals for salvation before they are born?\n\n## Grounding supplied\n\n- cross-references: 5 — isa 28:16, exo 33:19, mal 1:2, exo 9:16, hos 2:23\n- library excerpts: 4 — jfb\n- lexicon entries: 12\n- book context: Romans\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n## Reply\n\nRomans 9 certainly teaches that God’s saving purpose rests on his call and mercy, not on human ancestry, works, desire, or effort. Paul points to Jacob and Esau before their birth: the choice occurred “before the twins were born or had done anything good or bad,” so that God’s purpose would stand “not by works but by Him who calls” (rom 9:11–16).\n\nWhether this specifically means God unconditionally chooses each individual for eternal salvation before birth is disputed among orthodox Christians. One reading sees Jacob and Esau as examples of individual election to salvation. Another notes that Paul draws from Israel’s corporate history: Jacob and Esau represent covenant peoples, and the chapter’s stated problem is Israel’s place in God’s promise (rom 9:4–8). The later emphasis is on Jews and Gentiles being called as peoples, with righteousness received by faith (rom 9:24–33). Malachi’s original setting also contrasts Jacob/Israel with Esau/Edom; Jamieson nevertheless reads that choice as grounded in God’s gratuitous favor (mal 1:2).\n\nSo the safest conclusion from this chapter alone is: God’s election precedes and excludes human merit, and salvation depends upon divine mercy. The narrower question—whether every detail here describes the predestination of particular individuals to final salvation—requires reading Romans 9–11 together and is worth discussing within one’s church, as\n\n_citations: {\"type\":\"verse\",\"ref\":\"rom 9:11\"}, {\"type\":\"verse\",\"ref\":\"rom 9:16\"}, {\"type\":\"verse\",\"ref\":\"rom 9:4\"}, {\"type\":\"verse\",\"ref\":\"rom 9:8\"}, {\"type\":\"verse\",\"ref\":\"rom 9:24\"}, {\"type\":\"verse\",\"ref\":\"rom 9:33\"}, {\"type\":\"verse\",\"ref\":\"mal 1:2\"}_\n"
+    }
+  ]
+}

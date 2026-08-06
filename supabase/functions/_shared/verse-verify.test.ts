@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { BOOK_TO_OSIS as CLIENT_OSIS } from '../../../src/notepad/graph/reference-parser';
-import { OSIS_BOOK_MAP, parseRefToIds, verifyVerseRefs } from './verse-verify.ts';
+import { OSIS_BOOK_MAP, canonicalBook, parseRefToIds, verifyVerseRefs } from './verse-verify.ts';
 
 describe('OSIS parity with client', () => {
   it('matches the client BOOK_TO_OSIS exactly', () => {
@@ -99,5 +99,33 @@ describe('parseRefToIds — OSIS book codes', () => {
   it('still returns null for a book that does not exist', () => {
     expect(parseRefToIds('phl 4:6')).toBeNull();   // Philippians is 'php'
     expect(parseRefToIds('Hezekiah 3:16')).toBeNull();
+  });
+});
+
+describe('canonicalBook', () => {
+  // Exported so scripture-verify can stop keeping a narrower copy. That copy
+  // knew display names only, so "Heb 11:1" resolved through parseRefToIds and
+  // was reported as a fabricated citation in the same pass.
+  it('accepts display names, abbreviations, and OSIS codes alike', () => {
+    expect(canonicalBook('Hebrews')).toBe('Hebrews');
+    expect(canonicalBook('Heb')).toBe('Hebrews');
+    expect(canonicalBook('heb')).toBe('Hebrews');
+  });
+
+  it('applies the alias table', () => {
+    expect(canonicalBook('Psalm')).toBe('Psalms');
+  });
+
+  it('rejects a book that does not exist', () => {
+    expect(canonicalBook('Hesitations')).toBeNull();
+    expect(canonicalBook('')).toBeNull();
+  });
+
+  it('agrees with parseRefToIds, which is the divergence that caused the bug', () => {
+    for (const form of ['Hebrews 11:1', 'Heb 11:1', 'heb 11:1']) {
+      const book = form.replace(/\s+\d+:\d+$/, '');
+      expect(canonicalBook(book)).not.toBeNull();
+      expect(parseRefToIds(form)).toEqual(['heb.11.1']);
+    }
   });
 });

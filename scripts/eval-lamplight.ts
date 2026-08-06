@@ -33,6 +33,10 @@ import { verifyVerseRefs } from '../supabase/functions/_shared/verse-verify';
 import { selectDevotionCandidates } from '../supabase/functions/_shared/note-context';
 import { buildPassages } from '../supabase/functions/_shared/bible-passage';
 import { OSIS_TO_ABBREV } from '../supabase/functions/_shared/bible-books';
+import { buildStudyContext } from '../supabase/functions/lamplight-study/study-context';
+import { STUDY_CHAT_PROMPT } from '../supabase/functions/lamplight-study/prompts/study-chat';
+import { runBibleChatPipeline } from '../supabase/functions/lamplight-chat/bible-chat-pipeline';
+import type { VoyageDeps } from '../supabase/functions/_shared/voyage';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +62,27 @@ export interface FixtureExpectations {
   expectNoArtifact?: boolean;
 }
 
+/**
+ * A study-chat scenario: an open chapter and a question a reader would actually
+ * type. Grounding floors are the load-bearing part — a reply can read perfectly
+ * while the grounding underneath it is silently missing, which is exactly what
+ * happened while `bible_cross_references` sat empty in production and every
+ * study turn quietly grounded on the open chapter alone.
+ */
+export interface FixtureStudyChat {
+  book: string;          // lowercase OSIS, e.g. 'psa'
+  chapter: number;
+  question: string;
+  expectGrounding?: {
+    /** Cross-references that must reach the prompt. 0 means "do not care". */
+    minCrossRefs?: number;
+    /** Library excerpts that must reach the prompt. */
+    minLibraryExcerpts?: number;
+    /** The book apparatus row must resolve. */
+    requireBookContext?: boolean;
+  };
+}
+
 export interface EvalFixture {
   name: string;
   description: string;
@@ -66,6 +91,8 @@ export interface EvalFixture {
   periodKey: string;
   notes: FixtureNote[];
   highlights: FixtureHighlight[];
+  /** Present only on study-chat fixtures; absent means devotion-only. */
+  studyChat?: FixtureStudyChat;
   /**
    * The Scripture the devotion may anchor on. Production retrieves these
    * SEMANTICALLY from the theme query, so every user gets candidates whether or
@@ -105,6 +132,21 @@ export function parseFixture(raw: unknown): EvalFixture {
     return { verseId: req(hl, 'verseId', where), daysAgo: hl.daysAgo };
   });
 
+  let studyChat: FixtureStudyChat | undefined;
+  if (o.studyChat != null) {
+    const sc = o.studyChat as Record<string, unknown>;
+    const where = `${name} studyChat`;
+    if (typeof sc.chapter !== 'number' || sc.chapter < 1) {
+      throw new Error(`fixture ${where}: "chapter" must be a positive number`);
+    }
+    studyChat = {
+      book: req(sc, 'book', where),
+      chapter: sc.chapter,
+      question: req(sc, 'question', where),
+      expectGrounding: (sc.expectGrounding ?? {}) as FixtureStudyChat['expectGrounding'],
+    };
+  }
+
   return {
     name,
     description: req(o, 'description', name),
@@ -113,6 +155,7 @@ export function parseFixture(raw: unknown): EvalFixture {
     periodKey: req(o, 'periodKey', name),
     notes,
     highlights,
+    ...(studyChat ? { studyChat } : {}),
     candidateVerses: Array.isArray(o.candidateVerses)
       ? o.candidateVerses.map((v, i) => {
           if (typeof v !== 'string' || v.trim().length === 0) {
@@ -157,12 +200,34 @@ export function validateFixtureRefs(fixture: EvalFixture): string[] {
     if (!m) { problems.push(`${id} (malformed OSIS id)`); continue; }
     if (!(m[1] in OSIS_TO_ABBREV)) problems.push(`${id} (unknown book code "${m[1]}")`);
   }
+
+  if (fixture.studyChat) {
+    // Same offline-typo discipline the verse ids get: a bad book code would
+    // otherwise surface as an empty chapter and an eval scoring a reply built
+    // on nothing.
+    if (!(fixture.studyChat.book in OSIS_TO_ABBREV)) {
+      problems.push(`studyChat.book "${fixture.studyChat.book}" (unknown book code)`);
+    }
+    return problems;   // study-chat fixtures anchor on a chapter, not candidates
+  }
+
   // A fixture that expects an artifact but offers nothing to anchor on sets the
   // model an impossible task and fails with a confusing empty-ref citation error.
   if (!fixture.expect.expectNoArtifact && candidateVerseIds(fixture).length === 0) {
     problems.push('no candidate verses: the devotion has nothing to anchor on (production always retrieves some)');
   }
   return problems;
+}
+
+/**
+ * Which fixtures a given `--artifact` run should use. A fixture describes one
+ * kind of scenario; running a devotion fixture through study-chat (or the
+ * reverse) would score an artifact the fixture never intended.
+ */
+export function fixturesFor(fixtures: EvalFixture[], artifact: ArtifactKind): EvalFixture[] {
+  return artifact === 'study-chat'
+    ? fixtures.filter((f) => f.studyChat !== undefined)
+    : fixtures.filter((f) => f.studyChat === undefined);
 }
 
 // ── Property checks (pure) ───────────────────────────────────────────────────
@@ -376,11 +441,19 @@ async function main(): Promise<void> {
   const artifact = (arg('artifact') ?? 'devotion') as ArtifactKind;
   const label = arg('label') ?? (live ? 'live' : 'dry');
 
-  let fixtures = loadFixtures(FIXTURE_DIR);
+  let fixtures = fixturesFor(loadFixtures(FIXTURE_DIR), artifact);
   if (only) fixtures = fixtures.filter((f) => f.name === only);
-  if (fixtures.length === 0) throw new Error(`no fixtures matched${only ? ` --fixture=${only}` : ''}`);
+  if (fixtures.length === 0) {
+    throw new Error(
+      `no ${artifact} fixtures matched${only ? ` --fixture=${only}` : ''}. ` +
+      (artifact === 'study-chat'
+        ? 'Study-chat fixtures are the ones carrying a "studyChat" block.'
+        : 'Devotion fixtures are the ones without a "studyChat" block.'),
+    );
+  }
 
-  console.log(`${live ? 'LIVE' : 'DRY'} · ${artifact} · ${fixtures.length} fixture(s)\n`);
+  const mode = !live ? 'DRY' : process.argv.includes('--grounding-only') ? 'GROUNDING' : 'LIVE';
+  console.log(`${mode} · ${artifact} · ${fixtures.length} fixture(s)\n`);
 
   if (!live) {
     // Dry mode spends nothing: it proves the fixtures parse, the context each
@@ -388,13 +461,17 @@ async function main(): Promise<void> {
     // knowing before paying for a live sweep.
     let refProblems = 0;
     for (const f of fixtures) {
-      const corpus = f.notes.map((n) => `${n.title}\n${n.text}`).join('\n\n');
+      const corpus = f.studyChat
+        ? f.studyChat.question
+        : f.notes.map((n) => `${n.title}\n${n.text}`).join('\n\n');
       const bad = checkProperties(corpus, f).filter((c) => !c.pass);
       const refs = validateFixtureRefs(f);
       refProblems += refs.length;
+      const shape = f.studyChat
+        ? `${f.studyChat.book} ${f.studyChat.chapter}`
+        : `${f.notes.length} note(s), ${f.highlights.length} highlight(s)`;
       console.log(
-        `  ${bad.length === 0 && refs.length === 0 ? '✓' : '✗'} ${f.name.padEnd(24)} ` +
-        `${f.notes.length} note(s), ${f.highlights.length} highlight(s)` +
+        `  ${bad.length === 0 && refs.length === 0 ? '✓' : '✗'} ${f.name.padEnd(24)} ${shape}` +
         (bad.length ? `  ← ${bad.map((c) => c.name).join(', ')}` : '') +
         (refs.length ? `  ← bad refs: ${refs.join('; ')}` : ''),
       );
@@ -405,9 +482,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (artifact !== 'devotion') {
+  if (artifact === 'reflection') {
     throw new Error(
-      `--artifact=${artifact} is not wired for live runs in v1; only 'devotion' is. ` +
+      "--artifact=reflection is not wired for live runs; 'devotion' and 'study-chat' are. " +
+      'Reflection needs a month of retrieval context the fixtures do not yet describe. ' +
       'See docs/lamplight/evals/README.md §Coverage.',
     );
   }
@@ -418,7 +496,15 @@ async function main(): Promise<void> {
   // and the fixtures supply everything else, so an eval can never be pointed at
   // a real vault by accident.
   loadDotEnvLocal();
-  const openaiKey = requiredEnv('OPENAI_API_KEY');
+  // --grounding-only builds and scores the context and stops, so it needs no
+  // model and no OpenAI key. It is the free half of a study-chat run: the
+  // grounding floors are what catch a retrieval channel going dark, and making
+  // them cost nothing is what makes them worth running often.
+  const groundingOnly = process.argv.includes('--grounding-only');
+  if (groundingOnly && artifact !== 'study-chat') {
+    throw new Error('--grounding-only applies to --artifact=study-chat; the devotion runner builds its context from the fixture.');
+  }
+  const openaiKey = groundingOnly ? '' : requiredEnv('OPENAI_API_KEY');
   const supabaseUrl = requiredEnv('VITE_SUPABASE_URL');
   const anonKey = requiredEnv('VITE_SUPABASE_ANON_KEY');
   // createIngestClient, not createClient: supabase-js builds a RealtimeClient at
@@ -431,7 +517,9 @@ async function main(): Promise<void> {
   const runs: FixtureRun[] = [];
   for (const fixture of fixtures) {
     process.stdout.write(`  ${fixture.name.padEnd(24)} `);
-    const run = await runDevotionFixture({ fixture, llm, supabase: supabase as unknown as AnonClient });
+    const run = artifact === 'study-chat'
+      ? await runStudyChatFixture({ fixture, llm, supabase: supabase as unknown as AnonClient, groundingOnly })
+      : await runDevotionFixture({ fixture, llm, supabase: supabase as unknown as AnonClient });
     runs.push(run);
     const bad = run.checks.filter((c) => !c.pass).length + run.scriptureViolations.length;
     console.log(bad === 0 ? '✓' : `✗ ${bad} issue(s)`);
@@ -450,6 +538,12 @@ async function main(): Promise<void> {
  * live there — the anon key is public by design — so a live run should not make
  * the operator hand-extract values the repo already has. Never overwrites a var
  * that is already set, so an explicit export always wins.
+ *
+ * NOTE: this is indiscriminate — it fills ANY missing var it finds, secrets
+ * included, so OPENAI_API_KEY in .env.local is picked up like anything else.
+ * That file is gitignored, so this is a convenience rather than a leak, but it
+ * is worth knowing when auditing where a key can come from. (The requiredEnv
+ * message used to claim the opposite.)
  */
 function loadDotEnvLocal(): void {
   let raw: string;
@@ -474,7 +568,11 @@ function requiredEnv(name: string): string {
       `${name} is required for a live run. ` +
       (name.startsWith('VITE_')
         ? 'It is normally read from .env.local — check that file exists at the repo root.'
-        : 'Export it in your shell; it is a secret and is never read from a file in the repo.'),
+        // Accurate as of 2026-08-06: this used to claim secrets are "never read
+        // from a file in the repo", which loadDotEnvLocal has never honoured —
+        // it fills ANY missing var from .env.local. Misdescribing where a
+        // secret can come from is worse than the leniency itself.
+        : 'Export it in your shell, or add it to .env.local (gitignored). An explicit export wins.'),
     );
   }
   return v;
@@ -628,6 +726,208 @@ async function runDevotionFixture(args: {
     scriptureViolations: [],
     checks: [refCheck, ...checkProperties(text, fixture)],
     snapshot: `# ${fixture.name} · devotion\n\n_${fixture.description}_\n\n${text}\n`,
+  };
+}
+
+// ── Study chat ───────────────────────────────────────────────────────────────
+//
+// Grounded on the anon key, which means the three semantic RPCs
+// (`match_user_note_embeddings`, `match_bible_embeddings`, `match_library_chunks`)
+// are out of reach — they are revoked from public, and their callers throw
+// rather than degrade. So the run sets `skipSemanticRetrieval` and exercises the
+// deterministic channels: chapter text, book apparatus, cross-references and
+// their resolved targets, the library's verse-anchor join, and the lexicon.
+//
+// That is a real limit, and it is stated in the report rather than left to be
+// inferred from a suspiciously empty grounding block. It is also the half that
+// matters most here: those are precisely the channels that sat dark while
+// `bible_cross_references` was empty, and the grounding floors below are what
+// would have caught it.
+//
+// Reaching further would mean either a service-role key — which would break the
+// harness's guarantee that it can never touch a real vault — or a seeded eval
+// account. Both are bigger decisions than a scoring layer should make on its own.
+
+/** Never called: `skipSemanticRetrieval` short-circuits every path that would. */
+const FORBIDDEN_VOYAGE = {
+  apiKey: '',
+  fetch: (() => {
+    throw new Error('eval study-chat must not call Voyage; skipSemanticRetrieval should have short-circuited');
+  }) as never,
+} as unknown as VoyageDeps;
+
+const STUDY_EVAL = { crossRefK: 5, libraryK: 4, effort: 'low', maxTokens: 4096 } as const;
+
+export function checkGrounding(
+  ctx: { crossRefs: unknown[]; libraryExcerpts?: unknown[]; bookContext?: unknown },
+  expect: FixtureStudyChat['expectGrounding'],
+): PropertyCheck[] {
+  const checks: PropertyCheck[] = [];
+  const e = expect ?? {};
+
+  if (typeof e.minCrossRefs === 'number') {
+    const got = ctx.crossRefs.length;
+    checks.push({
+      name: 'grounding_cross_refs',
+      pass: got >= e.minCrossRefs,
+      ...(got >= e.minCrossRefs ? {} : { detail: `${got} supplied, expected at least ${e.minCrossRefs}` }),
+    });
+  }
+  if (typeof e.minLibraryExcerpts === 'number') {
+    const got = (ctx.libraryExcerpts ?? []).length;
+    checks.push({
+      name: 'grounding_library_excerpts',
+      pass: got >= e.minLibraryExcerpts,
+      ...(got >= e.minLibraryExcerpts ? {} : { detail: `${got} supplied, expected at least ${e.minLibraryExcerpts}` }),
+    });
+  }
+  if (e.requireBookContext) {
+    const got = ctx.bookContext != null;
+    checks.push({
+      name: 'grounding_book_context',
+      pass: got,
+      ...(got ? {} : { detail: 'no bible_books row resolved for this book' }),
+    });
+  }
+  return checks;
+}
+
+function formatGroundingSnapshot(
+  fixture: EvalFixture,
+  sc: FixtureStudyChat,
+  ctx: {
+    passageRef: string;
+    crossRefs: Array<{ ref: string }>;
+    libraryExcerpts?: Array<{ sourceId: string }>;
+    lexiconEntries?: unknown[];
+    bookContext?: { book: string } | null;
+  },
+): string {
+  const excerpts = ctx.libraryExcerpts ?? [];
+  return [
+    `# ${fixture.name} · study-chat`,
+    '',
+    `_${fixture.description}_`,
+    '',
+    `**Passage:** ${ctx.passageRef} · **Question:** ${sc.question}`,
+    '',
+    '## Grounding supplied',
+    '',
+    `- cross-references: ${ctx.crossRefs.length}` +
+      (ctx.crossRefs.length ? ` — ${ctx.crossRefs.map((c) => c.ref).join(', ')}` : ''),
+    `- library excerpts: ${excerpts.length}` +
+      (excerpts.length ? ` — ${[...new Set(excerpts.map((e) => e.sourceId))].join(', ')}` : ''),
+    `- lexicon entries: ${(ctx.lexiconEntries ?? []).length}`,
+    `- book context: ${ctx.bookContext ? ctx.bookContext.book : 'none'}`,
+    '- semantic channels: **off** — the harness runs on the anon key, which cannot reach',
+    '  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.',
+    '',
+  ].join('\n');
+}
+
+async function runStudyChatFixture(args: {
+  fixture: EvalFixture;
+  llm: ReturnType<typeof createOpenAIAdapter>;
+  supabase: AnonClient;
+  /** Build and score the grounding, then stop. No model call, no cost. */
+  groundingOnly?: boolean;
+}): Promise<FixtureRun> {
+  const { fixture, llm, supabase } = args;
+  const sc = fixture.studyChat!;
+
+  const { ctx } = await buildStudyContext(supabase as never, {
+    userId: `eval-${fixture.name}`,      // never used: notes are skipped
+    book: sc.book,
+    chapter: sc.chapter,
+    passageRef: `${sc.book}.${sc.chapter}`,
+    message: sc.question,
+    retrievalQuery: sc.question,
+    history: [],
+    includeNotes: false,
+    noteIds: [],
+    voyageDeps: FORBIDDEN_VOYAGE,
+    rerankEnabled: false,
+    crossRefK: STUDY_EVAL.crossRefK,
+    noteK: 0,
+    translation: 'BSB',
+    libraryK: STUDY_EVAL.libraryK,
+    skipSemanticRetrieval: true,
+  });
+
+  const groundingChecks = checkGrounding(ctx, sc.expectGrounding);
+
+  // The grounding floors are the check that would have caught an empty
+  // bible_cross_references, and they cost nothing to run — so they are
+  // available without the model call that follows.
+  if (args.groundingOnly) {
+    return {
+      fixture: fixture.name,
+      artifact: 'study-chat',
+      model: 'none',
+      tokensIn: 0,
+      tokensOut: 0,
+      scriptureViolations: [],
+      checks: groundingChecks,
+      snapshot: formatGroundingSnapshot(fixture, sc, ctx),
+    };
+  }
+
+  const result = await runBibleChatPipeline({
+    llm,
+    ctx,
+    prompt: STUDY_CHAT_PROMPT,
+    model: 'deep',
+    effort: STUDY_EVAL.effort,
+    maxTokens: STUDY_EVAL.maxTokens,
+    verifyScripture: {
+      translation: 'BSB',
+      verifyRefs: (refs, t) => verifyVerseRefs(supabase as never, refs, t),
+    },
+  });
+
+  const base: Omit<FixtureRun, 'checks' | 'scriptureViolations'> = {
+    fixture: fixture.name,
+    artifact: 'study-chat',
+    model: result.usage?.model ?? 'unknown',
+    tokensIn: result.usage?.tokens_in ?? 0,
+    tokensOut: result.usage?.tokens_out ?? 0,
+  };
+
+  if (!result.ok) {
+    // Surface WHY, same as the devotion runner: "validators_failed" alone sends
+    // the reader back to the model when the answer is in the violations the
+    // pipeline already computed.
+    const v = result.violations;
+    const detail = [
+      `pipeline returned ${result.reason}`,
+      ...(v?.citation ?? []).map((c) => `citation:${c.reason} ${c.detail}`),
+      ...(v?.content ?? []).map((c) => `content:${c.family}/${c.rule} "${c.snippet}"`),
+    ].join(' · ');
+    return {
+      ...base,
+      scriptureViolations: [],
+      checks: [...groundingChecks, { name: 'generation', pass: false, detail }],
+    };
+  }
+
+  // The grounding block is snapshotted alongside the reply. A reply that reads
+  // well on grounding that was never there is the failure this whole artifact
+  // exists to make visible, and the two are only judgeable together.
+  const snapshot = [
+    formatGroundingSnapshot(fixture, sc, ctx),
+    '## Reply',
+    '',
+    result.reply,
+    '',
+    `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
+    '',
+  ].join('\n');
+
+  return {
+    ...base,
+    scriptureViolations: [],
+    checks: [...groundingChecks, ...checkProperties(result.reply, fixture)],
+    snapshot,
   };
 }
 

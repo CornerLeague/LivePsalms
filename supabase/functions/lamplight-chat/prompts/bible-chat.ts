@@ -5,19 +5,23 @@
 
 import type { BibleChatContext } from '../bible-chat-pipeline.ts';
 
-export const BIBLE_CHAT_PROMPT = {
-  promptVersion: 'bible-chat-2026-06-09-v2',
-
-  system: `You are helping someone study a specific passage of Scripture. They may ask open questions. Answer ONLY from (a) the passage and cross-reference passages supplied, and (b) the user's own notes supplied. Bring the two into conversation, drawing out the principle at work and how it bears on what the user has written.
-
-Rules (these compound your system fragment):
-- Ground every claim in a supplied passage or a supplied note. If you cannot, say so plainly and invite the user back to the text rather than speculating.
-- Do not give pastoral, psychological, medical, financial, or predictive advice. Do not speak prophetically or as if relaying a message from God.
-- Keep replies conversational and concise (60-160 words). One idea, well grounded.
-- citations: list every passage/note you actually leaned on. Cite verses using exactly one of the refs supplied; cite notes using exactly one of the note ids supplied. If you genuinely used none, return an empty array.
-- Never quote more than 25 words verbatim from any single note.`,
-
-  tool: {
+/**
+ * The shared `emit_chat_reply` tool, with a per-surface ceiling on the reply.
+ *
+ * The ceiling is a BACKSTOP, not a target. `strict` is deliberately not sent to
+ * the Responses API, so the model treats `maxLength` as a limit to write up to —
+ * and if the prompt gives no length guidance of its own, it writes until it hits
+ * the wall and stops mid-word. Every surface using this must pair its ceiling
+ * with prose guidance set comfortably below it.
+ *
+ * That pairing is why journaling chat has always been fine (160 words against a
+ * 1400-char ceiling) and why study chat was not: it reused this tool while its
+ * own prompt said nothing about length, so replies stopped at exactly 1400
+ * characters mid-sentence, and at the boundary the model emitted corrupted text.
+ * Found by the 2026-08-06 study-chat eval baseline.
+ */
+export function makeChatReplyTool(opts: { maxReplyChars: number }) {
+  return {
     name: 'emit_chat_reply',
     description: 'Return the chat reply and its citations.',
     input_schema: {
@@ -25,7 +29,7 @@ Rules (these compound your system fragment):
       additionalProperties: false,
       required: ['reply', 'citations'],
       properties: {
-        reply: { type: 'string', minLength: 1, maxLength: 1400 },
+        reply: { type: 'string', minLength: 1, maxLength: opts.maxReplyChars },
         citations: {
           type: 'array',
           items: {
@@ -40,7 +44,24 @@ Rules (these compound your system fragment):
         },
       },
     },
-  },
+  } as const;
+}
+
+export const BIBLE_CHAT_PROMPT = {
+  promptVersion: 'bible-chat-2026-06-09-v2',
+
+  system: `You are helping someone study a specific passage of Scripture. They may ask open questions. Answer ONLY from (a) the passage and cross-reference passages supplied, and (b) the user's own notes supplied. Bring the two into conversation, drawing out the principle at work and how it bears on what the user has written.
+
+Rules (these compound your system fragment):
+- Ground every claim in a supplied passage or a supplied note. If you cannot, say so plainly and invite the user back to the text rather than speculating.
+- Do not give pastoral, psychological, medical, financial, or predictive advice. Do not speak prophetically or as if relaying a message from God.
+- Keep replies conversational and concise (60-160 words). One idea, well grounded.
+- citations: list every passage/note you actually leaned on. Cite verses using exactly one of the refs supplied; cite notes using exactly one of the note ids supplied. If you genuinely used none, return an empty array.
+- Never quote more than 25 words verbatim from any single note.`,
+
+  // 1400 chars against a 60–160 word instruction — the ceiling sits well above
+  // the target, which is what keeps this surface from ever running into it.
+  tool: makeChatReplyTool({ maxReplyChars: 1400 }),
 
   buildMessages(ctx: BibleChatContext): Array<{ role: 'user' | 'assistant'; content: string }> {
     const passageBlock = `[Open passage ${ctx.passageRef}]\n${ctx.passageText}`;

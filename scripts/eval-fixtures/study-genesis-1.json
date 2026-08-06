@@ -1,0 +1,28 @@
+{
+  "name": "study-genesis-1",
+  "description": "Heavily cross-referenced and a standing invitation to overreach into cosmology the text does not address.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "studyChat": {
+    "book": "gen",
+    "chapter": 1,
+    "question": "What is the significance of the repeated phrase 'and God saw that it was good'?",
+    "expectGrounding": {
+      "minCrossRefs": 3,
+      "minLibraryExcerpts": 2,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "science proves",
+      "clearly teaches",
+      "the correct interpretation",
+      "settles the debate"
+    ]
+  }
+}

@@ -5,6 +5,8 @@ import {
   aggregateReport,
   validateFixtureRefs,
   candidateVerseIds,
+  checkGrounding,
+  fixturesFor,
   type EvalFixture,
   type FixtureRun,
 } from './eval-lamplight';
@@ -228,5 +230,113 @@ describe('candidate passages', () => {
   it('does not flag the empty-vault fixture, which is meant to generate nothing', () => {
     const f = parseFixture({ ...RAW_FIXTURE, highlights: [], notes: [], expect: { expectNoArtifact: true } });
     expect(validateFixtureRefs(f)).toEqual([]);
+  });
+});
+
+// ── Study chat ───────────────────────────────────────────────────────────────
+
+const RAW_STUDY = {
+  name: 'study-psalm-27',
+  description: 'A psalm with dense commentary coverage.',
+  localDate: '2026-08-07',
+  periodKey: '2026-08',
+  studyChat: {
+    book: 'psa',
+    chapter: 27,
+    question: 'What does it mean to dwell in the house of the LORD?',
+    expectGrounding: { minCrossRefs: 3, minLibraryExcerpts: 2, requireBookContext: true },
+  },
+};
+
+describe('parseFixture — studyChat', () => {
+  it('parses a study-chat block', () => {
+    const f = parseFixture(RAW_STUDY);
+    expect(f.studyChat).toEqual({
+      book: 'psa',
+      chapter: 27,
+      question: 'What does it mean to dwell in the house of the LORD?',
+      expectGrounding: { minCrossRefs: 3, minLibraryExcerpts: 2, requireBookContext: true },
+    });
+  });
+
+  it('leaves studyChat undefined on a devotion fixture', () => {
+    expect(parseFixture(RAW_FIXTURE).studyChat).toBeUndefined();
+  });
+
+  it('rejects a study block with no question', () => {
+    expect(() => parseFixture({ ...RAW_STUDY, studyChat: { book: 'psa', chapter: 27 } }))
+      .toThrow(/question/);
+  });
+
+  it('rejects a non-numeric chapter', () => {
+    expect(() => parseFixture({ ...RAW_STUDY, studyChat: { ...RAW_STUDY.studyChat, chapter: 'twenty-seven' } }))
+      .toThrow(/chapter/);
+  });
+});
+
+describe('validateFixtureRefs — studyChat', () => {
+  it('catches an unknown book code offline, before a live run pays for it', () => {
+    const f = parseFixture({ ...RAW_STUDY, studyChat: { ...RAW_STUDY.studyChat, book: 'psalms' } });
+    expect(validateFixtureRefs(f).join(' ')).toMatch(/unknown book code/);
+  });
+
+  it('does not demand candidate verses — a study fixture anchors on its chapter', () => {
+    expect(validateFixtureRefs(parseFixture(RAW_STUDY))).toEqual([]);
+  });
+});
+
+describe('fixturesFor', () => {
+  const devotion = parseFixture(RAW_FIXTURE);
+  const study = parseFixture(RAW_STUDY);
+
+  it('gives study-chat only the fixtures that describe one', () => {
+    expect(fixturesFor([devotion, study], 'study-chat').map((f) => f.name)).toEqual(['study-psalm-27']);
+  });
+
+  it('keeps study fixtures out of a devotion run', () => {
+    expect(fixturesFor([devotion, study], 'devotion').map((f) => f.name)).toEqual(['grief-month']);
+  });
+});
+
+describe('checkGrounding', () => {
+  const full = {
+    crossRefs: [{ ref: 'isa 40:31' }, { ref: 'heb 13:6' }, { ref: 'psa 118:6' }],
+    libraryExcerpts: [{ sourceId: 'treasury-of-david' }, { sourceId: 'jfb' }],
+    bookContext: { book: 'Psalms' },
+  };
+  const floors = { minCrossRefs: 3, minLibraryExcerpts: 2, requireBookContext: true };
+
+  it('passes when every floor is met', () => {
+    expect(checkGrounding(full, floors).every((c) => c.pass)).toBe(true);
+  });
+
+  // The regression this whole artifact exists for: bible_cross_references sat
+  // empty in production for months, study chat grounded on the open chapter
+  // alone, and nothing anywhere went red.
+  it('fails loudly when the cross-reference table is empty', () => {
+    const checks = checkGrounding({ ...full, crossRefs: [] }, floors);
+    const xref = checks.find((c) => c.name === 'grounding_cross_refs')!;
+    expect(xref.pass).toBe(false);
+    expect(xref.detail).toBe('0 supplied, expected at least 3');
+  });
+
+  it('fails when the library returns nothing for a covered passage', () => {
+    const checks = checkGrounding({ ...full, libraryExcerpts: [] }, floors);
+    expect(checks.find((c) => c.name === 'grounding_library_excerpts')!.pass).toBe(false);
+  });
+
+  it('fails when the book apparatus row does not resolve', () => {
+    const checks = checkGrounding({ ...full, bookContext: null }, floors);
+    expect(checks.find((c) => c.name === 'grounding_book_context')!.pass).toBe(false);
+  });
+
+  it('checks only the floors a fixture actually sets', () => {
+    expect(checkGrounding(full, {})).toEqual([]);
+    expect(checkGrounding(full, undefined)).toEqual([]);
+  });
+
+  it('treats a floor of 0 as a real assertion, not an absent one', () => {
+    expect(checkGrounding({ ...full, crossRefs: [] }, { minCrossRefs: 0 }))
+      .toEqual([{ name: 'grounding_cross_refs', pass: true }]);
   });
 });

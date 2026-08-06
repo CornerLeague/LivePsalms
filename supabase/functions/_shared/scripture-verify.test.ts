@@ -517,3 +517,21 @@ describe('verification vs psalm superscriptions', () => {
     expect(result.repairs).toEqual([]);
   });
 });
+
+describe('abbreviated book names', () => {
+  // parseRefToIds has always accepted 'Heb 11:1'; isCanonicalBook knew only
+  // display names, so the same ref resolved AND was reported fabricated. Both
+  // now go through canonicalBook.
+  it('does not treat an OSIS-style abbreviation as a fabricated book', async () => {
+    const deps = {
+      verifyRefs: async () => [],
+      translation: 'BSB',
+    };
+    const out = await verifyArtifactScripture(deps as never, {
+      text: 'Faith is the assurance of things hoped for (Heb 11:1).',
+      translation: 'BSB',
+    });
+    expect(out.violations.filter((v) => v.rule.includes('unresolvable'))).toEqual([]);
+  });
+
+});
