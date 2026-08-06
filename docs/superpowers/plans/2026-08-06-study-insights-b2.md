@@ -47,6 +47,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 **New (client):**
 - `src/notepad/study/insights/usePassageInsight.ts` — cached read + generate (Task 8).
 - `src/notepad/study/insights/PassageDoor.tsx` — the four sections, two render paths (Task 8).
+- `src/notepad/study/insights/passage-insight-stream-client.ts` — **added in Task 8, not in the original plan:** the SSE transport plus the client-side mirror of the server contract (section keys and the `ref_id` composer). Mirrors `study-stream-client.ts`, and exists for the same reason: a `src` module must not import from `supabase/functions`.
 
 **New (scripts):**
 - `scripts/refresh-passage-insights.ts` — targeted regeneration with `--dry-run` (Task 10).
@@ -88,7 +89,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Progress
 
-**Tasks 1–7 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,945 tests, `tsc -b` clean, lint at its 163-problem baseline.
+**Tasks 1–8 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,973 tests, `tsc -b` clean, lint at its 163-problem baseline.
 
 | Task | State | Commit |
 |---|---|---|
@@ -98,10 +99,11 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 4 — verse-scope grounding | done | `8ed1cd3c` |
 | 5 — the pipeline | done | `d01d56dc` |
 | 6 — cache read/write | done | `e7d34c88` |
-| 7 — edge function | done, **NOT DEPLOYED** | `89efd307` |
-| 8 — client hook + door | **next** | — |
+| 7 — edge function | done, **DEPLOYED 2026-08-06** | `89efd307` |
+| 8 — client hook + door | done, **unregistered** | see below |
+| 9 — eval, then registration | **next** | — |
 
-**Nothing has run live yet.** Migration 060 is applied and the corpus is empty (0 rows); the `passage-insight` function has never been deployed, so no door has been generated against a real model. Every claim about B2 so far rests on unit tests. Deploy is a prerequisite for Task 9's live eval sweep, not just for Task 11.
+**No door has been generated yet.** Migration 060 is applied and `passage-insight` is deployed and boots clean, but the corpus is still 0 rows — nothing has run against a real model. Every claim about B2's output quality rests on unit tests with fake adapters. **Task 9's live sweep is the first real exercise of the prompt**, and it is also the gate on registering the door.
 
 ### Decisions made while implementing, that are not in the design
 
@@ -120,6 +122,8 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - **Task 7 needed a fourth file the plan's File Structure does not list: `lamplight-study/passage-insight-stream.ts`.** Every Task 7 bullet is a *failing test*, and a Deno `index.ts` calling `serve()` at module scope cannot be imported by vitest. Split exactly as `daily-devotion-stream.ts` + `index.ts` and `etymology-insight/insight-body.ts` + `index.ts` already are: orchestration is Node-testable with injected deps, the shell is wiring. It lives beside the pipeline and cache so all four Door 1 modules sit together; `passage-insight/index.ts` imports across directories, which `lamplight-study/index.ts` already does.
 - **The stream module takes the whole `QuotaConfig`, not a pre-bound `checkQuota` closure** (which is what `daily-devotion-stream.ts` does). Choosing the `passageInsight` scope IS decision D1; bound in the Deno shell it would be the one part of D1 no test could reach. Taking the config lets the test drive real `checkQuota` and assert that `countUserUsage` is never even *called*.
 - **⚠️ `tsc -b` does not typecheck edge functions.** `tsconfig.app.json` includes only `src`, so the gate's type check covers none of `supabase/functions`. The Door 1 logic modules are at least exercised by vitest; the Deno shell is neither typechecked nor tested by the gate. Checked manually with a standalone `tsc --noEmit --allowImportingTsExtensions` run: the only errors in `passage-insight/index.ts` are the `deno.land` import and the `Deno` global, i.e. exactly what `lamplight-study/index.ts` produces. That is a one-off check, not a standing guard.
+- **⚠️ The cache key is written in two places and pinned by test in both.** `parsePassageInsightBody` (server) composes the `ref_id` that gets WRITTEN; `passageRefId` (client) composes the one that gets READ. They cannot import each other across the `src` / `supabase/functions` boundary. If they ever drift, nothing breaks loudly — the cache simply never hits, and every reader pays to generate a door already sitting in the table. Both sides assert the exact strings `psa.27` and `psa.27.4`, including the lowercasing.
+- **A failed generation returns `sections` to `null`, not to the partial text.** The server wrote nothing, so there is no door: leaving fragments on screen would render one that does not exist, and leaving four empty strings would strand the reader with no way to press the button again.
 - **⚠️ B3 landmine: `door` is not in the primary key.** `primary key (scope, ref_id, section)` means `('chapter','psa.27','overview')` is unique across ALL doors, so if B3's Deeper door ever names a section the Passage door also names, the two collide and overwrite each other. B3's four sections (Hermeneutics, Theology, Read With Care, Historical Background) don't collide today, but the constraint is one careless section name away from silent data loss. Fix by widening the PK to include `door` when B3 lands.
 
 ## Task 4 — Verse-scope grounding
@@ -156,17 +160,20 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - [x] Failing test: an interrupted stream writes nothing — the door stays uncached, mirroring how study chat declines to commit an interrupted reply.
 - [x] Failing test: the global quota ceiling still gates generation; the per-user allowance does not.
 - [x] Implement using `generateStreamingWithRetry` with `textFields` set to the four section names, inside a fresh SSE shell (**not** `streamBibleChat` — see the note above).
-- [ ] **NOT DONE — `passage-insight` has never been deployed.** Nothing has run against a real model or written a real cache row. Task 11's live checks are the first time this executes.
+- [x] **Deployed 2026-08-06.** Boot verified: an unauthenticated call returns 401 and a malformed body 400, which together prove the deno.land import resolved, every cross-directory import bundled, and `OPENAI_API_KEY` / `VOYAGE_AI_KEY` are present (a missing key 500s before either gate). **No door has been generated against a real model yet** — the corpus is still 0 rows.
 
 ## Task 8 — Client: hook + door
 
-- [ ] Failing test: `usePassageInsight` reads the cache on open and never triggers generation on its own.
-- [ ] Failing test: a cached door renders immediately — no spinner, no stream.
-- [ ] Failing test: an uncached door renders *Study this passage*; pressing it streams sections in.
-- [ ] Failing test: sections appear as they arrive rather than all at once on completion.
-- [ ] Failing test: an empty section renders nothing at all — no heading, no placeholder.
-- [ ] Failing test: signed-out or non-entitled readers see cached content but not the generate action.
-- [ ] Implement.
+- [x] Failing test: `usePassageInsight` reads the cache on open and never triggers generation on its own.
+- [x] Failing test: a cached door renders immediately — no spinner, no stream.
+- [x] Failing test: an uncached door renders *Study this passage*; pressing it streams sections in.
+- [x] Failing test: sections appear as they arrive rather than all at once on completion.
+- [x] Failing test: an empty section renders nothing at all — no heading, no placeholder.
+- [x] Failing test: signed-out or non-entitled readers see cached content but not the generate action.
+- [x] Implement.
+- [x] **Also:** a failed generation returns the door to its offerable state rather than stranding the reader on four empty sections or on half-written text for a door the server never wrote.
+
+**Still unregistered**, per the global constraint: `PassageDoor` and `usePassageInsight` are unreferenced by production code until Task 9's eval baseline is green. Nothing a reader can reach has changed.
 
 ## Task 9 — Eval coverage, then registration — in that order
 
