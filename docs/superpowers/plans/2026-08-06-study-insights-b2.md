@@ -61,7 +61,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 - [x] Write `060_passage_insight.sql`: the table from the design §3, public-read RLS, service-role write, and an index on `(scope, ref_id, door)` so a whole door loads in one query.
 - [x] `check (scope in ('verse','chapter'))` and `check (door in ('passage'))` — B3 widens the door check when it adds `'deeper'`. A narrow check now is a cheap guard against a typo writing rows nobody reads.
-- [ ] **NOT DONE —** **Hand the SQL to Myles to apply in the SQL Editor** and record the applied date in the task report before any code depends on it.
+- [x] **Applied 2026-08-06** by Myles via the SQL Editor. Verified from the repo with an anon-key select against `bible_passage_insight`: HTTP 200, `[]` — the table exists, public-read RLS is live, and no rows are warmed yet.
 
 **Requirements:** `primary key (scope, ref_id, section)`. Store `prompt_version` and `model_used` per row — Task 10's targeted refresh is impossible without them.
 
@@ -87,18 +87,19 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Progress
 
-**Tasks 1–5 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,907 tests, `tsc -b` clean, lint at its 163-problem baseline.
+**Tasks 1–6 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,925 tests, `tsc -b` clean, lint at its 163-problem baseline.
 
 | Task | State | Commit |
 |---|---|---|
-| 1 — migration 060 | written, **NOT APPLIED** | `2ac36bf9` |
+| 1 — migration 060 | **APPLIED 2026-08-06** | `2ac36bf9` |
 | 2 — uncharged quota scope | done | `2ac36bf9` |
 | 3 — prompt + four-field tool | done | `350aba75`, amended by Task 5 (citations) |
 | 4 — verse-scope grounding | done | `8ed1cd3c` |
 | 5 — the pipeline | done | `d01d56dc` |
-| 6 — cache read/write | **next**, blocked on the migration | — |
+| 6 — cache read/write | done | see below |
+| 7 — edge function | **next** | — |
 
-**Blocking:** migration `060_passage_insight.sql` has not been run against the database. **Task 6 is the first task that needs it** — it is read/write against `bible_passage_insight`. Its unit tests can be written against a Supabase fake, but nothing can be verified end-to-end until the SQL is applied.
+**No longer blocked.** Migration 060 is live and the corpus is empty (0 rows). Task 7 can be verified end-to-end.
 
 ### Decisions made while implementing, that are not in the design
 
@@ -109,9 +110,12 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - **Focus neighbours are counted in ROWS, not verse numbers.** `bible_passages` genuinely stores multi-verse rows (`psa 27:5-6`), so verse arithmetic would slice through one and ask for text that has no row. `FOCUS_NEIGHBOURS = 2` either side of the row containing the selection; clamping is then just array-slice clamping. `selectFocusVerses` in `study-context.ts` is the authority.
 - **Verse scope narrows the library anchor, NOT `allowedVerseRefs`.** The whole chapter text is still supplied, so the whole chapter stays citable — *The Chapter's Shape* cites across the chapter constantly, and a narrowed allowlist would make that section unwritable. Design §2 only ever asked for the anchor.
 - **A verse in no row of its chapter degrades to chapter grounding**, with a `console.warn`. Narrowing an anchor onto a verse that does not exist would blank the library rather than widen it; a bad `ref_id` should cost a warning, not the door.
-- **⚠️ Task 5 added a `citations` array to the four-field tool — Task 3's "exactly four fields" no longer holds.** The plan and design both require the citation allowlist, but `validateChatReplyCitations` reads a *structured* array and the Task 3 tool had none, so the allowlist was enforcing nothing. The design's own data model settles it: `bible_passage_insight.sources jsonb` (§3) has no other column to fill it. Verse-only — `type: { enum: ['verse'] }` — because Door 1 is a public asset with no reader's notes in scope, unlike study chat. Door-level rather than per-section: the sections must stay plain strings for `textFields` per-field streaming (D3), and a door is cached and invalidated as a unit anyway.
+- **⚠️ Task 5 added a `citations` array to the four-field tool — Task 3's "exactly four fields" no longer holds.** The plan and design both require the citation allowlist, but `validateChatReplyCitations` reads a *structured* array and the Task 3 tool had none, so the allowlist was enforcing nothing. Verse-only — `type: { enum: ['verse'] }` — because Door 1 is a public asset with no reader's notes in scope, unlike study chat. Door-level rather than per-section: the sections must stay plain strings for `textFields` per-field streaming (D3), and a door is cached and invalidated as a unit anyway.
+  - **Correction, made in Task 6:** the Task 5 note also claimed `bible_passage_insight.sources` had nothing else to fill it. That was wrong — migration 060's own comment reads `-- library chunk provenance`, matching `lamplight_artifacts.source_library_chunks`. `sources` stores the library snapshot; **citations are validation-only in B2 and are not persisted.** If a reader-facing "verses this door leaned on" list is wanted later, that is a new column or a widened `sources` shape, not a reinterpretation of this one. The case for adding `citations` stands on the allowlist alone.
 - **`promptVersion` stays at `v1`.** The tool and system prompt changed in Task 5, but `PASSAGE_INSIGHT_PROMPT` was unreachable from any generation path in the Task 3 commit, so no row can exist under a v1 that means anything else. v1 names the first prompt that can actually generate. Bump normally from here.
 - **Section keys are read defensively.** `sectionsOf()` normalises a missing or non-string field to `''` rather than trusting the schema's `required`. Omission and emptiness are the same first-class answer, and the four-bound design's whole point is that a section can legitimately have nothing in it.
+- **The atomic write is one multi-row upsert, not a transaction.** A single statement cannot half-land, which is what "either the whole door or nothing" needs; Supabase's JS client has no transaction API to reach for anyway. Both cache functions **throw** rather than returning a soft failure — a read that reported `null` on a transport error would send the reader to the generate path and re-bill a warm door, and a write that swallowed its error would let the terminal `done` beat tell the client a door is cached when no row landed.
+- **⚠️ B3 landmine: `door` is not in the primary key.** `primary key (scope, ref_id, section)` means `('chapter','psa.27','overview')` is unique across ALL doors, so if B3's Deeper door ever names a section the Passage door also names, the two collide and overwrite each other. B3's four sections (Hermeneutics, Theology, Read With Care, Historical Background) don't collide today, but the constraint is one careless section name away from silent data loss. Fix by widening the PK to include `door` when B3 lands.
 
 ## Task 4 — Verse-scope grounding
 
@@ -131,11 +135,13 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Task 6 — Cache read/write
 
-- [ ] Failing test: a read returns rows regardless of `prompt_version` (D2 — serve stale, never block a reader).
-- [ ] Failing test: a read returns `null` when the door has no rows, distinguishable from a door whose sections are all legitimately empty.
-- [ ] Failing test: a write upserts all four sections atomically, stamping `prompt_version`, `model_used`, `created_by`.
-- [ ] Failing test: a partial write never lands — either the whole door or nothing.
-- [ ] Implement as a pure-ish module taking a Supabase client, so it is testable without the edge shell.
+- [x] Failing test: a read returns rows regardless of `prompt_version` (D2 — serve stale, never block a reader).
+- [x] Failing test: a read returns `null` when the door has no rows, distinguishable from a door whose sections are all legitimately empty.
+- [x] Failing test: a write upserts all four sections atomically, stamping `prompt_version`, `model_used`, `created_by`.
+- [x] Failing test: a partial write never lands — either the whole door or nothing.
+- [x] Implement as a pure-ish module taking a Supabase client, so it is testable without the edge shell.
+- [x] **Also:** refuses an all-empty door (the hole Task 5 left open, closed here).
+- [x] Column names in both paths checked against the LIVE table, not just the fake — an anon select of every column the read selects and every column the write sends returns 200, as do all three read filters.
 
 ## Task 7 — Edge function
 
@@ -194,7 +200,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 - If per-section streaming makes the four-field tool awkward under `generateWithRetry`'s stricter-retry, consider whether a failed section can be regenerated alone rather than the whole door. Do not build that speculatively.
 - The `door` check constraint needs widening in B3; note it there rather than pre-widening now.
-- **A door whose four sections all come back empty is a hole Task 5 deliberately left open.** The pipeline returns `ok: true` with four empty strings, because omission per section is legitimate and the pipeline has no business deciding what is worth caching. But writing that door would cache nothing, permanently, for every reader. **Task 6 or 7 must refuse to write an all-empty door** — it belongs with "a partial write never lands", not in the validator stack.
+- ~~A door whose four sections all come back empty…~~ **Closed in Task 6:** `writePassageDoor` returns `{ written: false, reason: 'empty_door' }` and writes nothing. Task 7 must surface that on the `done` beat so the client knows the door is still uncached rather than reporting a successful generation.
 
 ---
 
