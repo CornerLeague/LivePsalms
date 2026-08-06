@@ -304,6 +304,32 @@ export interface ChatReply {
   citations: Citation[];
 }
 
+/**
+ * Split a same-chapter verse range into its constituent refs, or null if `ref`
+ * is not a range.
+ *
+ * A scholarly answer cites a span — "heb 11:7-11" — far more naturally than it
+ * cites five separate verses, and the supplied chapter arrives as one row per
+ * verse, so a plain set test rejects the span even though every verse in it was
+ * supplied. Accepts hyphen, en dash, and em dash: the model uses all three.
+ *
+ * Cross-chapter spans ("rom 9:30-10:4") deliberately return null and fall
+ * through to the strict test — resolving them needs chapter lengths this
+ * function does not have, and quietly accepting them would be a real widening.
+ */
+export function expandVerseRange(ref: string): string[] | null {
+  const m = ref.match(/^(.+?)\s+(\d+):(\d+)\s*[-–—]\s*(\d+)$/);
+  if (!m) return null;
+  const [, book, chapter, startRaw, endRaw] = m;
+  const start = Number(startRaw);
+  const end = Number(endRaw);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  if (end - start > 64) return null;      // absurd span: treat as unparseable
+  const out: string[] = [];
+  for (let v = start; v <= end; v++) out.push(`${book} ${chapter}:${v}`);
+  return out;
+}
+
 export function validateChatReplyCitations(
   reply: ChatReply,
   allowed: { allowedNoteIds: Set<string>; allowedVerseRefs: Set<string> },
@@ -315,9 +341,25 @@ export function validateChatReplyCitations(
   (reply.citations ?? []).forEach((cite) => {
     if (cite.type === 'note' && !allowed.allowedNoteIds.has(cite.ref)) {
       violations.push({ section_index: 0, reason: 'unknown_note', detail: `cited note "${cite.ref}" is not in the user's context` });
-    } else if (cite.type === 'verse' && !verseRefsLower.has(cite.ref.toLowerCase())) {
-      violations.push({ section_index: 0, reason: 'unknown_verse', detail: `cited verse "${cite.ref}" is not in the retrieved passages` });
+      return;
     }
+    if (cite.type !== 'verse' || verseRefsLower.has(cite.ref.toLowerCase())) return;
+
+    // A range is allowed only when EVERY verse it spans was supplied. That is
+    // strictly more permissive where the text really is in hand, and no more
+    // permissive anywhere else — which is exactly what the allowlist is for.
+    const span = expandVerseRange(cite.ref);
+    if (span) {
+      const missing = span.filter((r) => !verseRefsLower.has(r.toLowerCase()));
+      if (missing.length === 0) return;
+      violations.push({
+        section_index: 0,
+        reason: 'unknown_verse',
+        detail: `cited range "${cite.ref}" covers verses that were not supplied: ${missing.join(', ')}`,
+      });
+      return;
+    }
+    violations.push({ section_index: 0, reason: 'unknown_verse', detail: `cited verse "${cite.ref}" is not in the retrieved passages` });
   });
 
   return { ok: violations.length === 0, violations };

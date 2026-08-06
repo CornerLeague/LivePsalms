@@ -294,7 +294,7 @@ describe('flattenConnectionWhyText', () => {
   });
 });
 
-import { nameMentionCount, applyNameRules, validateChatReplyCitations } from './validators';
+import { nameMentionCount, applyNameRules, validateChatReplyCitations, expandVerseRange } from './validators';
 
 function makeDailyDevotion(over: Partial<DailyDevotion> = {}): DailyDevotion {
   return {
@@ -436,5 +436,76 @@ describe('validateChatReplyCitations', () => {
     const r = validateChatReplyCitations({ reply: 'x', citations: [{ type: 'verse', ref: 'gen 1:1' }] }, allowed);
     expect(r.ok).toBe(false);
     expect(r.violations[0].reason).toBe('unknown_verse');
+  });
+});
+
+describe('expandVerseRange', () => {
+  it('splits a same-chapter range', () => {
+    expect(expandVerseRange('heb 11:7-9')).toEqual(['heb 11:7', 'heb 11:8', 'heb 11:9']);
+  });
+
+  it('accepts the dashes the model actually emits', () => {
+    expect(expandVerseRange('rom 9:11–12')).toEqual(['rom 9:11', 'rom 9:12']);   // en dash
+    expect(expandVerseRange('rom 9:11—12')).toEqual(['rom 9:11', 'rom 9:12']);   // em dash
+  });
+
+  it('handles a multi-word book name', () => {
+    expect(expandVerseRange('1 Corinthians 11:2-3')).toEqual(['1 Corinthians 11:2', '1 Corinthians 11:3']);
+  });
+
+  it('returns null for a single verse', () => {
+    expect(expandVerseRange('psa 27:4')).toBeNull();
+  });
+
+  it('returns null for a cross-chapter span — resolving it needs chapter lengths', () => {
+    expect(expandVerseRange('rom 9:30-10:4')).toBeNull();
+  });
+
+  it('returns null for a reversed or absurd span', () => {
+    expect(expandVerseRange('psa 27:9-4')).toBeNull();
+    expect(expandVerseRange('psa 119:1-176')).toBeNull();
+  });
+});
+
+describe('validateChatReplyCitations — verse ranges', () => {
+  // The 2026-08-06 study-chat eval: giving replies room to breathe made them
+  // cite spans, and every span was rejected even though the whole chapter had
+  // been supplied a verse at a time.
+  const chapter = {
+    allowedNoteIds: new Set<string>(),
+    allowedVerseRefs: new Set(['heb 11:7', 'heb 11:8', 'heb 11:9', 'heb 11:10', 'heb 11:11']),
+  };
+
+  it('accepts a range whose every verse was supplied', () => {
+    const r = validateChatReplyCitations({ reply: 'x', citations: [{ type: 'verse', ref: 'heb 11:7-11' }] }, chapter);
+    expect(r.ok).toBe(true);
+  });
+
+  it('accepts an en-dash range too', () => {
+    const r = validateChatReplyCitations({ reply: 'x', citations: [{ type: 'verse', ref: 'heb 11:8–10' }] }, chapter);
+    expect(r.ok).toBe(true);
+  });
+
+  it('rejects a range that reaches past what was supplied, and names the gap', () => {
+    const r = validateChatReplyCitations({ reply: 'x', citations: [{ type: 'verse', ref: 'heb 11:9-13' }] }, chapter);
+    expect(r.ok).toBe(false);
+    expect(r.violations[0].detail).toContain('heb 11:12, heb 11:13');
+  });
+
+  it('still rejects a single verse that was never supplied', () => {
+    const r = validateChatReplyCitations({ reply: 'x', citations: [{ type: 'verse', ref: 'heb 12:1' }] }, chapter);
+    expect(r.ok).toBe(false);
+    expect(r.violations[0].detail).toContain('is not in the retrieved passages');
+  });
+
+  it('does not let a range widen the allowlist — a cross-ref verse stays a single verse', () => {
+    // isa 40:31 arrives as a cross-reference: only that verse's text was
+    // supplied, so a span around it must not be accepted.
+    const withCrossRef = {
+      allowedNoteIds: new Set<string>(),
+      allowedVerseRefs: new Set(['psa 27:1', 'isa 40:31']),
+    };
+    const r = validateChatReplyCitations({ reply: 'x', citations: [{ type: 'verse', ref: 'isa 40:29-31' }] }, withCrossRef);
+    expect(r.ok).toBe(false);
   });
 });

@@ -21,7 +21,21 @@ describe('STUDY_INSIGHT_PROMPT', () => {
 
 describe('STUDY_INSIGHT_PROMPT — slice 1c', () => {
   it('bumps its version alongside the study system it composes', () => {
-    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v2');
+    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v3');
+  });
+
+  it('overrides the study word target — an opener is a doorway, not an answer', () => {
+    // It composes STUDY_CHAT_PROMPT.system, which asks for 200-400 words. Left
+    // unaddressed the two instructions contradict each other in one prompt.
+    expect(STUDY_INSIGHT_PROMPT.system).toContain('Ignore the word target above');
+    expect(STUDY_INSIGHT_PROMPT.system).toMatch(/60.{0,3}120 words/);
+  });
+
+  it('keeps the short-register ceiling, not the study-chat one', () => {
+    const reply = (STUDY_INSIGHT_PROMPT.tool as {
+      input_schema: { properties: { reply: { maxLength: number } } };
+    }).input_schema.properties.reply;
+    expect(reply.maxLength).toBe(1400);
   });
 
   it('inherits the voices block and the naming rules', () => {
