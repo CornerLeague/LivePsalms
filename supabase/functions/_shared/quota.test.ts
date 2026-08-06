@@ -133,3 +133,62 @@ describe('resolveQuotaLimits — study scope', () => {
     expect(cfg.study.perUser).toEqual({ none: 0, lite: 5, plus: 50 });
   });
 });
+
+// ── passage_insight: gated by entitlement, not by the reader's allowance ──────
+//
+// A generated Insights door is a public asset: the first reader to open Psalm 27
+// warms it for everyone. Charging that reader's quota for a shared artifact is
+// the wrong incentive — so the bucket has no per-user limit. It is NOT
+// unbounded: the global ceiling still applies, and usage rows are still written
+// so cost stays visible.
+
+const INSIGHT: QuotaScope = { kinds: ['passage_insight'], perUser: null };
+
+describe('checkQuota — a scope with no per-user limit', () => {
+  it('allows a user far past any ordinary allowance', async () => {
+    const r = await checkQuota(
+      deps({ countUserUsage: async () => 10_000 }),
+      INSIGHT, GLOBAL, { userId: 'u1', nowMs: NOW },
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('does not even ask what the user has used', async () => {
+    let asked = false;
+    await checkQuota(
+      deps({ countUserUsage: async () => { asked = true; return 0; } }),
+      INSIGHT, GLOBAL, { userId: 'u1', nowMs: NOW },
+    );
+    expect(asked).toBe(false);
+  });
+
+  it('still enforces the global ceiling — "uncharged" is not "unbounded"', async () => {
+    const r = await checkQuota(
+      deps({ countGlobalUsage: async () => GLOBAL }),
+      INSIGHT, GLOBAL, { userId: 'u1', nowMs: NOW },
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe('global_quota');
+  });
+
+  it('still refuses an empty kinds scope — a misconfigured scope must block, not pass', async () => {
+    await expect(
+      checkQuota(deps({}), { kinds: [], perUser: null }, GLOBAL, { userId: 'u1', nowMs: NOW }),
+    ).rejects.toThrow(/refusing to fail open/);
+  });
+});
+
+describe('resolveQuotaLimits — passageInsight scope', () => {
+  it('declares the kind and no per-user limit', () => {
+    const cfg = resolveQuotaLimits(env({}));
+    expect(cfg.passageInsight.kinds).toEqual(['passage_insight']);
+    expect(cfg.passageInsight.perUser).toBeNull();
+  });
+
+  it('keeps passage_insight out of every charged bucket', () => {
+    const cfg = resolveQuotaLimits(env({}));
+    for (const scope of [cfg.generation, cfg.transcription, cfg.study]) {
+      expect(scope.kinds).not.toContain('passage_insight');
+    }
+  });
+});

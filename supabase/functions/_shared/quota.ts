@@ -14,19 +14,31 @@ export type Tier = 'none' | 'lite' | 'plus';
 
 export interface QuotaScope {
   kinds: string[];                 // artifact_kinds this bucket counts
-  perUser: Record<Tier, number>;
+  /**
+   * Per-tier daily allowance, or `null` for kinds that are entitlement-gated
+   * but not charged to the reader who triggers them.
+   *
+   * `null` is NOT "unbounded": the global ceiling below still applies and usage
+   * rows are still written, so the spend stays capped and visible. It means the
+   * artifact is a public asset rather than a personal one — a generated Insights
+   * door is produced once by whoever opens the passage first and then served to
+   * everyone, and charging that reader's allowance for it is the wrong incentive.
+   */
+  perUser: Record<Tier, number> | null;
 }
 
 export interface QuotaConfig {
   generation: QuotaScope;
   transcription: QuotaScope;
   study: QuotaScope;               // Opus-backed study chat — tighter cap
+  passageInsight: QuotaScope;      // shared cache warming — gated, uncharged
   global: number;                  // all-kinds daily ceiling
 }
 
 const GENERATION_KINDS = ['smoke_test', 'daily_devotion', 'connection_card_why', 'bible_chat', 'etymology_insight'];
 const TRANSCRIPTION_KINDS = ['note_transcription'];
 const STUDY_KINDS = ['bible_study'];
+const PASSAGE_INSIGHT_KINDS = ['passage_insight'];
 
 const DEFAULTS = {
   generation: { none: 10, lite: 50, plus: 200 },
@@ -69,6 +81,12 @@ export function resolveQuotaLimits(env: { get(key: string): string | undefined }
         plus: num('LAMPLIGHT_QUOTA_STUDY_PLUS', DEFAULTS.study.plus),
       },
     },
+    // No env overrides: there is no per-user number to tune. Capping this
+    // bucket means lowering LAMPLIGHT_QUOTA_GLOBAL, which is the honest lever.
+    passageInsight: {
+      kinds: PASSAGE_INSIGHT_KINDS,
+      perUser: null,
+    },
     global: num('LAMPLIGHT_QUOTA_GLOBAL', DEFAULTS.global),
   };
 }
@@ -97,11 +115,13 @@ export async function checkQuota(
     throw new Error('quota scope has no kinds — refusing to fail open');
   }
   const sinceIso = new Date(args.nowMs - DAY_MS).toISOString();
+  // An uncharged scope does not ask what the reader has used — there is no
+  // allowance to compare against, and the count would be a query for nothing.
   const [tier, userUsed] = await Promise.all([
     deps.getTier(args.userId),
-    deps.countUserUsage(args.userId, sinceIso, scope.kinds),
+    scope.perUser === null ? Promise.resolve(0) : deps.countUserUsage(args.userId, sinceIso, scope.kinds),
   ]);
-  const userLimit = scope.perUser[tier];
+  const userLimit = scope.perUser === null ? Infinity : scope.perUser[tier];
   if (userUsed >= userLimit) {
     return { ok: false, reason: 'user_quota', tier, userUsed, userLimit };
   }
