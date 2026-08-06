@@ -112,7 +112,7 @@ A read returns whatever is cached, regardless of `prompt_version`. A reader is n
 
 ### D3 · Stream section by section
 
-The reveal is worth it, and the infra exists: `streamBibleChat` already emits per-field `text` events, which maps cleanly onto four named fields. Overview lands while the rest fill in.
+The reveal is worth it, and the infra exists — but one layer lower than it first appears. **`streamBibleChat` is not the seam:** it is thread-shaped, upserting a `lamplight_chat_threads` row and persisting user and assistant messages, none of which B2 has. The reusable layer is **`generateStreamingWithRetry`** (`_shared/generate-streaming.ts`), which already takes `textFields` and emits per-field deltas. B2 supplies its own SSE shell around it. Overview lands while the rest fill in.
 
 This means **the client has two rendering paths**, and that is the part to get right:
 
