@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatVerseRef, formatDisplayVerseRef, buildPassages, fetchPassageText, type BiblePassageRow } from './bible-passage';
+import { formatVerseRef, formatDisplayVerseRef, buildPassages, fetchPassageText, stripPsalmSuperscription, superscriptionApplies, type BiblePassageRow } from './bible-passage';
 import { parseRefToIds } from './verse-verify';
 import type { RetrievedItem } from './retrieval';
 
@@ -173,5 +173,160 @@ describe('buildPassages — display refs', () => {
     // devotion — the bug the first live eval run surfaced.
     const ref = buildPassages(rows, retrieved)[0].ref;
     expect(parseRefToIds(ref)).toEqual(['psa.23.4']);
+  });
+});
+
+// ── Psalm superscriptions (slice-1d carry-out) ───────────────────────────────
+// BSB/KJV/WEB fuse the editorial superscription into verse 1's text, so the
+// devotion card led with "For the choirmaster. A Psalm of David." instead of
+// the verse. Every fixture string below is the REAL bible_passages row text.
+
+describe('stripPsalmSuperscription', () => {
+  const strip = stripPsalmSuperscription;
+
+  it('strips a simple BSB heading', () => {
+    expect(strip('A Psalm of David. The LORD is my shepherd; I shall not want.'))
+      .toBe('The LORD is my shepherd; I shall not want.');
+  });
+
+  it('strips a stacked BSB heading', () => {
+    expect(strip('For the choirmaster. A Psalm of David. How long, O LORD? Will You forget me forever?'))
+      .toBe('How long, O LORD? Will You forget me forever?');
+  });
+
+  it('strips a tune-name heading with curly quotes', () => {
+    expect(strip('For the choirmaster. To the tune of “The Doe of the Dawn.” A Psalm of David. My God, my God, why have You forsaken me?'))
+      .toBe('My God, my God, why have You forsaken me?');
+  });
+
+  it('strips a narrative sentence only after an authorship lead (BSB Ps 51)', () => {
+    expect(strip('For the choirmaster. A Psalm of David. When Nathan the prophet came to him after his adultery with Bathsheba. Have mercy on me, O God.'))
+      .toBe('Have mercy on me, O God.');
+  });
+
+  it('strips a narrative with quoted speech inside (BSB Ps 52)', () => {
+    expect(strip('For the choirmaster. A Maskil of David. After Doeg the Edomite went to Saul and told him, “David has gone to the house of Ahimelech.” Why do you boast of evil, O mighty man?'))
+      .toBe('Why do you boast of evil, O mighty man?');
+  });
+
+  it('THE TRAP: keeps a body that starts with "When" after a non-authorship lead (Ps 126)', () => {
+    expect(strip('A song of ascents. When the LORD restored the captives of Zion, we were like dreamers.'))
+      .toBe('When the LORD restored the captives of Zion, we were like dreamers.');
+  });
+
+  it('keeps a body that starts with "When" when there is no heading at all (Ps 114)', () => {
+    const text = 'When Israel departed from Egypt, the house of Jacob from a people of foreign tongue,';
+    expect(strip(text)).toBe(text);
+  });
+
+  it('strips the "He said:" hinge (BSB Ps 18)', () => {
+    expect(strip('For the choirmaster. Of David the servant of the LORD, who sang this song to the LORD on the day the LORD had delivered him from the hand of all his enemies and from the hand of Saul. He said: I love You, O LORD, my strength.'))
+      .toBe('I love You, O LORD, my strength.');
+  });
+
+  it('strips the KJV comma-joined form with brackets and "And he said," (KJV Ps 18)', () => {
+    expect(strip('To the chief Musician, [A Psalm] of David, the servant of the LORD, who spake unto the LORD the words of this song in the day [that] the LORD delivered him from the hand of all his enemies, and from the hand of Saul: And he said, I will love thee, O LORD, my strength.'))
+      .toBe('I will love thee, O LORD, my strength.');
+  });
+
+  it('strips a bracket-leading KJV heading with an inline narrative (KJV Ps 34)', () => {
+    expect(strip('[A Psalm] of David, when he changed his behaviour before Abimelech; who drove him away, and he departed. I will bless the LORD at all times: his praise [shall] continually [be] in my mouth.'))
+      .toBe('I will bless the LORD at all times: his praise [shall] continually [be] in my mouth.');
+  });
+
+  it('strips WEB "By" attributions without touching Ps 137\'s "By the rivers" body', () => {
+    expect(strip('For the Chief Musician. By the sons of Korah. According to Alamoth. God is our refuge and strength, a very present help in trouble.'))
+      .toBe('God is our refuge and strength, a very present help in trouble.');
+    const rivers = 'By the rivers of Babylon, there we sat down. Yes, we wept, when we remembered Zion.';
+    expect(strip(rivers)).toBe(rivers);
+  });
+
+  it('strips WEB instrument and contemplation forms', () => {
+    expect(strip('For the Chief Musician. For a stringed instrument. By David. Hear my cry, God. Listen to my prayer.'))
+      .toBe('Hear my cry, God. Listen to my prayer.');
+    expect(strip('A contemplation by David, when he was in the cave. A Prayer. I cry with my voice to the LORD. With my voice, I ask the LORD for mercy.'))
+      .toBe('I cry with my voice to the LORD. With my voice, I ask the LORD for mercy.');
+  });
+
+  it('strips the KJV Maschil/semicolon form (KJV Ps 142)', () => {
+    expect(strip('Maschil of David; A Prayer when he was in the cave. I cried unto the LORD with my voice; with my voice unto the LORD did I make my supplication.'))
+      .toBe('I cried unto the LORD with my voice; with my voice unto the LORD did I make my supplication.');
+  });
+
+  it('stops at a body that opens with a colon clause (BSB Ps 110)', () => {
+    expect(strip('A Psalm of David. The LORD said to my Lord: “Sit at My right hand until I make Your enemies a footstool for Your feet.”'))
+      .toBe('The LORD said to my Lord: “Sit at My right hand until I make Your enemies a footstool for Your feet.”');
+  });
+
+  it('leaves psalms without a superscription untouched', () => {
+    for (const body of [
+      'Blessed is the man who does not walk in the counsel of the wicked, or set foot on the path of sinners.',
+      'Hallelujah! Praise God in His sanctuary. Praise Him in His mighty heavens.',
+      'He who dwells in the shelter of the Most High will abide in the shadow of the Almighty.',
+    ]) expect(strip(body)).toBe(body);
+  });
+
+  it('strips Habakkuk 3:1 in all three renderings', () => {
+    expect(strip('A prayer of Habakkuk the prophet, according to Shigionoth. O LORD, I have heard the report of You.'))
+      .toBe('O LORD, I have heard the report of You.');
+    expect(strip('A prayer of Habakkuk, the prophet, set to victorious music. LORD, I have heard of your fame.'))
+      .toBe('LORD, I have heard of your fame.');
+  });
+
+  it('handles the five shapes the 453-row audit initially missed', () => {
+    // KJV Ps 54: the heading's quoted question ends with '?', not '.'.
+    expect(strip('To the chief Musician on Neginoth, Maschil, [A Psalm] of David, when the Ziphims came and said to Saul, Doth not David hide himself with us? Save me, O God, by thy name, and judge me by thy strength.'))
+      .toBe('Save me, O God, by thy name, and judge me by thy strength.');
+    // KJV Ps 145: possessive form.
+    expect(strip('David’s [Psalm] of praise. I will extol thee, my God, O king; and I will bless thy name for ever and ever.'))
+      .toBe('I will extol thee, my God, O king; and I will bless thy name for ever and ever.');
+    // WEB Ps 7 / 16 / 145: meditation, Poem, praise psalm.
+    expect(strip('A meditation by David, which he sang to the LORD, concerning the words of Cush, the Benjamite. LORD, my God, I take refuge in you. Save me from all those who pursue me, and deliver me,'))
+      .toBe('LORD, my God, I take refuge in you. Save me from all those who pursue me, and deliver me,');
+    expect(strip('A Poem by David. Preserve me, God, for I take refuge in you.'))
+      .toBe('Preserve me, God, for I take refuge in you.');
+    expect(strip('A praise psalm by David. I will exalt you, my God, the King. I will praise your name forever and ever.'))
+      .toBe('I will exalt you, my God, the King. I will praise your name forever and ever.');
+  });
+
+  it('never strips a text down to nothing', () => {
+    expect(strip('A Psalm of David.')).toBe('A Psalm of David.');
+    // Habakkuk 3:1 IS entirely the heading in all three translations — the
+    // verse row must come through whole rather than be emptied.
+    expect(strip('This is a prayer of Habakkuk the prophet, according to Shigionoth:'))
+      .toBe('This is a prayer of Habakkuk the prophet, according to Shigionoth:');
+    expect(strip('A prayer of Habakkuk the prophet upon Shigionoth.'))
+      .toBe('A prayer of Habakkuk the prophet upon Shigionoth.');
+  });
+});
+
+describe('superscriptionApplies', () => {
+  it('applies to psalm verse-1 rows and pericopes, and to Habakkuk 3', () => {
+    expect(superscriptionApplies({ book: 'psa', chapter: 13, verse_start: 1 })).toBe(true);
+    expect(superscriptionApplies({ book: 'psa', chapter: 13, verse_start: 1, verse_end: 6 } as never)).toBe(true);
+    expect(superscriptionApplies({ book: 'hab', chapter: 3, verse_start: 1 })).toBe(true);
+  });
+
+  it('does not apply elsewhere', () => {
+    expect(superscriptionApplies({ book: 'psa', chapter: 13, verse_start: 2 })).toBe(false);
+    expect(superscriptionApplies({ book: 'jhn', chapter: 3, verse_start: 1 })).toBe(false);
+    expect(superscriptionApplies({ book: 'hab', chapter: 2, verse_start: 1 })).toBe(false);
+  });
+});
+
+describe('buildPassages — superscriptions', () => {
+  it('hands the devotion the verse BODY for a titled psalm', () => {
+    const rows = [{ id: 'psa.13.1', book: 'psa', chapter: 13, verse_start: 1, verse_end: 1, text: 'For the choirmaster. A Psalm of David. How long, O LORD? Will You forget me forever?' }];
+    const retrieved = [{ id: 'e1', source_id: 'psa.13.1', chunk_index: 0, chunk_text: 'x', similarity: 0.9, metadata: {} }];
+    expect(buildPassages(rows, retrieved)[0].text).toBe('How long, O LORD? Will You forget me forever?');
+  });
+
+  it('leaves non-verse-1 psalm rows and other books alone', () => {
+    const rows = [
+      { id: 'psa.23.4', book: 'psa', chapter: 23, verse_start: 4, verse_end: 4, text: 'Even though I walk…' },
+      { id: 'jhn.3.16', book: 'jhn', chapter: 3, verse_start: 16, verse_end: 16, text: 'For God so loved the world…' },
+    ];
+    const retrieved = rows.map((r, i) => ({ id: `e${i}`, source_id: r.id, chunk_index: 0, chunk_text: 'x', similarity: 0.9, metadata: {} }));
+    expect(buildPassages(rows, retrieved).map((p) => p.text)).toEqual(['Even though I walk…', 'For God so loved the world…']);
   });
 });

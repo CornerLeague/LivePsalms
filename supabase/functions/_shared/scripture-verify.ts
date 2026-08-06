@@ -14,7 +14,8 @@
 // Book names come from verse-verify.ts's OSIS_BOOK_MAP so there is exactly one
 // canonical list in the edge runtime. No Deno globals (vitest imports this).
 
-import { OSIS_BOOK_MAP, BOOK_ALIASES, verifyVerseRefs, type VerseFlag } from './verse-verify.ts';
+import { OSIS_BOOK_MAP, BOOK_ALIASES, parseRefToIds, verifyVerseRefs, type VerseFlag } from './verse-verify.ts';
+import { stripPsalmSuperscription } from './bible-passage.ts';
 
 // ── Reference detection in prose ─────────────────────────────────────────────
 // verse-verify.ts's REF_RE is anchored (it parses a ref that is already isolated).
@@ -253,6 +254,23 @@ export function checkQuote(
   return 'mismatch';
 }
 
+/**
+ * Canonical text as the QUOTE target: for a psalm's (or Habakkuk 3's) verse 1,
+ * the superscription is stripped, because that is the form the devotion path
+ * supplies and shows (buildPassages). Without this, verifyVerseField's
+ * whole-verse containment rule reads the stripped body as a truncation and
+ * "repairs" the heading straight back onto the reader's card — and a prose
+ * repair would splice "A Psalm of David." into the middle of a sentence.
+ */
+function canonicalBodyFor(ref: string, canonicalText: string): string {
+  const first = parseRefToIds(ref)?.[0];
+  if (!first) return canonicalText;
+  if (/^psa\.\d{1,3}\.1$/.test(first) || first === 'hab.3.1') {
+    return stripPsalmSuperscription(canonicalText);
+  }
+  return canonicalText;
+}
+
 export interface ScriptureVerifyResult {
   ok: boolean;
   /** Present only when at least one repair landed. */
@@ -334,7 +352,9 @@ export async function verifyArtifactScripture(
   const violations: ScriptureVerifyResult['violations'] = [];
   const canonicalByRef = new Map<string, string>();
   for (const flag of flags) {
-    if (flag.status === 'found' && flag.canonicalText) canonicalByRef.set(flag.ref, flag.canonicalText);
+    if (flag.status === 'found' && flag.canonicalText) {
+      canonicalByRef.set(flag.ref, canonicalBodyFor(flag.ref, flag.canonicalText));
+    }
     else violations.push({ family: 'scripture', rule: 'unresolvable_ref', snippet: flag.ref });
   }
   for (const ref of fabricated) {
@@ -415,7 +435,7 @@ export async function verifyVerseField(
     };
   }
 
-  const canonical = flag.canonicalText;
+  const canonical = canonicalBodyFor(ref, flag.canonicalText);
   const verdict = checkQuote(args.text, canonical, { allowExcerpt: false });
   if (verdict === 'ok') return { ok: true, repairs: [], violations: [] };
   if (verdict === 'repair') {

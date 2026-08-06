@@ -31,7 +31,7 @@ import {
 } from '../supabase/functions/lamplight-generate/daily-devotion-pipeline';
 import { verifyVerseRefs } from '../supabase/functions/_shared/verse-verify';
 import { selectDevotionCandidates } from '../supabase/functions/_shared/note-context';
-import { formatDisplayVerseRef } from '../supabase/functions/_shared/bible-passage';
+import { buildPassages } from '../supabase/functions/_shared/bible-passage';
 import { OSIS_TO_ABBREV } from '../supabase/functions/_shared/bible-books';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -508,11 +508,13 @@ async function loadPassages(
     .eq('translation', 'BSB')
     .in('id', verseIds);
   if (error) throw new Error(`bible_passages: ${error.message}`);
-  return (data ?? []).map((r) => {
-    const row = r as { id: string; book: string; chapter: number; verse_start: number; verse_end: number; text: string };
-    // formatDisplayVerseRef, matching buildPassages in the real devotion path.
-    return { source_id: row.id, ref: formatDisplayVerseRef(row), text: row.text, metadata: {} };
-  });
+  // buildPassages IS the production transformation (display refs, psalm
+  // superscription strip, whatever comes next) — the harness re-implemented it
+  // once and diverged twice, so now it calls the real thing with synthetic
+  // retrieval rows.
+  const rows = (data ?? []) as Array<{ id: string; book: string; chapter: number; verse_start: number; verse_end: number; text: string }>;
+  const synthetic = verseIds.map((id, i) => ({ id: `eval-${i}`, source_id: id, chunk_index: 0, chunk_text: '', similarity: 0, metadata: {} }));
+  return buildPassages(rows, synthetic);
 }
 
 async function runDevotionFixture(args: {

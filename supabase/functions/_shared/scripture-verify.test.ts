@@ -461,3 +461,59 @@ describe('verifyVerseField — unverifiable is not invalid', () => {
     expect(result.violations).toEqual([]);
   });
 });
+
+// ── Psalm superscriptions in canonical text ──────────────────────────────────
+// The devotion now supplies the verse BODY (buildPassages strips the heading),
+// but verifyVerseRefs returns DB canonical WITH the heading. Left unhandled,
+// verifyVerseField's allowExcerpt:false containment rule reads the body as a
+// truncation and "repairs" the heading straight back onto the reader's card.
+
+const PS23_1_FULL = 'A Psalm of David. The LORD is my shepherd; I shall not want.';
+const PS23_1_BODY = 'The LORD is my shepherd; I shall not want.';
+
+function psalmLookup() {
+  return async (refs: string[]) =>
+    refs.map((ref) => ref === 'Psalms 23:1'
+      ? { ref, status: 'found' as const, canonicalText: PS23_1_FULL }
+      : { ref, status: 'not_found' as const });
+}
+
+describe('verification vs psalm superscriptions', () => {
+  it('THE TRAP: a stripped verse body passes untouched — the heading is never repaired back in', async () => {
+    const result = await verifyVerseField(
+      { verifyRefs: psalmLookup() },
+      { ref: 'Psalms 23:1', text: PS23_1_BODY, translation: 'BSB' },
+    );
+    expect(result.ok).toBe(true);
+    expect(result.repairs).toEqual([]);
+    expect(result.repairedText).toBeUndefined();
+  });
+
+  it('a near-miss body repairs to the BODY, not to the heading version', async () => {
+    const result = await verifyVerseField(
+      { verifyRefs: psalmLookup() },
+      { ref: 'Psalms 23:1', text: 'The LORD is my shepherd; I shall not lack.', translation: 'BSB' },
+    );
+    expect(result.ok).toBe(true);
+    expect(result.repairedText).toBe(PS23_1_BODY);
+  });
+
+  it('prose repairs splice the body, never the apparatus', async () => {
+    const text = `He returns to "The LORD is my shepherd; I shall not lack." (Psalms 23:1) each morning.`;
+    const result = await verifyArtifactScripture({ verifyRefs: psalmLookup() }, { text, translation: 'BSB' });
+    expect(result.ok).toBe(true);
+    expect(result.repairedText).toContain(PS23_1_BODY);
+    expect(result.repairedText).not.toContain('A Psalm of David');
+  });
+
+  it('non-verse-1 psalm refs and other books use canonical text as-is', async () => {
+    const lookup = async (refs: string[]) =>
+      refs.map((ref) => ({ ref, status: 'found' as const, canonicalText: 'Even though I walk through the valley of the shadow of death, I will fear no evil.' }));
+    const result = await verifyVerseField(
+      { verifyRefs: lookup },
+      { ref: 'Psalms 23:4', text: 'Even though I walk through the valley of the shadow of death, I will fear no evil.', translation: 'BSB' },
+    );
+    expect(result.ok).toBe(true);
+    expect(result.repairs).toEqual([]);
+  });
+});
