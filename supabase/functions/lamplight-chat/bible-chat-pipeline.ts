@@ -61,9 +61,13 @@ export interface BibleChatContext {
 
 export type BibleChatPipelineResult =
   | { ok: true; reply: string; citations: ChatReply['citations']; modelUsed: string; promptVersion: string; attempts: number; usage: UsageCore | null }
-  | { ok: false; reason: 'validators_failed'; promptVersion: string; attempts: number; usage: UsageCore | null };
+  // `violations` carries WHY. Without it a caller sees only "validators_failed"
+  // and goes looking at the model, when the answer is already computed right
+  // here — the daily-devotion pipeline surfaces its violations for exactly this
+  // reason, and this one dropping them made every study-chat failure opaque.
+  | { ok: false; reason: 'validators_failed'; violations: ChatViolations; promptVersion: string; attempts: number; usage: UsageCore | null };
 
-type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViolation[] };
+export type ChatViolations = { citation: CitationViolation[]; content: ContentRuleViolation[] };
 
 // ── Shared generate config ────────────────────────────────────────────────────
 // Both buffered and streaming entries use identical validate / formatStricter.
@@ -127,6 +131,7 @@ function bibleChatResult(
     return {
       ok: false,
       reason: 'validators_failed',
+      violations: outcome.violations ?? { citation: [], content: [] },
       promptVersion,
       attempts: outcome.attempts,
       usage: { model: outcome.modelUsed, tokens_in: 0, tokens_out: 0, status: 'error', error_code: 'validators_failed' },

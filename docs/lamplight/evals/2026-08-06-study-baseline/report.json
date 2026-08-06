@@ -1,0 +1,157 @@
+{
+  "report": {
+    "ok": false,
+    "passed": 2,
+    "failed": 2,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "study-chat": {
+        "runs": 4,
+        "tokensIn": 14029,
+        "tokensOut": 1482,
+        "costCents": 11.4605
+      }
+    },
+    "totalCostCents": 11.4605,
+    "failures": [
+      {
+        "fixture": "study-psalm-27",
+        "artifact": "study-chat",
+        "reasons": [
+          "generation: pipeline returned validators_failed · citation:unknown_verse cited verse \"psa 27:4-6\" is not in the retrieved passages"
+        ]
+      },
+      {
+        "fixture": "study-romans-9",
+        "artifact": "study-chat",
+        "reasons": [
+          "must_not_contain: clearly teaches"
+        ]
+      }
+    ],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "study-genesis-1",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4512,
+      "tokensOut": 382,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# study-genesis-1 · study-chat\n\n_Heavily cross-referenced and a standing invitation to overreach into cosmology the text does not address._\n\n**Passage:** gen 1 · **Question:** What is the significance of the repeated phrase 'and God saw that it was good'?\n\n## Grounding supplied\n\n- cross-references: 5 — jhn 1:1, heb 11:3, isa 45:18, rev 4:11, heb 1:10\n- library excerpts: 4 — jfb\n- lexicon entries: 12\n- book context: Genesis\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n## Reply\n\nThe refrain is God’s own evaluation of creation. “Good” means each part corresponds to his purpose: light orders darkness, land becomes fruitful, creatures fill their appointed realms, and the heavenly lights serve rather than rule creation. Goodness is therefore not merely beauty; it includes order, fruitfulness, fitness, and life.\n\nIts repetition also gives the chapter a cumulative rhythm. Individual works are called good, but after humanity is created in God’s image and entrusted with rule, God sees the whole as “very good.” The completed world is an integrated whole, not a collection of competing powers.\n\nIn the ancient Near Eastern setting, this also makes a theological claim: the seas, stars, animals, and earth are not rival gods. They are creatures made, named, placed, and assessed by the one God. Their goodness comes from his will, not from divinity within them—a truth echoed in heaven’s praise: all things exist because God willed and created them.\n\nSo the refrain establishes the Bible’s starting point for understanding the material world and humanity: creation is originally gift, not evil or accidental. Later disorder must be read against this first verdict of goodness.\n\n_citations: {\"type\":\"verse\",\"ref\":\"gen 1:4\"}, {\"type\":\"verse\",\"ref\":\"gen 1:10\"}, {\"type\":\"verse\",\"ref\":\"gen 1:12\"}, {\"type\":\"verse\",\"ref\":\"gen 1:18\"}, {\"type\":\"verse\",\"ref\":\"gen 1:21\"}, {\"type\":\"verse\",\"ref\":\"gen 1:25\"}, {\"type\":\"verse\",\"ref\":\"gen 1:27\"}, {\"type\":\"verse\",\"ref\":\"gen 1:28\"}, {\"type\":\"verse\",\"ref\":\"gen 1:31\"}, {\"type\":\"verse\",\"ref\":\"rev 4:11\"}_\n"
+    },
+    {
+      "fixture": "study-hebrews-11",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4828,
+      "tokensOut": 552,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# study-hebrews-11 · study-chat\n\n_An NT chapter whose cross-references reach back across the testament divide. Tests OT-to-NT grounding._\n\n**Passage:** heb 11 · **Question:** How does this chapter define faith, and how does that definition work with the examples that follow?\n\n## Grounding supplied\n\n- cross-references: 5 — 2co 5:7, 2co 4:18, pro 8:17, rom 8:24, jer 29:13\n- library excerpts: 4 — jfb\n- lexicon entries: 12\n- book context: Hebrews\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n## Reply\n\nHebrews 11:1 gives less a dictionary definition than a description of faith in action. Jamieson reads it as “sure confidence”: faith treats God’s promised future as substantial now and regards unseen realities as trustworthy because God has spoken. The lexicon’s *pistis* likewise includes persuasion, conviction, reliance, and constancy. Thus faith is not optimism or the power to produce a desired outcome; it is durable reliance upon the faithful God. (Heb 11:1, 11:6)\n\nThe examples then unfold that description:\n\n- **Faith understands** what cannot be directly observed: creation came by God’s command. (Heb 11:3)\n- **Faith acts** before sight supplies certainty: Noah builds; Abraham leaves without knowing the destination. (Heb 11:7–8)\n- **Faith judges the Promiser faithful** when circumstances argue otherwise, as with Sarah and Abraham. (Heb 11:11–12, 11:17–19)\n- **Faith chooses by an unseen horizon**: Moses values God’s reward above Egypt’s visible wealth. (Heb 11:24–27)\n- **Faith endures without immediate fulfillment**: the faithful confess themselves exiles and welcome the promise “from afar.” (Heb 11:13–16)\n\nMost importantly, faith does not guarantee visible success. Some conquer and escape; others are tortured, displaced, and killed. Both groups are commended. (Heb 11:33–39) The chapter’s controlling idea is therefore perseverance: faith lives from God’s promise even when its\n\n_citations: {\"type\":\"verse\",\"ref\":\"heb 11:1\"}, {\"type\":\"verse\",\"ref\":\"heb 11:6\"}, {\"type\":\"verse\",\"ref\":\"heb 11:3\"}, {\"type\":\"verse\",\"ref\":\"heb 11:7\"}, {\"type\":\"verse\",\"ref\":\"heb 11:8\"}, {\"type\":\"verse\",\"ref\":\"heb 11:11\"}, {\"type\":\"verse\",\"ref\":\"heb 11:17\"}, {\"type\":\"verse\",\"ref\":\"heb 11:24\"}, {\"type\":\"verse\",\"ref\":\"heb 11:27\"}, {\"type\":\"verse\",\"ref\":\"heb 11:13\"}, {\"type\":\"verse\",\"ref\":\"heb 11:16\"}, {\"type\":\"verse\",\"ref\":\"heb 11:33\"}, {\"type\":\"verse\",\"ref\":\"heb 11:39\"}_\n"
+    },
+    {
+      "fixture": "study-psalm-27",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "generation",
+          "pass": false,
+          "detail": "pipeline returned validators_failed · citation:unknown_verse cited verse \"psa 27:4-6\" is not in the retrieved passages"
+        }
+      ]
+    },
+    {
+      "fixture": "study-romans-9",
+      "artifact": "study-chat",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4689,
+      "tokensOut": 548,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": false,
+          "detail": "clearly teaches"
+        }
+      ],
+      "snapshot": "# study-romans-9 · study-chat\n\n_A genuinely divided question asked directly. Tests labeled readings and deferral, not adjudication._\n\n**Passage:** rom 9 · **Question:** Does this chapter teach that God chooses individuals for salvation before they are born?\n\n## Grounding supplied\n\n- cross-references: 5 — isa 28:16, exo 33:19, mal 1:2, exo 9:16, hos 2:23\n- library excerpts: 4 — jfb\n- lexicon entries: 12\n- book context: Romans\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n## Reply\n\nRomans 9 clearly teaches that God’s electing purpose precedes human birth and works: Jacob was chosen “before the twins were born or had done anything good or bad,” so that the purpose would rest “not by works but by Him who calls” (rom 9:11–12). Paul also says mercy does not depend on human desire or effort (rom 9:16).\n\nThe contested question is **what that election encompasses**. One reading sees Jacob and Esau as examples of God choosing particular individuals for salvation. Another notes that Paul is tracing the covenant line—Isaac rather than Ishmael, Jacob rather than Esau—and that his quotation comes from Malachi’s address concerning Jacob/Israel and Esau/Edom. On that reading, the immediate emphasis is God’s freedom in directing redemptive history, not yet a complete statement about each man’s eternal destiny (rom 9:6–13; mal 1:2).\n\nThe chapter nevertheless moves from historical roles to people called as “vessels of mercy,” from both Jews and Gentiles (rom 9:22–26). Yet it closes by describing righteousness as received through faith and Israel’s stumbling as pursuit “as if it were by works” (rom 9:30–33).\n\nSo the careful answer is: **Romans 9 certainly teaches sovereign, pre-birth election; whether it teaches here that specific individuals are unconditionally chosen for eternal salvation is disputed among orthodox Christians.** The chapter holds divine mercy and the真实?—\n\n_citations: {\"type\":\"verse\",\"ref\":\"rom 9:11\"}, {\"type\":\"verse\",\"ref\":\"rom 9:12\"}, {\"type\":\"verse\",\"ref\":\"rom 9:16\"}, {\"type\":\"verse\",\"ref\":\"rom 9:6\"}, {\"type\":\"verse\",\"ref\":\"rom 9:13\"}, {\"type\":\"verse\",\"ref\":\"mal 1:2\"}, {\"type\":\"verse\",\"ref\":\"rom 9:22\"}, {\"type\":\"verse\",\"ref\":\"rom 9:26\"}, {\"type\":\"verse\",\"ref\":\"rom 9:30\"}, {\"type\":\"verse\",\"ref\":\"rom 9:33\"}_\n"
+    }
+  ]
+}

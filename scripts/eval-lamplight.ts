@@ -894,10 +894,19 @@ async function runStudyChatFixture(args: {
   };
 
   if (!result.ok) {
+    // Surface WHY, same as the devotion runner: "validators_failed" alone sends
+    // the reader back to the model when the answer is in the violations the
+    // pipeline already computed.
+    const v = result.violations;
+    const detail = [
+      `pipeline returned ${result.reason}`,
+      ...(v?.citation ?? []).map((c) => `citation:${c.reason} ${c.detail}`),
+      ...(v?.content ?? []).map((c) => `content:${c.family}/${c.rule} "${c.snippet}"`),
+    ].join(' · ');
     return {
       ...base,
       scriptureViolations: [],
-      checks: [...groundingChecks, { name: 'generation', pass: false, detail: `pipeline returned ${result.reason}` }],
+      checks: [...groundingChecks, { name: 'generation', pass: false, detail }],
     };
   }
 
