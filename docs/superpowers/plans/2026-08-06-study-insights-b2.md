@@ -41,7 +41,8 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - `supabase/functions/lamplight-study/prompts/passage-insight.ts` — prompt + four-field tool (Task 3).
 - `supabase/functions/lamplight-study/passage-insight-pipeline.ts` — grounding + emit + validate (Task 5).
 - `supabase/functions/lamplight-study/passage-insight-cache.ts` — read/write, pure-testable (Task 6).
-- `supabase/functions/passage-insight/index.ts` — edge-fn shell: cache read → gate → stream → write (Task 7).
+- `supabase/functions/lamplight-study/passage-insight-stream.ts` — **added in Task 7, not in the original plan:** the Node-testable orchestration (cache read → gate → stream → write) plus the request/cache-key contract. A Deno shell cannot be unit-tested; see the decisions below.
+- `supabase/functions/passage-insight/index.ts` — edge-fn shell: dep wiring only (Task 7).
 
 **New (client):**
 - `src/notepad/study/insights/usePassageInsight.ts` — cached read + generate (Task 8).
@@ -87,7 +88,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Progress
 
-**Tasks 1–6 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,925 tests, `tsc -b` clean, lint at its 163-problem baseline.
+**Tasks 1–7 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,945 tests, `tsc -b` clean, lint at its 163-problem baseline.
 
 | Task | State | Commit |
 |---|---|---|
@@ -97,9 +98,10 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 4 — verse-scope grounding | done | `8ed1cd3c` |
 | 5 — the pipeline | done | `d01d56dc` |
 | 6 — cache read/write | done | `e7d34c88` |
-| 7 — edge function | **next** | — |
+| 7 — edge function | done, **NOT DEPLOYED** | see below |
+| 8 — client hook + door | **next** | — |
 
-**No longer blocked.** Migration 060 is live and the corpus is empty (0 rows). Task 7 can be verified end-to-end.
+**Nothing has run live yet.** Migration 060 is applied and the corpus is empty (0 rows); the `passage-insight` function has never been deployed, so no door has been generated against a real model. Every claim about B2 so far rests on unit tests. Deploy is a prerequisite for Task 9's live eval sweep, not just for Task 11.
 
 ### Decisions made while implementing, that are not in the design
 
@@ -115,6 +117,9 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - **`promptVersion` stays at `v1`.** The tool and system prompt changed in Task 5, but `PASSAGE_INSIGHT_PROMPT` was unreachable from any generation path in the Task 3 commit, so no row can exist under a v1 that means anything else. v1 names the first prompt that can actually generate. Bump normally from here.
 - **Section keys are read defensively.** `sectionsOf()` normalises a missing or non-string field to `''` rather than trusting the schema's `required`. Omission and emptiness are the same first-class answer, and the four-bound design's whole point is that a section can legitimately have nothing in it.
 - **The atomic write is one multi-row upsert, not a transaction.** A single statement cannot half-land, which is what "either the whole door or nothing" needs; Supabase's JS client has no transaction API to reach for anyway. Both cache functions **throw** rather than returning a soft failure — a read that reported `null` on a transport error would send the reader to the generate path and re-bill a warm door, and a write that swallowed its error would let the terminal `done` beat tell the client a door is cached when no row landed.
+- **Task 7 needed a fourth file the plan's File Structure does not list: `lamplight-study/passage-insight-stream.ts`.** Every Task 7 bullet is a *failing test*, and a Deno `index.ts` calling `serve()` at module scope cannot be imported by vitest. Split exactly as `daily-devotion-stream.ts` + `index.ts` and `etymology-insight/insight-body.ts` + `index.ts` already are: orchestration is Node-testable with injected deps, the shell is wiring. It lives beside the pipeline and cache so all four Door 1 modules sit together; `passage-insight/index.ts` imports across directories, which `lamplight-study/index.ts` already does.
+- **The stream module takes the whole `QuotaConfig`, not a pre-bound `checkQuota` closure** (which is what `daily-devotion-stream.ts` does). Choosing the `passageInsight` scope IS decision D1; bound in the Deno shell it would be the one part of D1 no test could reach. Taking the config lets the test drive real `checkQuota` and assert that `countUserUsage` is never even *called*.
+- **⚠️ `tsc -b` does not typecheck edge functions.** `tsconfig.app.json` includes only `src`, so the gate's type check covers none of `supabase/functions`. The Door 1 logic modules are at least exercised by vitest; the Deno shell is neither typechecked nor tested by the gate. Checked manually with a standalone `tsc --noEmit --allowImportingTsExtensions` run: the only errors in `passage-insight/index.ts` are the `deno.land` import and the `Deno` global, i.e. exactly what `lamplight-study/index.ts` produces. That is a one-off check, not a standing guard.
 - **⚠️ B3 landmine: `door` is not in the primary key.** `primary key (scope, ref_id, section)` means `('chapter','psa.27','overview')` is unique across ALL doors, so if B3's Deeper door ever names a section the Passage door also names, the two collide and overwrite each other. B3's four sections (Hermeneutics, Theology, Read With Care, Historical Background) don't collide today, but the constraint is one careless section name away from silent data loss. Fix by widening the PK to include `door` when B3 lands.
 
 ## Task 4 — Verse-scope grounding
@@ -145,12 +150,13 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Task 7 — Edge function
 
-- [ ] Failing test: a cache hit returns immediately with **no entitlement check and no model call**.
-- [ ] Failing test: a cache miss without Plus/promo returns the gate reason and generates nothing.
-- [ ] Failing test: a cache miss with Plus/promo streams sections and writes the cache on the terminal `done` beat.
-- [ ] Failing test: an interrupted stream writes nothing — the door stays uncached, mirroring how study chat declines to commit an interrupted reply.
-- [ ] Failing test: the global quota ceiling still gates generation; the per-user allowance does not.
-- [ ] Implement using `generateStreamingWithRetry` with `textFields` set to the four section names, inside a fresh SSE shell (**not** `streamBibleChat` — see the note above).
+- [x] Failing test: a cache hit returns immediately with **no entitlement check and no model call**.
+- [x] Failing test: a cache miss without Plus/promo returns the gate reason and generates nothing.
+- [x] Failing test: a cache miss with Plus/promo streams sections and writes the cache on the terminal `done` beat.
+- [x] Failing test: an interrupted stream writes nothing — the door stays uncached, mirroring how study chat declines to commit an interrupted reply.
+- [x] Failing test: the global quota ceiling still gates generation; the per-user allowance does not.
+- [x] Implement using `generateStreamingWithRetry` with `textFields` set to the four section names, inside a fresh SSE shell (**not** `streamBibleChat` — see the note above).
+- [ ] **NOT DONE — `passage-insight` has never been deployed.** Nothing has run against a real model or written a real cache row. Task 11's live checks are the first time this executes.
 
 ## Task 8 — Client: hook + door
 

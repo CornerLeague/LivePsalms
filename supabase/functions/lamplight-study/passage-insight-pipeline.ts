@@ -20,6 +20,7 @@ import {
   type ContentRuleViolation,
 } from '../_shared/validators.ts';
 import { generateWithRetry } from '../_shared/generate-with-retry.ts';
+import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { verifyArtifactScripture, type ScriptureDeps } from '../_shared/scripture-verify.ts';
 import { PASSAGE_INSIGHT_PROMPT, PASSAGE_INSIGHT_SECTIONS } from './prompts/passage-insight.ts';
 import type { BibleChatContext, ChatViolations } from '../lamplight-chat/bible-chat-pipeline.ts';
@@ -174,35 +175,14 @@ function formatPassageInsightStricter(violations: ChatViolations): string {
   return parts.join(' ');
 }
 
-// ── Entry ────────────────────────────────────────────────────────────────────
+// ── Outcome → result mapping ─────────────────────────────────────────────────
+// Shared by the buffered and streaming entries so the two can never disagree
+// about what a door looks like.
 
-export async function runPassageInsightPipeline(args: {
-  llm: LLMAdapter;
-  ctx: BibleChatContext;
-  model?: LLMModel;
-  effort?: ReasoningEffort;
-  maxTokens?: number;
-  /** Layer C doctrinal classifier; injected by the Deno shell, omitted by tests. */
-  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
-  /** Scripture verification with repair-before-reject. Optional at every call site. */
-  verifyScripture?: ScriptureDeps;
-}): Promise<PassageInsightResult> {
-  const promptVersion = PASSAGE_INSIGHT_PROMPT.promptVersion;
-
-  const outcome = await generateWithRetry<PassageInsightEmit, ChatViolations>({
-    llm: args.llm,
-    model: args.model ?? PASSAGE_INSIGHT_MODEL,
-    effort: args.effort ?? PASSAGE_INSIGHT_EFFORT,
-    maxTokens: args.maxTokens ?? PASSAGE_INSIGHT_MAX_TOKENS,
-    artifactSystem: PASSAGE_INSIGHT_PROMPT.system,
-    messages: PASSAGE_INSIGHT_PROMPT.buildMessages(args.ctx),
-    // `as const` on the nested schema produces literal types narrower than
-    // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
-    tool: PASSAGE_INSIGHT_PROMPT.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makePassageInsightValidate(args.ctx, args.classifier, args.verifyScripture),
-    formatStricter: formatPassageInsightStricter,
-  });
-
+function passageInsightResult(
+  outcome: Awaited<ReturnType<typeof generateWithRetry<PassageInsightEmit, ChatViolations>>>,
+  promptVersion: string,
+): PassageInsightResult {
   if (!outcome.ok) {
     return {
       ok: false,
@@ -223,4 +203,89 @@ export async function runPassageInsightPipeline(args: {
     attempts: outcome.attempts,
     usage: { model: outcome.modelUsed, tokens_in: outcome.promptTokens, tokens_out: outcome.completionTokens, status: 'ok' },
   };
+}
+
+/** Everything both entries pass to the retry loop identically. */
+function generateConfig(args: {
+  llm: LLMAdapter;
+  ctx: BibleChatContext;
+  model?: LLMModel;
+  effort?: ReasoningEffort;
+  maxTokens?: number;
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+  verifyScripture?: ScriptureDeps;
+}) {
+  return {
+    llm: args.llm,
+    model: args.model ?? PASSAGE_INSIGHT_MODEL,
+    effort: args.effort ?? PASSAGE_INSIGHT_EFFORT,
+    maxTokens: args.maxTokens ?? PASSAGE_INSIGHT_MAX_TOKENS,
+    artifactSystem: PASSAGE_INSIGHT_PROMPT.system,
+    messages: PASSAGE_INSIGHT_PROMPT.buildMessages(args.ctx),
+    // `as const` on the nested schema produces literal types narrower than
+    // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
+    tool: PASSAGE_INSIGHT_PROMPT.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
+    validate: makePassageInsightValidate(args.ctx, args.classifier, args.verifyScripture),
+    formatStricter: formatPassageInsightStricter,
+  };
+}
+
+// ── Buffered entry ───────────────────────────────────────────────────────────
+
+export async function runPassageInsightPipeline(args: {
+  llm: LLMAdapter;
+  ctx: BibleChatContext;
+  model?: LLMModel;
+  effort?: ReasoningEffort;
+  maxTokens?: number;
+  /** Layer C doctrinal classifier; injected by the Deno shell, omitted by tests. */
+  classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+  /** Scripture verification with repair-before-reject. Optional at every call site. */
+  verifyScripture?: ScriptureDeps;
+}): Promise<PassageInsightResult> {
+  const outcome = await generateWithRetry<PassageInsightEmit, ChatViolations>(generateConfig(args));
+  return passageInsightResult(outcome, PASSAGE_INSIGHT_PROMPT.promptVersion);
+}
+
+// ── Streaming entry ──────────────────────────────────────────────────────────
+// D3: the reveal is worth it, and Overview lands while the rest fill in. Same
+// validate / formatStricter / outcome-mapping tail as the buffered entry.
+
+export interface PassageInsightStreamHandlers {
+  onStage: (stage: 'composing') => void;
+  onText: (field: string, delta: string) => void;
+  onPiece: (field: string, value: unknown) => void;
+  onRefining: () => void;
+}
+
+/** The four section fields stream as text; `citations` arrives whole. */
+export const PASSAGE_INSIGHT_TEXT_FIELDS = PASSAGE_INSIGHT_SECTIONS.map((s) => s.key);
+
+export async function runPassageInsightStreaming(
+  args: {
+    llm: LLMAdapter;
+    ctx: BibleChatContext;
+    model?: LLMModel;
+    effort?: ReasoningEffort;
+    maxTokens?: number;
+    classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+    verifyScripture?: ScriptureDeps;
+    signal?: AbortSignal;
+  },
+  handlers: PassageInsightStreamHandlers,
+): Promise<PassageInsightResult> {
+  const outcome = await generateStreamingWithRetry<PassageInsightEmit, ChatViolations>({
+    ...generateConfig(args),
+    textFields: PASSAGE_INSIGHT_TEXT_FIELDS,
+    // No perFieldValidate: the section ceilings live in the tool schema, and a
+    // per-field length gate here would reject the ONE thing the design makes
+    // first-class — a section that legitimately comes back empty.
+    signal: args.signal,
+    onStage: handlers.onStage,
+    onText: handlers.onText,
+    onPiece: handlers.onPiece,
+    onRefining: handlers.onRefining,
+  });
+
+  return passageInsightResult(outcome, PASSAGE_INSIGHT_PROMPT.promptVersion);
 }
