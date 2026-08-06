@@ -95,7 +95,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 2 — uncharged quota scope | done | `2ac36bf9` |
 | 3 — prompt + four-field tool | done | `350aba75`, amended by Task 5 (citations) |
 | 4 — verse-scope grounding | done | `8ed1cd3c` |
-| 5 — the pipeline | done | see below |
+| 5 — the pipeline | done | `d01d56dc` |
 | 6 — cache read/write | **next**, blocked on the migration | — |
 
 **Blocking:** migration `060_passage_insight.sql` has not been run against the database. **Task 6 is the first task that needs it** — it is read/write against `bible_passage_insight`. Its unit tests can be written against a Supabase fake, but nothing can be verified end-to-end until the SQL is applied.
