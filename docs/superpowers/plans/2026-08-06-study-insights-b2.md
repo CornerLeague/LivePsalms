@@ -98,7 +98,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 4 — verse-scope grounding | done | `8ed1cd3c` |
 | 5 — the pipeline | done | `d01d56dc` |
 | 6 — cache read/write | done | `e7d34c88` |
-| 7 — edge function | done, **NOT DEPLOYED** | see below |
+| 7 — edge function | done, **NOT DEPLOYED** | `89efd307` |
 | 8 — client hook + door | **next** | — |
 
 **Nothing has run live yet.** Migration 060 is applied and the corpus is empty (0 rows); the `passage-insight` function has never been deployed, so no door has been generated against a real model. Every claim about B2 so far rests on unit tests. Deploy is a prerequisite for Task 9's live eval sweep, not just for Task 11.
