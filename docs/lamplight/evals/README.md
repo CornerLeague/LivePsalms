@@ -32,6 +32,16 @@ The ten personas cover the cases where the voice is most likely to slip:
 | `brand-new-user` | Empty vault → a refusal, not an invented reader |
 | `non-english-name` | Diacritics → exact reproduction, never transliteration |
 
+Four more describe **study-chat** scenarios — an open chapter and a question a
+reader would actually type:
+
+| Fixture | What it is guarding |
+|---|---|
+| `study-psalm-27` | The densest commentary coverage we hold → depth without lecturing |
+| `study-hebrews-11` | Cross-references reaching back over the testament divide |
+| `study-genesis-1` | A standing invitation to overreach into cosmology the text does not address |
+| `study-romans-9` | A genuinely divided question → labeled readings, not adjudication |
+
 ## Fixture shape
 
 `candidateVerses` is the Scripture the devotion may anchor on. Production
@@ -58,10 +68,17 @@ npx tsx scripts/eval-lamplight.ts --dry
 
 # Real models. Needs OPENAI_API_KEY plus the app's usual Supabase env.
 npx tsx scripts/eval-lamplight.ts --live --artifact=devotion
+npx tsx scripts/eval-lamplight.ts --live --artifact=study-chat
+
+# Study-chat grounding only: builds and scores the retrieval context, then stops.
+# No model, no OPENAI_API_KEY, no cost — run it whenever you want.
+npx tsx scripts/eval-lamplight.ts --live --artifact=study-chat --grounding-only
 
 # One fixture, for debugging a specific regression.
 npx tsx scripts/eval-lamplight.ts --live --fixture=grief-month
 ```
+
+A fixture describes **one** kind of scenario, and the runner picks accordingly: fixtures carrying a `studyChat` block belong to `--artifact=study-chat`, and every other fixture to `--artifact=devotion`. Running one through the other would score an artifact the fixture never intended, so the split is enforced rather than left to the operator.
 
 A live run writes `docs/lamplight/evals/<date>-<label>/` containing
 `report.md`, `report.json`, and **one snapshot file per fixture**. It exits
@@ -69,11 +86,51 @@ non-zero when the report fails, so it can gate a release script.
 
 ### Coverage
 
-`--artifact=devotion` is the only live artifact wired in v1. Reflection and
-study-chat are scored by the same layer but not yet driven end to end: both need
-a month of retrieval context (reflection) or an open-chapter study context
-(study-chat) that the fixtures do not yet describe. Extending them is additive —
-the fixture schema and the report already accommodate all three kinds.
+`devotion` and `study-chat` are wired for live runs. **Reflection is not** — it
+needs a month of retrieval context the fixtures do not yet describe. Extending it
+is additive; the fixture schema and the report already accommodate all three kinds.
+
+#### What a study-chat run does and does not exercise
+
+The harness runs on the **anon key**, by design: that is what makes it structurally
+incapable of reaching a real vault. But the three semantic retrieval RPCs —
+`match_user_note_embeddings`, `match_bible_embeddings`, `match_library_chunks` —
+are all revoked from `public`, and their callers throw rather than degrade. So a
+study-chat run sets `skipSemanticRetrieval` on the real `buildStudyContext` and
+exercises the channels it *can* reach:
+
+| Channel | In a study-chat eval |
+|---|---|
+| Open chapter text | ✅ |
+| Book apparatus (`bible_books`) | ✅ |
+| Cross-references + their resolved targets | ✅ |
+| Library — verse-anchor join | ✅ |
+| Lexicon (`bible_strongs` / `bible_interlinear`) | ✅ |
+| Library — semantic half | ❌ revoked from anon |
+| Whole-Bible related passages | ❌ revoked from anon |
+| User notes | ❌ revoked from anon (and never wanted here) |
+
+This is a real limit, and every snapshot states it rather than leaving a
+suspiciously thin grounding block to be misread as a model problem. It is also
+the half that matters most: those deterministic channels are exactly the ones
+that sat dark for months while `bible_cross_references` was empty in production.
+
+Going further would mean either a **service-role key** — which would forfeit the
+guarantee above — or a **seeded eval account** with its own notes and embeddings.
+Both are larger decisions than a scoring layer should make on its own.
+
+#### Grounding floors
+
+A study-chat fixture can assert what must reach the prompt:
+
+```json
+"expectGrounding": { "minCrossRefs": 3, "minLibraryExcerpts": 2, "requireBookContext": true }
+```
+
+These are the checks that would have caught the empty cross-reference table: a
+reply reads perfectly well on grounding that was never there, so scoring only the
+prose misses it entirely. They cost nothing, which is why `--grounding-only`
+exists — run it after any retrieval, migration, or ingest change.
 
 ## What each check means
 
@@ -84,6 +141,9 @@ the fixture schema and the report already accommodate all three kinds.
 | `max_first_name_mentions` | The devotion contract allows a name at most twice |
 | `expect_no_artifact` | The empty vault refused to generate |
 | `generation` | The pipeline returned an artifact at all |
+| `grounding_cross_refs` | Enough cross-references reached the prompt (study-chat) |
+| `grounding_library_excerpts` | Enough library excerpts reached the prompt (study-chat) |
+| `grounding_book_context` | The `bible_books` row resolved (study-chat) |
 | scripture violations | `verifyArtifactScripture` found an unrepairable misquote or an unresolvable ref |
 
 Scripture is checked **inside the pipeline**, not afterwards: a near-miss quote

@@ -1,0 +1,29 @@
+{
+  "name": "study-romans-9",
+  "description": "A genuinely divided question asked directly. Tests labeled readings and deferral, not adjudication.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "studyChat": {
+    "book": "rom",
+    "chapter": 9,
+    "question": "Does this chapter teach that God chooses individuals for salvation before they are born?",
+    "expectGrounding": {
+      "minCrossRefs": 3,
+      "minLibraryExcerpts": 2,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "clearly teaches",
+      "the correct interpretation",
+      "the Bible plainly says",
+      "settles the debate",
+      "there is no debate"
+    ]
+  }
+}

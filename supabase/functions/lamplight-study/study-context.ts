@@ -122,8 +122,28 @@ export async function buildStudyContext(
     translation: string;
     /** Library excerpts to retrieve. 0 (the default) skips the library entirely. */
     libraryK?: number;
+    /**
+     * Skip every channel that needs an embedding: user notes, whole-Bible
+     * related passages, and the library's semantic half. The deterministic
+     * channels still run — chapter text, book apparatus, cross-references and
+     * their resolved targets, the library's verse-anchor join, and the lexicon —
+     * because all of those read public tables.
+     *
+     * **Production never sets this.** It exists for the eval harness, which runs
+     * on the anon key precisely so it can never reach a user's vault; the three
+     * semantic RPCs (`match_user_note_embeddings`, `match_bible_embeddings`,
+     * `match_library_chunks`) are all revoked from public, and their callers
+     * throw rather than degrade. Rather than let the harness re-implement the
+     * grounding it can reach — which is how a harness quietly becomes a fiction —
+     * this flag lets it call the real assembly with the unreachable half off.
+     *
+     * When set, `voyageDeps` is never touched; pass a deps object that throws if
+     * used and a mistake surfaces loudly instead of as a silent empty result.
+     */
+    skipSemanticRetrieval?: boolean;
   },
 ): Promise<{ ctx: BibleChatContext; offered: OfferedNote[] }> {
+  const skipSemantic = args.skipSemanticRetrieval === true;
   // Open chapter text.
   const { data: chapterRows, error: cErr } = await supabase
     .from('bible_passages')
@@ -182,8 +202,8 @@ export async function buildStudyContext(
   }
 
   // Relevant notes via existing embeddings (always computed; injection is conditional).
-  const queryEmbedding = await embedQuery(args.retrievalQuery, args.voyageDeps);
-  const retrieved = await searchUserNotesByQuery(
+  const queryEmbedding = skipSemantic ? [] : await embedQuery(args.retrievalQuery, args.voyageDeps);
+  const retrieved = skipSemantic ? [] : await searchUserNotesByQuery(
     { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
     { userId: args.userId, k: args.noteK, query: args.retrievalQuery, queryEmbedding },
   );
@@ -205,18 +225,29 @@ export async function buildStudyContext(
   // computed for notes above — one query embedding serves all three channels.
   // Run concurrently so the library costs only its own latency, not a sum.
   const libraryK = args.libraryK ?? 0;
+  // With the semantic half off, the library still runs its real fusion and
+  // verse-anchor channel — only `matchSemantic` is stubbed, so the anchor join
+  // and lexicon lookup exercise production code rather than a copy of it.
+  const libraryDeps = skipSemantic
+    ? { ...makeLibraryDeps(supabase, args.voyageDeps), matchSemantic: async () => [] }
+    : makeLibraryDeps(supabase, args.voyageDeps);
   const [relatedPassages, library] = await Promise.all([
-    retrieveRelatedPassages(
-      { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
-      {
-        query: args.retrievalQuery, k: VERSE_K, translation: args.translation, queryEmbedding,
-        chapterVerseRefs, crossRefSet,
-      },
-    ),
+    skipSemantic
+      ? Promise.resolve([] as Array<{ ref: string; text: string }>)
+      : retrieveRelatedPassages(
+          { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
+          {
+            query: args.retrievalQuery, k: VERSE_K, translation: args.translation, queryEmbedding,
+            chapterVerseRefs, crossRefSet,
+          },
+        ),
     libraryK > 0
-      ? retrieveStudyLibrary(makeLibraryDeps(supabase, args.voyageDeps), {
+      ? retrieveStudyLibrary(libraryDeps, {
           anchors: libraryAnchors, queryEmbedding, query: args.retrievalQuery, k: libraryK,
-          book: args.book, chapter: args.chapter, rerankEnabled: args.rerankEnabled,
+          book: args.book, chapter: args.chapter,
+          // Reranking is a Voyage call; with the semantic half off there is no
+          // key to make it with, and the anchor channel is already ordered.
+          rerankEnabled: skipSemantic ? false : args.rerankEnabled,
         })
       : Promise.resolve({ libraryExcerpts: [] as LibraryExcerpt[], lexiconEntries: [] as LexiconEntry[] }),
   ]);
