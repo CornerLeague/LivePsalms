@@ -96,7 +96,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 3 — prompt + four-field tool | done | `350aba75`, amended by Task 5 (citations) |
 | 4 — verse-scope grounding | done | `8ed1cd3c` |
 | 5 — the pipeline | done | `d01d56dc` |
-| 6 — cache read/write | done | see below |
+| 6 — cache read/write | done | `e7d34c88` |
 | 7 — edge function | **next** | — |
 
 **No longer blocked.** Migration 060 is live and the corpus is empty (0 rows). Task 7 can be verified end-to-end.
