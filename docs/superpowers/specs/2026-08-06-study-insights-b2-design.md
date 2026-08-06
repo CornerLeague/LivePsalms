@@ -44,14 +44,18 @@ So B2 is a new pipeline that composes `buildStudyContext` (already exercised by 
 
 Today's lesson, applied from the start: **a ceiling is a backstop, and only works when the prompt aims below it.** Every section gets both.
 
-| Section | Word target (prompt) | Ceiling (schema) |
+| Section | Word target (prompt) | Ceiling (derived) |
 |---|---|---|
-| Overview | 90–150 | 1200 |
-| In the Chapter | 120–200 | 1600 |
-| The Chapter's Shape | 120–200 | 1600 |
-| Reflection & Application | 80–140 | 1100 |
+| Overview | 90–150 | 1400 |
+| In the Chapter | 120–200 | 1900 |
+| The Chapter's Shape | 120–200 | 1900 |
+| Reflection & Application | 80–140 | 1300 |
 
-Ceilings sit roughly 1.6–2× the top of each target, matching the ratio that keeps journaling chat and (now) study chat from ever running into theirs.
+**Ceilings are derived, not hand-set.** `ceilingFor(maxWords)` in `prompts/passage-insight.ts` is the authority; the table above is a rendering of it and will go stale if the constants change.
+
+The derivation uses a **measured** constant: 6.4 characters per word, from a 6.41 mean across the four replies in `docs/lamplight/evals/2026-08-06-contested-exempt/`. Times 1.5 headroom, that puts every ceiling ~1.45–1.5× above its target in characters.
+
+> An earlier draft of this design claimed "1.6–2×" against hand-set ceilings of 1200/1600/1600/1100. That was wrong — the real ratio on those numbers was ~1.25×. Deriving the ceiling from the target is what stops the two drifting apart again, which is the whole lesson of the 1400-char truncation.
 
 ### Validators
 

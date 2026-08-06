@@ -12,7 +12,7 @@
 
 _Every task's requirements implicitly include this section._
 
-- **Every generated field gets a word target AND a ceiling, with the ceiling ~1.6–2× above the target.** This is not style. A ceiling with no target is what truncated study-chat replies at exactly 1400 characters, mid-word, with corrupted output at the boundary (`2026-08-06-study-baseline`). Bounds without targets are a bug waiting to be found by a reader.
+- **Every generated field gets a word target AND a ceiling, with the ceiling ~1.45–1.5× above the target in characters.** Ceilings are DERIVED from targets by `ceilingFor()`, never hand-set beside them. This is not style. A ceiling with no target is what truncated study-chat replies at exactly 1400 characters, mid-word, with corrupted output at the boundary (`2026-08-06-study-baseline`). Bounds without targets are a bug waiting to be found by a reader.
 - **Reuse the validator stack wholesale** — citation allowlist, banned phrases, `verifyArtifactScripture` (repair before reject), Layer C classifier. Library excerpts never widen `allowedVerseRefs`.
 - **Door 1 keeps the standard contested-passage rejection.** It does NOT set `allowContestedRefs`. That exemption exists for a reader asking a direct question; Door 1 is descriptive, generated once, and served to everyone.
 - **Cached reads are public and free.** No entitlement check on the read path — same contract as `bible_etymology_verse_insight`.
@@ -59,31 +59,51 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Task 1 — Migration 060: the cache table
 
-- [ ] Write `060_passage_insight.sql`: the table from the design §3, public-read RLS, service-role write, and an index on `(scope, ref_id, door)` so a whole door loads in one query.
-- [ ] `check (scope in ('verse','chapter'))` and `check (door in ('passage'))` — B3 widens the door check when it adds `'deeper'`. A narrow check now is a cheap guard against a typo writing rows nobody reads.
-- [ ] **Hand the SQL to Myles to apply in the SQL Editor** and record the applied date in the task report before any code depends on it.
+- [x] Write `060_passage_insight.sql`: the table from the design §3, public-read RLS, service-role write, and an index on `(scope, ref_id, door)` so a whole door loads in one query.
+- [x] `check (scope in ('verse','chapter'))` and `check (door in ('passage'))` — B3 widens the door check when it adds `'deeper'`. A narrow check now is a cheap guard against a typo writing rows nobody reads.
+- [ ] **NOT DONE —** **Hand the SQL to Myles to apply in the SQL Editor** and record the applied date in the task report before any code depends on it.
 
 **Requirements:** `primary key (scope, ref_id, section)`. Store `prompt_version` and `model_used` per row — Task 10's targeted refresh is impossible without them.
 
 ## Task 2 — A quota scope that does not charge the user
 
-- [ ] Failing test: a scope with `perUser: null` skips the per-user check entirely and still enforces the global ceiling.
-- [ ] Failing test: an empty `kinds` array still throws. The existing invariant — *"a misconfigured scope must block, not pass"* — must survive this change.
-- [ ] Widen `QuotaScope.perUser` to `Record<Tier, number> | null`; `checkQuota` skips the user check when null.
-- [ ] Add a `passageInsight` scope with `kinds: ['passage_insight']`, `perUser: null`.
-- [ ] Failing test: `countGlobalUsage` counts the new kind, so a warmed-cache spree still trips the global ceiling.
+- [x] Failing test: a scope with `perUser: null` skips the per-user check entirely and still enforces the global ceiling.
+- [x] Failing test: an empty `kinds` array still throws. The existing invariant — *"a misconfigured scope must block, not pass"* — must survive this change.
+- [x] Widen `QuotaScope.perUser` to `Record<Tier, number> | null`; `checkQuota` skips the user check when null.
+- [x] Add a `passageInsight` scope with `kinds: ['passage_insight']`, `perUser: null`.
+- [x] Failing test: `countGlobalUsage` counts the new kind, so a warmed-cache spree still trips the global ceiling.
 
 **Requirements:** usage rows ARE still written — cost must stay visible on the admin dashboard. "Not quota-counted" means not counted against the *user*, never unbounded.
 
 ## Task 3 — Prompt + four-field tool
 
-- [ ] Failing test: the tool declares exactly four fields, each with `minLength` and `maxLength` matching design §1.
-- [ ] Failing test: each ceiling is at least 1.6× the top of its stated word target — the ratio that keeps a ceiling a backstop rather than a target.
-- [ ] Failing test: the system prompt states a word target for every field by name. A field with a bound and no target is the truncation bug.
-- [ ] Failing test: `buildMessages` renders the study grounding blocks (passage, book context, cross-refs, library voices, lexicon) and, at verse scope, the neighbouring verses.
-- [ ] Implement, with `promptVersion: 'passage-insight-2026-08-XX-v1'`.
+- [x] Failing test: the tool declares exactly four fields, each with `minLength` and `maxLength` matching design §1.
+- [x] Failing test: each ceiling sits well above the top of its stated word target (asserted at >1.4×) — the headroom that keeps a ceiling a backstop rather than a target.
+- [x] Failing test: the system prompt states a word target for every field by name. A field with a bound and no target is the truncation bug.
+- [x] Failing test: `buildMessages` renders the study grounding blocks (passage, book context, cross-refs, library voices, lexicon) and, at verse scope, the neighbouring verses.
+- [x] Implement, with `promptVersion: 'passage-insight-2026-08-XX-v1'`.
 
 **Requirements:** the voice rules and citation rules are inherited from `STUDY_CHAT_PROMPT.system`'s established phrasing where they apply — do not rewrite them from scratch and let them drift. Do **not** set `allowContestedRefs`.
+
+## Progress
+
+**Tasks 1–3 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,878 tests, `tsc -b` clean, lint at its 163-problem baseline.
+
+| Task | State | Commit |
+|---|---|---|
+| 1 — migration 060 | written, **NOT APPLIED** | `2ac36bf9` |
+| 2 — uncharged quota scope | done | `2ac36bf9` |
+| 3 — prompt + four-field tool | done | `350aba75` |
+| 4 — verse-scope grounding | **next** | — |
+
+**Blocking:** migration `060_passage_insight.sql` has not been run against the database. Tasks 4–5 do not need it; Tasks 6–7 cannot be verified without it.
+
+### Decisions made while implementing, that are not in the design
+
+- **`ceilingFor()` derives ceilings from word targets** rather than hand-setting them. The design claimed a "1.6–2×" ratio; the real arithmetic on those bounds was ~1.25×. `CHARS_PER_WORD = 6.4` is **measured** (6.41 mean across the four replies in `docs/lamplight/evals/2026-08-06-contested-exempt/`), not assumed. Authoritative in `prompts/passage-insight.ts`.
+- **`minLength: 0` on every section field.** A section with no warrant must return empty; requiring a character would force filler exactly where the model has nothing grounded to say.
+- **Shared rules are composed, not paraphrased.** `STUDY_GROUNDING_RULES` and `renderStudyGrounding` are exported from `prompts/study-chat.ts` and used by both surfaces. Verified byte-identical after extraction (2,870 chars before and after), which is why `study-chat`'s `promptVersion` legitimately did not bump.
+- **`BibleChatContext.focusVerses`** was added in Task 3 (the prompt renders it); **Task 4 is what populates it**.
 
 ## Task 4 — Verse-scope grounding
 
