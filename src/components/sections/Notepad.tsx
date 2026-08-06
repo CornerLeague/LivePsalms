@@ -205,9 +205,12 @@ function DesktopNotepadWorkspace() {
             overflow: 'hidden',
           }}
         >
-          {/* Tab Bar */}
+          {/* Tab Bar — scrolls horizontally rather than clipping when the editor
+              pane is narrow (open sidebar + open study pane can squeeze it under
+              ~500px), so Reflections and Lamplight stay reachable instead of
+              being cut off past main's overflow-hidden edge. */}
           <div
-            className="flex items-center gap-0 border-b shrink-0"
+            className="flex items-center gap-0 border-b shrink-0 overflow-x-auto scrollbar-hide"
             style={{ borderColor: 'var(--pale-stone)' }}
           >
             {(['content', 'backlinks', 'info'] as const).map((tab) => (
