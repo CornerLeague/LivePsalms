@@ -1,7 +1,22 @@
 // src/notepad/study/apparatus-queries.ts
-import { BIBLE_BOOKS } from '../bible/bible-books';
+import { BIBLE_BOOKS, bookByAbbrev } from '../bible/bible-books';
 
 const TESTAMENT = new Map(BIBLE_BOOKS.map((b) => [b.abbrev, b.testament]));
+
+/**
+ * "Hebrews 11:6" / "Hebrews 11:6-8". The one place a cross-reference label is
+ * built, so the ApparatusRail and the Insights Reference door can never format
+ * the same ref two different ways.
+ */
+export function formatCrossRefLabel(
+  x: { to_book: string; to_chapter: number; to_verse_start: number; to_verse_end: number },
+): string {
+  const name = bookByAbbrev(x.to_book)?.name ?? x.to_book;
+  const verses = x.to_verse_start === x.to_verse_end
+    ? `${x.to_verse_start}`
+    : `${x.to_verse_start}-${x.to_verse_end}`;
+  return `${name} ${x.to_chapter}:${verses}`;
+}
 
 export function crossesTestament(a: string, b: string): boolean {
   const ta = TESTAMENT.get(a);

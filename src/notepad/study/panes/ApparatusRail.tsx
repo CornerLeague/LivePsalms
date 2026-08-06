@@ -1,5 +1,6 @@
 // src/notepad/study/panes/ApparatusRail.tsx
-import { useApparatus, type CrossRefView } from '../useApparatus';
+import { useApparatus } from '../useApparatus';
+import { formatCrossRefLabel } from '../apparatus-queries';
 import { bookByAbbrev } from '@/notepad/bible/bible-books';
 import { OriginalLanguagePanel } from '../lexicon/OriginalLanguagePanel';
 import { EtymologyPanel } from '../lexicon/EtymologyPanel';
@@ -7,12 +8,6 @@ import { RegionMapBlock } from '../regionmap/RegionMapBlock';
 import { BookContextCard } from './BookContextCard';
 import type { LamplightAdapter } from '@/notepad/storage/lamplight-adapter';
 import type { BibleTranslation } from '@/notepad/bible/translations';
-
-function refLabel(x: CrossRefView): string {
-  const name = bookByAbbrev(x.to_book)?.name ?? x.to_book;
-  const verses = x.to_verse_start === x.to_verse_end ? `${x.to_verse_start}` : `${x.to_verse_start}-${x.to_verse_end}`;
-  return `${name} ${x.to_chapter}:${verses}`;
-}
 
 export interface ApparatusRailProps {
   book: string;
@@ -53,7 +48,7 @@ export function ApparatusRail({ book, chapter, translation, selectedVerse = null
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {crossRefs.map((x, i) => (
               <li key={i} style={{ marginBottom: 14, fontSize: 12, lineHeight: 1.6 }}>
-                <span style={{ color: 'var(--lamplight-accent)', fontWeight: 600 }}>{refLabel(x)}</span>
+                <span style={{ color: 'var(--lamplight-accent)', fontWeight: 600 }}>{formatCrossRefLabel(x)}</span>
                 {x.crossesTestament && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--lamplight-accent)' }}>OT ↔ NT</span>}
                 {x.text && <div style={{ color: 'var(--deep-umber)', marginTop: 2 }}>{x.text}</div>}
               </li>
