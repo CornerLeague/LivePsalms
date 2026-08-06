@@ -260,6 +260,8 @@ Order-of-magnitude conclusion: the depth upgrade lands within cents-per-user-per
 
 **Phase 1 complete 2026-08-05** — all four slices (1a Responses API, 1b library schema + ingest, 1c retrieval fusion + prompts, 1d verification + provenance + evals). Completion record and the caveats worth reading before Phase 2 are in the design doc's Phase-1 completion record; per-slice records live in each plan under `docs/superpowers/plans/`. The corpus is live (34,076 chunks), Scripture verification repairs before it rejects on four surfaces, and there is now a live eval baseline to compare future prompt changes against.
 
+> **Correction, 2026-08-06.** §4 above says OpenBible cross-refs were "already in place". They were not: `bible_cross_references` held **0 rows** in production until 2026-08-06, when the 344,789-row CC-BY dataset was finally loaded (`docs/runbooks/cross-references-ingest.md`). This matters for reading Phase 1's results — slice 1c's retrieval fusion shipped with its cross-ref channel dark, so study chat grounded on the open chapter alone, and the cross-ref-anchored half of library retrieval never fired. Measured over 15 sampled chapters, the load added 75 cross-references and put **2,602 previously-unreachable commentary chunks** in range. Phase 1's live smoke and eval baseline therefore under-exercised the library. Not caught by the eval harness, which drives only `devotion` — the surface that never reads this table.
+
 **Phase 2 (Journey Thread, note distillates, crisis layer) is next to design.** Nothing in it is blocked by the Phase-1 carry-outs.
 
 ---
