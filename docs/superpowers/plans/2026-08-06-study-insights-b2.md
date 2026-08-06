@@ -104,7 +104,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 7 — edge function | done, **DEPLOYED 2026-08-06** | `89efd307` |
 | 8 — client hook + door | done | `b896463f` |
 | 9 — eval + registration | done | `960052c7` |
-| 10 — refresh script | done | see below |
+| 10 — refresh script | done | `8144279c` |
 | 11 — completion gate | **next** | — |
 
 **Still true:** the `bible_passage_insight` corpus is **0 rows**. The eval harness exercises the pipeline directly, not the edge function, so nothing has yet gone through `passage-insight` end-to-end and written a cache row. Task 11's live check is where that first happens — and where "a second reader gets the cached door instantly" is actually proven.
