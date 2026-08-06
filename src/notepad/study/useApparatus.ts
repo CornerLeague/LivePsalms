@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { crossesTestament } from './apparatus-queries';
+import type { BibleTranslation } from '../bible/translations';
 
 export interface BookApparatus {
   book: string; full_name: string; author: string; author_note: string;
@@ -12,7 +13,17 @@ export interface CrossRefView {
   votes: number; crossesTestament: boolean; text: string;
 }
 
-export function useApparatus(book: string, chapter: number) {
+/**
+ * Book apparatus + curated cross-references for the open chapter.
+ *
+ * `translation` is REQUIRED, not defaulted: `bible_passages`' primary key is
+ * (translation, id) since migration 036, so a cross-ref target read that does
+ * not narrow on it matches one row per ingested translation — and `maybeSingle()`
+ * answers that with an error, which this hook discards into empty verse text.
+ * A default would silently reintroduce exactly that failure at any call site
+ * that forgot to pass the reader's preference.
+ */
+export function useApparatus(book: string, chapter: number, translation: BibleTranslation) {
   const [bookCtx, setBookCtx] = useState<BookApparatus | null>(null);
   const [crossRefs, setCrossRefs] = useState<CrossRefView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +52,9 @@ export function useApparatus(book: string, chapter: number) {
         const views: CrossRefView[] = [];
         for (const x of xs) {
           const id = `${x.to_book}.${x.to_chapter}.${x.to_verse_start}`;
-          const { data: tgt } = await supabase.from('bible_passages').select('text').eq('id', id).maybeSingle();
+          const { data: tgt } = await supabase
+            .from('bible_passages').select('text')
+            .eq('id', id).eq('translation', translation).maybeSingle();
           views.push({ ...x, crossesTestament: crossesTestament(book, x.to_book), text: (tgt as { text?: string } | null)?.text ?? '' });
         }
         if (!cancelled) setCrossRefs(views);
@@ -53,7 +66,7 @@ export function useApparatus(book: string, chapter: number) {
     })();
 
     return () => { cancelled = true; };
-  }, [book, chapter]);
+  }, [book, chapter, translation]);
 
   return { book: bookCtx, crossRefs, loading, error };
 }

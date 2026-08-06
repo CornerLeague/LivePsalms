@@ -20,6 +20,9 @@ vi.mock('./MobileStudyEditorView', () => ({
   MobileStudyEditorView: (p: { onBack: () => void }) => <button onClick={p.onBack}>editor-back</button>,
 }));
 vi.mock('@/notepad/recordings/RecordingsDock', () => ({ RecordingsDock: () => <div>recordings-dock</div> }));
+// The workspace reads the reader's translation to thread it into ApparatusRail
+// (bible_passages is keyed (translation, id) — see useApparatus).
+vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({ useBiblePrefs: () => ({ translation: 'BSB' }) }));
 
 import { MobileStudyWorkspace } from './MobileStudyWorkspace';
 import { ThemeContext, type ThemeContextValue } from '@/notepad/theme/theme-context';

@@ -26,6 +26,9 @@ vi.mock('./panes/StudyReader', async () => {
   };
 });
 vi.mock('@/auth/context/useAuthSession', () => ({ useAuthSession: () => ({ user: { id: 'u1' }, loading: false }) }));
+// The workspace reads the reader's translation to thread it into ApparatusRail
+// (bible_passages is keyed (translation, id) — see useApparatus).
+vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({ useBiblePrefs: () => ({ translation: 'BSB' }) }));
 
 const isMobile = { value: false };
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => isMobile.value }));

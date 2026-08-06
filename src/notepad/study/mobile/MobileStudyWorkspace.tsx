@@ -17,6 +17,7 @@ import { saveBiblePassage } from '@/notepad/session/session-storage';
 import { loadInitialPassage } from '@/notepad/bible/initial-passage';
 import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-adapter';
 import { supabase } from '@/lib/supabase';
+import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import '../study-theme.css';
 
 export function MobileStudyWorkspace() {
@@ -28,6 +29,7 @@ export function MobileStudyWorkspace() {
     [],
   );
   const { activeNote, collection } = useNoteCollection();
+  const { translation } = useBiblePrefs();
   useEnsureStudyFolder();
 
   // Always open on Reader (Study top-tab entry); the last-used sub-tab is deliberately
@@ -97,7 +99,7 @@ export function MobileStudyWorkspace() {
               <StudySidePanel book={passage.book} chapter={passage.chapter} userId={userId} />
             </div>
             <div style={{ height: '100%', display: tab === 'context' ? 'block' : 'none', overflow: 'auto' }}>
-              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
+              <ApparatusRail book={passage.book} chapter={passage.chapter} translation={translation} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
             </div>
           </>
         )}

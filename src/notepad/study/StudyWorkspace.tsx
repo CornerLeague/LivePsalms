@@ -19,6 +19,7 @@ import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-a
 import { supabase } from '@/lib/supabase';
 import { saveBiblePassage } from '@/notepad/session/session-storage';
 import { loadInitialPassage } from '@/notepad/bible/initial-passage';
+import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
 
@@ -44,6 +45,7 @@ export function DesktopStudyWorkspace() {
   );
   const navigate = useNavigate();
   const { collection } = useNoteCollection();
+  const { translation } = useBiblePrefs();
   useEnsureStudyFolder();
   const [passage, setPassage] = useState(loadInitialPassage);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
@@ -136,7 +138,7 @@ export function DesktopStudyWorkspace() {
               </button>
             </div>
             <div style={{ flex: '1 1 0%', overflow: 'auto' }}>
-              <ApparatusRail book={passage.book} chapter={passage.chapter} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
+              <ApparatusRail book={passage.book} chapter={passage.chapter} translation={translation} selectedVerse={selectedVerse} userId={userId} adapter={lamplightAdapter} />
             </div>
           </aside>
         )}

@@ -5,6 +5,7 @@ import { OriginalLanguagePanel } from '../lexicon/OriginalLanguagePanel';
 import { EtymologyPanel } from '../lexicon/EtymologyPanel';
 import { RegionMapBlock } from '../regionmap/RegionMapBlock';
 import type { LamplightAdapter } from '@/notepad/storage/lamplight-adapter';
+import type { BibleTranslation } from '@/notepad/bible/translations';
 
 function refLabel(x: CrossRefView): string {
   const name = bookByAbbrev(x.to_book)?.name ?? x.to_book;
@@ -15,13 +16,15 @@ function refLabel(x: CrossRefView): string {
 export interface ApparatusRailProps {
   book: string;
   chapter: number;
+  /** Reader's active translation. Required — see useApparatus's note on why it isn't defaulted. */
+  translation: BibleTranslation;
   selectedVerse?: number | null;
   userId?: string | null;
   adapter?: LamplightAdapter | null;
 }
 
-export function ApparatusRail({ book, chapter, selectedVerse = null, userId = null, adapter = null }: ApparatusRailProps) {
-  const { book: ctx, crossRefs, loading, error } = useApparatus(book, chapter);
+export function ApparatusRail({ book, chapter, translation, selectedVerse = null, userId = null, adapter = null }: ApparatusRailProps) {
+  const { book: ctx, crossRefs, loading, error } = useApparatus(book, chapter, translation);
 
   const bookName = bookByAbbrev(book)?.name ?? book;
   const verseId = selectedVerse != null ? `${book}.${chapter}.${selectedVerse}` : null;
