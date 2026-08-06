@@ -12,13 +12,18 @@ const SYSTEM = STUDY_CHAT_PROMPT.system +
   ' Ignore the word target above: this opener is 60–120 words, two or three sentences. Finish your final sentence.';
 
 export const STUDY_INSIGHT_PROMPT: ChatPromptModule = {
-  // v3: its own reply ceiling and an explicit word target. It previously
-  // inherited journaling's 1400-char ceiling with no length guidance at all,
-  // which is the same shape of bug the study-chat eval caught — the model
-  // writes to the wall and stops mid-word. 1400 is kept as the ceiling, but it
-  // is now a backstop well above the target rather than the target itself.
-  promptVersion: 'study-insight-2026-08-06-v3',
+  // v4. Two changes, both tracking the study system this composes:
+  //  · its own reply ceiling and an explicit word target. It previously
+  //    inherited journaling's 1400 with no length guidance at all — the same
+  //    shape of bug the eval caught on study chat, where the model writes to
+  //    the wall and stops mid-word. 1400 stays, now as a backstop above the
+  //    target rather than the target itself.
+  //  · exempt from the contested-passage rejection, since an opener on a
+  //    divided chapter needs the same freedom to name the text — and inherits
+  //    the same duty not to settle it.
+  promptVersion: 'study-insight-2026-08-06-v4',
   system: SYSTEM,
+  allowContestedRefs: true,
   tool: makeChatReplyTool({ maxReplyChars: 1400 }),
   buildMessages(ctx: BibleChatContext) {
     // Reuse the chat grounding, drop the trailing question turn.

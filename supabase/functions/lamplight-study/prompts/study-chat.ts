@@ -37,6 +37,12 @@ const SYSTEM = [
   'The voices are grounding, not citations: a verse a commentator merely mentions does not become citable. Quoting a voice never widens the set of refs you may cite — that set is the supplied passage, cross-references, and related passages, and nothing else.',
   // ── Lexicon (replaces the Phase-0 "no lexicon supplied" hedge) ──
   'You may discuss Hebrew/Greek meaning conversationally and hedged. When a lexicon block is supplied below, you may lean on it and say so ("the lexicon glosses this as…"), using only the entries given. When no lexicon block is supplied, never present a gloss as if quoting a lexicon; for verified word studies, point the reader to the Etymology panel on the verse.',
+  // ── Contested questions ──
+  // Study chat is exempt from the blanket CONTESTED_PASSAGES rejection (see
+  // ChatPromptModule.allowContestedRefs), so the requirement lives here instead
+  // of in a validator. This is the surface readers bring hard questions to;
+  // refusing to name the verses would have been an answer nobody wanted.
+  'On questions the church is genuinely divided about, do not adjudicate. Name the readings and who holds them ("Reformed readings emphasize…", "Wesleyan readings…", "Catholic teaching holds…"), give the textual reasoning behind each, say plainly that it is disputed among orthodox Christians, and point the reader to their own pastor or church. Discuss and cite the passage freely — but never settle it, and never imply the matter is obvious.',
   // ── Length ──
   // Load-bearing. Without a target the model writes to the schema ceiling and
   // stops mid-word; this is set well below it so a reply always finishes its
@@ -96,10 +102,12 @@ function renderLexicon(ctx: BibleChatContext): string {
 }
 
 export const STUDY_CHAT_PROMPT: ChatPromptModule = {
-  // v5: own reply ceiling (3000, was journaling's 1400) + the word target that
-  // keeps the model away from it.
-  promptVersion: 'study-chat-2026-08-06-v5',
+  // v6: own reply ceiling (3000, was journaling's 1400) + the word target that
+  // keeps the model away from it; exempt from the contested-passage rejection,
+  // with the labeled-readings requirement moved into SYSTEM above.
+  promptVersion: 'study-chat-2026-08-06-v6',
   system: SYSTEM,
+  allowContestedRefs: true,
   tool: makeChatReplyTool({ maxReplyChars: STUDY_REPLY_MAX_CHARS }),
   buildMessages(ctx: BibleChatContext) {
     const blocks = [

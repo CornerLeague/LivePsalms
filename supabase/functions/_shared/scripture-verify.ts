@@ -14,7 +14,7 @@
 // Book names come from verse-verify.ts's OSIS_BOOK_MAP so there is exactly one
 // canonical list in the edge runtime. No Deno globals (vitest imports this).
 
-import { OSIS_BOOK_MAP, BOOK_ALIASES, parseRefToIds, verifyVerseRefs, type VerseFlag } from './verse-verify.ts';
+import { OSIS_BOOK_MAP, BOOK_ALIASES, canonicalBook, parseRefToIds, verifyVerseRefs, type VerseFlag } from './verse-verify.ts';
 import { stripPsalmSuperscription } from './bible-passage.ts';
 
 // ── Reference detection in prose ─────────────────────────────────────────────
@@ -292,10 +292,12 @@ export interface ScriptureDeps extends ScriptureVerifyDeps {
   translation: string;
 }
 
+// Delegates rather than re-deriving. This used to check display names only,
+// while parseRefToIds — the function that decides whether a ref RESOLVES —
+// accepted OSIS codes too. So "Heb 11:1" resolved fine and was reported as a
+// fabricated citation in the same pass. Caught by the 2026-08-06 study-chat eval.
 function isCanonicalBook(book: string): boolean {
-  const collapsed = book.replace(/\s+/g, ' ').trim();
-  const aliased = BOOK_ALIASES[collapsed] ?? collapsed;
-  return Object.keys(OSIS_BOOK_MAP).some((k) => k.toLowerCase() === aliased.toLowerCase());
+  return canonicalBook(book) !== null;
 }
 
 function bookOf(ref: string): string {

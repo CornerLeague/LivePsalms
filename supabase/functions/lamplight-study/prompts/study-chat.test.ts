@@ -59,7 +59,7 @@ const ctxFull: BibleChatContext = {
 
 describe('STUDY_CHAT_PROMPT', () => {
   it('bumps the prompt version', () => {
-    expect(STUDY_CHAT_PROMPT.promptVersion).toBe('study-chat-2026-08-06-v5');
+    expect(STUDY_CHAT_PROMPT.promptVersion).toBe('study-chat-2026-08-06-v6');
   });
 
   it('renders the related-passages block when present', () => {
@@ -95,6 +95,21 @@ describe('STUDY_CHAT_PROMPT', () => {
     const reply = (STUDY_CHAT_PROMPT.tool as ToolShape).input_schema.properties.reply;
     expect(reply.maxLength).toBe(3000);
     expect((BIBLE_CHAT_PROMPT.tool as ToolShape).input_schema.properties.reply.maxLength).toBe(1400);
+  });
+
+  // Study chat opts out of the blanket CONTESTED_PASSAGES rejection, so the
+  // requirement it replaces has to be carried in prose. Losing either half
+  // quietly would be worse than the bug that prompted the change.
+  it('opts out of the blanket contested-passage rejection', () => {
+    expect(STUDY_CHAT_PROMPT.allowContestedRefs).toBe(true);
+    expect(BIBLE_CHAT_PROMPT.allowContestedRefs).toBeUndefined();   // journaling keeps it
+  });
+
+  it('carries the labeled-readings requirement the exemption depends on', () => {
+    expect(STUDY_CHAT_PROMPT.system).toContain('do not adjudicate');
+    expect(STUDY_CHAT_PROMPT.system).toMatch(/Reformed readings/);
+    expect(STUDY_CHAT_PROMPT.system).toMatch(/pastor or church/);
+    expect(STUDY_CHAT_PROMPT.system).toContain('never settle it');
   });
 
   it('states a word target, without which the model writes to the ceiling', () => {

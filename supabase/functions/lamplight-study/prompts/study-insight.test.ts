@@ -21,7 +21,7 @@ describe('STUDY_INSIGHT_PROMPT', () => {
 
 describe('STUDY_INSIGHT_PROMPT — slice 1c', () => {
   it('bumps its version alongside the study system it composes', () => {
-    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v3');
+    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v4');
   });
 
   it('overrides the study word target — an opener is a doorway, not an answer', () => {
@@ -29,6 +29,11 @@ describe('STUDY_INSIGHT_PROMPT — slice 1c', () => {
     // unaddressed the two instructions contradict each other in one prompt.
     expect(STUDY_INSIGHT_PROMPT.system).toContain('Ignore the word target above');
     expect(STUDY_INSIGHT_PROMPT.system).toMatch(/60.{0,3}120 words/);
+  });
+
+  it('inherits the contested exemption from the system it composes', () => {
+    expect(STUDY_INSIGHT_PROMPT.allowContestedRefs).toBe(true);
+    expect(STUDY_INSIGHT_PROMPT.system).toContain('do not adjudicate');
   });
 
   it('keeps the short-register ceiling, not the study-chat one', () => {
