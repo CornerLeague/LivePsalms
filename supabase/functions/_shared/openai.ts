@@ -268,57 +268,82 @@ export function createOpenAIAdapter(deps: OpenAIDeps): LLMAdapter {
         completionTokens = body.usage?.output_tokens ?? completionTokens;
       };
 
+      // EOF is not success: only response.completed marks the generation whole.
+      // Without this, a dropped connection returns whichever fields happened to
+      // close as though the artifact were finished — the buffered path gets the
+      // equivalent guarantee from JSON.parse of the full arguments string.
+      let completed = false;
+
+      // SSE events carry an `event:` line and a `data:` line; the JSON payload
+      // repeats the event name in its own `type`, so only `data:` is needed.
+      const handleLine = (line: string) => {
+        if (!line.startsWith('data:')) return;
+        const json = line.slice(5).trim();
+        if (!json || json === '[DONE]') return;
+        let evt: Record<string, unknown>;
+        try { evt = JSON.parse(json); } catch { return; }
+
+        const type = typeof evt.type === 'string' ? evt.type : '';
+
+        if (type === 'error') {
+          throw new Error(
+            `openai stream error: ${(evt.code as string) ?? 'unknown'}: ${(evt.message as string) ?? JSON.stringify(evt)}`,
+          );
+        }
+
+        if (type === 'response.function_call_arguments.delta') {
+          const delta = evt.delta;
+          if (typeof delta === 'string' && delta) flush(parser.push(delta));
+          return;
+        }
+
+        if (type === 'response.refusal.done') {
+          throw new Error(`openai stream refusal: ${String(evt.refusal ?? '').slice(0, 200)}`);
+        }
+
+        if (type === 'response.failed') {
+          const body = evt.response as ResponseBody | undefined;
+          absorbTerminal(body);
+          throw new Error(`openai stream error: ${body?.error?.code ?? 'failed'}: ${body?.error?.message ?? 'response.failed'}`);
+        }
+
+        if (type === 'response.incomplete' || type === 'response.completed') {
+          const body = evt.response as ResponseBody | undefined;
+          absorbTerminal(body);
+          const refusal = findRefusal(body?.output);
+          if (refusal) throw new Error(`openai stream refusal: ${refusal.slice(0, 200)}`);
+          if (body && truncatedAtCeiling(body)) {
+            throw new Error('openai stream: truncated before the tool call closed (max_output_tokens)');
+          }
+          if (type === 'response.incomplete') {
+            // Any other incomplete reason (e.g. content_filter) is still a
+            // partial generation.
+            throw new Error(`openai stream: response incomplete (${body?.incomplete_details?.reason ?? 'unknown reason'})`);
+          }
+          completed = true;
+        }
+      };
+
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
         let nl: number;
-        // SSE events carry an `event:` line and a `data:` line; the JSON payload
-        // repeats the event name in its own `type`, so only `data:` is needed.
         while ((nl = buf.indexOf('\n')) >= 0) {
           const line = buf.slice(0, nl).trimEnd();
           buf = buf.slice(nl + 1);
-          if (!line.startsWith('data:')) continue;
-          const json = line.slice(5).trim();
-          if (!json || json === '[DONE]') continue;
-          let evt: Record<string, unknown>;
-          try { evt = JSON.parse(json); } catch { continue; }
-
-          const type = typeof evt.type === 'string' ? evt.type : '';
-
-          if (type === 'error') {
-            throw new Error(
-              `openai stream error: ${(evt.code as string) ?? 'unknown'}: ${(evt.message as string) ?? JSON.stringify(evt)}`,
-            );
-          }
-
-          if (type === 'response.function_call_arguments.delta') {
-            const delta = evt.delta;
-            if (typeof delta === 'string' && delta) flush(parser.push(delta));
-            continue;
-          }
-
-          if (type === 'response.refusal.done') {
-            throw new Error(`openai stream refusal: ${String(evt.refusal ?? '').slice(0, 200)}`);
-          }
-
-          if (type === 'response.failed') {
-            const body = evt.response as ResponseBody | undefined;
-            absorbTerminal(body);
-            throw new Error(`openai stream error: ${body?.error?.code ?? 'failed'}: ${body?.error?.message ?? 'response.failed'}`);
-          }
-
-          if (type === 'response.incomplete' || type === 'response.completed') {
-            const body = evt.response as ResponseBody | undefined;
-            absorbTerminal(body);
-            const refusal = findRefusal(body?.output);
-            if (refusal) throw new Error(`openai stream refusal: ${refusal.slice(0, 200)}`);
-            if (body && truncatedAtCeiling(body)) {
-              throw new Error('openai stream: truncated before the tool call closed (max_output_tokens)');
-            }
-          }
+          handleLine(line);
         }
       }
+      // Flush the decoder's buffered tail; a terminal event that arrived without
+      // a trailing newline must still count before the completeness check.
+      buf += decoder.decode();
+      if (buf.trim()) handleLine(buf.trimEnd());
+
+      if (!completed) {
+        throw new Error('openai stream: connection closed before response.completed');
+      }
+
       flush(parser.finish());
 
       return { parsed: assembled as T, modelUsed, promptTokens, completionTokens };

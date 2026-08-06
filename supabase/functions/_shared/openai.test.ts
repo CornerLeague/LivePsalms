@@ -442,6 +442,61 @@ describe('createOpenAIAdapter.generateStream', () => {
     ).rejects.toThrow(/truncated/i);
   });
 
+  it('throws when the connection drops before response.completed, even after streaming deltas', async () => {
+    // EOF with no terminal event — the interrupted-stream case. The reply field
+    // never closes, so before the completeness check this resolved with a
+    // silently partial object after the caller had already watched text arrive.
+    const lines = [
+      'data: {"type":"response.function_call_arguments.delta","delta":"{\\"reply\\":\\"Hel","sequence_number":1}\n\n',
+    ];
+    const fetchMock = vi.fn(async () => sseStreamResponse(lines));
+    const adapter = createOpenAIAdapter({ apiKey: 'k', fetch: fetchMock as unknown as typeof fetch });
+    const texts: string[] = [];
+    await expect(
+      adapter.generateStream(
+        { model: 'balanced', system: 's', messages: [{ role: 'user', content: 'hi' }],
+          tool: streamTool, textFields: ['reply'] },
+        { onText: (_f, d) => texts.push(d) },
+      )
+    ).rejects.toThrow(/connection closed before response\.completed/);
+    // Deltas did reach the handler — the throw is what keeps them from being
+    // blessed as a finished artifact.
+    expect(texts.join('')).toBe('Hel');
+  });
+
+  it('throws on response.incomplete for reasons other than the token ceiling', async () => {
+    const lines = [
+      'data: {"type":"response.function_call_arguments.delta","delta":"{\\"reply\\":\\"par","sequence_number":1}\n\n',
+      'data: {"type":"response.incomplete","sequence_number":2,"response":{"model":"gpt-5.6-terra","status":"incomplete","incomplete_details":{"reason":"content_filter"},"usage":{"input_tokens":5,"output_tokens":9}}}\n\n',
+    ];
+    const fetchMock = vi.fn(async () => sseStreamResponse(lines));
+    const adapter = createOpenAIAdapter({ apiKey: 'k', fetch: fetchMock as unknown as typeof fetch });
+    await expect(
+      adapter.generateStream(
+        { model: 'balanced', system: 's', messages: [{ role: 'user', content: 'hi' }], tool: streamTool },
+        {},
+      )
+    ).rejects.toThrow(/response incomplete \(content_filter\)/);
+  });
+
+  it('resolves when response.completed arrives without a trailing newline', async () => {
+    // The terminal event as the stream's final bytes, no newline after it: the
+    // decoder tail must be processed before the completeness check.
+    const lines = [
+      'data: {"type":"response.function_call_arguments.delta","delta":"{\\"reply\\":\\"Hello\\"}","sequence_number":1}\n\n',
+      'data: {"type":"response.completed","sequence_number":2,"response":{"model":"gpt-5.6-terra","status":"completed","usage":{"input_tokens":3,"output_tokens":2}}}',
+    ];
+    const fetchMock = vi.fn(async () => sseStreamResponse(lines));
+    const adapter = createOpenAIAdapter({ apiKey: 'k', fetch: fetchMock as unknown as typeof fetch });
+    const out = await adapter.generateStream<{ reply: string }>(
+      { model: 'balanced', system: 's', messages: [{ role: 'user', content: 'hi' }],
+        tool: streamTool, textFields: ['reply'] },
+      {},
+    );
+    expect(out.parsed).toEqual({ reply: 'Hello' });
+    expect(out.completionTokens).toBe(2);
+  });
+
   it('surfaces a streamed refusal as a distinct error', async () => {
     const lines = [
       'data: {"type":"response.refusal.done","refusal":"I cannot help with that.","sequence_number":2}\n\n',
