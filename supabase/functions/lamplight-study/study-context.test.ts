@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { selectOfferedNotes, selectRelatedPassages, retrieveRelatedPassages, buildStudyContext, type RelevantNote } from './study-context.ts';
+import { renderStudyGrounding } from './prompts/study-chat.ts';
 import type { VoyageDeps } from '../_shared/voyage.ts';
 
 const notes: RelevantNote[] = [
@@ -410,5 +411,200 @@ describe('buildStudyContext — skipSemanticRetrieval (the eval harness seam)', 
     expect(rpcCalls).toContain('match_user_note_embeddings');
     expect(rpcCalls).toContain('match_bible_embeddings');
     expect(rpcCalls).toContain('match_library_chunks');
+  });
+});
+
+// ── Verse scope (Insights Door 1) ────────────────────────────────────────────
+
+// A chapter wide enough to have real neighbours on both sides of a selection,
+// including one row that SPANS two verses — bible_passages genuinely stores
+// those, and neighbours computed by arithmetic rather than over rows would get
+// them wrong.
+const WIDE_CHAPTER_ROWS = [
+  { book: 'psa', chapter: 27, verse_start: 1, verse_end: 1, text: 'The LORD is my light and my salvation.' },
+  { book: 'psa', chapter: 27, verse_start: 2, verse_end: 2, text: 'When the wicked came against me.' },
+  { book: 'psa', chapter: 27, verse_start: 3, verse_end: 3, text: 'Though an army encamps against me.' },
+  { book: 'psa', chapter: 27, verse_start: 4, verse_end: 4, text: 'One thing I have asked of the LORD.' },
+  { book: 'psa', chapter: 27, verse_start: 5, verse_end: 6, text: 'For in the day of trouble He will hide me, and now my head will be exalted.' },
+  { book: 'psa', chapter: 27, verse_start: 7, verse_end: 7, text: 'Hear my voice when I call, O LORD.' },
+  { book: 'psa', chapter: 27, verse_start: 8, verse_end: 8, text: 'My heart says of You, Seek His face.' },
+];
+
+// Commentary on three different anchors, so "narrowed to the verse" is
+// observable: the verse's own chunk survives, the sibling verse's does not, and
+// the cross-referenced one rides in on its own anchor either way.
+const VERSE_LIBRARY_ROWS = [
+  {
+    id: 'lc-v1', source_id: 'treasury-of-david', heading: 'Psalm 27:1',
+    content: 'Charles H. Spurgeon, 1869–1885 — on Psalm 27:1:\nLight and salvation, the two great needs.',
+    book: 'psa', chapter: 27, verse_start: 1, verse_end: 1,
+  },
+  {
+    id: 'lc-v4', source_id: 'treasury-of-david', heading: 'Psalm 27:4',
+    content: 'Charles H. Spurgeon, 1869–1885 — on Psalm 27:4:\nOne thing — the unity of desire.',
+    book: 'psa', chapter: 27, verse_start: 4, verse_end: 4,
+  },
+  {
+    id: 'lc-xref', source_id: 'jfb', heading: 'Isaiah 40:31',
+    content: 'Robert Jamieson, 1871 — on Isaiah 40:31:\nThey that wait upon the LORD shall renew their strength.',
+    book: 'isa', chapter: 40, verse_start: 31, verse_end: 31,
+  },
+];
+
+// defaultTables' bible_passages handler serves two different queries; a wider
+// chapter has to keep serving both.
+function wideChapterTables(over: Partial<Record<string, unknown>> = {}): TableHandler {
+  return defaultTables({
+    bible_passages: (_name: string, ops: QueryOp[]) => {
+      if (ops.some((o) => o.method === 'like')) return WIDE_CHAPTER_ROWS;
+      return opArg(ops, 'eq', 1) === 'isa.40.31'
+        ? { book: 'isa', chapter: 40, verse_start: 31, verse_end: 31, text: 'They that wait upon the LORD.' }
+        : null;
+    },
+    library_chunks: VERSE_LIBRARY_ROWS,
+    ...over,
+  });
+}
+
+describe('buildStudyContext — verse scope', () => {
+  it('narrows the library anchor to the selected verse, keeping the cross-ref anchors', async () => {
+    const chapter = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps),
+    );
+    const verse = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { verse: 1 }),
+    );
+
+    // Chapter scope anchors the whole chapter, so every chunk in it overlaps.
+    expect(chapter.ctx.libraryExcerpts!.map((e) => e.chunkId).sort())
+      .toEqual(['lc-v1', 'lc-v4', 'lc-xref']);
+    // Verse scope keeps the selected verse's commentary and drops the sibling
+    // verse's — but the cross-referenced voice still arrives on its own anchor.
+    expect(verse.ctx.libraryExcerpts!.map((e) => e.chunkId).sort())
+      .toEqual(['lc-v1', 'lc-xref']);
+  });
+
+  it('supplies the selected verse with its neighbours, marking which one is selected', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { verse: 4 }),
+    );
+
+    expect(ctx.focusVerses!.map((v) => v.ref))
+      .toEqual(['psa 27:2', 'psa 27:3', 'psa 27:4', 'psa 27:5-6', 'psa 27:7']);
+    expect(ctx.focusVerses!.filter((v) => v.isFocus).map((v) => v.ref)).toEqual(['psa 27:4']);
+    expect(ctx.focusVerses!.find((v) => v.isFocus)!.text).toBe('One thing I have asked of the LORD.');
+  });
+
+  it('clamps at the start of the chapter', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { verse: 1 }),
+    );
+    expect(ctx.focusVerses!.map((v) => v.ref)).toEqual(['psa 27:1', 'psa 27:2', 'psa 27:3']);
+    expect(ctx.focusVerses![0].isFocus).toBe(true);
+  });
+
+  it('clamps at the end of the chapter', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { verse: 8 }),
+    );
+    expect(ctx.focusVerses!.map((v) => v.ref)).toEqual(['psa 27:5-6', 'psa 27:7', 'psa 27:8']);
+    expect(ctx.focusVerses!.at(-1)!.isFocus).toBe(true);
+  });
+
+  it('resolves a verse inside a multi-verse row to that row', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { verse: 6 }),
+    );
+    expect(ctx.focusVerses!.find((v) => v.isFocus)!.ref).toBe('psa 27:5-6');
+  });
+
+  it('degrades to chapter grounding when the verse is not in the chapter', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { verse: 99 }),
+    );
+    // No focus block, and the anchor stays chapter-wide rather than narrowing
+    // onto a verse that does not exist — which would blank the library.
+    expect(ctx.focusVerses).toBeUndefined();
+    expect(ctx.libraryExcerpts!.map((e) => e.chunkId).sort()).toEqual(['lc-v1', 'lc-v4', 'lc-xref']);
+    warn.mockRestore();
+  });
+
+  it('LOAD-BEARING: narrowing the anchor never narrows the citation allowlist', async () => {
+    // The whole chapter text is still supplied, so the whole chapter stays
+    // citable. Narrowing here would make a section describing the chapter's
+    // movement uncitable — and citations are what the validator checks.
+    const chapter = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps),
+    );
+    const verse = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { verse: 4 }),
+    );
+    expect([...verse.ctx.allowedVerseRefs].sort()).toEqual([...chapter.ctx.allowedVerseRefs].sort());
+    expect(verse.ctx.allowedVerseRefs.has('psa 27:1')).toBe(true);
+  });
+});
+
+describe('buildStudyContext — chapter scope is untouched by the verse-scope path', () => {
+  it('sets no focusVerses at all, so the prompt renders exactly as before', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(makeVoyage().deps),
+    );
+    // Absent, not empty: renderStudyGrounding drops the block either way, but
+    // `undefined` is what every pre-B2 caller produced.
+    expect(ctx.focusVerses).toBeUndefined();
+    expect('focusVerses' in ctx).toBe(false);
+  });
+
+  it('keeps the whole-chapter library anchor', async () => {
+    const seen: Record<string, QueryOp[]> = {};
+    const supabase = makeSupabase({
+      table: defaultTables(),
+      onQuery: (name, ops) => { if (name === 'library_chunks') seen[name] = ops; },
+    });
+    const { ctx } = await buildStudyContext(supabase, studyArgs(makeVoyage().deps));
+
+    expect(opArg(seen.library_chunks, 'or')).toBe('and(book.eq.psa,chapter.eq.27),and(book.eq.isa,chapter.eq.40)');
+    // Psalm 27:4 commentary reaches a reader who opened the chapter — the
+    // behaviour verse scope narrows, and chapter scope must keep.
+    expect(ctx.libraryExcerpts!.map((e) => e.chunkId)).toContain('lc1');
+  });
+
+  it('renders a grounding turn with no focus block — the bytes study chat sends are unchanged', async () => {
+    // The end of the loop the other two tests only reach halfway: a chapter-scope
+    // context through the REAL renderer, which is what study chat actually puts
+    // on the wire. `lamplight-study/index.ts` never passes `verse`, so this is
+    // the prompt every study turn still gets.
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(makeVoyage().deps),
+    );
+    const grounding = renderStudyGrounding(ctx);
+    expect(grounding).not.toMatch(/selected/i);
+    expect(grounding.startsWith('Passage: psa 27\n\n1 The LORD is my light')).toBe(true);
+  });
+
+  it('differs from verse scope in the two fields verse scope is allowed to change, and nothing else', async () => {
+    const chapter = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps),
+    );
+    const verse = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { verse: 4 }),
+    );
+
+    const rest = (c: typeof chapter.ctx) => ({ ...c, focusVerses: null, libraryExcerpts: null });
+    expect(rest(verse.ctx)).toEqual(rest(chapter.ctx));
   });
 });

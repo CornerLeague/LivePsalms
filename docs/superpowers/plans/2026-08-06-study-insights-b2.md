@@ -87,16 +87,17 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Progress
 
-**Tasks 1–3 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,878 tests, `tsc -b` clean, lint at its 163-problem baseline.
+**Tasks 1–4 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,889 tests, `tsc -b` clean, lint at its 163-problem baseline.
 
 | Task | State | Commit |
 |---|---|---|
 | 1 — migration 060 | written, **NOT APPLIED** | `2ac36bf9` |
 | 2 — uncharged quota scope | done | `2ac36bf9` |
 | 3 — prompt + four-field tool | done | `350aba75` |
-| 4 — verse-scope grounding | **next** | — |
+| 4 — verse-scope grounding | done | `f2ab48f1` |
+| 5 — the pipeline | **next** | — |
 
-**Blocking:** migration `060_passage_insight.sql` has not been run against the database. Tasks 4–5 do not need it; Tasks 6–7 cannot be verified without it.
+**Blocking:** migration `060_passage_insight.sql` has not been run against the database. Task 5 does not need it; Tasks 6–7 cannot be verified without it.
 
 ### Decisions made while implementing, that are not in the design
 
@@ -104,13 +105,16 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - **`minLength: 0` on every section field.** A section with no warrant must return empty; requiring a character would force filler exactly where the model has nothing grounded to say.
 - **Shared rules are composed, not paraphrased.** `STUDY_GROUNDING_RULES` and `renderStudyGrounding` are exported from `prompts/study-chat.ts` and used by both surfaces. Verified byte-identical after extraction (2,870 chars before and after), which is why `study-chat`'s `promptVersion` legitimately did not bump.
 - **`BibleChatContext.focusVerses`** was added in Task 3 (the prompt renders it); **Task 4 is what populates it**.
+- **Focus neighbours are counted in ROWS, not verse numbers.** `bible_passages` genuinely stores multi-verse rows (`psa 27:5-6`), so verse arithmetic would slice through one and ask for text that has no row. `FOCUS_NEIGHBOURS = 2` either side of the row containing the selection; clamping is then just array-slice clamping. `selectFocusVerses` in `study-context.ts` is the authority.
+- **Verse scope narrows the library anchor, NOT `allowedVerseRefs`.** The whole chapter text is still supplied, so the whole chapter stays citable — *The Chapter's Shape* cites across the chapter constantly, and a narrowed allowlist would make that section unwritable. Design §2 only ever asked for the anchor.
+- **A verse in no row of its chapter degrades to chapter grounding**, with a `console.warn`. Narrowing an anchor onto a verse that does not exist would blank the library rather than widen it; a bad `ref_id` should cost a warning, not the door.
 
 ## Task 4 — Verse-scope grounding
 
-- [ ] Failing test: with a verse scope, `libraryAnchors` narrows to that verse (plus resolved cross-ref targets), not the whole chapter.
-- [ ] Failing test: neighbouring verse text is supplied, clamped at chapter boundaries.
-- [ ] Failing test: chapter scope is byte-identical to today — this must not change study chat.
-- [ ] Extend `buildStudyContext` with an optional verse scope.
+- [x] Failing test: with a verse scope, `libraryAnchors` narrows to that verse (plus resolved cross-ref targets), not the whole chapter.
+- [x] Failing test: neighbouring verse text is supplied, clamped at chapter boundaries.
+- [x] Failing test: chapter scope is byte-identical to today — this must not change study chat.
+- [x] Extend `buildStudyContext` with an optional verse scope.
 
 ## Task 5 — The pipeline
 
