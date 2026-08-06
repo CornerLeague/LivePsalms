@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { PASSAGE_SECTIONS, type PassageInsightSseEvent, type PassageInsightInvoke } from './passage-insight-stream-client';
 
 type Result = { data: unknown; error: unknown };
@@ -71,7 +72,7 @@ describe('PassageDoor — a cached door', () => {
 
   it('is visible to a reader who cannot generate — cached doors are free and public', async () => {
     setResult({ data: rows(), error: null });
-    render(<PassageDoor scope={SCOPE} invoke={null} canGenerate={false} />);
+    render(<MemoryRouter><PassageDoor scope={SCOPE} invoke={null} canGenerate={false} /></MemoryRouter>);
 
     expect(await screen.findByText('Overview')).toBeTruthy();
     expect(screen.getByText('The body of overview.')).toBeTruthy();
@@ -123,10 +124,35 @@ describe('PassageDoor — an uncached door', () => {
   });
 
   it('hides the generate action from a signed-out or non-entitled reader', async () => {
-    render(<PassageDoor scope={SCOPE} invoke={null} canGenerate={false} />);
+    render(<MemoryRouter><PassageDoor scope={SCOPE} invoke={null} canGenerate={false} /></MemoryRouter>);
 
     await waitFor(() => expect(from).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: /study this passage/i })).toBeNull();
+  });
+
+  it('shows a blocked affordance rather than an empty panel', async () => {
+    // The door is listed in the overlay's chooser, so opening it must explain
+    // itself. Silence would read as a broken door.
+    const { container } = render(
+      <MemoryRouter><PassageDoor scope={SCOPE} invoke={null} canGenerate={false} userId="u1" /></MemoryRouter>,
+    );
+    await waitFor(() => expect(from).toHaveBeenCalled());
+    await waitFor(() => expect(container.textContent!.trim().length).toBeGreaterThan(0));
+  });
+
+  it('offers sign-in to a signed-out reader, and the paywall to a signed-in one', async () => {
+    const out = render(
+      <MemoryRouter><PassageDoor scope={SCOPE} invoke={null} canGenerate={false} userId={null} /></MemoryRouter>,
+    );
+    await waitFor(() => expect(out.container.textContent!.trim().length).toBeGreaterThan(0));
+    const signedOut = out.container.textContent!;
+    cleanup();
+
+    const inn = render(
+      <MemoryRouter><PassageDoor scope={SCOPE} invoke={null} canGenerate={false} userId="u1" /></MemoryRouter>,
+    );
+    await waitFor(() => expect(inn.container.textContent!.trim().length).toBeGreaterThan(0));
+    expect(inn.container.textContent).not.toBe(signedOut);
   });
 
   it('offers the door again after a failed generation', async () => {

@@ -6,6 +6,8 @@ import {
   validateFixtureRefs,
   candidateVerseIds,
   checkGrounding,
+  checkSections,
+  checkDisplayRefs,
   fixturesFor,
   type EvalFixture,
   type FixtureRun,
@@ -338,5 +340,182 @@ describe('checkGrounding', () => {
   it('treats a floor of 0 as a real assertion, not an absent one', () => {
     expect(checkGrounding({ ...full, crossRefs: [] }, { minCrossRefs: 0 }))
       .toEqual([{ name: 'grounding_cross_refs', pass: true }]);
+  });
+});
+
+// ── Insights Door 1 ──────────────────────────────────────────────────────────
+
+const RAW_PASSAGE = {
+  name: 'passage-psalm-27',
+  description: 'A densely covered psalm — the door at its best-supplied.',
+  firstName: null,
+  localDate: '2026-08-07',
+  periodKey: '2026-08',
+  notes: [],
+  highlights: [],
+  candidateVerses: [],
+  passageInsight: {
+    book: 'psa',
+    chapter: 27,
+    expectGrounding: { minCrossRefs: 3, minLibraryExcerpts: 2, requireBookContext: true },
+  },
+  expect: {},
+};
+
+const RAW_PASSAGE_VERSE = {
+  ...RAW_PASSAGE,
+  name: 'passage-psalm-27-verse-4',
+  passageInsight: { ...RAW_PASSAGE.passageInsight, verse: 4 },
+};
+
+describe('parseFixture — passageInsight', () => {
+  it('parses a chapter-grain door fixture', () => {
+    expect(parseFixture(RAW_PASSAGE).passageInsight).toEqual({
+      book: 'psa',
+      chapter: 27,
+      expectGrounding: { minCrossRefs: 3, minLibraryExcerpts: 2, requireBookContext: true },
+    });
+  });
+
+  it('parses a verse-grain door fixture', () => {
+    expect(parseFixture(RAW_PASSAGE_VERSE).passageInsight!.verse).toBe(4);
+  });
+
+  it('needs no question — the passage IS the prompt', () => {
+    // The one real shape difference from a study-chat fixture.
+    expect(() => parseFixture(RAW_PASSAGE)).not.toThrow();
+  });
+
+  it('rejects a non-numeric chapter', () => {
+    expect(() => parseFixture({ ...RAW_PASSAGE, passageInsight: { book: 'psa', chapter: 'x' } }))
+      .toThrow(/chapter/);
+  });
+
+  it('rejects a verse that is not a positive integer', () => {
+    expect(() => parseFixture({ ...RAW_PASSAGE, passageInsight: { book: 'psa', chapter: 27, verse: 0 } }))
+      .toThrow(/verse/);
+  });
+
+  it('leaves passageInsight undefined on the other fixture kinds', () => {
+    expect(parseFixture(RAW_FIXTURE).passageInsight).toBeUndefined();
+    expect(parseFixture(RAW_STUDY).passageInsight).toBeUndefined();
+  });
+});
+
+describe('validateFixtureRefs — passageInsight', () => {
+  it('catches an unknown book code offline, before a live run pays for it', () => {
+    const f = parseFixture({ ...RAW_PASSAGE, passageInsight: { book: 'psalms', chapter: 27 } });
+    expect(validateFixtureRefs(f).join(' ')).toMatch(/unknown book code/);
+  });
+
+  it('does not demand candidate verses — a door anchors on its passage', () => {
+    expect(validateFixtureRefs(parseFixture(RAW_PASSAGE))).toEqual([]);
+  });
+});
+
+describe('fixturesFor — three kinds, no crossover', () => {
+  const devotion = parseFixture(RAW_FIXTURE);
+  const study = parseFixture(RAW_STUDY);
+  const door = parseFixture(RAW_PASSAGE);
+
+  it('gives passage-insight only the fixtures that describe a door', () => {
+    expect(fixturesFor([devotion, study, door], 'passage-insight').map((f) => f.name))
+      .toEqual(['passage-psalm-27']);
+  });
+
+  it('keeps door fixtures out of a study-chat run', () => {
+    expect(fixturesFor([devotion, study, door], 'study-chat').map((f) => f.name))
+      .toEqual(['study-psalm-27']);
+  });
+
+  it('keeps door fixtures out of a devotion run', () => {
+    // Regression guard: devotion used to be "everything without a studyChat
+    // block", which would now sweep up every door fixture and score it as a
+    // devotion the fixture never described.
+    expect(fixturesFor([devotion, study, door], 'devotion').map((f) => f.name))
+      .toEqual(['grief-month']);
+  });
+});
+
+describe('checkSections', () => {
+  const full = {
+    overview: 'David names the LORD his light and his salvation.',
+    in_chapter: 'The confidence of the opening gives way to petition.',
+    chapter_shape: 'The psalm turns at verse 7.',
+    reflection: 'The one thing asked for is presence.',
+  };
+
+  it('passes a door whose sections are all present and all finish their sentence', () => {
+    expect(checkSections(full).every((c) => c.pass)).toBe(true);
+  });
+
+  it('fails a section that came back empty', () => {
+    // The four-bound design exists to make omission legitimate — but a door
+    // where a section silently vanishes is what only an eval will tell us.
+    const checks = checkSections({ ...full, chapter_shape: '' });
+    const c = checks.find((x) => x.name === 'section_chapter_shape_present')!;
+    expect(c.pass).toBe(false);
+  });
+
+  it('fails a section that stops mid-word — the 1400-char truncation, caught', () => {
+    const checks = checkSections({ ...full, overview: 'David names the LORD his light and his salv' });
+    const c = checks.find((x) => x.name === 'section_overview_complete')!;
+    expect(c.pass).toBe(false);
+    expect(c.detail).toMatch(/salv/);
+  });
+
+  it('accepts every terminal punctuation a real section ends on', () => {
+    for (const ending of ['.', '?', '!', '."', '.”', '.’', '.)']) {
+      const checks = checkSections({ ...full, overview: `A complete thought${ending}` });
+      expect(checks.find((x) => x.name === 'section_overview_complete')!.pass).toBe(true);
+    }
+  });
+
+  it('does not report an absent section as also mid-word — one failure, not two', () => {
+    const checks = checkSections({ ...full, reflection: '' });
+    expect(checks.filter((c) => c.name.startsWith('section_reflection') && !c.pass))
+      .toHaveLength(1);
+  });
+
+  it('reports a missing key exactly as it reports an empty one', () => {
+    const partial = { ...full } as Record<string, string>;
+    delete partial.reflection;
+    expect(checkSections(partial).find((c) => c.name === 'section_reflection_present')!.pass).toBe(false);
+  });
+});
+
+describe('checkDisplayRefs', () => {
+  // Caught for real by the first B2 live sweep: Door 1's prose read
+  // "(psa 27:2; psa 27:3)" and "(2ti 2:19)" — the internal OSIS key echoed
+  // straight at the reader. `formatDisplayVerseRef` exists precisely because
+  // this happened once before, on the devotion card.
+  it('passes prose that names books the way a reader reads them', () => {
+    expect(checkDisplayRefs('David asks one thing (Psalm 27:4), echoed in Isaiah 40:31.')[0].pass).toBe(true);
+  });
+
+  it('fails prose carrying an OSIS code', () => {
+    const check = checkDisplayRefs('David asks one thing (psa 27:4).')[0];
+    expect(check.pass).toBe(false);
+    expect(check.detail).toContain('psa 27:4');
+  });
+
+  it('catches a numbered book code, which is the least readable of all', () => {
+    expect(checkDisplayRefs('The Lord knows those who are His (2ti 2:19).')[0].pass).toBe(false);
+  });
+
+  it('catches a verse RANGE in code form', () => {
+    expect(checkDisplayRefs('The theophany unfolds (nam 1:2–3).')[0].pass).toBe(false);
+  });
+
+  it('does not fire on a real book name that merely starts with a code’s letters', () => {
+    // 'Nahum 1:2' begins with 'nam'-adjacent letters; 'Job 1:1' is three letters
+    // AND a real display name. Neither is a leak.
+    expect(checkDisplayRefs('Nahum 1:2 and Job 1:1 and Psalms 27:4.')[0].pass).toBe(true);
+  });
+
+  it('reports every distinct leak, not just the first', () => {
+    const detail = checkDisplayRefs('See psa 27:4 and also jhn 10:14.')[0].detail!;
+    expect(detail).toContain('psa 27:4');
+    expect(detail).toContain('jhn 10:14');
   });
 });

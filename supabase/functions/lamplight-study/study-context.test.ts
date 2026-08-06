@@ -554,6 +554,80 @@ describe('buildStudyContext — verse scope', () => {
   });
 });
 
+describe('buildStudyContext — displayRefs', () => {
+  // Caught by the first B2 live sweep: Door 1's prose read "(psa 27:2)" and
+  // "(2ti 2:19)" — the internal OSIS key echoed at the reader, because the model
+  // returns whatever ref form it was handed.
+  it('renders reader-facing book names in every supplied ref', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { displayRefs: true, verse: 4 }),
+    );
+
+    expect(ctx.crossRefs.map((c) => c.ref)).toEqual(['Isaiah 40:31']);
+    expect(ctx.focusVerses!.map((v) => v.ref)).toContain('Psalms 27:4');
+    expect(ctx.focusVerses!.every((v) => !v.ref.startsWith('psa'))).toBe(true);
+  });
+
+  it('LOAD-BEARING: moves the PASSAGE HEADER too — the model generalises from it', async () => {
+    // The second live sweep's failure, pinned. Cross-refs and focus verses were
+    // in reader form but the header still read "nam 1", so the model cited
+    // "nam 1:1"…"nam 1:15" for the passage's own verses — none of which the
+    // (now display-form) allowlist accepted. The whole door failed validation.
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { displayRefs: true }),
+    );
+    expect(ctx.passageRef).toBe('Psalms 27');
+  });
+
+  it('leaves the header in key form when displayRefs is off', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps),
+    );
+    expect(ctx.passageRef).toBe('psa 27');
+  });
+
+  it('LOAD-BEARING: moves the ALLOWLIST to the same form, or every citation fails', async () => {
+    // The allowlist is compared against what the model cites, and the model
+    // cites what it was shown. Changing one without the other would reject
+    // every correct citation.
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps, { displayRefs: true }),
+    );
+
+    expect(ctx.allowedVerseRefs.has('psalms 27:1')).toBe(true);
+    expect(ctx.allowedVerseRefs.has('isaiah 40:31')).toBe(true);
+    expect(ctx.allowedVerseRefs.has('psa 27:1')).toBe(false);
+  });
+
+  it('is OFF by default — study chat keeps the exact refs it ships with today', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: wideChapterTables() }),
+      studyArgs(makeVoyage().deps),
+    );
+
+    expect(ctx.crossRefs.map((c) => c.ref)).toEqual(['isa 40:31']);
+    expect(ctx.allowedVerseRefs.has('psa 27:1')).toBe(true);
+  });
+
+  it('keeps the allowlist and the rendered grounding in the SAME form', async () => {
+    // The invariant behind both branches: whatever the reader-facing form is,
+    // a ref shown in the prompt must be a ref the allowlist accepts.
+    for (const displayRefs of [true, false]) {
+      const { ctx } = await buildStudyContext(
+        makeSupabase({ table: wideChapterTables() }),
+        studyArgs(makeVoyage().deps, { displayRefs }),
+      );
+      for (const c of ctx.crossRefs) {
+        expect(ctx.allowedVerseRefs.has(c.ref.toLowerCase())).toBe(true);
+      }
+    }
+  });
+});
+
 describe('buildStudyContext — chapter scope is untouched by the verse-scope path', () => {
   it('sets no focusVerses at all, so the prompt renders exactly as before', async () => {
     const { ctx } = await buildStudyContext(

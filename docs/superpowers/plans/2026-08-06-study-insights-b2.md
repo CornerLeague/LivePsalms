@@ -89,7 +89,9 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Progress
 
-**Tasks 1–8 complete, 2026-08-06.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 3,973 tests, `tsc -b` clean, lint at its 163-problem baseline.
+**Tasks 1–9 complete, 2026-08-06. The door is REGISTERED and reachable.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 4,007 tests, `tsc -b` clean, lint at its 163-problem baseline.
+
+**Live baseline:** `docs/lamplight/evals/2026-08-06-b2-passage-door` — 3/3 pass, $0.17, zero Scripture violations, zero display-ref leaks. Regression evidence that study chat was untouched: `docs/lamplight/evals/2026-08-06-b2-studychat-regression` (free, grounding-only).
 
 | Task | State | Commit |
 |---|---|---|
@@ -100,10 +102,12 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 | 5 — the pipeline | done | `d01d56dc` |
 | 6 — cache read/write | done | `e7d34c88` |
 | 7 — edge function | done, **DEPLOYED 2026-08-06** | `89efd307` |
-| 8 — client hook + door | done, **unregistered** | `b896463f` |
-| 9 — eval, then registration | **next** | — |
+| 8 — client hook + door | done | `b896463f` |
+| 9 — eval + registration | done | see below |
+| 10 — refresh script | **next** | — |
+| 11 — completion gate | pending | — |
 
-**No door has been generated yet.** Migration 060 is applied and `passage-insight` is deployed and boots clean, but the corpus is still 0 rows — nothing has run against a real model. Every claim about B2's output quality rests on unit tests with fake adapters. **Task 9's live sweep is the first real exercise of the prompt**, and it is also the gate on registering the door.
+**Still true:** the `bible_passage_insight` corpus is **0 rows**. The eval harness exercises the pipeline directly, not the edge function, so nothing has yet gone through `passage-insight` end-to-end and written a cache row. Task 11's live check is where that first happens — and where "a second reader gets the cached door instantly" is actually proven.
 
 ### Decisions made while implementing, that are not in the design
 
@@ -122,6 +126,11 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - **Task 7 needed a fourth file the plan's File Structure does not list: `lamplight-study/passage-insight-stream.ts`.** Every Task 7 bullet is a *failing test*, and a Deno `index.ts` calling `serve()` at module scope cannot be imported by vitest. Split exactly as `daily-devotion-stream.ts` + `index.ts` and `etymology-insight/insight-body.ts` + `index.ts` already are: orchestration is Node-testable with injected deps, the shell is wiring. It lives beside the pipeline and cache so all four Door 1 modules sit together; `passage-insight/index.ts` imports across directories, which `lamplight-study/index.ts` already does.
 - **The stream module takes the whole `QuotaConfig`, not a pre-bound `checkQuota` closure** (which is what `daily-devotion-stream.ts` does). Choosing the `passageInsight` scope IS decision D1; bound in the Deno shell it would be the one part of D1 no test could reach. Taking the config lets the test drive real `checkQuota` and assert that `countUserUsage` is never even *called*.
 - **⚠️ `tsc -b` does not typecheck edge functions.** `tsconfig.app.json` includes only `src`, so the gate's type check covers none of `supabase/functions`. The Door 1 logic modules are at least exercised by vitest; the Deno shell is neither typechecked nor tested by the gate. Checked manually with a standalone `tsc --noEmit --allowImportingTsExtensions` run: the only errors in `passage-insight/index.ts` are the `deno.land` import and the `Deno` global, i.e. exactly what `lamplight-study/index.ts` produces. That is a one-off check, not a standing guard.
+- **⚠️⚠️ The live sweep caught OSIS codes leaking into reader-facing prose, twice, and study chat has the same bug in production.** First sweep: Door 1's prose read "(psa 27:2; psa 27:3)" and "(2ti 2:19)" — the internal key echoed straight at the reader, because the model returns whatever ref form it was handed. `formatDisplayVerseRef` exists precisely because this reached a reader once before on the Today's Lamp card.
+  - **Fix, scoped to Door 1:** `buildStudyContext` takes `displayRefs`, which moves the rendered refs AND the citation allowlist to reader form together — they must move together or every correct citation is rejected. **Off by default**, so study chat is unchanged by construction; verified with a free `--grounding-only` study-chat sweep (`2026-08-06-b2-studychat-regression`, refs still `isa 40:31`).
+  - **Second sweep caught the half-fix:** cross-refs and focus verses were in reader form but `ctx.passageRef` still read `nam 1`, so the model generalised from the header and cited `nam 1:1`…`nam 1:15` for the passage's own verses — none of which the now-display-form allowlist accepted, and the whole Nahum door failed validation. The header is a ref too.
+  - **Now machine-caught:** `checkDisplayRefs` in the harness fails any prose carrying an OSIS-shaped ref, matched against the real code list so "Job 1:1" and "Nahum 1:2" never trip it. Without it the next person reads a green report and ships the leak.
+  - **⚠️ STUDY CHAT STILL LEAKS.** `2026-08-06-study-baseline` shows `rom 9:16`, `psa 27:4` in shipped replies. Fixing it means flipping `displayRefs` there too, which changes a live prompt's grounding and allowlist — so it needs its own eval sweep and a `promptVersion` bump. **Not done here; it is a separate slice.**
 - **⚠️ The cache key is written in two places and pinned by test in both.** `parsePassageInsightBody` (server) composes the `ref_id` that gets WRITTEN; `passageRefId` (client) composes the one that gets READ. They cannot import each other across the `src` / `supabase/functions` boundary. If they ever drift, nothing breaks loudly — the cache simply never hits, and every reader pays to generate a door already sitting in the table. Both sides assert the exact strings `psa.27` and `psa.27.4`, including the lowercasing.
 - **A failed generation returns `sections` to `null`, not to the partial text.** The server wrote nothing, so there is no door: leaving fragments on screen would render one that does not exist, and leaving four empty strings would strand the reader with no way to press the button again.
 - **⚠️ B3 landmine: `door` is not in the primary key.** `primary key (scope, ref_id, section)` means `('chapter','psa.27','overview')` is unique across ALL doors, so if B3's Deeper door ever names a section the Passage door also names, the two collide and overwrite each other. B3's four sections (Hermeneutics, Theology, Read With Care, Historical Background) don't collide today, but the constraint is one careless section name away from silent data loss. Fix by widening the PK to include `door` when B3 lands.
@@ -177,12 +186,15 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Task 9 — Eval coverage, then registration — in that order
 
-- [ ] Add `'passage-insight'` to the harness `ArtifactKind` union and drive it live.
-- [ ] Reuse the study-chat fixture shape; add a verse-grain fixture so both grains are exercised.
-- [ ] **Grounding floors apply unchanged** — the check that would have caught the empty cross-reference table.
-- [ ] New per-section assertions: every expected section is non-empty, and none ends mid-word (assert the final character is terminal punctuation).
-- [ ] Run a live sweep; check the report into `docs/lamplight/evals/`.
-- [ ] **Only once that baseline is green:** register the door in `doors.tsx` so readers can reach it.
+- [x] Add `'passage-insight'` to the harness `ArtifactKind` union and drive it live.
+- [x] Reuse the study-chat fixture shape; add a verse-grain fixture so both grains are exercised.
+- [x] **Grounding floors apply unchanged** — the check that would have caught the empty cross-reference table. Plus a `grounding_focus_verses` floor at verse grain, so a verse that silently degraded to chapter scope is caught rather than scored as a grain it is not.
+- [x] New per-section assertions: every expected section is non-empty, and none ends mid-word (assert the final character is terminal punctuation).
+- [x] Run a live sweep; check the report into `docs/lamplight/evals/`.
+- [x] **Only once that baseline is green:** register the door in `doors.tsx` so readers can reach it.
+- [x] **A third fixture, beyond the plan:** `passage-nahum-1`, a thin non-Psalm OT chapter (15 library chunks against Psalm 27's 123). Task 11 asks for that case as a live check; folding it into this sweep costs one run instead of two, and it is the fixture that caught the second display-ref bug.
+
+**The sweep did its job — it caught two real defects, and it caught them in the order that matters (before a reader could).** See the decisions below.
 
 **Requirements:** #114 exists because a surface shipped with no eval and a retrieval channel went dark for months. The ordering in this task is the whole point of it.
 

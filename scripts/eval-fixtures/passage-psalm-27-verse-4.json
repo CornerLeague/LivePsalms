@@ -1,0 +1,27 @@
+{
+  "name": "passage-psalm-27-v4",
+  "description": "Door 1 at verse grain. 'In the Chapter' is unanswerable from a chapter blob alone, so this is the fixture that proves focus verses reached the prompt.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "passageInsight": {
+    "book": "psa",
+    "chapter": 27,
+    "verse": 4,
+    "expectGrounding": {
+      "minCrossRefs": 3,
+      "minLibraryExcerpts": 1,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "the correct interpretation",
+      "clearly teaches",
+      "settles the debate"
+    ]
+  }
+}

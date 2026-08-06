@@ -36,7 +36,14 @@ import { OSIS_TO_ABBREV } from '../supabase/functions/_shared/bible-books';
 import { buildStudyContext } from '../supabase/functions/lamplight-study/study-context';
 import { STUDY_CHAT_PROMPT } from '../supabase/functions/lamplight-study/prompts/study-chat';
 import { runBibleChatPipeline } from '../supabase/functions/lamplight-chat/bible-chat-pipeline';
+import { runPassageInsightPipeline } from '../supabase/functions/lamplight-study/passage-insight-pipeline';
+import { PASSAGE_INSIGHT_SECTIONS } from '../supabase/functions/lamplight-study/prompts/passage-insight';
 import type { VoyageDeps } from '../supabase/functions/_shared/voyage';
+
+// The harness is a script, not a `src` module, so it imports the real section
+// list rather than copying it. A door whose sections drifted from the prompt's
+// would otherwise score four checks against keys nothing writes.
+const PASSAGE_SECTION_KEYS = PASSAGE_INSIGHT_SECTIONS.map((s) => s.key);
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -83,6 +90,22 @@ export interface FixtureStudyChat {
   };
 }
 
+/**
+ * An Insights Door 1 scenario. Deliberately the study-chat shape MINUS the
+ * question and PLUS a verse: the door has no reader question — the passage is
+ * the prompt — and it is generated at two grains, so both have to be exercised.
+ *
+ * The same grounding floors apply, and for the same reason: a door can read
+ * beautifully on grounding that was never there.
+ */
+export interface FixturePassageInsight {
+  book: string;          // lowercase OSIS, e.g. 'psa'
+  chapter: number;
+  /** Absent = the chapter grain. Present = the verse grain. */
+  verse?: number;
+  expectGrounding?: FixtureStudyChat['expectGrounding'];
+}
+
 export interface EvalFixture {
   name: string;
   description: string;
@@ -93,6 +116,8 @@ export interface EvalFixture {
   highlights: FixtureHighlight[];
   /** Present only on study-chat fixtures; absent means devotion-only. */
   studyChat?: FixtureStudyChat;
+  /** Present only on Insights Door 1 fixtures. */
+  passageInsight?: FixturePassageInsight;
   /**
    * The Scripture the devotion may anchor on. Production retrieves these
    * SEMANTICALLY from the theme query, so every user gets candidates whether or
@@ -147,6 +172,27 @@ export function parseFixture(raw: unknown): EvalFixture {
     };
   }
 
+  let passageInsight: FixturePassageInsight | undefined;
+  if (o.passageInsight != null) {
+    const pi = o.passageInsight as Record<string, unknown>;
+    const where = `${name} passageInsight`;
+    if (typeof pi.chapter !== 'number' || pi.chapter < 1) {
+      throw new Error(`fixture ${where}: "chapter" must be a positive number`);
+    }
+    // Absent is the chapter grain and entirely valid; present-but-nonsense is a
+    // fixture that would silently degrade to chapter scope in buildStudyContext
+    // and score a door the fixture never described.
+    if (pi.verse !== undefined && (typeof pi.verse !== 'number' || !Number.isInteger(pi.verse) || pi.verse < 1)) {
+      throw new Error(`fixture ${where}: "verse" must be a positive integer when present`);
+    }
+    passageInsight = {
+      book: req(pi, 'book', where),
+      chapter: pi.chapter,
+      ...(pi.verse !== undefined ? { verse: pi.verse as number } : {}),
+      expectGrounding: (pi.expectGrounding ?? {}) as FixtureStudyChat['expectGrounding'],
+    };
+  }
+
   return {
     name,
     description: req(o, 'description', name),
@@ -156,6 +202,7 @@ export function parseFixture(raw: unknown): EvalFixture {
     notes,
     highlights,
     ...(studyChat ? { studyChat } : {}),
+    ...(passageInsight ? { passageInsight } : {}),
     candidateVerses: Array.isArray(o.candidateVerses)
       ? o.candidateVerses.map((v, i) => {
           if (typeof v !== 'string' || v.trim().length === 0) {
@@ -211,6 +258,13 @@ export function validateFixtureRefs(fixture: EvalFixture): string[] {
     return problems;   // study-chat fixtures anchor on a chapter, not candidates
   }
 
+  if (fixture.passageInsight) {
+    if (!(fixture.passageInsight.book in OSIS_TO_ABBREV)) {
+      problems.push(`passageInsight.book "${fixture.passageInsight.book}" (unknown book code)`);
+    }
+    return problems;   // a door anchors on its passage, not candidates
+  }
+
   // A fixture that expects an artifact but offers nothing to anchor on sets the
   // model an impossible task and fails with a confusing empty-ref citation error.
   if (!fixture.expect.expectNoArtifact && candidateVerseIds(fixture).length === 0) {
@@ -225,9 +279,12 @@ export function validateFixtureRefs(fixture: EvalFixture): string[] {
  * reverse) would score an artifact the fixture never intended.
  */
 export function fixturesFor(fixtures: EvalFixture[], artifact: ArtifactKind): EvalFixture[] {
-  return artifact === 'study-chat'
-    ? fixtures.filter((f) => f.studyChat !== undefined)
-    : fixtures.filter((f) => f.studyChat === undefined);
+  if (artifact === 'study-chat') return fixtures.filter((f) => f.studyChat !== undefined);
+  if (artifact === 'passage-insight') return fixtures.filter((f) => f.passageInsight !== undefined);
+  // Devotion is the default kind, so it must EXCLUDE every other block rather
+  // than merely excluding studyChat — otherwise adding a fixture kind silently
+  // sweeps it into devotion runs and scores an artifact it never described.
+  return fixtures.filter((f) => f.studyChat === undefined && f.passageInsight === undefined);
 }
 
 // ── Property checks (pure) ───────────────────────────────────────────────────
@@ -302,7 +359,7 @@ export async function checkDoctrine(
 
 // ── Report aggregation (pure) ────────────────────────────────────────────────
 
-export type ArtifactKind = 'reflection' | 'devotion' | 'study-chat';
+export type ArtifactKind = 'reflection' | 'devotion' | 'study-chat' | 'passage-insight';
 
 export interface FixtureRun {
   fixture: string;
@@ -448,7 +505,9 @@ async function main(): Promise<void> {
       `no ${artifact} fixtures matched${only ? ` --fixture=${only}` : ''}. ` +
       (artifact === 'study-chat'
         ? 'Study-chat fixtures are the ones carrying a "studyChat" block.'
-        : 'Devotion fixtures are the ones without a "studyChat" block.'),
+        : artifact === 'passage-insight'
+          ? 'Insights Door 1 fixtures are the ones carrying a "passageInsight" block.'
+          : 'Devotion fixtures are the ones carrying neither a "studyChat" nor a "passageInsight" block.'),
     );
   }
 
@@ -463,13 +522,18 @@ async function main(): Promise<void> {
     for (const f of fixtures) {
       const corpus = f.studyChat
         ? f.studyChat.question
-        : f.notes.map((n) => `${n.title}\n${n.text}`).join('\n\n');
+        : f.passageInsight
+          ? `${f.passageInsight.book} ${f.passageInsight.chapter}`
+          : f.notes.map((n) => `${n.title}\n${n.text}`).join('\n\n');
       const bad = checkProperties(corpus, f).filter((c) => !c.pass);
       const refs = validateFixtureRefs(f);
       refProblems += refs.length;
       const shape = f.studyChat
         ? `${f.studyChat.book} ${f.studyChat.chapter}`
-        : `${f.notes.length} note(s), ${f.highlights.length} highlight(s)`;
+        : f.passageInsight
+          ? `${f.passageInsight.book} ${f.passageInsight.chapter}` +
+            (f.passageInsight.verse === undefined ? ' (chapter grain)' : `:${f.passageInsight.verse} (verse grain)`)
+          : `${f.notes.length} note(s), ${f.highlights.length} highlight(s)`;
       console.log(
         `  ${bad.length === 0 && refs.length === 0 ? '✓' : '✗'} ${f.name.padEnd(24)} ${shape}` +
         (bad.length ? `  ← ${bad.map((c) => c.name).join(', ')}` : '') +
@@ -501,8 +565,8 @@ async function main(): Promise<void> {
   // grounding floors are what catch a retrieval channel going dark, and making
   // them cost nothing is what makes them worth running often.
   const groundingOnly = process.argv.includes('--grounding-only');
-  if (groundingOnly && artifact !== 'study-chat') {
-    throw new Error('--grounding-only applies to --artifact=study-chat; the devotion runner builds its context from the fixture.');
+  if (groundingOnly && artifact !== 'study-chat' && artifact !== 'passage-insight') {
+    throw new Error('--grounding-only applies to --artifact=study-chat and --artifact=passage-insight; the devotion runner builds its context from the fixture.');
   }
   const openaiKey = groundingOnly ? '' : requiredEnv('OPENAI_API_KEY');
   const supabaseUrl = requiredEnv('VITE_SUPABASE_URL');
@@ -519,7 +583,9 @@ async function main(): Promise<void> {
     process.stdout.write(`  ${fixture.name.padEnd(24)} `);
     const run = artifact === 'study-chat'
       ? await runStudyChatFixture({ fixture, llm, supabase: supabase as unknown as AnonClient, groundingOnly })
-      : await runDevotionFixture({ fixture, llm, supabase: supabase as unknown as AnonClient });
+      : artifact === 'passage-insight'
+        ? await runPassageInsightFixture({ fixture, llm, supabase: supabase as unknown as AnonClient, groundingOnly })
+        : await runDevotionFixture({ fixture, llm, supabase: supabase as unknown as AnonClient });
     runs.push(run);
     const bad = run.checks.filter((c) => !c.pass).length + run.scriptureViolations.length;
     console.log(bad === 0 ? '✓' : `✗ ${bad} issue(s)`);
@@ -792,6 +858,76 @@ export function checkGrounding(
   return checks;
 }
 
+// ── Per-section checks (pure) ────────────────────────────────────────────────
+
+/**
+ * Terminal punctuation, including the closers a sentence can end inside.
+ * A section ending `salv` is the 1400-char truncation; a section ending
+ * `light."` is a finished thought that happened to close a quote.
+ */
+const ENDS_COMPLETE = /[.!?…:][)"'”’\]]*$/;
+
+/**
+ * The two things only an eval can tell us about a four-field door: that a
+ * section did not silently come back empty, and that none of them stops
+ * mid-word.
+ *
+ * Both are what the design's two-bound rule exists to prevent — a word target
+ * so the model aims below the ceiling, and a ceiling as backstop — and neither
+ * is visible from a unit test with a fake adapter.
+ *
+ * Absence and truncation are reported as ONE failure, not two: an empty section
+ * has no last character to judge, and stacking a second red on it would make
+ * the report read as two problems where there is one.
+ */
+export function checkSections(sections: Record<string, string>): PropertyCheck[] {
+  const checks: PropertyCheck[] = [];
+  for (const key of PASSAGE_SECTION_KEYS) {
+    const body = (sections[key] ?? '').trim();
+    const present = body.length > 0;
+    checks.push({
+      name: `section_${key}_present`,
+      pass: present,
+      ...(present ? {} : { detail: 'section came back empty' }),
+    });
+    if (!present) continue;
+
+    const complete = ENDS_COMPLETE.test(body);
+    checks.push({
+      name: `section_${key}_complete`,
+      pass: complete,
+      ...(complete ? {} : { detail: `ends mid-thought: "…${body.slice(-40)}"` }),
+    });
+  }
+  return checks;
+}
+
+/**
+ * OSIS book CODES leaking into reader-facing prose.
+ *
+ * `bible_passages.book` holds the code, so `formatVerseRef` yields "psa 27:4" —
+ * fine as an internal key, wrong everywhere it surfaces. It reached a reader
+ * once already, on the Today's Lamp card, which is why `formatDisplayVerseRef`
+ * exists; the first B2 live sweep caught Door 1 doing it again ("2ti 2:19",
+ * which names nothing a reader recognises).
+ *
+ * Matched on the CODE LIST rather than a generic three-letter pattern, so
+ * "Job 1:1" and "Nahum 1:2" — real display names — never trip it.
+ */
+const OSIS_CODE_REF = new RegExp(
+  `\\b(${Object.keys(OSIS_TO_ABBREV).join('|')})\\s+\\d{1,3}:\\d{1,3}(?:\\s*[-–]\\s*\\d{1,3})?`,
+  'g',
+);
+
+export function checkDisplayRefs(text: string): PropertyCheck[] {
+  const hits = [...new Set([...text.matchAll(OSIS_CODE_REF)].map((m) => m[0]))];
+  return [{
+    name: 'display_refs',
+    pass: hits.length === 0,
+    ...(hits.length === 0 ? {} : { detail: `OSIS codes shown to the reader: ${hits.join(', ')}` }),
+  }];
+}
+
 function formatGroundingSnapshot(
   fixture: EvalFixture,
   sc: FixtureStudyChat,
@@ -802,14 +938,21 @@ function formatGroundingSnapshot(
     lexiconEntries?: unknown[];
     bookContext?: { book: string } | null;
   },
+  // Door 1 shares this block; without the label every snapshot it wrote came
+  // out headed "study-chat", which is exactly the kind of quietly-wrong report
+  // that makes a baseline untrustworthy.
+  artifact: ArtifactKind = 'study-chat',
 ): string {
   const excerpts = ctx.libraryExcerpts ?? [];
+  const secondLine = artifact === 'passage-insight'
+    ? `**Passage:** ${ctx.passageRef} · **Grain:** ${sc.question}`
+    : `**Passage:** ${ctx.passageRef} · **Question:** ${sc.question}`;
   return [
-    `# ${fixture.name} · study-chat`,
+    `# ${fixture.name} · ${artifact}`,
     '',
     `_${fixture.description}_`,
     '',
-    `**Passage:** ${ctx.passageRef} · **Question:** ${sc.question}`,
+    secondLine,
     '',
     '## Grounding supplied',
     '',
@@ -927,6 +1070,143 @@ async function runStudyChatFixture(args: {
     ...base,
     scriptureViolations: [],
     checks: [...groundingChecks, ...checkProperties(result.reply, fixture)],
+    snapshot,
+  };
+}
+
+// ── Insights Door 1 runner ───────────────────────────────────────────────────
+
+async function runPassageInsightFixture(args: {
+  fixture: EvalFixture;
+  llm: ReturnType<typeof createOpenAIAdapter>;
+  supabase: AnonClient;
+  groundingOnly?: boolean;
+}): Promise<FixtureRun> {
+  const { fixture, llm, supabase } = args;
+  const pi = fixture.passageInsight!;
+  const grain = pi.verse === undefined ? 'chapter' : `verse ${pi.verse}`;
+
+  // The door has no reader question, so the retrieval query is the passage
+  // itself — the same substitution `lamplight-study` makes for insight mode and
+  // the edge function makes for this door.
+  const retrievalQuery = `${pi.book} ${pi.chapter}`;
+
+  const { ctx } = await buildStudyContext(supabase as never, {
+    userId: `eval-${fixture.name}`,      // never used: notes are skipped
+    book: pi.book,
+    chapter: pi.chapter,
+    passageRef: `${pi.book}.${pi.chapter}`,
+    message: '',
+    retrievalQuery,
+    history: [],
+    includeNotes: false,
+    noteIds: [],
+    voyageDeps: FORBIDDEN_VOYAGE,
+    rerankEnabled: false,
+    crossRefK: STUDY_EVAL.crossRefK,
+    noteK: 0,
+    translation: 'BSB',
+    libraryK: STUDY_EVAL.libraryK,
+    skipSemanticRetrieval: true,
+    displayRefs: true,
+    ...(pi.verse !== undefined ? { verse: pi.verse } : {}),
+  });
+
+  const groundingChecks = [
+    ...checkGrounding(ctx, pi.expectGrounding),
+    // Verse scope promises focus verses. Silently getting none means the grain
+    // degraded to chapter and the door was scored as something it is not.
+    ...(pi.verse === undefined ? [] : [{
+      name: 'grounding_focus_verses',
+      pass: (ctx.focusVerses ?? []).length > 0,
+      ...((ctx.focusVerses ?? []).length > 0
+        ? {}
+        : { detail: `verse ${pi.verse} resolved to no row; grain degraded to chapter` }),
+    }]),
+  ];
+
+  const groundingSnapshot = [
+    formatGroundingSnapshot(
+      fixture,
+      { book: pi.book, chapter: pi.chapter, question: grain },
+      ctx,
+      'passage-insight',
+    ),
+    `- focus verses: ${(ctx.focusVerses ?? []).length}` +
+      ((ctx.focusVerses ?? []).length
+        ? ` — ${(ctx.focusVerses ?? []).map((v) => `${v.ref}${v.isFocus ? '*' : ''}`).join(', ')}`
+        : ''),
+    '',
+  ].join('\n');
+
+  if (args.groundingOnly) {
+    return {
+      fixture: fixture.name,
+      artifact: 'passage-insight',
+      model: 'none',
+      tokensIn: 0,
+      tokensOut: 0,
+      scriptureViolations: [],
+      checks: groundingChecks,
+      snapshot: groundingSnapshot,
+    };
+  }
+
+  const result = await runPassageInsightPipeline({
+    llm,
+    ctx,
+    verifyScripture: {
+      translation: 'BSB',
+      verifyRefs: (refs, t) => verifyVerseRefs(supabase as never, refs, t),
+    },
+  });
+
+  const base: Omit<FixtureRun, 'checks' | 'scriptureViolations'> = {
+    fixture: fixture.name,
+    artifact: 'passage-insight',
+    model: result.usage?.model ?? 'unknown',
+    tokensIn: result.usage?.tokens_in ?? 0,
+    tokensOut: result.usage?.tokens_out ?? 0,
+  };
+
+  if (!result.ok) {
+    const v = result.violations;
+    const detail = [
+      `pipeline returned ${result.reason}`,
+      ...(v?.citation ?? []).map((c) => `citation:${c.reason} ${c.detail}`),
+      ...(v?.content ?? []).map((c) => `content:${c.family}/${c.rule} "${c.snippet}"`),
+    ].join(' · ');
+    return {
+      ...base,
+      scriptureViolations: [],
+      checks: [...groundingChecks, { name: 'generation', pass: false, detail }],
+    };
+  }
+
+  const prose = PASSAGE_SECTION_KEYS.map((k) => result.sections[k]).filter(Boolean).join('\n\n');
+  const snapshot = [
+    groundingSnapshot,
+    ...PASSAGE_INSIGHT_SECTIONS.flatMap((s) => {
+      const body = result.sections[s.key] ?? '';
+      // An omitted section is SHOWN as omitted rather than skipped: a reader of
+      // the report must be able to tell "the door left this out" from "the
+      // report forgot to print it".
+      return [`## ${s.label}`, '', body.trim().length > 0 ? body : '_(omitted)_', ''];
+    }),
+    `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
+    `_prompt: ${result.promptVersion} · attempts: ${result.attempts}_`,
+    '',
+  ].join('\n');
+
+  return {
+    ...base,
+    scriptureViolations: [],
+    checks: [
+      ...groundingChecks,
+      ...checkSections(result.sections),
+      ...checkDisplayRefs(prose),
+      ...checkProperties(prose, fixture),
+    ],
     snapshot,
   };
 }

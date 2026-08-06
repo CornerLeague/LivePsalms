@@ -1,0 +1,26 @@
+{
+  "name": "passage-nahum-1",
+  "description": "A thinly covered non-Psalm OT chapter (15 library chunks against Psalm 27's 123). The case where a section may legitimately have nothing to say — and where padding is the temptation.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "passageInsight": {
+    "book": "nam",
+    "chapter": 1,
+    "expectGrounding": {
+      "minCrossRefs": 3,
+      "minLibraryExcerpts": 1,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "the correct interpretation",
+      "clearly teaches",
+      "settles the debate"
+    ]
+  }
+}

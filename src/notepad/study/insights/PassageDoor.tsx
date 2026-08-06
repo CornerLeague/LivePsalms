@@ -12,6 +12,8 @@
 // placeholder, no apology. A chapter whose shape the grounding could not
 // support simply has three sections instead of four. That is a normal outcome,
 // which is why the tool allows an empty field at all.
+import { SignInGate } from '@/notepad/components/lamplight/SignInGate';
+import { PaywallCard } from '@/notepad/components/lamplight/PaywallCard';
 import { usePassageInsight } from './usePassageInsight';
 import {
   PASSAGE_SECTIONS,
@@ -25,9 +27,11 @@ export interface PassageDoorProps {
   invoke: PassageInsightInvoke | null;
   /** Plus/promo. Cached content ignores this entirely — only the action is gated. */
   canGenerate: boolean;
+  /** Chooses which blocked affordance a non-entitled reader sees. */
+  userId?: string | null;
 }
 
-export function PassageDoor({ scope, invoke, canGenerate }: PassageDoorProps) {
+export function PassageDoor({ scope, invoke, canGenerate, userId = null }: PassageDoorProps) {
   const { sections, loading, streaming, error, generate } = usePassageInsight(
     scope,
     canGenerate ? invoke : null,
@@ -38,10 +42,15 @@ export function PassageDoor({ scope, invoke, canGenerate }: PassageDoorProps) {
   // Nothing generated yet. The action is the door.
   if (sections === null) {
     if (!canGenerate || !invoke) {
-      // A signed-out or non-entitled reader sees no action and no tease. The
-      // other doors of the overlay carry their own content; this one simply is
-      // not there for them yet.
-      return null;
+      // A BLOCKED AFFORDANCE, not silence. The door is listed in the overlay's
+      // chooser, so a reader who opens it and finds an empty panel learns
+      // nothing about why. Mirrors EtymologyPanel and BibleStudyPane:
+      // SignInGate when logged out, PaywallCard otherwise.
+      return (
+        <div style={{ padding: '16px 0' }}>
+          {userId == null ? <SignInGate /> : <PaywallCard />}
+        </div>
+      );
     }
     return (
       <div style={{ padding: '24px 0' }}>

@@ -116,6 +116,10 @@ serve(async (req) => {
             noteK: NOTE_K,
             translation,
             libraryK: LIBRARY_K,
+            // Reader-facing refs. Door 1's prose IS the product — the first live
+            // eval sweep caught it printing "2ti 2:19" at readers, because the
+            // model echoes back whatever ref form it was handed.
+            displayRefs: true,
             ...(parsed.verse !== undefined ? { verse: parsed.verse } : {}),
           });
           return ctx;

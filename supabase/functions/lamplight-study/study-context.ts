@@ -4,7 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { type VoyageDeps, embedQuery } from '../_shared/voyage.ts';
 import { searchUserNotesByQuery, searchBible } from '../_shared/retrieval.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
-import { formatVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
+import { formatVerseRef, formatDisplayVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
+import { osisToBookName } from '../_shared/verse-verify.ts';
 import {
   searchLibrary,
   fetchLexiconEntries,
@@ -85,13 +86,14 @@ export function selectRelatedPassages(
 export function selectFocusVerses(
   verses: ChapterVerseRow[],
   verse: number,
+  refOf: (v: ChapterVerseRow) => string = formatVerseRef,
 ): Array<{ ref: string; text: string; isFocus: boolean }> | null {
   const idx = verses.findIndex((v) => verse >= v.verse_start && verse <= v.verse_end);
   if (idx === -1) return null;
   const start = Math.max(0, idx - FOCUS_NEIGHBOURS);
   return verses
     .slice(start, idx + FOCUS_NEIGHBOURS + 1)
-    .map((v, i) => ({ ref: formatVerseRef(v), text: v.text, isFocus: start + i === idx }));
+    .map((v, i) => ({ ref: refOf(v), text: v.text, isFocus: start + i === idx }));
 }
 
 // Whole-Bible semantic retrieval for A1, mirroring journaling chat
@@ -102,8 +104,11 @@ export async function retrieveRelatedPassages(
   args: {
     query: string; k: number; translation: string; queryEmbedding?: number[];
     chapterVerseRefs: Set<string>; crossRefSet: Set<string>;
+    /** Reader-facing book names rather than OSIS codes; see buildStudyContext's `displayRefs`. */
+    displayRefs?: boolean;
   },
 ): Promise<Array<{ ref: string; text: string }>> {
+  const refOf = args.displayRefs === true ? formatDisplayVerseRef : formatVerseRef;
   try {
     const retrieved = await searchBible(
       { supabase: deps.supabase, voyage: deps.voyage, rerankEnabled: deps.rerankEnabled },
@@ -112,7 +117,7 @@ export async function retrieveRelatedPassages(
     const ids = [...new Set(retrieved.map((r) => r.source_id))];
     if (ids.length === 0) return [];
     const byId = await fetchPassageText(deps.supabase as never, ids, args.translation);
-    const passages = [...byId.values()].map((p) => ({ ref: formatVerseRef(p), text: p.text }));
+    const passages = [...byId.values()].map((p) => ({ ref: refOf(p), text: p.text }));
     return selectRelatedPassages(passages, { chapterVerseRefs: args.chapterVerseRefs, crossRefSet: args.crossRefSet });
   } catch (err) {
     console.error('[lamplight-study] related-passage retrieval failed; degrading to chapter grounding:', err);
@@ -173,6 +178,23 @@ export async function buildStudyContext(
      */
     verse?: number;
     /**
+     * Render refs as READER-FACING names ("Psalms 27:4") rather than the OSIS
+     * key form ("psa 27:4"), in both the supplied grounding and the citation
+     * allowlist — the two must agree or every citation fails.
+     *
+     * `bible_passages.book` holds the code, so the key form is what
+     * `formatVerseRef` yields, and the model echoes back whatever it is given.
+     * That reached a reader once already on the Today's Lamp card, which is why
+     * `formatDisplayVerseRef` exists; the first B2 live sweep caught Door 1
+     * doing it again, printing "2ti 2:19" at readers.
+     *
+     * OFF by default, so study chat is unchanged by construction. Study chat has
+     * the same leak in its shipped baseline — a real bug, but a separate one:
+     * flipping it there changes a live prompt's grounding and needs its own eval
+     * sweep and prompt_version bump.
+     */
+    displayRefs?: boolean;
+    /**
      * Skip every channel that needs an embedding: user notes, whole-Bible
      * related passages, and the library's semantic half. The deterministic
      * channels still run — chapter text, book apparatus, cross-references and
@@ -194,6 +216,9 @@ export async function buildStudyContext(
   },
 ): Promise<{ ctx: BibleChatContext; offered: OfferedNote[] }> {
   const skipSemantic = args.skipSemanticRetrieval === true;
+  // One formatter, used for every ref that reaches the prompt AND for every ref
+  // in the allowlist. Choosing it once here is what keeps those two in step.
+  const refOf = args.displayRefs === true ? formatDisplayVerseRef : formatVerseRef;
   // Open chapter text.
   const { data: chapterRows, error: cErr } = await supabase
     .from('bible_passages')
@@ -204,13 +229,13 @@ export async function buildStudyContext(
   if (cErr) throw cErr;
   const verses = (chapterRows ?? []) as ChapterVerseRow[];
   const passageText = verses.map((v) => `${v.verse_start} ${v.text}`).join(' ');
-  const chapterVerseRefs = new Set(verses.map((v) => formatVerseRef(v).toLowerCase()));
+  const chapterVerseRefs = new Set(verses.map((v) => refOf(v).toLowerCase()));
 
   // Verse scope. A selection this chapter has no row for degrades to chapter
   // grounding — loudly, because it means a caller built a ref_id for a verse
   // that is not there.
   const selectedVerse = args.verse;
-  const focusVerses = selectedVerse === undefined ? null : selectFocusVerses(verses, selectedVerse);
+  const focusVerses = selectedVerse === undefined ? null : selectFocusVerses(verses, selectedVerse, refOf);
   if (selectedVerse !== undefined && focusVerses === null) {
     console.warn(
       `[lamplight-study] verse ${args.book}.${args.chapter}.${selectedVerse} is in no row of this chapter; degrading to chapter grounding`,
@@ -260,7 +285,7 @@ export async function buildStudyContext(
       .eq('id', id).eq('translation', args.translation).maybeSingle();
     if (tgt) {
       const t = tgt as { book: string; chapter: number; verse_start: number; verse_end: number };
-      const ref = formatVerseRef(t);
+      const ref = refOf(t);
       crossRefSet.add(ref.toLowerCase());
       crossRefs.push({ ref, text: (tgt as { text: string }).text });
       libraryAnchors.push({ book: t.book, chapter: t.chapter, verseStart: t.verse_start, verseEnd: t.verse_end });
@@ -305,6 +330,7 @@ export async function buildStudyContext(
           {
             query: args.retrievalQuery, k: VERSE_K, translation: args.translation, queryEmbedding,
             chapterVerseRefs, crossRefSet,
+            ...(args.displayRefs === true ? { displayRefs: true } : {}),
           },
         ),
     libraryK > 0
@@ -319,7 +345,15 @@ export async function buildStudyContext(
   ]);
 
   const ctx: BibleChatContext = {
-    passageRef: `${args.book} ${args.chapter}`,
+    // The HEADER is a ref too, and the model generalises from it. The first
+    // attempt at displayRefs moved every cross-reference and focus verse to
+    // reader form but left this as "nam 1" — so the model cited "nam 1:1"
+    // through "nam 1:15" for the passage's own verses, none of which the
+    // allowlist (now in display form) accepted, and the whole door failed
+    // validation. Caught by the second live sweep.
+    passageRef: args.displayRefs === true
+      ? `${osisToBookName(args.book) ?? args.book} ${args.chapter}`
+      : `${args.book} ${args.chapter}`,
     passageText,
     crossRefs,
     notes: included,
