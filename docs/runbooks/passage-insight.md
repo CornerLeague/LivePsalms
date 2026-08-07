@@ -2,9 +2,11 @@
 
 How the generated doors' shared cache is migrated, deployed, warmed, and refreshed. Two doors share it: **The Passage** (`door = 'passage'`, B2) and **Deeper In** (`door = 'deeper'`, B3). Mirrors the evidence-trail standard of `library-ingest.md` and `cross-references-ingest.md`: the run records what was done and what the counts were, so a later state can be checked against it.
 
-**Recorded state: 2026-08-07, after B3.** **The corpus holds 8 rows — two Door 1 doors, on Leviticus 1 at both grains** (§6). Warming is on-demand; those are the first two passages a reader generated. Door 2 holds nothing yet.
+**Recorded state: 2026-08-07, during B4.** **The corpus holds 12 rows — three doors on Leviticus 1** (§6): Door 1 at both grains, and **Door 2 at chapter grain**. Warming is on-demand; these are the first three doors a reader generated.
 
-**Migration `061` applied and `passage-insight` redeployed, 2026-08-07, in the same sitting** — §2 and §3. Both doors are live; Door 2 has generated nothing yet.
+⚠️ **"8 rows, Door 2 holds nothing yet" was true when B4's handoff was written and was stale 30 minutes later.** The Door 2 door was generated at 19:35:29 UTC; the handoff commit is stamped 19:05:43. Measured against the live table, not read out of the previous line — the same rule that has now caught a "0 rows" claim that was 8 and an "8 rows" claim that was 12.
+
+**Migration `061` applied and `passage-insight` redeployed, 2026-08-07, in the same sitting** — §2 and §3. Both doors are live and **both have now generated through the deployed function**.
 
 ⚠️ **B4 changes `lamplight-study` and `lamplight-chat`, not `passage-insight`** — but it changes them in a way that has an ordering rule attached. See §9.
 
@@ -29,7 +31,7 @@ A **globally shared, publicly readable** cache of generated study for one passag
 | Generate | Edge function `passage-insight`, gated on `hasInlineInsightAccess` (Plus/promo) |
 | Model | `deep` tier at `medium` effort — resolves to `gpt-5.6-sol` |
 | Retrieval | Per door, in `lamplight-study/insight-doors.ts`. Door 1: `libraryK 4`, no register filter. Door 2: `libraryK 6`, `registers: ['exegetical','confessional']` — both measured, §9 |
-| Cost | **~$0.066 per door, measured** across nine live fixtures ($0.59 / 9). Warming ~1,200 chapters is a one-time ~$80 per door |
+| Cost | **~$0.066 per door, measured** across nine live fixtures ($0.59 / 9). Warming ~1,200 chapters is a one-time ~$80 per door. Still fixture-derived: `lamplight_usage` is admin-gated, so the three warmed doors cannot confirm it from the repo |
 
 ## 2. Migration
 
@@ -90,7 +92,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_SUPABASE_URL/functions/v
 
 `400` is healthy. A `401` means the door was accepted and the request only failed on auth, which would mean the registry check is not running.
 
-**⚠️ Nothing typechecks `supabase/functions`.** `tsconfig.app.json` covers only `src`, the eval harness drives the pipeline rather than the shell, and the boot check returns before `buildContext` runs. That combination is how `index.ts` came to reference an undefined `DOOR_REGISTERS` on the generate path and stay there through a merge. Any change to a `*/index.ts` wants a hand-run `tsc --noEmit --allowImportingTsExtensions`, where the only acceptable errors are the `deno.land`/`jsr:` imports and the `Deno` global.
+~~**⚠️ Nothing typechecks `supabase/functions`.**~~ **Closed by #119**, merged 2026-08-07: `tsc -b` now covers `src`, `scripts` and every `supabase/functions` module including the ten Deno shells. The hand-run `tsc --noEmit --allowImportingTsExtensions` step this section used to prescribe is retired.
+
+The gap is worth remembering rather than deleting, because of how it was found: `tsconfig.app.json` covered only `src`, the eval harness drives the pipeline rather than the shell, and the boot check returns before `buildContext` runs — which together let `index.ts` reference an undefined `DOOR_REGISTERS` on the generate path and survive a merge.
 
 ## 4. Warming
 
@@ -121,8 +125,12 @@ Two writes that deliberately never happen:
 | Attribution — Door 2 theology names a voice | ✅ 5/5 fixtures, 1–4 voices each. Gated by `attribution_theology` |
 | Attribution — Door 1 | ⚠️ **Measured, not gated: 3 of 4 fixtures name a voice somewhere, `passage-psalm-27-v4` names none.** Pre-dates B3; see §7 |
 | Client read path against the real table | ✅ The exact query `usePassageInsight` issues returns `200 []` for `psa.27`, `psa.27.4`, `nam.1` — a reader today correctly sees *Study this passage* rather than an error |
-| **End-to-end generate through the deployed function** | ✅ **2026-08-07** — Leviticus 1 at both grains. See §6 |
-| **A second reader gets the cached door instantly** | ✅ **2026-08-07, in a browser, signed out.** Leviticus 1 → Insights → *The Passage* rendered all four sections immediately — no spinner, no sign-in prompt, no paywall. Refs read `Leviticus 1:1-4`, and the Overview names Jamieson, Fausset & Brown. Conclusive that it came from cache rather than generation: *Deeper In* showed the sign-in gate in the same session, so `canGenerate` was false and `invoke` null |
+| **End-to-end generate through the deployed function, Door 1** | ✅ **2026-08-07** — Leviticus 1 at both grains. See §6 |
+| **End-to-end generate through the deployed function, DOOR 2** | ✅ **2026-08-07 19:35:29 UTC** — `lev.1`, `deeper-insight-2026-08-07-v1` on `gpt-5.6-sol`. The whole edge path for `door=deeper` — quota bucket, entitlement, streaming, cache write on the terminal beat — is proven. See §6 |
+| **§9 holds in PRODUCTION, not just in fixtures** | ✅ The warmed `read_with_care` names no tradition or denomination. It names Calvin — a voice it leaned on, which is attribution, not a caution aimed at a group |
+| **Attribution, Door 2, in production** | ✅ All **four** sections name a supplied voice (Calvin/Jamieson, Clarke, Calvin/Jamieson, Calvin) — better than the fixture baseline, which gated `theology` alone |
+| **A second reader gets the cached door instantly, Door 1** | ✅ **2026-08-07, in a browser, signed out.** Leviticus 1 → Insights → *The Passage* rendered all four sections immediately — no spinner, no sign-in prompt, no paywall. Refs read `Leviticus 1:1-4`, and the Overview names Jamieson, Fausset & Brown. Conclusive that it came from cache rather than generation: *Deeper In* showed the sign-in gate in the same session, so `canGenerate` was false and `invoke` null |
+| **A second reader gets the cached door instantly, DOOR 2** | ✅ **2026-08-07, in a browser, signed out** — the repeat B3's Task 12 asked for, on the door riding new code. All four *Deeper In* sections rendered immediately. Signed out means `canGenerate` false and `invoke` null, so generation was not merely unused but unreachable: what rendered can only have come from the public cache |
 | **The three-door chooser** | ✅ First time exercised past two doors since B1 built it. The Passage · Deeper In · Sources & Reference, in reading order, with blurbs |
 | **A signed-out reader is offered generation** | ✅ **FIXED 2026-08-07 — it was.** See §7 |
 | **An interrupted generation leaves the door uncached** | ❌ Unit-tested only |
@@ -153,14 +161,21 @@ Record the first warmed passages below when step 1 lands.
 
 ### First warmed passages — 2026-08-07
 
-| `ref_id` | Grain | Generated (UTC) | `prompt_version` | `model_used` |
-|---|---|---|---|---|
-| `lev.1` | chapter | 2026-08-07 00:57:38 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
-| `lev.1.1` | verse | 2026-08-07 06:24:16 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
+| `ref_id` | Door | Grain | Generated (UTC) | `prompt_version` | `model_used` |
+|---|---|---|---|---|---|
+| `lev.1` | passage | chapter | 2026-08-07 00:57:38 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
+| `lev.1.1` | passage | verse | 2026-08-07 06:24:16 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
+| **`lev.1`** | **deeper** | chapter | **2026-08-07 19:35:29** | `deeper-insight-2026-08-07-v1` | `gpt-5.6-sol` |
 
-**Steps 1, 2, 5 and 7 pass.** Both doors wrote four rows; all eight sections are non-empty and every one ends on terminal punctuation, so nothing truncated mid-word. **No OSIS codes reached the prose** — the `displayRefs` fix holds in production, not just in the eval. Voices are named in two of the eight sections (Jamieson/Fausset/Brown in `lev.1` Overview, Clarke in `lev.1.1` In the Chapter), which is the attribution pattern B3 is measuring against.
+**Steps 1, 2, 3, 5, 7, 8 and 10 pass.** All three doors wrote four rows each; all twelve sections are non-empty and every one ends on terminal punctuation, so nothing truncated mid-word. **No OSIS codes reached the prose** — the `displayRefs` fix holds in production, not just in the eval.
 
-**Step 3 (second reader) is half-proven** — see §5. **Step 6 (interruption) has still not been run**, and is easier now: there are real rows to diff against.
+**Step 8 is what closed the biggest gap.** The eval drives `runPassageInsightPipeline` directly, so until this door existed the whole `door=deeper` edge path — quota bucket, entitlement, streaming, cache write on the terminal beat — was unproven. It also confirms the doors cache independently: `lev.1` carries **eight** rows, four per `door`, and the verse-grain `lev.1.1` Door 2 remains cold, which is a normal state.
+
+**Attribution is stronger on Door 2 in production than in its fixtures.** All four sections name a supplied voice — Calvin and Jamieson in *How to Read This Passage*, Clarke in *Historical & Cultural Setting*, Calvin and Jamieson in *Theological Significance*, Calvin in *Read With Care*. The `attribution_theology` gate covers only the third; the other three are free.
+
+**Step 10 passes on real prose.** *Read With Care* names no tradition, denomination or group. It does name Calvin — a voice it leaned on, which is attribution rather than a caution aimed at anyone, and exactly the distinction §9's rule turns on.
+
+**Step 6 (interruption) has still not been run**, and is easier now: there are twelve real rows to diff against. **The cost figure is still not readable from the repo** — `lamplight_usage` is admin-gated, so the measured **$0.066/door** stands on the nine live fixtures rather than on this door.
 
 Verify the current state from the repo at any time:
 
@@ -198,7 +213,7 @@ Dry by default — it reports the doors and an estimated cost and writes nothing
 npx tsx scripts/refresh-passage-insights.ts --door=deeper --stale
 ```
 
-As of 2026-08-07 that reports nothing for Door 2 (no rows) and **two stale Door 1 doors at ~$0.11**, both Leviticus 1, left behind by the `v2` bump.
+As of 2026-08-07 that reports **two stale Door 1 doors at ~$0.11**, both Leviticus 1, left behind by the `v2` bump. Door 2's one warmed door is CURRENT — it was generated under `deeper-insight-2026-08-07-v1`, which is still Door 2's version — so `--door=deeper --stale` reports nothing to do. That is a warm door, not an empty one, and the two read identically in the output; check the row count before concluding anything from a quiet report.
 
 ```bash
 npx tsx scripts/refresh-passage-insights.ts --stale --limit=5 --apply

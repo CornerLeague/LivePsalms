@@ -52,7 +52,7 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 
 | Task | State | Note |
 |---|---|---|
-| 1 — the two inherited live checks | **not done — human-only** | Needs a browser and a Plus/promo session. Runbook §6 |
+| 1 — the two inherited live checks | **half done** | Door 2 has generated; interruption still needs a Plus/promo session |
 | 2 — the handoff value | done | `seen` seeded from the current id is the whole correctness argument |
 | 3 — the chat side | done | the selection reset is pinned by a test that only reproduces after History |
 | 4 — minting + routing + registry | done | eight prompts, one per section |
@@ -118,12 +118,15 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 
 ## Task 1 — The two inherited live checks
 
-- [ ] Warm one real **Door 2** door through the deployed function, signed in as Plus/promo. Runbook §6 steps 8–10.
-- [ ] Confirm eight rows for that `ref_id`, four per `door`, and record the true cost against the fixtures' **$0.066/door**.
-- [ ] Start a generation and interrupt it (close the overlay / kill the tab). Re-query: **zero** rows for that door, and reopening offers *Study this passage* again.
-- [ ] Record both in `docs/runbooks/passage-insight.md` §5 and §6.
+- [x] Warm one real **Door 2** door through the deployed function. **Already done by Myles, 2026-08-07 19:35:29 UTC** — 30 minutes after the handoff was written saying it had never happened.
+- [x] Confirm eight rows for that `ref_id`, four per `door`. Confirmed: `lev.1` holds eight, `lev.1.1` Door 2 stays cold, so the doors cache independently.
+- [x] Verify the warmed door's quality against the fixture baseline: all twelve sections non-empty and ending on terminal punctuation, no OSIS leaks, **all four Door 2 sections naming a supplied voice**, and *Read With Care* naming no tradition — §9 holding on production prose rather than only in the eval.
+- [x] Verify the signed-out cached read for **Door 2** in a browser — the repeat B3's Task 12 asked for on the door riding new code.
+- [ ] **The true cost figure — NOT obtainable.** `lamplight_usage` is admin-gated, so **$0.066/door** still rests on the nine live fixtures. Check the admin dashboard for the `passage_insight` row stamped 19:35:29 UTC.
+- [ ] Start a generation and interrupt it (close the overlay / kill the tab). Re-query: **zero** rows for that door, and reopening offers *Study this passage* again. Needs an authenticated Plus/promo session.
+- [x] Record it all in `docs/runbooks/passage-insight.md` §5 and §6.
 
-**Requirements:** human-only — a browser and an authenticated session. Doing these first means the seam is built on a surface known to work end to end rather than one assumed to.
+**Requirements:** the corpus is **12 rows, not 8**. Measure it, do not read it out of the previous document — that rule has now caught "0 rows" that was 8 and "8 rows" that is 12.
 
 ## Task 2 — The handoff value
 

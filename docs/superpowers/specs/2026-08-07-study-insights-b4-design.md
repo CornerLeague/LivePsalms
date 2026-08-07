@@ -286,14 +286,19 @@ What parent §11 genuinely still lacks — a superscription fixture, a disputed-
 
 The rename's proof is the byte gate (§5). The handoff's proof is unit tests over the transport, plus the browser checks below.
 
-### The two inherited live checks — do these first
+### The two inherited live checks — one is already closed
 
-Runbook §5 has two open rows and the handoff is right that both are B4's, and right that doing them first de-risks everything built on top. Both need a browser and an authenticated Plus/promo session; runbook §6 is the procedure.
+Runbook §5 had two open rows and the handoff is right that both are B4's. **The first is now done**, measured against the live table rather than read out of the handoff:
 
-- **Door 2 has never generated through the deployed function.** The eval drives `runPassageInsightPipeline` directly, so the whole edge path for `door=deeper` — quota bucket, entitlement, streaming, cache write on the terminal beat — is unproven. Warming one real Door 2 door closes it and gives the first true cost figure against the **$0.066/door** the fixtures measured.
-- **An interrupted generation leaving the door uncached.** Unit-tested only, and easier now than at B2: there are real rows to diff against.
+- ~~**Door 2 has never generated through the deployed function.**~~ **It has** — `lev.1` at chapter grain, 2026-08-07 **19:35:29 UTC**, `deeper-insight-2026-08-07-v1` on `gpt-5.6-sol`. The handoff commit is stamped 19:05:43, so this was true when written and stale half an hour later. The whole `door=deeper` edge path — quota bucket, entitlement, streaming, cache write on the terminal beat — is proven, and the doors demonstrably cache independently (`lev.1` holds eight rows, four per door, while `lev.1.1` Door 2 stays cold).
 
-They also give the handoff seam something to hand off *from*. Eight cache rows on one book is a thin surface on which to check that a section footer looks right.
+  What the door shows is better than its fixtures: **all four sections name a supplied voice**, where the `attribution_theology` gate covers only one; *Read With Care* names no tradition, denomination or group, so §9's rule holds on production prose and not only in the eval; no OSIS codes reached the prose; and nothing truncated mid-word. **A signed-out reader sees it instantly** — the repeat B3's Task 12 asked for on the door riding new code, and conclusive because signed-out means `invoke` is null, so generation was not merely unused but unreachable.
+
+  The one thing it does **not** give is the cost figure the handoff wanted: `lamplight_usage` is admin-gated, so **$0.066/door** still rests on the nine live fixtures.
+
+- **An interrupted generation leaving the door uncached** — still open. Unit-tested only, and easier now than at B2: there are twelve real rows to diff against.
+
+The corpus is **12 rows, not 8**. That is the third count in this project's prose to be wrong by the time someone read it, after "0 rows" that was 8 and "8 rows" that is 12 — and each was found the same way, by asking the table instead of the previous document.
 
 ### New browser checks B4 owes
 
