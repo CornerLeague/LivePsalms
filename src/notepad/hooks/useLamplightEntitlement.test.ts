@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { FakeLamplightAdapter } from '../storage/fake-lamplight-adapter';
-import { useLamplightEntitlement } from './useLamplightEntitlement';
+import { useLamplightEntitlement, entitledAndSignedIn } from './useLamplightEntitlement';
 
 describe('useLamplightEntitlement', () => {
   let adapter: FakeLamplightAdapter;
@@ -104,5 +104,22 @@ describe('useLamplightEntitlement', () => {
     expect(result.current.hasAccess('chat')).toBe(false);
     expect(errorSpy).not.toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+});
+
+describe('entitledAndSignedIn', () => {
+  // The rule `hasAccess` cannot express, because it answers a different
+  // question: "does this feature exist for this session" is not "may this
+  // reader act on it".
+  it('refuses a signed-out reader even while the promo says yes', () => {
+    expect(entitledAndSignedIn({ userId: null, hasFeatureAccess: true })).toBe(false);
+  });
+
+  it('refuses a signed-in reader without the entitlement', () => {
+    expect(entitledAndSignedIn({ userId: 'u1', hasFeatureAccess: false })).toBe(false);
+  });
+
+  it('allows a signed-in, entitled reader', () => {
+    expect(entitledAndSignedIn({ userId: 'u1', hasFeatureAccess: true })).toBe(true);
   });
 });

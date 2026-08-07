@@ -9,7 +9,12 @@ const useLamplightSettings = vi.fn();
 const useLamplightEntitlement = vi.fn();
 vi.mock('@/auth/context/useAuthSession', () => ({ useAuthSession: () => useAuthSession() }));
 vi.mock('@/notepad/hooks/useLamplightSettings', () => ({ useLamplightSettings: () => useLamplightSettings() }));
-vi.mock('@/notepad/hooks/useLamplightEntitlement', () => ({ useLamplightEntitlement: () => useLamplightEntitlement() }));
+// Stubs the HOOK only, keeping the real `entitledAndSignedIn` — it is a pure
+// predicate, and mocking it away is how the promo defect stayed invisible.
+vi.mock('@/notepad/hooks/useLamplightEntitlement', async (orig) => ({
+  ...(await orig<typeof import('@/notepad/hooks/useLamplightEntitlement')>()),
+  useLamplightEntitlement: () => useLamplightEntitlement(),
+}));
 vi.mock('./prefs/bible-prefs-context', () => ({
   useBiblePrefs: () => ({
     translation: 'BSB',
