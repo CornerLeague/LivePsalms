@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { PASSAGE_DOOR_SPEC } from './prompts/passage-insight.ts';
+import { DEEPER_DOOR_SPEC } from './prompts/deeper-insight.ts';
 import { streamPassageInsight, parsePassageInsightBody, type PassageInsightStreamDeps } from './passage-insight-stream.ts';
 import { PASSAGE_INSIGHT_SECTIONS } from './prompts/passage-insight.ts';
 import type { BibleChatContext } from '../lamplight-chat/bible-chat-pipeline.ts';
@@ -35,6 +37,10 @@ const ctx: BibleChatContext = {
 
 function makeSupabase(opts: { cached?: unknown[] } = {}) {
   const upserts: Array<Array<Record<string, unknown>>> = [];
+  // Filters are RECORDED, not ignored: "the cache read is scoped to this door"
+  // is the assertion that keeps two doors from serving each other's rows, and a
+  // fake that swallowed .eq() would make it unassertable.
+  const eqs: Array<[string, unknown]> = [];
   const from = () => {
     const chain: Record<string, unknown> = {
       then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
@@ -44,18 +50,26 @@ function makeSupabase(opts: { cached?: unknown[] } = {}) {
         return { then: (res: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(res) };
       },
     };
-    for (const m of ['select', 'eq', 'order']) chain[m] = () => chain;
+    for (const m of ['select', 'order']) chain[m] = () => chain;
+    chain.eq = (col: string, val: unknown) => { eqs.push([col, val]); return chain; };
     return chain;
   };
-  return { client: { from } as unknown as SupabaseClient, upserts };
+  return { client: { from } as unknown as SupabaseClient, upserts, eqs };
 }
 
-/** Streams each section field in schema order, then resolves with the whole emit. */
+/**
+ * Streams each section field in schema order, then resolves with the whole emit.
+ *
+ * Keys come from the EMIT rather than from Door 1's list — a fake that streamed
+ * Door 1's four fields no matter which door it was serving would report a
+ * passing stream for a door that emitted nothing.
+ */
 function makeStreamAdapter(emit: Record<string, unknown> = EMIT): LLMAdapter {
+  const emitKeys = Object.keys(emit).filter((k) => k !== 'citations');
   return {
     generate: vi.fn(async () => ({ parsed: emit, modelUsed: 'gpt-5.6-terra', promptTokens: 900, completionTokens: 1400 } as unknown as GenerateOutput<unknown>)),
     generateStream: vi.fn(async (_input: unknown, handlers: StreamHandlers) => {
-      for (const k of KEYS) {
+      for (const k of emitKeys) {
         const v = emit[k];
         if (typeof v === 'string' && v.length > 0) handlers.onText?.(k, v);
         handlers.onField?.(k, v);
@@ -97,12 +111,14 @@ function makeDeps(over: Partial<PassageInsightStreamDeps> = {}): {
   deps: PassageInsightStreamDeps;
   upserts: Array<Array<Record<string, unknown>>>;
   usage: Array<Record<string, unknown>>;
+  eqs: Array<[string, unknown]>;
 } {
-  const { client, upserts } = makeSupabase();
+  const { client, upserts, eqs } = makeSupabase();
   const usage: Array<Record<string, unknown>> = [];
   return {
     upserts,
     usage,
+    eqs,
     deps: {
       cors: {},
       supabase: client,
@@ -123,19 +139,19 @@ async function readBeats(res: Response): Promise<SseEvent[]> {
     .map((b) => JSON.parse(b.slice(6)) as SseEvent);
 }
 
-const ARGS = { userId: 'u1', scope: 'chapter' as const, refId: 'psa.27' };
+const ARGS = { userId: 'u1', scope: 'chapter' as const, refId: 'psa.27', door: PASSAGE_DOOR_SPEC };
 
 // ── The request contract, and with it the cache key ──────────────────────────
 
 describe('parsePassageInsightBody', () => {
   it('composes a chapter ref when no verse is given', () => {
     expect(parsePassageInsightBody({ book: 'psa', chapter: 27 }))
-      .toEqual({ ok: true, book: 'psa', chapter: 27, scope: 'chapter', refId: 'psa.27' });
+      .toMatchObject({ ok: true, book: 'psa', chapter: 27, scope: 'chapter', refId: 'psa.27' });
   });
 
   it('composes a verse ref when one is', () => {
     expect(parsePassageInsightBody({ book: 'psa', chapter: 27, verse: 4 }))
-      .toEqual({ ok: true, book: 'psa', chapter: 27, verse: 4, scope: 'verse', refId: 'psa.27.4' });
+      .toMatchObject({ ok: true, book: 'psa', chapter: 27, verse: 4, scope: 'verse', refId: 'psa.27.4' });
   });
 
   it('LOAD-BEARING: normalises the book, so one door never caches under two keys', () => {
@@ -159,6 +175,27 @@ describe('parsePassageInsightBody', () => {
     ]) {
       expect(parsePassageInsightBody(bad as never).ok).toBe(false);
     }
+  });
+
+  it('defaults to Door 1 when the body names no door', () => {
+    // B2's client sends no `door` at all. It must keep working unchanged.
+    const out = parsePassageInsightBody({ book: 'psa', chapter: 27 });
+    expect(out.ok && out.door.spec).toBe(PASSAGE_DOOR_SPEC);
+  });
+
+  it('resolves a named door through the registry', () => {
+    const out = parsePassageInsightBody({ book: 'psa', chapter: 27, door: 'deeper' });
+    expect(out.ok && out.door.spec).toBe(DEEPER_DOOR_SPEC);
+  });
+
+  it('REJECTS an unregistered door rather than falling back to Door 1', () => {
+    // A fallback would let a caller write Door 1's prose under whatever `door`
+    // value it invented — the corruption migration 061's key and the cache's
+    // required-door signature exist to prevent.
+    for (const bad of ['', 'passages', 'DEEPER', 'reference', 'drop table']) {
+      expect(parsePassageInsightBody({ book: 'psa', chapter: 27, door: bad }).ok).toBe(false);
+    }
+    expect(parsePassageInsightBody({ book: 'psa', chapter: 27, door: 7 } as never).ok).toBe(false);
   });
 
   it('treats a null verse as chapter scope, not as a broken verse', () => {
@@ -350,5 +387,53 @@ describe('streamPassageInsight — nothing half-lands', () => {
     const done = beats.at(-1) as { t: 'done'; payload: { cached: boolean } };
     expect(done.t).toBe('done');
     expect(done.payload.cached).toBe(false);
+  });
+});
+
+// ── Two doors, one function (B3) ─────────────────────────────────────────────
+
+describe('streamPassageInsight — per door', () => {
+  const DEEPER_KEYS = DEEPER_DOOR_SPEC.sections.map((s) => s.key);
+  const DEEPER_EMIT = {
+    hermeneutics: 'The chapter argues rather than narrates.',
+    historical_setting: 'Written to a mixed congregation in Rome.',
+    theology: 'Calvin reads the potter image as a limit on the question.',
+    read_with_care: 'It is often quoted a verse at a time, apart from its argument.',
+    citations: [],
+  };
+
+  it('scopes the cache read to the requested door', async () => {
+    const { deps, eqs } = makeDeps({ llm: makeStreamAdapter(DEEPER_EMIT) });
+    await readBeats(await streamPassageInsight(deps, { ...ARGS, door: DEEPER_DOOR_SPEC }));
+
+    expect(eqs).toContainEqual(['door', 'deeper']);
+    expect(eqs).not.toContainEqual(['door', 'passage']);
+  });
+
+  it('writes the requested door’s id and section keys, not Door 1’s', async () => {
+    const { deps, upserts } = makeDeps({ llm: makeStreamAdapter(DEEPER_EMIT) });
+    await readBeats(await streamPassageInsight(deps, { ...ARGS, door: DEEPER_DOOR_SPEC }));
+
+    expect(upserts).toHaveLength(1);
+    expect(upserts[0].map((r) => r.section)).toEqual(DEEPER_KEYS);
+    for (const r of upserts[0]) expect(r.door).toBe('deeper');
+    expect(upserts[0][0].prompt_version).toBe(DEEPER_DOOR_SPEC.prompt.promptVersion);
+  });
+
+  it('streams the requested door’s sections', async () => {
+    const { deps } = makeDeps({ llm: makeStreamAdapter(DEEPER_EMIT) });
+    const beats = await readBeats(await streamPassageInsight(deps, { ...ARGS, door: DEEPER_DOOR_SPEC }));
+
+    const fields = beats.filter((b) => b.t === 'text').map((b) => (b as { field: string }).field);
+    expect(fields).toEqual(DEEPER_KEYS);
+  });
+
+  it('still does Door 1 exactly as before', async () => {
+    const { deps, upserts, eqs } = makeDeps();
+    await readBeats(await streamPassageInsight(deps, ARGS));
+
+    expect(eqs).toContainEqual(['door', 'passage']);
+    expect(upserts[0].map((r) => r.section)).toEqual(KEYS);
+    for (const r of upserts[0]) expect(r.door).toBe('passage');
   });
 });

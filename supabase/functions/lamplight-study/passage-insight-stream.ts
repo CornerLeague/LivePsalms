@@ -22,7 +22,7 @@ import { checkQuota, type QuotaConfig, type QuotaDeps } from '../_shared/quota.t
 import { hasInlineInsightAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { runPassageInsightStreaming } from './passage-insight-pipeline.ts';
 import { readPassageDoor, writePassageDoor, sourcesFromExcerpts, type PassageScope } from './passage-insight-cache.ts';
-import { PASSAGE_DOOR_SPEC } from './prompts/passage-insight.ts';
+import { DEFAULT_INSIGHT_DOOR_ID, insightDoorById, type InsightDoorEntry } from './insight-doors.ts';
 import type { InsightDoorSpec } from './prompts/insight-door.ts';
 import type { BibleChatContext } from '../lamplight-chat/bible-chat-pipeline.ts';
 import type { LLMAdapter } from '../_shared/openai.ts';
@@ -34,13 +34,6 @@ export const PASSAGE_INSIGHT_KIND = 'passage_insight';
 
 export interface PassageInsightStreamDeps {
   cors: Record<string, string>;
-  /**
-   * Which door this request is for. ONE spec, used for the cache read, the
-   * generation and the cache write alike — so the three can never disagree
-   * about which door they are handling, which is the failure that would write
-   * one door's prose under another door's key.
-   */
-  door?: InsightDoorSpec;
   supabase: SupabaseClient;
   llm: LLMAdapter;
   quotaDeps: QuotaDeps;
@@ -56,7 +49,16 @@ export interface PassageInsightStreamDeps {
 }
 
 export type ParsedPassageInsightBody =
-  | { ok: true; book: string; chapter: number; verse?: number; scope: PassageScope; refId: string }
+  | {
+      ok: true;
+      book: string;
+      chapter: number;
+      verse?: number;
+      scope: PassageScope;
+      refId: string;
+      /** Resolved through the registry, never taken as a bare string. */
+      door: InsightDoorEntry;
+    }
   | { ok: false };
 
 /**
@@ -70,12 +72,22 @@ export type ParsedPassageInsightBody =
  * Two grains only — design decision 6. A multi-verse selection resolves to the
  * chapter grain in the client, so anything without a single `verse` is a
  * chapter door.
+ *
+ * `door` DEFAULTS to Door 1 so B2's clients, which send no `door` at all, keep
+ * working — and is otherwise resolved against the registry rather than trusted.
+ * An unregistered id is a rejected request, never a fallback: serving Door 1
+ * under an invented `door` value is exactly the corruption migration 061's key
+ * and the cache's required-door signature exist to prevent.
  */
 export function parsePassageInsightBody(body: {
-  book?: unknown; chapter?: unknown; verse?: unknown;
+  book?: unknown; chapter?: unknown; verse?: unknown; door?: unknown;
 }): ParsedPassageInsightBody {
   if (typeof body.book !== 'string' || !body.book.trim()) return { ok: false };
   if (typeof body.chapter !== 'number' || !Number.isInteger(body.chapter) || body.chapter < 1) return { ok: false };
+
+  if (body.door !== undefined && typeof body.door !== 'string') return { ok: false };
+  const door = insightDoorById((body.door as string | undefined) ?? DEFAULT_INSIGHT_DOOR_ID);
+  if (!door) return { ok: false };
 
   const book = body.book.trim().toLowerCase();
   const hasVerse = body.verse !== undefined && body.verse !== null;
@@ -85,8 +97,8 @@ export function parsePassageInsightBody(body: {
   const verse = hasVerse ? (body.verse as number) : undefined;
 
   return verse === undefined
-    ? { ok: true, book, chapter: body.chapter, scope: 'chapter', refId: `${book}.${body.chapter}` }
-    : { ok: true, book, chapter: body.chapter, verse, scope: 'verse', refId: `${book}.${body.chapter}.${verse}` };
+    ? { ok: true, book, chapter: body.chapter, scope: 'chapter', refId: `${book}.${body.chapter}`, door }
+    : { ok: true, book, chapter: body.chapter, verse, scope: 'verse', refId: `${book}.${body.chapter}.${verse}`, door };
 }
 
 function jsonResponse(cors: Record<string, string>, body: unknown, status: number): Response {
@@ -98,9 +110,21 @@ function jsonResponse(cors: Record<string, string>, body: unknown, status: numbe
 
 export async function streamPassageInsight(
   deps: PassageInsightStreamDeps,
-  args: { userId: string; scope: PassageScope; refId: string; signal?: AbortSignal },
+  args: {
+    userId: string;
+    scope: PassageScope;
+    refId: string;
+    /**
+     * ONE spec, used for the cache read, the generation and the cache write
+     * alike — so the three can never disagree about which door they are
+     * handling. That disagreement is what would write one door's prose under
+     * another door's key.
+     */
+    door: InsightDoorSpec;
+    signal?: AbortSignal;
+  },
 ): Promise<Response> {
-  const door = deps.door ?? PASSAGE_DOOR_SPEC;
+  const door = args.door;
 
   // 1. Cache read. Free, public, and ahead of every gate.
   const cached = await readPassageDoor(deps.supabase, { scope: args.scope, refId: args.refId, door });
