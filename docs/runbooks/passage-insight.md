@@ -227,7 +227,7 @@ Other filters: `--scope=verse|chapter`, `--ref=psa.27`, `--door=passage|deeper`.
 
 ## 9. B4 — the handoff seam and the `opener` rename
 
-B4 touches **`lamplight-study` and `lamplight-chat`**, not `passage-insight`. It is recorded here because the surface it decorates is this one.
+B4's rename touches **`lamplight-study` and `lamplight-chat`**; `passage-insight` rides along only through an unused import (below). It is recorded here because the surface B4 decorates is this one.
 
 ### The deploy ordering, and why it is in the code rather than in this runbook
 
