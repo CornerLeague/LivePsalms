@@ -30,3 +30,17 @@ public/Logo-motion/my-video/snapshots/
 # Bible lexicon ingest source data — large local downloads (TAHOT/TAGNT + Strong's
 # dictionaries). Reproduce via docs/runbooks/bible-lexicon-ingest.md; never commit.
 scripts/data/
+
+# Local-only docs. Deliberately kept out of git — NOT build output, and not
+# secrets: they are working notes whose siblings in the same directories ARE
+# tracked, so these must be listed as exact paths. Ignoring
+# docs/lamplight/evals/ or docs/superpowers/plans/ wholesale would drop the
+# checked-in eval baselines and shipped plans, which are evidence.
+#
+# Listed because a `git add -A` swept all six into PR #115 by accident.
+docs/lamplight/evals/2026-08-05-contested-fix/
+docs/lamplight/evals/2026-08-05-contested-fix2/
+docs/lamplight/evals/2026-08-05-diagnose/
+docs/lamplight/evals/2026-08-05-display-refs/
+docs/superpowers/plans/2026-07-11-waymarks-back-study-notepad-mobile.md
+docs/superpowers/plans/2026-07-12-memorize-tab.md

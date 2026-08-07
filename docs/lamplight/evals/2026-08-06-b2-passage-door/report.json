@@ -1,0 +1,226 @@
+{
+  "report": {
+    "ok": true,
+    "passed": 3,
+    "failed": 0,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "passage-insight": {
+        "runs": 3,
+        "tokensIn": 11870,
+        "tokensOut": 3708,
+        "costCents": 17.059
+      }
+    },
+    "totalCostCents": 17.059,
+    "failures": [],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "passage-nahum-1",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 3825,
+      "tokensOut": 1211,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_overview_present",
+          "pass": true
+        },
+        {
+          "name": "section_overview_complete",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_present",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_complete",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_present",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_complete",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_present",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_complete",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# passage-nahum-1 · passage-insight\n\n_A thinly covered non-Psalm OT chapter (15 library chunks against Psalm 27's 123). The case where a section may legitimately have nothing to say — and where padding is the temptation._\n\n**Passage:** Nahum 1 · **Grain:** chapter\n\n## Grounding supplied\n\n- cross-references: 5 — 2 Timothy 2:19, John 10:27, Lamentations 3:25, John 10:14, Psalms 91:1\n- library excerpts: 4 — treasury-of-david, jfb\n- lexicon entries: 12\n- book context: Nahum\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## Overview\n\nNahum 1 announces that Nineveh’s violence stands beneath the judgment of the LORD, whose patience must not be mistaken for weakness or indifference. He is “slow to anger and great in power,” yet He does not acquit guilt; creation imagery presents storms, seas, mountains, and the whole earth yielding before Him (Nahum 1:2–6). The chapter’s center holds together what might otherwise seem opposed: “The LORD is good, a stronghold in the day of distress,” while the same sovereign presence brings His enemies to an end (Nahum 1:7–8). For oppressed Judah, therefore, Nineveh’s fall is not merely a change of empire. It means a broken yoke, removed shackles, and the return of public worship under proclaimed peace (Nahum 1:12–15).\n\n## In the Chapter\n\nBecause this is the opening chapter, nothing precedes it within the book; it serves as the theological threshold for everything that follows. Before describing Nineveh’s ruin in later chapters, Nahum identifies who governs that ruin: the LORD is jealous for what belongs to Him, patient rather than impulsive, immeasurably powerful, and committed to judging evil (Nahum 1:2–6). That opening prevents the coming destruction from reading as mere military fortune. The chapter then places Nineveh and Judah in opposite relation to the same God. Nineveh plots against Him and receives a sentence against its power, idols, name, and future (Nahum 1:9–14). Judah, though previously afflicted, hears that the oppressor’s yoke will be broken and that feasts and vows may resume (Nahum 1:12–15). Thus the chapter prepares the book’s later judgment scenes as good news for those Assyria had crushed, without softening the severity of that judgment.\n\n## The Chapter's Shape\n\nThe chapter opens with a title identifying Nahum’s vision as a burden against Nineveh (Nahum 1:1). It then widens into a hymn-like portrayal of the LORD: avenging, slow to anger, great in power, and so majestic that sea, rivers, fertile regions, mountains, and rocks cannot resist Him (Nahum 1:2–6). The decisive turn comes with “The LORD is good.” His power is not presented as bare force; He is refuge and personally cares for those who trust Him, even as judgment overtakes His enemies (Nahum 1:7–8). From there the poetry narrows toward particular hearers. Nineveh’s plotting, alliances, numbers, gods, and dynasty are each declared unable to secure it (Nahum 1:9–14). Judah’s affliction moves toward release: the yoke breaks, shackles tear, and a messenger crosses the mountains announcing peace (Nahum 1:12–15). The chapter lands not merely on Nineveh’s ending, but on Judah’s renewed worship.\n\n## Reflection & Application\n\nNahum refuses two distortions of the Lord: that patience means evil does not matter, or that judgment means goodness has disappeared. The passage holds both truths together—He is slow to anger and does not leave guilt unaddressed; He is also a stronghold who cares for those trusting Him (Nahum 1:3, 7). For a reader living beneath powers that appear immovable, the imagery relocates confidence: mountains themselves quake before the One whom no empire can finally withstand (Nahum 1:5–6). Yet refuge is more than escape. The chapter ends with peace making room for feasts and fulfilled vows, suggesting that deliverance restores worship and communal life (Nahum 1:15). Lamentations echoes this posture: the LORD is good to the soul that seeks Him (Lamentations 3:25).\n\n_citations: {\"type\":\"verse\",\"ref\":\"Nahum 1:1\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:2\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:3\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:4\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:5\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:6\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:7\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:8\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:9\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:10\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:11\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:12\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:13\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:14\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:15\"}, {\"type\":\"verse\",\"ref\":\"Lamentations 3:25\"}_\n_prompt: passage-insight-2026-08-06-v1 · attempts: 1_\n"
+    },
+    {
+      "fixture": "passage-psalm-27-v4",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 3929,
+      "tokensOut": 1211,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "grounding_focus_verses",
+          "pass": true
+        },
+        {
+          "name": "section_overview_present",
+          "pass": true
+        },
+        {
+          "name": "section_overview_complete",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_present",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_complete",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_present",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_complete",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_present",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_complete",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# passage-psalm-27-v4 · passage-insight\n\n_Door 1 at verse grain. 'In the Chapter' is unanswerable from a chapter blob alone, so this is the fixture that proves focus verses reached the prompt._\n\n**Passage:** Psalms 27 · **Grain:** verse 4\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 40:31, Hebrews 13:6, Psalms 118:6, Exodus 15:2, Psalms 31:24\n- library excerpts: 4 — treasury-of-david\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 5 — Psalms 27:2, Psalms 27:3, Psalms 27:4*, Psalms 27:5, Psalms 27:6\n\n## Overview\n\nPsalm 27:4 turns the song from danger toward desire. Surrounded by enemies, David’s ruling request is not merely escape but the Lord himself: “to dwell in the house of the LORD,” behold his beauty, and seek him in worship (Psalms 27:3; Psalms 27:4). The verse therefore does not ignore trouble; it reveals what orders David’s heart within it. Spurgeon reads this “one thing” as a unity of desire: many legitimate needs are gathered into the greater longing for communion with God. The lexicon also glosses “seek” as searching out or striving after, especially in worship or prayer. David’s desire is active, not vague. Shelter and vindication follow in the song, but the Lord’s presence remains the central good (Psalms 27:5; Psalms 27:6).\n\n## In the Chapter\n\nImmediately before the selected verse, David names threats in escalating terms: attackers, an encamped army, and war. Yet confidence rests not in favorable circumstances but in the Lord as light, salvation, and stronghold (Psalms 27:1; Psalms 27:2; Psalms 27:3). Against that background, “one thing” is striking. Safety would be an understandable first request, but David asks to remain near the Lord and contemplate his beauty (Psalms 27:4). The verses after it show that this desire is not detached from peril: God’s tent is also shelter, and worship rises while enemies remain nearby (Psalms 27:5; Psalms 27:6). The chapter then shifts from confident declaration to urgent prayer—“Hear,” “be merciful,” and “answer me” (Psalms 27:7). That change keeps faith from sounding effortless. David’s confidence includes felt vulnerability, yet his answer to both danger and divine hiddenness is the same movement: “Your face, O LORD, I will seek” (Psalms 27:8; Psalms 27:9).\n\n## The Chapter's Shape\n\nThe psalm moves through three related stages. It opens with testimony: because the Lord is David’s light, salvation, and stronghold, fear does not have the final word (Psalms 27:1). It then gathers around the chapter’s central desire—to dwell, gaze, and seek—before imagining shelter and joyful worship in God’s presence (Psalms 27:4; Psalms 27:5; Psalms 27:6). At verse 7, assurance becomes lament and petition. David asks not to be abandoned, recalls that the Lord has been his helper, and trusts that even if his closest human bonds fail, the Lord will receive him (Psalms 27:7; Psalms 27:9; Psalms 27:10). The prayer then becomes moral as well as protective: “Teach me Your way” and lead me rightly amid false witnesses (Psalms 27:11; Psalms 27:12). The psalm lands neither in denial nor immediate resolution, but in confident expectation and repeated waiting. Courage is rooted in hope of seeing the Lord’s goodness “in the land of the living” (Psalms 27:13; Psalms 27:14).\n\n## Reflection & Application\n\nRead against ordinary seasons of divided attention, Psalm 27:4 asks what desire gathers the others into order. David does not pretend danger is unreal; he places communion with the Lord nearer the center than relief from danger (Psalms 27:3; Psalms 27:4). Spurgeon reads this as a “master passion,” though the chapter itself shows that such focus can coexist with pleading, uncertainty, and the need to wait (Psalms 27:7; Psalms 27:14). The verse may therefore offer a revealing lens: beneath requests for changed circumstances, is there also a longing to know the Lord’s beauty and seek his face? Waiting here is not passivity. It is courageous hope sustained by the expectation of God’s goodness (Psalms 27:13; Psalms 31:24; Isaiah 40:31).\n\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 27:1\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:2\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:3\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:4\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:5\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:6\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:7\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:8\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:9\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:10\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:11\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:12\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:13\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:14\"}, {\"type\":\"verse\",\"ref\":\"Psalms 31:24\"}, {\"type\":\"verse\",\"ref\":\"Isaiah 40:31\"}_\n_prompt: passage-insight-2026-08-06-v1 · attempts: 1_\n"
+    },
+    {
+      "fixture": "passage-psalm-27",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4116,
+      "tokensOut": 1286,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_overview_present",
+          "pass": true
+        },
+        {
+          "name": "section_overview_complete",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_present",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_complete",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_present",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_complete",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_present",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_complete",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# passage-psalm-27 · passage-insight\n\n_Door 1 at chapter grain on a densely covered psalm — the best-supplied case, and the one where overreach is most tempting._\n\n**Passage:** Psalms 27 · **Grain:** chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 40:31, Hebrews 13:6, Psalms 118:6, Exodus 15:2, Psalms 31:24\n- library excerpts: 4 — treasury-of-david, jfb\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## Overview\n\nPsalm 27 holds confidence and distress in the same prayer. David begins not with the size of his danger but with the identity of the LORD: “my light,” “my salvation,” and “the stronghold of my life” (Psalms 27:1). That foundation does not make threats imaginary; armies, war, abandonment, false witnesses, and violence remain plainly named (Psalms 27:3, Psalms 27:10, Psalms 27:12). Yet fear is displaced by a stronger desire: to dwell near the LORD, behold His beauty, and seek Him (Psalms 27:4). The psalm therefore presents courage not as emotional invulnerability but as a life reoriented toward God’s presence. Its final summons to wait gathers both assurance and unresolved need into patient hope (Psalms 27:13, Psalms 27:14).\n\n## In the Chapter\n\nBecause the supplied passage is the whole psalm, its immediate context is found in the relationship between its own two halves. Verses 1–6 sound assured: enemies fall, the heart remains unafraid, and God shelters the worshiper and lifts his head (Psalms 27:2, Psalms 27:3, Psalms 27:5, Psalms 27:6). Then verse 7 changes the register: “Hear, O LORD,” begins an urgent appeal for mercy and an answer (Psalms 27:7). That turn prevents the opening confidence from sounding effortless. David can confess God as his stronghold while also pleading not to be forsaken (Psalms 27:1, Psalms 27:9). At the center, seeking God’s face echoes the earlier longing to dwell in His house; safety and communion are intertwined rather than separated (Psalms 27:4, Psalms 27:8). The final certainty about seeing the LORD’s goodness does not erase the unanswered prayer. It makes waiting possible within it (Psalms 27:13, Psalms 27:14).\n\n## The Chapter's Shape\n\nThe psalm opens with three God-centered descriptions—light, salvation, and stronghold—followed by questions that imply fear need not rule (Psalms 27:1). It then moves from remembered deliverance to imagined escalation: enemies have stumbled, but even an encamped army will not overturn trust (Psalms 27:2, Psalms 27:3). The “one thing” of verse 4 forms the psalm’s orienting desire: David seeks not merely escape, but sustained attention to the LORD’s beauty and presence (Psalms 27:4). Shelter leads toward worship and song (Psalms 27:5, Psalms 27:6). The second movement becomes direct lament—hear, answer, do not hide, teach, lead, and do not hand me over (Psalms 27:7, Psalms 27:9, Psalms 27:11, Psalms 27:12). It lands neither in triumphal closure nor despair, but in confidence disciplined by waiting. “Be strong and courageous” is framed by the repeated call to wait for the LORD (Psalms 27:14).\n\n## Reflection & Application\n\nThe passage turns on what occupies the center of attention. Danger is real, but David’s “one thing” is the LORD Himself rather than control over every outcome (Psalms 27:4). Read against ordinary seasons of fear, this suggests that courage may coexist with pleading: “my heart will not fear” and “be merciful and answer me” belong to the same faithful life (Psalms 27:3, Psalms 27:7). Spurgeon emphasizes the personal force of “my light” and “my salvation,” while Jamieson reads the opening questions as vivid denials of fear (Psalms 27:1). The closing repetition leaves room for delayed resolution. Waiting here is not passivity, but hope held toward the LORD’s goodness while the threat remains unfinished (Psalms 27:13, Psalms 27:14).\n\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 27:1\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:2\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:3\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:4\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:5\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:6\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:7\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:8\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:9\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:10\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:11\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:12\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:13\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:14\"}_\n_prompt: passage-insight-2026-08-06-v1 · attempts: 2_\n"
+    }
+  ]
+}

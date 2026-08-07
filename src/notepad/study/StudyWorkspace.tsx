@@ -21,7 +21,8 @@ import { saveBiblePassage } from '@/notepad/session/session-storage';
 import { loadInitialPassage } from '@/notepad/bible/initial-passage';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { InsightsOverlay } from './insights/InsightsOverlay';
-import { referenceDoor } from './insights/doors';
+import { referenceDoor, passageDoor } from './insights/doors';
+import { useLamplightEntitlement } from '@/notepad/hooks/useLamplightEntitlement';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
 
@@ -56,11 +57,19 @@ export function DesktopStudyWorkspace() {
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [sideMode, setSideMode] = useState<SidePanelMode>('normal');
   const [insightsOpen, setInsightsOpen] = useState(false);
+  // Gates the GENERATE action on the Passage door only. A cached door is public
+  // and free, so this never hides content that already exists.
+  const { hasAccess } = useLamplightEntitlement({ adapter: lamplightAdapter, userId: lamplightAdapter ? userId : null });
+  const canGenerate = hasAccess('inline');
   // The overlay covers the whole workspace, so its state lives here rather than
   // in the side panel that hosts the door.
   const doors = useMemo(
-    () => [referenceDoor({ translation, userId, adapter: lamplightAdapter })],
-    [translation, userId, lamplightAdapter],
+    // Door order is reading order: The Passage first, Sources & Reference last.
+    () => [
+      passageDoor({ translation, userId, adapter: lamplightAdapter, canGenerate }),
+      referenceDoor({ translation, userId, adapter: lamplightAdapter }),
+    ],
+    [translation, userId, lamplightAdapter, canGenerate],
   );
 
   // BibleReader reports its passage from an effect keyed on this callback. A fresh

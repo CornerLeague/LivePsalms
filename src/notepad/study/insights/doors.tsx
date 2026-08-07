@@ -4,15 +4,54 @@
 // Doors are data so the overlay never grows a switch statement: B2 adds "The
 // Passage" and B3 adds "Deeper In" by appending here, and the overlay's chooser
 // wakes up on its own once the array holds more than one.
+import { supabase } from '@/lib/supabase';
 import type { LamplightAdapter } from '@/notepad/storage/lamplight-adapter';
 import type { BibleTranslation } from '@/notepad/bible/translations';
 import type { InsightsDoor } from './InsightsOverlay';
 import { ReferenceDoor } from './ReferenceDoor';
+import { PassageDoor } from './PassageDoor';
+import { makePassageInsightStreamInvoke, type PassageInsightInvoke } from './passage-insight-stream-client';
 
 export interface DoorDeps {
   translation: BibleTranslation;
   userId: string | null;
   adapter: LamplightAdapter | null;
+  /**
+   * Plus/promo — `hasAccess('inline')`. Gates the GENERATE action only; a
+   * cached door is public and free, so every door still renders what is
+   * already in the shared cache.
+   */
+  canGenerate?: boolean;
+}
+
+// One transport per client, not one per render: the door array is memoized in
+// the workspaces, but `render` runs on every overlay paint.
+const passageInvoke: PassageInsightInvoke | null =
+  supabase ? makePassageInsightStreamInvoke(supabase) : null;
+
+/**
+ * The Passage — Door 1. Generated once and cached globally, so the reader who
+ * presses "Study this passage" warms it for everyone after them.
+ *
+ * Registered only after the live eval baseline went green
+ * (`docs/lamplight/evals/2026-08-06-b2-passage-door`). That ordering is the
+ * whole lesson of #114: a surface shipped without an eval had a retrieval
+ * channel go dark for months with nothing anywhere turning red.
+ */
+export function passageDoor(deps: DoorDeps): InsightsDoor {
+  return {
+    id: 'passage',
+    label: 'The Passage',
+    blurb: 'What this passage is doing, what sits either side of it, the shape of the chapter, and where it lands.',
+    render: (scope) => (
+      <PassageDoor
+        scope={scope}
+        invoke={passageInvoke}
+        canGenerate={deps.canGenerate === true}
+        userId={deps.userId}
+      />
+    ),
+  };
 }
 
 /**

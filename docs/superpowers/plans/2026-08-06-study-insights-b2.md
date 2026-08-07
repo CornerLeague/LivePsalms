@@ -12,7 +12,7 @@
 
 _Every task's requirements implicitly include this section._
 
-- **Every generated field gets a word target AND a ceiling, with the ceiling ~1.6–2× above the target.** This is not style. A ceiling with no target is what truncated study-chat replies at exactly 1400 characters, mid-word, with corrupted output at the boundary (`2026-08-06-study-baseline`). Bounds without targets are a bug waiting to be found by a reader.
+- **Every generated field gets a word target AND a ceiling, with the ceiling ~1.45–1.5× above the target in characters.** Ceilings are DERIVED from targets by `ceilingFor()`, never hand-set beside them. This is not style. A ceiling with no target is what truncated study-chat replies at exactly 1400 characters, mid-word, with corrupted output at the boundary (`2026-08-06-study-baseline`). Bounds without targets are a bug waiting to be found by a reader.
 - **Reuse the validator stack wholesale** — citation allowlist, banned phrases, `verifyArtifactScripture` (repair before reject), Layer C classifier. Library excerpts never widen `allowedVerseRefs`.
 - **Door 1 keeps the standard contested-passage rejection.** It does NOT set `allowContestedRefs`. That exemption exists for a reader asking a direct question; Door 1 is descriptive, generated once, and served to everyone.
 - **Cached reads are public and free.** No entitlement check on the read path — same contract as `bible_etymology_verse_insight`.
@@ -41,11 +41,13 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 - `supabase/functions/lamplight-study/prompts/passage-insight.ts` — prompt + four-field tool (Task 3).
 - `supabase/functions/lamplight-study/passage-insight-pipeline.ts` — grounding + emit + validate (Task 5).
 - `supabase/functions/lamplight-study/passage-insight-cache.ts` — read/write, pure-testable (Task 6).
-- `supabase/functions/passage-insight/index.ts` — edge-fn shell: cache read → gate → stream → write (Task 7).
+- `supabase/functions/lamplight-study/passage-insight-stream.ts` — **added in Task 7, not in the original plan:** the Node-testable orchestration (cache read → gate → stream → write) plus the request/cache-key contract. A Deno shell cannot be unit-tested; see the decisions below.
+- `supabase/functions/passage-insight/index.ts` — edge-fn shell: dep wiring only (Task 7).
 
 **New (client):**
 - `src/notepad/study/insights/usePassageInsight.ts` — cached read + generate (Task 8).
 - `src/notepad/study/insights/PassageDoor.tsx` — the four sections, two render paths (Task 8).
+- `src/notepad/study/insights/passage-insight-stream-client.ts` — **added in Task 8, not in the original plan:** the SSE transport plus the client-side mirror of the server contract (section keys and the `ref_id` composer). Mirrors `study-stream-client.ts`, and exists for the same reason: a `src` module must not import from `supabase/functions`.
 
 **New (scripts):**
 - `scripts/refresh-passage-insights.ts` — targeted regeneration with `--dry-run` (Task 10).
@@ -59,99 +61,167 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 ## Task 1 — Migration 060: the cache table
 
-- [ ] Write `060_passage_insight.sql`: the table from the design §3, public-read RLS, service-role write, and an index on `(scope, ref_id, door)` so a whole door loads in one query.
-- [ ] `check (scope in ('verse','chapter'))` and `check (door in ('passage'))` — B3 widens the door check when it adds `'deeper'`. A narrow check now is a cheap guard against a typo writing rows nobody reads.
-- [ ] **Hand the SQL to Myles to apply in the SQL Editor** and record the applied date in the task report before any code depends on it.
+- [x] Write `060_passage_insight.sql`: the table from the design §3, public-read RLS, service-role write, and an index on `(scope, ref_id, door)` so a whole door loads in one query.
+- [x] `check (scope in ('verse','chapter'))` and `check (door in ('passage'))` — B3 widens the door check when it adds `'deeper'`. A narrow check now is a cheap guard against a typo writing rows nobody reads.
+- [x] **Applied 2026-08-06** by Myles via the SQL Editor. Verified from the repo with an anon-key select against `bible_passage_insight`: HTTP 200, `[]` — the table exists, public-read RLS is live, and no rows are warmed yet.
 
 **Requirements:** `primary key (scope, ref_id, section)`. Store `prompt_version` and `model_used` per row — Task 10's targeted refresh is impossible without them.
 
 ## Task 2 — A quota scope that does not charge the user
 
-- [ ] Failing test: a scope with `perUser: null` skips the per-user check entirely and still enforces the global ceiling.
-- [ ] Failing test: an empty `kinds` array still throws. The existing invariant — *"a misconfigured scope must block, not pass"* — must survive this change.
-- [ ] Widen `QuotaScope.perUser` to `Record<Tier, number> | null`; `checkQuota` skips the user check when null.
-- [ ] Add a `passageInsight` scope with `kinds: ['passage_insight']`, `perUser: null`.
-- [ ] Failing test: `countGlobalUsage` counts the new kind, so a warmed-cache spree still trips the global ceiling.
+- [x] Failing test: a scope with `perUser: null` skips the per-user check entirely and still enforces the global ceiling.
+- [x] Failing test: an empty `kinds` array still throws. The existing invariant — *"a misconfigured scope must block, not pass"* — must survive this change.
+- [x] Widen `QuotaScope.perUser` to `Record<Tier, number> | null`; `checkQuota` skips the user check when null.
+- [x] Add a `passageInsight` scope with `kinds: ['passage_insight']`, `perUser: null`.
+- [x] Failing test: `countGlobalUsage` counts the new kind, so a warmed-cache spree still trips the global ceiling.
 
 **Requirements:** usage rows ARE still written — cost must stay visible on the admin dashboard. "Not quota-counted" means not counted against the *user*, never unbounded.
 
 ## Task 3 — Prompt + four-field tool
 
-- [ ] Failing test: the tool declares exactly four fields, each with `minLength` and `maxLength` matching design §1.
-- [ ] Failing test: each ceiling is at least 1.6× the top of its stated word target — the ratio that keeps a ceiling a backstop rather than a target.
-- [ ] Failing test: the system prompt states a word target for every field by name. A field with a bound and no target is the truncation bug.
-- [ ] Failing test: `buildMessages` renders the study grounding blocks (passage, book context, cross-refs, library voices, lexicon) and, at verse scope, the neighbouring verses.
-- [ ] Implement, with `promptVersion: 'passage-insight-2026-08-XX-v1'`.
+- [x] Failing test: the tool declares exactly four fields, each with `minLength` and `maxLength` matching design §1.
+- [x] Failing test: each ceiling sits well above the top of its stated word target (asserted at >1.4×) — the headroom that keeps a ceiling a backstop rather than a target.
+- [x] Failing test: the system prompt states a word target for every field by name. A field with a bound and no target is the truncation bug.
+- [x] Failing test: `buildMessages` renders the study grounding blocks (passage, book context, cross-refs, library voices, lexicon) and, at verse scope, the neighbouring verses.
+- [x] Implement, with `promptVersion: 'passage-insight-2026-08-XX-v1'`.
 
 **Requirements:** the voice rules and citation rules are inherited from `STUDY_CHAT_PROMPT.system`'s established phrasing where they apply — do not rewrite them from scratch and let them drift. Do **not** set `allowContestedRefs`.
 
+## Progress
+
+**Tasks 1–10 complete and Task 11 all but the live checks, 2026-08-06. The door is REGISTERED and reachable.** Branch `feat/study-insights-b2`, draft PR #115. Gate at last push: 4,039 tests, `tsc -b` clean, lint at its 163-problem baseline.
+
+**Live baseline:** `docs/lamplight/evals/2026-08-06-b2-passage-door` — 3/3 pass, $0.17, zero Scripture violations, zero display-ref leaks.
+
+| Task | State | Commit |
+|---|---|---|
+| 1 — migration 060 | **APPLIED 2026-08-06** | `2ac36bf9` |
+| 2 — uncharged quota scope | done | `2ac36bf9` |
+| 3 — prompt + four-field tool | done | `350aba75`, amended by Task 5 (citations) |
+| 4 — verse-scope grounding | done | `8ed1cd3c` |
+| 5 — the pipeline | done | `d01d56dc` |
+| 6 — cache read/write | done | `e7d34c88` |
+| 7 — edge function | done, **DEPLOYED 2026-08-06** | `89efd307` |
+| 8 — client hook + door | done | `b896463f` |
+| 9 — eval + registration | done | `960052c7` |
+| 10 — refresh script | done | `8144279c` |
+| 11 — completion gate | **partly done — 3 live checks blocked on auth** | see below |
+
+**Still true:** the `bible_passage_insight` corpus is **0 rows**. The eval harness exercises the pipeline directly, not the edge function, so nothing has yet gone through `passage-insight` end-to-end and written a cache row. Task 11's live check is where that first happens — and where "a second reader gets the cached door instantly" is actually proven.
+
+### Decisions made while implementing, that are not in the design
+
+- **`ceilingFor()` derives ceilings from word targets** rather than hand-setting them. The design claimed a "1.6–2×" ratio; the real arithmetic on those bounds was ~1.25×. `CHARS_PER_WORD = 6.4` is **measured** (6.41 mean across the four replies in `docs/lamplight/evals/2026-08-06-contested-exempt/`), not assumed. Authoritative in `prompts/passage-insight.ts`.
+- **`minLength: 0` on every section field.** A section with no warrant must return empty; requiring a character would force filler exactly where the model has nothing grounded to say.
+- **Shared rules are composed, not paraphrased.** `STUDY_GROUNDING_RULES` and `renderStudyGrounding` are exported from `prompts/study-chat.ts` and used by both surfaces. Verified byte-identical after extraction (2,870 chars before and after), which is why `study-chat`'s `promptVersion` legitimately did not bump.
+- **`BibleChatContext.focusVerses`** was added in Task 3 (the prompt renders it); **Task 4 is what populates it**.
+- **Focus neighbours are counted in ROWS, not verse numbers.** `bible_passages` genuinely stores multi-verse rows (`psa 27:5-6`), so verse arithmetic would slice through one and ask for text that has no row. `FOCUS_NEIGHBOURS = 2` either side of the row containing the selection; clamping is then just array-slice clamping. `selectFocusVerses` in `study-context.ts` is the authority.
+- **Verse scope narrows the library anchor, NOT `allowedVerseRefs`.** The whole chapter text is still supplied, so the whole chapter stays citable — *The Chapter's Shape* cites across the chapter constantly, and a narrowed allowlist would make that section unwritable. Design §2 only ever asked for the anchor.
+- **A verse in no row of its chapter degrades to chapter grounding**, with a `console.warn`. Narrowing an anchor onto a verse that does not exist would blank the library rather than widen it; a bad `ref_id` should cost a warning, not the door.
+- **⚠️ Task 5 added a `citations` array to the four-field tool — Task 3's "exactly four fields" no longer holds.** The plan and design both require the citation allowlist, but `validateChatReplyCitations` reads a *structured* array and the Task 3 tool had none, so the allowlist was enforcing nothing. Verse-only — `type: { enum: ['verse'] }` — because Door 1 is a public asset with no reader's notes in scope, unlike study chat. Door-level rather than per-section: the sections must stay plain strings for `textFields` per-field streaming (D3), and a door is cached and invalidated as a unit anyway.
+  - **Correction, made in Task 6:** the Task 5 note also claimed `bible_passage_insight.sources` had nothing else to fill it. That was wrong — migration 060's own comment reads `-- library chunk provenance`, matching `lamplight_artifacts.source_library_chunks`. `sources` stores the library snapshot; **citations are validation-only in B2 and are not persisted.** If a reader-facing "verses this door leaned on" list is wanted later, that is a new column or a widened `sources` shape, not a reinterpretation of this one. The case for adding `citations` stands on the allowlist alone.
+- **`promptVersion` stays at `v1`.** The tool and system prompt changed in Task 5, but `PASSAGE_INSIGHT_PROMPT` was unreachable from any generation path in the Task 3 commit, so no row can exist under a v1 that means anything else. v1 names the first prompt that can actually generate. Bump normally from here.
+- **Section keys are read defensively.** `sectionsOf()` normalises a missing or non-string field to `''` rather than trusting the schema's `required`. Omission and emptiness are the same first-class answer, and the four-bound design's whole point is that a section can legitimately have nothing in it.
+- **The atomic write is one multi-row upsert, not a transaction.** A single statement cannot half-land, which is what "either the whole door or nothing" needs; Supabase's JS client has no transaction API to reach for anyway. Both cache functions **throw** rather than returning a soft failure — a read that reported `null` on a transport error would send the reader to the generate path and re-bill a warm door, and a write that swallowed its error would let the terminal `done` beat tell the client a door is cached when no row landed.
+- **Task 7 needed a fourth file the plan's File Structure does not list: `lamplight-study/passage-insight-stream.ts`.** Every Task 7 bullet is a *failing test*, and a Deno `index.ts` calling `serve()` at module scope cannot be imported by vitest. Split exactly as `daily-devotion-stream.ts` + `index.ts` and `etymology-insight/insight-body.ts` + `index.ts` already are: orchestration is Node-testable with injected deps, the shell is wiring. It lives beside the pipeline and cache so all four Door 1 modules sit together; `passage-insight/index.ts` imports across directories, which `lamplight-study/index.ts` already does.
+- **The stream module takes the whole `QuotaConfig`, not a pre-bound `checkQuota` closure** (which is what `daily-devotion-stream.ts` does). Choosing the `passageInsight` scope IS decision D1; bound in the Deno shell it would be the one part of D1 no test could reach. Taking the config lets the test drive real `checkQuota` and assert that `countUserUsage` is never even *called*.
+- **⚠️ `tsc -b` does not typecheck edge functions.** `tsconfig.app.json` includes only `src`, so the gate's type check covers none of `supabase/functions`. The Door 1 logic modules are at least exercised by vitest; the Deno shell is neither typechecked nor tested by the gate. Checked manually with a standalone `tsc --noEmit --allowImportingTsExtensions` run: the only errors in `passage-insight/index.ts` are the `deno.land` import and the `Deno` global, i.e. exactly what `lamplight-study/index.ts` produces. That is a one-off check, not a standing guard.
+- **⚠️⚠️ The live sweep caught OSIS codes leaking into reader-facing prose, twice, and study chat has the same bug in production.** First sweep: Door 1's prose read "(psa 27:2; psa 27:3)" and "(2ti 2:19)" — the internal key echoed straight at the reader, because the model returns whatever ref form it was handed. `formatDisplayVerseRef` exists precisely because this reached a reader once before on the Today's Lamp card.
+  - **Fix, scoped to Door 1:** `buildStudyContext` takes `displayRefs`, which moves the rendered refs AND the citation allowlist to reader form together — they must move together or every correct citation is rejected. **Off by default**, so study chat was unchanged by construction at the time — confirmed by a free `--grounding-only` study-chat sweep whose refs still read `isa 40:31`. That report is not retained: study chat was deliberately switched over immediately afterwards (see below), so a snapshot of the state it no longer has is a trap for anyone reading back.
+  - **Second sweep caught the half-fix:** cross-refs and focus verses were in reader form but `ctx.passageRef` still read `nam 1`, so the model generalised from the header and cited `nam 1:1`…`nam 1:15` for the passage's own verses — none of which the now-display-form allowlist accepted, and the whole Nahum door failed validation. The header is a ref too.
+  - **Now machine-caught:** `checkDisplayRefs` in the harness fails any prose carrying an OSIS-shaped ref, matched against the real code list so "Job 1:1" and "Nahum 1:2" never trip it. Without it the next person reads a green report and ships the leak.
+  - **~~STUDY CHAT STILL LEAKS~~ — fixed 2026-08-06, after B2.** `displayRefs` flipped on both `buildStudyContext` call sites in `lamplight-study/index.ts`; `study-chat` v6→**v7** and `study-insight` v4→**v5**, because the GROUNDING changed even though the SYSTEM text did not, and `prompt_version` is what makes that reviewable. Verified live: `docs/lamplight/evals/2026-08-07-study-display-refs`, 4/4, zero leaks. Redeployed.
+  - **That fix exposed a harness bug worth its own line.** `checkProperties` matched contested passages by naive SUBSTRING against the configured spelling, so `rom 9:16` scored clean for months while `Romans 9:16` fails — the pipeline's checker was reference-aware the whole time and the harness was not. Worse, the harness applied the contested rule to study chat **at all**, which is a surface the pipeline deliberately EXEMPTS (`allowContestedRefs`); moving the refs to display form turned a silently-passing wrong check into a red one on a correct answer. Now reference-aware, and the exemption is composed from `STUDY_CHAT_PROMPT.allowContestedRefs` rather than restated.
+  - **Journaling chat still leaks**, and is deliberately untouched: it builds its own context, and **has no eval fixtures at all**, so a fix there could not be verified. Wiring a fixture is the prerequisite.
+- **The refresh script is DRY BY DEFAULT, and `--dry-run` beats `--apply`.** Running it bare reports; it does not regenerate a corpus. A script that spends money should resolve an ambiguous invocation toward the safe reading. `--limit` is validated rather than coerced — a silently-dropped limit would refresh everything at full price.
+- **The refresh script writes NO usage row, and that is a deliberate gap.** `lamplight_usage.user_id` is `not null references profiles(id)` and a maintenance sweep has no user; `recordLamplightUsage` swallows insert errors, so a null would vanish silently, and a fabricated id would corrupt the dashboard's per-user cost attribution. The spend is printed to the operator who ran it instead. **Consequence worth knowing: a refresh does not count against the global daily ceiling either.** If refresh spend ever needs dashboard visibility, that wants a nullable `user_id` or a service-actor row, not a fake id.
+- **Cost estimates are measured, not guessed:** `MEASURED_TOKENS_PER_DOOR` comes from the checked-in baseline (11,870 in / 3,708 out across three doors), same discipline as `CHARS_PER_WORD`.
+- **⚠️ The cache key is written in two places and pinned by test in both.** `parsePassageInsightBody` (server) composes the `ref_id` that gets WRITTEN; `passageRefId` (client) composes the one that gets READ. They cannot import each other across the `src` / `supabase/functions` boundary. If they ever drift, nothing breaks loudly — the cache simply never hits, and every reader pays to generate a door already sitting in the table. Both sides assert the exact strings `psa.27` and `psa.27.4`, including the lowercasing.
+- **A failed generation returns `sections` to `null`, not to the partial text.** The server wrote nothing, so there is no door: leaving fragments on screen would render one that does not exist, and leaving four empty strings would strand the reader with no way to press the button again.
+- **⚠️ B3 landmine: `door` is not in the primary key.** `primary key (scope, ref_id, section)` means `('chapter','psa.27','overview')` is unique across ALL doors, so if B3's Deeper door ever names a section the Passage door also names, the two collide and overwrite each other. B3's four sections (Hermeneutics, Theology, Read With Care, Historical Background) don't collide today, but the constraint is one careless section name away from silent data loss. Fix by widening the PK to include `door` when B3 lands.
+
 ## Task 4 — Verse-scope grounding
 
-- [ ] Failing test: with a verse scope, `libraryAnchors` narrows to that verse (plus resolved cross-ref targets), not the whole chapter.
-- [ ] Failing test: neighbouring verse text is supplied, clamped at chapter boundaries.
-- [ ] Failing test: chapter scope is byte-identical to today — this must not change study chat.
-- [ ] Extend `buildStudyContext` with an optional verse scope.
+- [x] Failing test: with a verse scope, `libraryAnchors` narrows to that verse (plus resolved cross-ref targets), not the whole chapter.
+- [x] Failing test: neighbouring verse text is supplied, clamped at chapter boundaries.
+- [x] Failing test: chapter scope is byte-identical to today — this must not change study chat.
+- [x] Extend `buildStudyContext` with an optional verse scope.
 
 ## Task 5 — The pipeline
 
-- [ ] Failing test: composes study grounding with the four-field emit and returns all four sections.
-- [ ] Failing test: runs the full validator stack — citations, content rules, Scripture verification with repair.
-- [ ] Failing test: a contested-passage violation fails the generation (Door 1 keeps the rejection).
-- [ ] Failing test: a section the model returns empty is preserved as empty, not defaulted to filler.
-- [ ] Failing test: on `validators_failed`, the result carries its violations — the lesson from #114, applied at birth rather than retrofitted.
-- [ ] Implement over `generateWithRetry` for the buffered path.
+- [x] Failing test: composes study grounding with the four-field emit and returns all four sections.
+- [x] Failing test: runs the full validator stack — citations, content rules, Scripture verification with repair.
+- [x] Failing test: a contested-passage violation fails the generation (Door 1 keeps the rejection).
+- [x] Failing test: a section the model returns empty is preserved as empty, not defaulted to filler.
+- [x] Failing test: on `validators_failed`, the result carries its violations — the lesson from #114, applied at birth rather than retrofitted.
+- [x] Implement over `generateWithRetry` for the buffered path.
 
 ## Task 6 — Cache read/write
 
-- [ ] Failing test: a read returns rows regardless of `prompt_version` (D2 — serve stale, never block a reader).
-- [ ] Failing test: a read returns `null` when the door has no rows, distinguishable from a door whose sections are all legitimately empty.
-- [ ] Failing test: a write upserts all four sections atomically, stamping `prompt_version`, `model_used`, `created_by`.
-- [ ] Failing test: a partial write never lands — either the whole door or nothing.
-- [ ] Implement as a pure-ish module taking a Supabase client, so it is testable without the edge shell.
+- [x] Failing test: a read returns rows regardless of `prompt_version` (D2 — serve stale, never block a reader).
+- [x] Failing test: a read returns `null` when the door has no rows, distinguishable from a door whose sections are all legitimately empty.
+- [x] Failing test: a write upserts all four sections atomically, stamping `prompt_version`, `model_used`, `created_by`.
+- [x] Failing test: a partial write never lands — either the whole door or nothing.
+- [x] Implement as a pure-ish module taking a Supabase client, so it is testable without the edge shell.
+- [x] **Also:** refuses an all-empty door (the hole Task 5 left open, closed here).
+- [x] Column names in both paths checked against the LIVE table, not just the fake — an anon select of every column the read selects and every column the write sends returns 200, as do all three read filters.
 
 ## Task 7 — Edge function
 
-- [ ] Failing test: a cache hit returns immediately with **no entitlement check and no model call**.
-- [ ] Failing test: a cache miss without Plus/promo returns the gate reason and generates nothing.
-- [ ] Failing test: a cache miss with Plus/promo streams sections and writes the cache on the terminal `done` beat.
-- [ ] Failing test: an interrupted stream writes nothing — the door stays uncached, mirroring how study chat declines to commit an interrupted reply.
-- [ ] Failing test: the global quota ceiling still gates generation; the per-user allowance does not.
-- [ ] Implement using `generateStreamingWithRetry` with `textFields` set to the four section names, inside a fresh SSE shell (**not** `streamBibleChat` — see the note above).
+- [x] Failing test: a cache hit returns immediately with **no entitlement check and no model call**.
+- [x] Failing test: a cache miss without Plus/promo returns the gate reason and generates nothing.
+- [x] Failing test: a cache miss with Plus/promo streams sections and writes the cache on the terminal `done` beat.
+- [x] Failing test: an interrupted stream writes nothing — the door stays uncached, mirroring how study chat declines to commit an interrupted reply.
+- [x] Failing test: the global quota ceiling still gates generation; the per-user allowance does not.
+- [x] Implement using `generateStreamingWithRetry` with `textFields` set to the four section names, inside a fresh SSE shell (**not** `streamBibleChat` — see the note above).
+- [x] **Deployed 2026-08-06.** Boot verified: an unauthenticated call returns 401 and a malformed body 400, which together prove the deno.land import resolved, every cross-directory import bundled, and `OPENAI_API_KEY` / `VOYAGE_AI_KEY` are present (a missing key 500s before either gate). **No door has been generated against a real model yet** — the corpus is still 0 rows.
 
 ## Task 8 — Client: hook + door
 
-- [ ] Failing test: `usePassageInsight` reads the cache on open and never triggers generation on its own.
-- [ ] Failing test: a cached door renders immediately — no spinner, no stream.
-- [ ] Failing test: an uncached door renders *Study this passage*; pressing it streams sections in.
-- [ ] Failing test: sections appear as they arrive rather than all at once on completion.
-- [ ] Failing test: an empty section renders nothing at all — no heading, no placeholder.
-- [ ] Failing test: signed-out or non-entitled readers see cached content but not the generate action.
-- [ ] Implement.
+- [x] Failing test: `usePassageInsight` reads the cache on open and never triggers generation on its own.
+- [x] Failing test: a cached door renders immediately — no spinner, no stream.
+- [x] Failing test: an uncached door renders *Study this passage*; pressing it streams sections in.
+- [x] Failing test: sections appear as they arrive rather than all at once on completion.
+- [x] Failing test: an empty section renders nothing at all — no heading, no placeholder.
+- [x] Failing test: signed-out or non-entitled readers see cached content but not the generate action.
+- [x] Implement.
+- [x] **Also:** a failed generation returns the door to its offerable state rather than stranding the reader on four empty sections or on half-written text for a door the server never wrote.
+
+**Still unregistered**, per the global constraint: `PassageDoor` and `usePassageInsight` are unreferenced by production code until Task 9's eval baseline is green. Nothing a reader can reach has changed.
 
 ## Task 9 — Eval coverage, then registration — in that order
 
-- [ ] Add `'passage-insight'` to the harness `ArtifactKind` union and drive it live.
-- [ ] Reuse the study-chat fixture shape; add a verse-grain fixture so both grains are exercised.
-- [ ] **Grounding floors apply unchanged** — the check that would have caught the empty cross-reference table.
-- [ ] New per-section assertions: every expected section is non-empty, and none ends mid-word (assert the final character is terminal punctuation).
-- [ ] Run a live sweep; check the report into `docs/lamplight/evals/`.
-- [ ] **Only once that baseline is green:** register the door in `doors.tsx` so readers can reach it.
+- [x] Add `'passage-insight'` to the harness `ArtifactKind` union and drive it live.
+- [x] Reuse the study-chat fixture shape; add a verse-grain fixture so both grains are exercised.
+- [x] **Grounding floors apply unchanged** — the check that would have caught the empty cross-reference table. Plus a `grounding_focus_verses` floor at verse grain, so a verse that silently degraded to chapter scope is caught rather than scored as a grain it is not.
+- [x] New per-section assertions: every expected section is non-empty, and none ends mid-word (assert the final character is terminal punctuation).
+- [x] Run a live sweep; check the report into `docs/lamplight/evals/`.
+- [x] **Only once that baseline is green:** register the door in `doors.tsx` so readers can reach it.
+- [x] **A third fixture, beyond the plan:** `passage-nahum-1`, a thin non-Psalm OT chapter (15 library chunks against Psalm 27's 123). Task 11 asks for that case as a live check; folding it into this sweep costs one run instead of two, and it is the fixture that caught the second display-ref bug.
+
+**The sweep did its job — it caught two real defects, and it caught them in the order that matters (before a reader could).** See the decisions below.
 
 **Requirements:** #114 exists because a surface shipped with no eval and a retrieval channel went dark for months. The ordering in this task is the whole point of it.
 
 ## Task 10 — Refresh script
 
-- [ ] Failing test: selects rows whose `prompt_version` is behind current, filtered by scope/ref.
-- [ ] Failing test: `--dry-run` reports row count and estimated cost, and writes nothing.
-- [ ] Implement, mirroring the ingest scripts' reporting discipline. Carries the Node 20 `createIngestClient` treatment — every other ingest script needed it.
+- [x] Failing test: selects rows whose `prompt_version` is behind current, filtered by scope/ref.
+- [x] Failing test: `--dry-run` reports row count and estimated cost, and writes nothing.
+- [x] Implement, mirroring the ingest scripts' reporting discipline. Carries the Node 20 `createIngestClient` treatment — every other ingest script needed it.
+- [x] Ran against the live (empty) corpus: reports *"Nothing to refresh"* and exits 0. The selection and reporting layers were exercised against a fabricated stale corpus, which is the case the empty table cannot show.
 
 ## Task 11 — Completion gate
 
-- [ ] `npx tsc -b` clean · `eslint .` at its baseline · `vitest run` green.
-- [ ] Live check on a Psalm (dense coverage), a non-Psalm OT chapter (thin), and a verse scope.
-- [ ] Confirm a second reader gets the cached door instantly, with no generation and no entitlement prompt.
-- [ ] Confirm an interrupted generation leaves the door uncached rather than half-written.
-- [ ] Runbook note or design-doc update recording the applied migration date and the first warmed passages.
+- [x] `npx tsc -b` clean · `eslint .` at its baseline (163) · `vitest run` green (4,039).
+- [x] Live check on a Psalm (dense), a non-Psalm OT chapter (thin), and a verse scope — **at the pipeline level**, via the eval sweep: `docs/lamplight/evals/2026-08-06-b2-passage-door`, 3/3.
+- [x] **Redeployed `passage-insight`.** It had gone stale: Task 9's `displayRefs` fix lives in `study-context.ts`, which the function bundles, so the live door was still printing `psa 27:2` at readers until the redeploy. Boot re-verified (401 unauthenticated, 400 on a bad body).
+- [x] Client read path checked against the real table: the exact query `usePassageInsight` issues returns `200 []` for `psa.27`, `psa.27.4` and `nam.1`, so a reader today correctly gets *Study this passage* rather than an error.
+- [x] Runbook: `docs/runbooks/passage-insight.md` — migration date, deploy procedure, warming, refresh, known issues, and the verification table.
+- [ ] **BLOCKED, human-only — needs an authenticated Plus/promo session.** Three checks have never run, and all three are about the edge function rather than the pipeline the eval drives:
+  - [ ] End-to-end generate through the deployed function, writing real cache rows. **The corpus is still 0 rows.**
+  - [ ] A second reader gets the cached door instantly, with no generation and no entitlement prompt.
+  - [ ] An interrupted generation leaves the door uncached rather than half-written.
+  - [ ] Record the first warmed passages in the runbook (§6 carries the step-by-step).
 
 ---
 
@@ -166,6 +236,7 @@ The reusable layer is one below: **`generateStreamingWithRetry`** (`_shared/gene
 
 - If per-section streaming makes the four-field tool awkward under `generateWithRetry`'s stricter-retry, consider whether a failed section can be regenerated alone rather than the whole door. Do not build that speculatively.
 - The `door` check constraint needs widening in B3; note it there rather than pre-widening now.
+- ~~A door whose four sections all come back empty…~~ **Closed in Task 6:** `writePassageDoor` returns `{ written: false, reason: 'empty_door' }` and writes nothing. Task 7 must surface that on the `done` beat so the client knows the door is still uncached rather than reporting a successful generation.
 
 ---
 

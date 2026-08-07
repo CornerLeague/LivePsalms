@@ -19,7 +19,8 @@ import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-a
 import { supabase } from '@/lib/supabase';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { InsightsOverlay } from '../insights/InsightsOverlay';
-import { referenceDoor } from '../insights/doors';
+import { referenceDoor, passageDoor } from '../insights/doors';
+import { useLamplightEntitlement } from '@/notepad/hooks/useLamplightEntitlement';
 import '../study-theme.css';
 
 export function MobileStudyWorkspace() {
@@ -45,9 +46,17 @@ export function MobileStudyWorkspace() {
   // Full-screen over the tab bar. The panes below stay mounted, so closing
   // Insights returns the reader to its scroll position and selected verse.
   const [insightsOpen, setInsightsOpen] = useState(false);
+  // Gates the GENERATE action on the Passage door only. A cached door is public
+  // and free, so this never hides content that already exists.
+  const { hasAccess } = useLamplightEntitlement({ adapter: lamplightAdapter, userId: lamplightAdapter ? userId : null });
+  const canGenerate = hasAccess('inline');
   const doors = useMemo(
-    () => [referenceDoor({ translation, userId, adapter: lamplightAdapter })],
-    [translation, userId, lamplightAdapter],
+    // Door order is reading order: The Passage first, Sources & Reference last.
+    () => [
+      passageDoor({ translation, userId, adapter: lamplightAdapter, canGenerate }),
+      referenceDoor({ translation, userId, adapter: lamplightAdapter }),
+    ],
+    [translation, userId, lamplightAdapter, canGenerate],
   );
 
   // Stable + guarded so BibleReader's passage effect can't loop (see DesktopStudyWorkspace).

@@ -23,10 +23,16 @@ const STUDY_REPLY_MAX_CHARS = 3000;
 // below") rather than injected per-context: ChatPromptModule.system is a static
 // string, and a chapter with no library coverage must produce exactly today's
 // behaviour rather than a dangling promise of material that never arrives.
-const SYSTEM = [
-  'You are Lamplight Study, a seasoned student of Scripture helping a reader go deeper into the Bible itself.',
-  'Speak as a careful, humble scholar: connect authorship and dating, regions and cultures, cross-references and Old-to-New-Testament typology, the conversational meaning of Hebrew and Greek terms, and modern-day application.',
-  "The open chapter is the reader's starting point, not a boundary. The reader may ask questions that range across all of Scripture; answer them by drawing on the supplied passage text, book context, cross-references, and the related passages retrieved from across the Bible.",
+/**
+ * The rules every study-grounded surface obeys: how to treat supplied text, how
+ * to name a voice, what a lexicon block does and does not license.
+ *
+ * Exported so Door 1 (`passage-insight.ts`) composes the SAME sentences rather
+ * than a hand-written paraphrase. Two copies of a guardrail drift, and the one
+ * that drifts is the one nobody re-reads — which is exactly how the contested
+ * guard came to match a spelling study chat never emits.
+ */
+export const STUDY_GROUNDING_RULES: readonly string[] = [
   'You never speak prophetically and never claim certainty you do not have. State facts you are given as facts (and cite them); offer interpretation as possibility, not pronouncement.',
   'Ground every claim in the supplied text. When you reference a verse, cite it with the exact supplied ref — only ever cite verses that appear in the supplied passage, the cross-references, or the related passages. Do not invent verses, dates, etymologies, or sources.',
   // ── Voices from the church's study (slice 1c) ──
@@ -37,6 +43,13 @@ const SYSTEM = [
   'The voices are grounding, not citations: a verse a commentator merely mentions does not become citable. Quoting a voice never widens the set of refs you may cite — that set is the supplied passage, cross-references, and related passages, and nothing else.',
   // ── Lexicon (replaces the Phase-0 "no lexicon supplied" hedge) ──
   'You may discuss Hebrew/Greek meaning conversationally and hedged. When a lexicon block is supplied below, you may lean on it and say so ("the lexicon glosses this as…"), using only the entries given. When no lexicon block is supplied, never present a gloss as if quoting a lexicon; for verified word studies, point the reader to the Etymology panel on the verse.',
+];
+
+const SYSTEM = [
+  'You are Lamplight Study, a seasoned student of Scripture helping a reader go deeper into the Bible itself.',
+  'Speak as a careful, humble scholar: connect authorship and dating, regions and cultures, cross-references and Old-to-New-Testament typology, the conversational meaning of Hebrew and Greek terms, and modern-day application.',
+  "The open chapter is the reader's starting point, not a boundary. The reader may ask questions that range across all of Scripture; answer them by drawing on the supplied passage text, book context, cross-references, and the related passages retrieved from across the Bible.",
+  ...STUDY_GROUNDING_RULES,
   // ── Contested questions ──
   // Study chat is exempt from the blanket CONTESTED_PASSAGES rejection (see
   // ChatPromptModule.allowContestedRefs), so the requirement lives here instead
@@ -49,6 +62,16 @@ const SYSTEM = [
   // own last sentence. Finishing the thought matters more than the number.
   'Aim for 200–400 words: enough to develop one line of thought with its grounding, and then stop. Finish your final sentence — never break off mid-thought.',
 ].join(' ');
+
+// Verse scope only. The selected verse with its immediate neighbours, marked so
+// "what comes before and after" is a question the model can actually answer.
+// Absent at chapter scope, where the whole passage text is already supplied.
+function renderFocusVerses(ctx: BibleChatContext): string {
+  const verses = ctx.focusVerses ?? [];
+  if (verses.length === 0) return '';
+  return 'The reader has selected a verse. Its immediate context:\n' +
+    verses.map((v) => `- ${v.ref}${v.isFocus ? ' [the selected verse]' : ''}: ${v.text}`).join('\n');
+}
 
 function renderBookContext(ctx: BibleChatContext): string {
   const b = ctx.bookContext;
@@ -101,28 +124,47 @@ function renderLexicon(ctx: BibleChatContext): string {
       .join('\n');
 }
 
+/**
+ * The grounding turn every study-grounded surface sends: passage, focus verses,
+ * book apparatus, cross-references, related passages, library voices, lexicon,
+ * and any notes the reader brought in.
+ *
+ * Shared with Door 1 so the two surfaces are grounded identically. A block
+ * renders only when its data is present, so a caller that supplies less simply
+ * sends less — no dangling promise of material that never arrives.
+ */
+export function renderStudyGrounding(ctx: BibleChatContext): string {
+  return [
+    `Passage: ${ctx.passageRef}`,
+    ctx.passageText,
+    renderFocusVerses(ctx),
+    renderBookContext(ctx),
+    renderCrossRefs(ctx),
+    renderRelatedPassages(ctx),
+    renderLibraryVoices(ctx),
+    renderLexicon(ctx),
+    renderNotes(ctx),
+  ].filter((s) => s.trim().length > 0).join('\n\n');
+}
+
 export const STUDY_CHAT_PROMPT: ChatPromptModule = {
+  // v7: reader-facing refs. The grounding now supplies "Psalms 27:4" rather
+  // than the OSIS key "psa 27:4", and the citation allowlist moves with it —
+  // the model prints back whatever form it is handed, and every reply in the
+  // 2026-08-06 baseline that carried a ref showed the key form to the reader.
+  // The SYSTEM text below is unchanged; the bump is because the GROUNDING is
+  // what changed, and prompt_version is what makes that reviewable later.
+  //
   // v6: own reply ceiling (3000, was journaling's 1400) + the word target that
   // keeps the model away from it; exempt from the contested-passage rejection,
   // with the labeled-readings requirement moved into SYSTEM above.
-  promptVersion: 'study-chat-2026-08-06-v6',
+  promptVersion: 'study-chat-2026-08-06-v7',
   system: SYSTEM,
   allowContestedRefs: true,
   tool: makeChatReplyTool({ maxReplyChars: STUDY_REPLY_MAX_CHARS }),
   buildMessages(ctx: BibleChatContext) {
-    const blocks = [
-      `Passage: ${ctx.passageRef}`,
-      ctx.passageText,
-      renderBookContext(ctx),
-      renderCrossRefs(ctx),
-      renderRelatedPassages(ctx),
-      renderLibraryVoices(ctx),
-      renderLexicon(ctx),
-      renderNotes(ctx),
-    ].filter((s) => s.trim().length > 0);
-    const grounding = blocks.join('\n\n');
     const out: Array<{ role: 'user' | 'assistant'; content: string }> = [
-      { role: 'user', content: grounding },
+      { role: 'user', content: renderStudyGrounding(ctx) },
     ];
     for (const h of ctx.history) out.push({ role: h.role, content: h.content });
     out.push({ role: 'user', content: ctx.userMessage });

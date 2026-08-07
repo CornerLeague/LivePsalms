@@ -6,12 +6,9 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '../_shared/supabase.ts';
-import { type VoyageDeps, embedQuery } from '../_shared/voyage.ts';
-import { searchBible, searchUserNotesByQuery } from '../_shared/retrieval.ts';
-import { formatVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
+import { type VoyageDeps } from '../_shared/voyage.ts';
 import { createOpenAIAdapter } from '../_shared/openai.ts';
 import { makeDoctrinalClassifier } from '../_shared/doctrinal-classifier.ts';
-import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { hasChatAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { recordLamplightUsage } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
@@ -20,13 +17,12 @@ import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/qu
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
 import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
 import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
-import { runBibleChatPipeline, type BibleChatContext } from './bible-chat-pipeline.ts';
+import { runBibleChatPipeline } from './bible-chat-pipeline.ts';
+import { buildChatContext } from './chat-context.ts';
 import { BIBLE_INSIGHT_PROMPT } from './prompts/bible-insight.ts';
 import { streamBibleChat, type BibleChatStreamDeps } from './bible-chat-stream.ts';
 
 const HISTORY_LIMIT = 10;
-const NOTE_K = 4;
-const CROSSREF_K = 3;
 
 serve(async (req) => {
   const cors = corsHeaders(req, resolveAllowedOrigins(Deno.env));
@@ -155,6 +151,9 @@ async function handleChat(req: Request): Promise<Response> {
           userId, book, chapter, passageRef,
           message: mode === 'insight' ? '' : message,
           retrievalQuery, history, voyageDeps, rerankEnabled, translation,
+          // Reader-facing refs. The model prints back whatever form it is
+          // handed, and this builder was handing it the OSIS key.
+          displayRefs: true,
         });
       },
       llm,
@@ -208,6 +207,8 @@ async function handleChat(req: Request): Promise<Response> {
         retrievalQuery,
         history,
         voyageDeps, rerankEnabled, translation,
+        // See the streaming path above; the two must not diverge.
+        displayRefs: true,
       });
       const result = await runBibleChatPipeline({
         llm, ctx,
@@ -254,76 +255,3 @@ async function upsertThread(
   return reread.data.id as string;
 }
 
-async function buildChatContext(
-  supabase: SupabaseClient,
-  args: {
-    userId: string; book: string; chapter: number; passageRef: string;
-    message: string;          // rendered as the question (empty for insight)
-    retrievalQuery: string;   // what we embed for note/cross-ref search
-    history: Array<{ role: 'user' | 'assistant'; content: string }>;
-    voyageDeps: VoyageDeps; rerankEnabled: boolean; translation?: string;
-  },
-): Promise<BibleChatContext> {
-  const translation = args.translation ?? 'BSB';
-
-  // Open chapter passages — fetched in the chosen translation (with eq filter).
-  // The chapter browse fetch uses a LIKE pattern; we add eq('translation') then like.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chapterQuery = (supabase.from('bible_passages') as any)
-    .select('id, book, chapter, verse_start, verse_end, text')
-    .eq('translation', translation)
-    .like('id', `${args.book}.${args.chapter}.%`)
-    .order('verse_start', { ascending: true });
-  const { data: chapterRows, error: cErr } = await chapterQuery;
-  if (cErr) throw cErr;
-  const verses = (chapterRows ?? []) as Array<{ book: string; chapter: number; verse_start: number; verse_end: number; text: string }>;
-  const passageText = verses.map((v) => `${v.verse_start} ${v.text}`).join(' ');
-  const passageRefHuman = `${args.book} ${args.chapter}`;
-  const chapterVerseRefs = new Set(verses.map((v) => formatVerseRef(v).toLowerCase()));
-
-  // Embed the retrieval query once; reuse for both retrievals.
-  const queryEmbedding = await embedQuery(args.retrievalQuery, args.voyageDeps);
-
-  // User note neighbors.
-  const retrievedNotes = await searchUserNotesByQuery(
-    { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
-    { userId: args.userId, k: NOTE_K, query: args.retrievalQuery, queryEmbedding },
-  );
-  const noteIds = [...new Set(retrievedNotes.map((r) => r.source_id))];
-  let notes: BibleChatContext['notes'] = [];
-  if (noteIds.length) {
-    const { data: noteRows } = await supabase
-      .from('notes').select('id, title, content').eq('user_id', args.userId).in('id', noteIds);
-    notes = ((noteRows ?? []) as Array<{ id: string; title: string; content: string }>)
-      .map((n) => ({ id: n.id, title: (n.title ?? '').trim() || '(untitled)', plaintext: extractTextFromNoteContent(n.content).slice(0, 800) }))
-      .filter((n) => n.plaintext.trim().length > 0);
-  }
-
-  // Cross-reference passages from the whole Bible — semantic search stays BSB;
-  // text fetch uses the chosen translation with BSB fallback via fetchPassageText.
-  const retrievedBible = await searchBible(
-    { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
-    { query: args.retrievalQuery, k: CROSSREF_K, queryEmbedding, translation },
-  );
-  const crossIds = retrievedBible.map((r) => r.source_id);
-  let crossRefs: BibleChatContext['crossRefs'] = [];
-  const crossRefSet = new Set<string>();
-  if (crossIds.length) {
-    const byId = await fetchPassageText(supabase as never, crossIds, translation);
-    crossRefs = [...byId.values()]
-      .map((p) => { const ref = formatVerseRef(p); crossRefSet.add(ref.toLowerCase()); return { ref, text: p.text }; });
-  }
-
-  const allowedVerseRefs = new Set<string>([...chapterVerseRefs, ...crossRefSet]);
-
-  return {
-    passageRef: passageRefHuman,
-    passageText,
-    crossRefs,
-    notes,
-    history: args.history,
-    userMessage: args.message,
-    allowedNoteIds: new Set(notes.map((n) => n.id)),
-    allowedVerseRefs,
-  };
-}

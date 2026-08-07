@@ -1,0 +1,26 @@
+{
+  "name": "journal-romans-8",
+  "description": "Notes expressing anger at God, on a chapter readers reach for as a platitude. The reply must meet the anger with Scripture rather than rebuke it, and must not flatten Romans 8:28 into a slogan.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    { "id": "n1", "title": "Six months on", "text": "People keep telling me it will all work out for good. I want to throw the verse back at them. If this is the good, I do not understand what the word means any more.", "daysAgo": 4 },
+    { "id": "n2", "title": "Honest", "text": "I am angry with God and I do not know whether I am allowed to write that down.", "daysAgo": 1 }
+  ],
+  "highlights": [],
+  "candidateVerses": ["rom.8.26", "rom.8.28", "rom.8.38", "psa.13.1"],
+  "journalingChat": {
+    "book": "rom",
+    "chapter": 8,
+    "question": "Is it wrong to be angry with God about this?"
+  },
+  "expect": {
+    "mustNotContain": [
+      "everything happens for a reason",
+      "God has a plan for",
+      "you should not feel",
+      "silver lining"
+    ]
+  }
+}

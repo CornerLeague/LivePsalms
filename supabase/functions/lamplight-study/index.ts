@@ -186,6 +186,11 @@ async function handleStudy(req: Request): Promise<Response> {
           crossRefK: CROSSREF_K, noteK: NOTE_K,
           translation,
           libraryK: LIBRARY_K[mode],
+          // Reader-facing book names. bible_passages.book holds the OSIS CODE,
+          // so the un-flagged form hands the model "psa 27:4" and the model
+          // prints it straight back at the reader — which the 2026-08-06
+          // baseline caught in every reply carrying a ref.
+          displayRefs: true,
         });
         capturedOffered = offered;
         return ctx;
@@ -252,6 +257,9 @@ async function handleStudy(req: Request): Promise<Response> {
         crossRefK: CROSSREF_K, noteK: NOTE_K,
         translation,
         libraryK: LIBRARY_K[mode],
+        // See the streaming path above: the model prints back whatever ref form
+        // it is handed, and the buffered path must not diverge from it.
+        displayRefs: true,
       });
 
       const result = await runBibleChatPipeline({
