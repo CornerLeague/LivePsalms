@@ -90,6 +90,23 @@ export function ceilingFor(maxWords: number): number {
  *   inconsistently — and an empty citations array passes the allowlist
  *   vacuously, which is exactly how it enforced nothing before B2's Task 5.
  */
+/**
+ * The contested-passage steering sentence, shared by every generated door.
+ *
+ * Both doors keep the blanket `CONTESTED_PASSAGES` rejection — neither sets
+ * `allowContestedRefs` (Door 1: B2; Door 2: Myles, 2026-08-07). Study chat has
+ * the exemption because a reader asking a direct question deserves labeled
+ * readings; a door is descriptive, generated once, and served to everyone from
+ * a shared cache.
+ *
+ * Because the validator rejects rather than warns, the prompt has to steer AWAY
+ * where study chat's steers toward — and it is the same policy for both doors,
+ * so it is authored once. Two copies of a sentence this consequential is two
+ * chances for them to drift apart.
+ */
+export const INSIGHT_CONTESTED_RULE =
+  'Where a passage turns on a question the church is genuinely divided about, describe what the text plainly says and note that the question is disputed — then stop. Do not lay out the competing positions and do not adjudicate between them; a reader who wants that should be pointed to Lamplight Study chat and to their own church.';
+
 export const INSIGHT_SECTION_RULES: readonly string[] = [
   'Stay inside each word range and finish every sentence you begin — never break off mid-thought to fit.',
   'If the supplied grounding gives you nothing real to say for a section, return it empty. An empty section is a legitimate answer and is rendered as nothing at all; padding it with generalities is worse than omitting it.',

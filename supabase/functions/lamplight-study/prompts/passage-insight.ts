@@ -17,6 +17,7 @@
 // pinned byte-for-byte by passage-insight-bytes.test.ts.
 import { STUDY_GROUNDING_RULES, renderStudyGrounding } from './study-chat.ts';
 import {
+  INSIGHT_CONTESTED_RULE,
   INSIGHT_SECTION_RULES,
   buildInsightTool,
   renderSectionBrief,
@@ -70,10 +71,10 @@ const SYSTEM = [
   // The shared rules, composed rather than paraphrased — see STUDY_GROUNDING_RULES.
   ...STUDY_GROUNDING_RULES,
   // ── Contested passages ──
-  // Door 1 keeps the blanket rejection (no allowContestedRefs), so the prompt
-  // must steer away rather than toward. This is the opposite instruction from
-  // study chat's, and deliberately so.
-  'Where a passage turns on a question the church is genuinely divided about, describe what the text plainly says and note that the question is disputed — then stop. Do not lay out the competing positions and do not adjudicate between them; a reader who wants that should be pointed to Lamplight Study chat and to their own church.',
+  // Shared with Door 2 — same policy, authored once. Both doors keep the
+  // blanket rejection, so the prompt must steer away rather than toward. This
+  // is the opposite instruction from study chat's, and deliberately so.
+  INSIGHT_CONTESTED_RULE,
   // ── Sections ──
   'Write these four sections:',
   ...PASSAGE_INSIGHT_SECTIONS.map(renderSectionBrief),
