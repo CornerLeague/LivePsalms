@@ -1,5 +1,5 @@
 // src/notepad/study/panes/LamplightStudyPanel.tsx
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, History as HistoryIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useStudyChatThread } from '../useStudyChatThread';
@@ -12,6 +12,7 @@ import type { ChatCitation, InvokeFn } from '@/notepad/bible/lamplight-chat-clie
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { formatHistoryLabel, formatPassageLabel } from '../history-label';
 import { StudyChatWaiting } from './StudyChatWaiting';
+import { useApplyHandoff, type StudyHandoff } from '../insights/study-handoff';
 
 const invoke: InvokeFn = (name, options) =>
   supabase!.functions.invoke(name, { body: options.body as Record<string, unknown> }) as ReturnType<InvokeFn>;
@@ -52,13 +53,22 @@ function AssistantRow({ content, streaming }: { content: string; streaming?: boo
   );
 }
 
-export interface LamplightStudyPanelProps { book: string; chapter: number; userId: string | null }
+export interface LamplightStudyPanelProps {
+  book: string;
+  chapter: number;
+  userId: string | null;
+  /**
+   * A seeded prompt handed over from an Insights section footer (design §2).
+   * Prefills the draft and NEVER sends — the reader stays the author.
+   */
+  handoff?: StudyHandoff | null;
+}
 
 type StudySelection =
   | { mode: 'passage' }
   | { mode: 'thread'; threadId: string; book: string; chapter: number };
 
-export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPanelProps) {
+export function LamplightStudyPanel({ book, chapter, userId, handoff = null }: LamplightStudyPanelProps) {
   const { translation } = useBiblePrefs();
   const [selection, setSelection] = useState<StudySelection>({ mode: 'passage' });
   const [showHistory, setShowHistory] = useState(false);
@@ -83,6 +93,44 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
     setSelection({ mode: 'passage' });
     setShowHistory(false);
   }, [book, chapter]);
+
+  // ── The Insights handoff ────────────────────────────────────────────────
+  // A seeded prompt from a section footer lands here. It prefills and does not
+  // send: decision 7 keeps the reader the author of their question.
+  //
+  // ⚠️ The selection reset is the load-bearing line. groundBook/groundChapter
+  // come from the SELECTION, not the props, so if the reader has reopened a
+  // history thread on another passage, a seeded prompt about Psalm 27 would
+  // ground on that thread's chapter and append to that thread — breaking the
+  // one thing decision 7 actually settles ("appends to the passage's existing
+  // thread"). It only reproduces when the reader has been in history first,
+  // which is why it is pinned by test rather than left to review.
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pendingFocusRef = useRef(false);
+
+  useApplyHandoff(handoff, (h) => {
+    setSelection({ mode: 'passage' });
+    setShowHistory(false);
+    setError(null);
+    setDraft(h.text);
+    pendingFocusRef.current = true;
+  });
+
+  // Focus after the draft renders, so the caret lands at the end of the seeded
+  // text rather than wherever the old value left it. Keyed on the handoff and
+  // not on the draft: pressing the same prompt twice is a no-op `setDraft`,
+  // which would skip a re-render and never fire a draft-keyed effect. The flag
+  // is what keeps a remount carrying a stale handoff from stealing focus —
+  // useApplyHandoff declines to apply it, so the flag is never set.
+  useEffect(() => {
+    if (!pendingFocusRef.current) return;
+    pendingFocusRef.current = false;
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+  }, [handoff]);
 
   const bufferedSend = useCallback(async (message: string, includeIds: string[]) => {
     const res = await sendStudyMessage(invoke, {
@@ -303,6 +351,7 @@ export function LamplightStudyPanel({ book, chapter, userId }: LamplightStudyPan
       )}
       <div style={{ borderTop: '1px solid var(--pale-stone)', padding: 12, display: 'flex', gap: 8 }}>
         <input
+          ref={inputRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
