@@ -76,7 +76,11 @@ This is #120's lesson repeating with a sharper edge. There it was *"the componen
 1. ✅ Fix `EtymologyPanel`.
 2. ✅ **Make the promo case testable rather than mocked away.** `EtymologyPanel.promo.test.tsx` drives the **real** `useLamplightEntitlement` with a `FakeLamplightAdapter` whose promo is on and a null `userId` — no entitlement mock at all. The three files that *did* mock the module wholesale now spread `importActual` so the real predicate survives, and one of them broke loudly the moment it did, which is the point.
 
-**Still open, and worth doing before the next surface is added:** the same assertion as a *shared* one, so every generate action is checked rather than the two that have already bitten. Two data points is a pattern.
+3. ✅ **The shared check** — `src/notepad/hooks/entitlement-guards.contract.test.ts`, in the shape of `bible/prefs/single-instance.test.ts` and `onboarding/tour/anchors.contract.test.ts`.
+
+**Deliberately structural rather than one behavioural test per surface**, because a per-surface test cannot catch the third instance — the surface that bites next is the one nobody wrote a test for, and EtymologyPanel is the proof: it *had* a test file the whole time, and that file mocked the defect's own precondition. So the sweep walks `src/`, and **a new `hasAccess` call site fails it until somebody classifies the guard**, which puts the question in front of the person adding the surface rather than the person debugging it later. It also bans outright the literal line that shipped twice — `const canX = hasAccess(…)`.
+
+Three guard kinds, each *verified* rather than declared: `entitledAndSignedIn` (or a wrapper proven to delegate to it), a signed-out early return that must appear **before** the `hasAccess` line, and consumer-guards. All three failure modes were confirmed to fire by temporarily breaking each one.
 
 ---
 
