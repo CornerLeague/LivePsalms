@@ -1290,16 +1290,6 @@ async function runStudyChatFixture(args: {
     '',
     result.reply,
     '',
-    // Reported, never gated. Which section named whom is the number A1's watch
-    // item is about, and it must be readable without re-running anything.
-    `_voices named: ${
-      doorEntry.spec.sections
-        .map((sec) => {
-          const hits = namedSources(result.sections[sec.key] ?? '', ctx.libraryExcerpts ?? []);
-          return `${sec.key}=${hits.length ? hits.join('+') : '—'}`;
-        })
-        .join(' · ')
-    }_`,
     `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
     '',
   ].join('\n');
@@ -1582,16 +1572,6 @@ async function runJournalingChatFixture(args: {
     '',
     result.reply,
     '',
-    // Reported, never gated. Which section named whom is the number A1's watch
-    // item is about, and it must be readable without re-running anything.
-    `_voices named: ${
-      doorEntry.spec.sections
-        .map((sec) => {
-          const hits = namedSources(result.sections[sec.key] ?? '', ctx.libraryExcerpts ?? []);
-          return `${sec.key}=${hits.length ? hits.join('+') : '—'}`;
-        })
-        .join(' · ')
-    }_`,
     `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
     '',
   ].join('\n');

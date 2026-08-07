@@ -272,7 +272,9 @@ Runbook §6 carries both, alongside the Door 2 steps (8–10) that also want a f
 
 ## Follow-ups this plan may surface
 
-- **A standing typecheck for `supabase/functions`.** The `DOOR_REGISTERS` defect is what an ungated directory costs, and B3 makes the shell more parameterised, not less. Its own slice, with its own tsconfig project.
+- **A standing typecheck for `scripts/` and `supabase/functions` — and it is a SMALL slice, measured.** `scripts/` is **six type errors** away from clean: two `SupabaseClient` generic mismatches in `bible-parity-check.ts`, two more in `ingest-bsb.ts`, one `.like` on a narrowed query builder in `eval-lamplight.ts`, and one missing `.d.ts` for `style-assets-lib.mjs`. Fix those and `scripts/` can join `tsconfig.node.json` as a standing gate.
+
+  This is not theoretical twice over. `DOOR_REGISTERS` reached `main` through an ungated `supabase/functions`, and B3's review caught a second one in the ungated `scripts/`: a snippet meant for the passage-insight runner was pasted into all three runners by a replace-all, leaving `runStudyChatFixture` and `runJournalingChatFixture` referencing an undefined `doorEntry`. Both would have aborted **after** paying for the model call. Reproduced against `tsc` afterwards: it reports `TS2304: Cannot find name 'doorEntry'` immediately. Two bugs of the same shape, in the two directories nothing typechecks.
 - **PR #117 still carries the `DOOR_REGISTERS` defect.** Fixed here in `867445b0`; it wants the same one-line fix on that branch, or #117 merges and B3's fix arrives behind it.
 - If the register filter is adopted for Door 2 (Task 8), revisit **Door 1's** — A1's Task 3 note observed that classing Wesley `devotional` put that register at three members, and the rejection was measured when it had two.
 - The known A1 limit carries: anchor rows are ordered by verse, so truncating a flooding source drops the chapter's tail, and a verse-scope anchor late in a huge chapter can miss that source. The real fix pushes the verse-overlap filter into SQL.
