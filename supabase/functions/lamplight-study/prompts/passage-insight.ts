@@ -15,11 +15,12 @@
 // derivation, the tool construction, the three tail sentences — so Door 2 shares
 // it rather than re-deriving it. The system PROSE stayed here on purpose, and is
 // pinned byte-for-byte by passage-insight-bytes.test.ts.
-import { STUDY_GROUNDING_RULES, renderStudyGrounding } from './study-chat.ts';
+import { STUDY_GROUNDING_RULES } from './study-chat.ts';
 import {
   INSIGHT_CONTESTED_RULE,
   INSIGHT_SECTION_RULES,
   buildInsightTool,
+  renderDoorGrounding,
   renderSectionBrief,
   type InsightDoorSpec,
   type InsightSection,
@@ -85,7 +86,14 @@ const SYSTEM = [
 ].join(' ');
 
 export const PASSAGE_INSIGHT_PROMPT: ChatPromptModule = {
-  promptVersion: 'passage-insight-2026-08-06-v1',
+  // v2: the uncitable-refs block. v1 could not generate a door on ANY contested
+  // chapter — the model obeyed the steering sentence and the validator rejected
+  // it anyway, because the contested rule rejects citing those refs at all.
+  // Caught by B3's deeper-romans-9 fixture and confirmed on Door 1; the hole had
+  // been there since B2, invisible because none of Door 1's three fixtures is a
+  // contested chapter. SYSTEM and the grounding both changed, so the bump is not
+  // optional.
+  promptVersion: 'passage-insight-2026-08-07-v2',
   system: SYSTEM,
   // No allowContestedRefs — see the header note.
   tool: buildInsightTool({
@@ -96,7 +104,7 @@ export const PASSAGE_INSIGHT_PROMPT: ChatPromptModule = {
   buildMessages(ctx: BibleChatContext) {
     // One turn: the shared study grounding, and nothing else. No history, no
     // question — the passage IS the prompt.
-    return [{ role: 'user' as const, content: renderStudyGrounding(ctx) }];
+    return [{ role: 'user' as const, content: renderDoorGrounding(ctx) }];
   },
 };
 

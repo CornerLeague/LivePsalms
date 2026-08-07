@@ -209,3 +209,23 @@ describe('formatRefreshPlan', () => {
     expect(formatRefreshPlan([], { dryRun: true, currentVersion: CURRENT })).toMatch(/nothing/i);
   });
 });
+
+// ── --door (B3) ──────────────────────────────────────────────────────────────
+
+describe('parseRefreshArgs — --door', () => {
+  it('defaults to Door 1, so a bare invocation means what it always did', () => {
+    expect(parseRefreshArgs([]).doorId).toBe('passage');
+  });
+
+  it('accepts a registered door', () => {
+    expect(parseRefreshArgs(['--door=deeper']).doorId).toBe('deeper');
+  });
+
+  it('REJECTS an unregistered door rather than selecting nothing', () => {
+    // Selecting zero rows and reporting "nothing to refresh" reads exactly like
+    // a warm corpus, which is the worst way for a typo to fail.
+    for (const bad of ['deep', 'DEEPER', 'reference', '']) {
+      expect(() => parseRefreshArgs([`--door=${bad}`])).toThrow(/--door must be one of/);
+    }
+  });
+});

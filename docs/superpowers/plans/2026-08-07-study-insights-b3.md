@@ -83,12 +83,54 @@ So **end-to-end generation works on both grains**, and the read path works signe
 
 ---
 
+## Progress
+
+**Tasks 1–11 complete, 2026-08-07. Door 2 is REGISTERED and reachable in both workspaces.** Branch `feat/study-insights-b3`. Gate at last push: `tsc -b` clean, eslint at its 163 baseline, **4,163** tests.
+
+**Live baseline:** `docs/lamplight/evals/2026-08-07-b3-both-doors` — **9/9 across both doors**, $0.59, zero Scripture violations, zero display-ref leaks.
+
+| Task | State | Note |
+|---|---|---|
+| 1 — migration 061 | code done, **SQL NOT APPLIED** | needs the SQL Editor; §2 of the runbook |
+| 2 — the generic seam | done | byte gate caught a 7-char drift on its first run |
+| 3 — Door 2's prompt | done | `deeper-insight-2026-08-07-v1` |
+| 4 — §9 as a rule | done | caught the John-the-Baptist false positive |
+| 5 — registry + contract | done | |
+| 6 — client | done | parity test compares the two registries directly |
+| 7 — eval door dimension | done | 5 Door 2 fixtures + a Door 1 contested one |
+| 8 — steering | done, **measured** | `exegetical`+`confessional`, `libraryK 6` |
+| 9 — attribution | done, **prompt change NOT made** | the measurement said it was unwarranted |
+| 10 — baseline then registration | done | in that order |
+| 11 — runbook + `--door` | done | |
+| 12 — completion gate | **partly — 3 human-only steps** | see below |
+
+### Still to do, and all three need a human
+
+1. **Apply migration `061`** via the SQL Editor. **Until then Door 2 cannot write a row.**
+2. **Redeploy `passage-insight`**, in the same sitting as (1) — the `onConflict` and the new PK must land together, and the whole B3 server change is in `lamplight-study/`.
+3. **The two browser checks**: a signed-out reader seeing a cached door with no spinner and no entitlement prompt, and an interrupted generation leaving the door uncached.
+
+### Decisions made while implementing, that are not in the design
+
+- **The byte-identity gate earned its keep on its first run.** Moving the length sentence into a shared constant silently dropped `" to fit"` from *"never break off mid-thought to fit"* — seven characters, invisible in review, in the exact instruction that stops the model writing up to the ceiling. Every other test in the directory stayed green through it, because they assert the prompt SAYS things rather than what it says.
+- **`door` is REQUIRED on the cache and OPTIONAL on the pipeline.** Deliberate asymmetry: a pipeline called with the wrong door returns prose nobody keeps; a cache called with the wrong door WRITES it under another door's key. Defaults are fine where output is transient and not where it is persisted. The stream module resolves one spec and hands it to all three of read, generate and write.
+- **The prose stayed per-door; only the mechanism moved.** A `buildSystem(spec)` would have buried the one thing this repo reviews line by line.
+- **⚠️ `TRADITION_TERMS` needed two patterns for "Baptist".** A blanket `/\bBaptist\b/` matches John the Baptist, so Door 2 would have rejected a valid *Read With Care* section on most Gospel passages. A rule that fails across four books is not a rule. A lookbehind drops "John the Baptist" and "the Baptist"; a second pattern puts the denomination back when it modifies a noun.
+- **⚠️⚠️ A contested chapter could have no generated door at all — in EITHER door, since B2.** `deeper-romans-9` caught it, and Door 1 was confirmed to fail identically. The prompt said "note that the question is disputed — then stop" and the model obeyed; the validator rejected the door anyway, because `CONTESTED_PASSAGES` rejects **citing** those refs, and nothing can describe Romans 9 without citing Romans 9. **The prompt and the validator disagreed about what the policy meant, and the prompt was the half that could not see the list.** Fixed by giving both doors' grounding an uncitable-refs block computed with the same reference-aware matcher the validator uses — so they cannot drift. Door 1 → `passage-insight-2026-08-07-v2`. Twelve chapters were affected, including the ones readers most want depth on.
+  - Consequence: the two warmed Leviticus 1 doors are now stale. That is D2 working, not a bug.
+- **The attribution prompt change was measured and NOT made.** Door 2's theology section names 1–4 voices on 5/5 fixtures at v1, with no attribution requirement in the prompt at all. The problem A1 flagged is not present on this door, so changing a prompt to fix it would have cost a version bump and a fresh baseline for no evidence-backed gain. This is exactly what building the check first is for.
+- **The attribution gate is scoped to sections that DECLARE it** (`requiresAttribution`), which today is Door 2's theology alone. Applying it door-wide made the suite red on Door 1, whose gap is real (3 of 4 fixtures name a voice; `passage-psalm-27-v4` names none) but predates B3 — and whose cause is not isolated, since Door 2 differs in both brief phrasing and register steering. Measured and reported in every snapshot's `voices named` line; not gated.
+- **The harness reports per-source COUNTS, not a deduped list.** "4 — treasury, jfb" hid that Psalm 27 was `treasury×3, jfb×1` — three of four slots to one devotional source. The steering decision turned on that number.
+- **Two test fakes were hiding the properties worth testing.** The stream test's Supabase builder swallowed `.eq()`, making "this door reads its own rows" unassertable; the stream adapter hardcoded Door 1's four keys, so it would have reported a passing stream for a door that emitted nothing.
+- **`scripts/` is not typechecked either.** The plan noted `supabase/functions`; `tsconfig.node.json` covers `vite.config.ts` and three test files, so the eval harness and every ingest script are unguarded too. Hand-checking surfaced pre-existing strictness errors in `_shared/bible-passage.ts` and the harness's journaling runner, both untouched by B3.
+
+
 ## Task 1 — Migration 061: put `door` in the key
 
-- [ ] Look up the door check constraint's **real** name first — an inline `check` in `create table` gets an auto-generated name. `select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.bible_passage_insight'::regclass;`
-- [ ] Write `061_passage_insight_door_key.sql`: drop and re-add the door check as `check (door in ('passage','deeper'))`; drop `bible_passage_insight_pkey` and add `primary key (scope, ref_id, door, section)`.
-- [ ] Drop the now-redundant `bible_passage_insight_door` index — the new PK's index covers the `(scope, ref_id, door)` prefix.
-- [ ] Failing test: `writePassageDoor` upserts with `onConflict: 'scope,ref_id,door,section'`.
+- [x] Look up the door check constraint's **real** name first — an inline `check` in `create table` gets an auto-generated name. `select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.bible_passage_insight'::regclass;`
+- [x] Write `061_passage_insight_door_key.sql`: drop and re-add the door check as `check (door in ('passage','deeper'))`; drop `bible_passage_insight_pkey` and add `primary key (scope, ref_id, door, section)`.
+- [x] Drop the now-redundant `bible_passage_insight_door` index — the new PK's index covers the `(scope, ref_id, door)` prefix.
+- [x] Failing test: `writePassageDoor` upserts with `onConflict: 'scope,ref_id,door,section'`.
 - [ ] Apply by hand via the SQL Editor, then verify from the repo with an anon-key select (`200 []`), exactly as 060 was verified.
 - [ ] Record the application date and the pre-existing row count in the runbook.
 
@@ -96,24 +138,24 @@ So **end-to-end generation works on both grains**, and the read path works signe
 
 ## Task 2 — The generic seam, under a byte-identity gate
 
-- [ ] **Failing test FIRST, before any extraction:** `PASSAGE_INSIGHT_PROMPT.system` and `JSON.stringify(PASSAGE_INSIGHT_PROMPT.tool)` equal checked-in snapshot strings, and `promptVersion === 'passage-insight-2026-08-06-v1'`. Capture the snapshots from the current code. **This test must pass before and after every commit in this task.**
-- [ ] Move `InsightSection`, `CHARS_PER_WORD`, `ceilingFor` to `prompts/insight-door.ts`; re-export from `prompts/passage-insight.ts` so no downstream import breaks.
-- [ ] Move the section-tool construction and the three tail sentences (length-and-finish · empty-is-legitimate · citations array) to `prompts/insight-door.ts` as shared pieces a door composes.
-- [ ] Leave Door 1's system prose — preamble, contested sentence, section briefs — in `prompts/passage-insight.ts`, assembled there. **Do not build it from a template.** Design §1: sharing mechanism gets every safety property; sharing prose only gets fewer characters, and prompt prose is the thing this repo reviews line by line.
-- [ ] Failing tests: the pipeline's six Door-1 constant imports become a parameter. `sectionsOf`, the flattener, per-section Scripture verification, `generateConfig`, and `textFields` all read the spec they are given.
-- [ ] Failing test: `readPassageDoor` / `writePassageDoor` take the section list rather than importing Door 1's.
-- [ ] Failing test: two different specs through the same pipeline produce two different section sets, with no leakage between them.
+- [x] **Failing test FIRST, before any extraction:** `PASSAGE_INSIGHT_PROMPT.system` and `JSON.stringify(PASSAGE_INSIGHT_PROMPT.tool)` equal checked-in snapshot strings, and `promptVersion === 'passage-insight-2026-08-06-v1'`. Capture the snapshots from the current code. **This test must pass before and after every commit in this task.**
+- [x] Move `InsightSection`, `CHARS_PER_WORD`, `ceilingFor` to `prompts/insight-door.ts`; re-export from `prompts/passage-insight.ts` so no downstream import breaks.
+- [x] Move the section-tool construction and the three tail sentences (length-and-finish · empty-is-legitimate · citations array) to `prompts/insight-door.ts` as shared pieces a door composes.
+- [x] Leave Door 1's system prose — preamble, contested sentence, section briefs — in `prompts/passage-insight.ts`, assembled there. **Do not build it from a template.** Design §1: sharing mechanism gets every safety property; sharing prose only gets fewer characters, and prompt prose is the thing this repo reviews line by line.
+- [x] Failing tests: the pipeline's six Door-1 constant imports become a parameter. `sectionsOf`, the flattener, per-section Scripture verification, `generateConfig`, and `textFields` all read the spec they are given.
+- [x] Failing test: `readPassageDoor` / `writePassageDoor` take the section list rather than importing Door 1's.
+- [x] Failing test: two different specs through the same pipeline produce two different section sets, with no leakage between them.
 
 **Requirements:** Door 1 is live, registered, and has a checked-in live baseline. The byte-identity gate is what makes this refactor reviewable rather than trusted — the same discipline that let B2 extract `STUDY_GROUNDING_RULES` without bumping `study-chat`'s version. Commit the snapshot test on its own, first, so its history shows it existed before the extraction.
 
 ## Task 3 — Door 2's prompt module
 
-- [ ] Failing test: the tool declares four fields — `hermeneutics`, `historical_setting`, `theology`, `read_with_care` — each with `minLength: 0` and a `maxLength` equal to `ceilingFor` of its word target.
-- [ ] Failing test: every ceiling sits >1.4× above the top of its stated word target.
-- [ ] Failing test: the system prompt states a word target for every field by name.
-- [ ] Failing test: **no section key collides with Door 1's.** Belt and braces alongside Task 1's PK.
-- [ ] Failing test: the prompt carries the contested-passage steering sentence and does **not** set `allowContestedRefs`.
-- [ ] Implement with `promptVersion: 'deeper-insight-2026-08-XX-v1'`.
+- [x] Failing test: the tool declares four fields — `hermeneutics`, `historical_setting`, `theology`, `read_with_care` — each with `minLength: 0` and a `maxLength` equal to `ceilingFor` of its word target.
+- [x] Failing test: every ceiling sits >1.4× above the top of its stated word target.
+- [x] Failing test: the system prompt states a word target for every field by name.
+- [x] Failing test: **no section key collides with Door 1's.** Belt and braces alongside Task 1's PK.
+- [x] Failing test: the prompt carries the contested-passage steering sentence and does **not** set `allowContestedRefs`.
+- [x] Implement with `promptVersion: 'deeper-insight-2026-08-XX-v1'`.
 
 **Bounds (design §7 — a rendering of `ceilingFor`, authoritative in code):**
 
@@ -128,13 +170,13 @@ So **end-to-end generation works on both grains**, and the read path works signe
 
 ## Task 4 — §9 becomes mechanical: per-section content rules
 
-- [ ] Failing test: `applyContentRules` (or the pipeline's composition of it) can apply a rule set to **one section** rather than the flattened door.
-- [ ] Add `TRADITION_TERMS` to `_shared/voice.ts` — modern tradition and denomination names, alongside `BANNED_PHRASES` / `CONTESTED_PASSAGES` / `GROWTH_BANNED_PHRASES`.
-- [ ] Failing test: a `read_with_care` body naming a denomination raises `family: 'banned'`, `rule: 'tradition_caution'`.
-- [ ] Failing test: the **same sentence in `theology` does not raise it** — that section is required to name whose reading it is giving. A door-wide check would forbid in one section exactly what another demands.
-- [ ] Failing test: biblical-era groups (Pharisees, the circumcision party) do not trip it.
-- [ ] Add a specific stricter-retry message for `tradition_caution` rather than reusing the generic `banned` one — the retry only helps if it says what to do differently.
-- [ ] Failing test: a violation surviving the stricter retry fails the door and writes no rows.
+- [x] Failing test: `applyContentRules` (or the pipeline's composition of it) can apply a rule set to **one section** rather than the flattened door.
+- [x] Add `TRADITION_TERMS` to `_shared/voice.ts` — modern tradition and denomination names, alongside `BANNED_PHRASES` / `CONTESTED_PASSAGES` / `GROWTH_BANNED_PHRASES`.
+- [x] Failing test: a `read_with_care` body naming a denomination raises `family: 'banned'`, `rule: 'tradition_caution'`.
+- [x] Failing test: the **same sentence in `theology` does not raise it** — that section is required to name whose reading it is giving. A door-wide check would forbid in one section exactly what another demands.
+- [x] Failing test: biblical-era groups (Pharisees, the circumcision party) do not trip it.
+- [x] Add a specific stricter-retry message for `tradition_caution` rather than reusing the generic `banned` one — the retry only helps if it says what to do differently.
+- [x] Failing test: a violation surviving the stricter retry fails the door and writes no rows.
 
 **Requirements:** the term list is **hardcoded, not derived from `library_sources.tradition`.** Deriving it would make an A2 source arrival silently change what is forbidden, and the corpus's tradition strings are ingest metadata, not policy. §9's second half — a caution needs warrant in the supplied sources or the passage's own literary data — is **not** checkable as a string property; it stays a prompt instruction plus the omission rule, measured by eval.
 
@@ -142,73 +184,73 @@ So **end-to-end generation works on both grains**, and the read path works signe
 
 ## Task 5 — The door registry and the request contract
 
-- [ ] Create `lamplight-study/insight-doors.ts`: id → `{ promptModule, sections, registers?, libraryK }`. It imports both prompt modules; the shared `prompts/insight-door.ts` imports neither, so nothing goes circular.
-- [ ] Failing test: `parsePassageInsightBody` accepts `door`, **defaults to `'passage'`** so existing clients keep working, and rejects an unregistered door id rather than trusting it.
-- [ ] Failing test: `streamPassageInsight` passes `door` to both the cache read and the cache write, so the two doors cache independently.
-- [ ] Failing test: a Door 2 cache hit does not return Door 1's rows, and vice versa.
-- [ ] Wire the door through `passage-insight/index.ts`: spec lookup, per-door `registers` and `libraryK`.
-- [ ] Run the manual `tsc --noEmit --allowImportingTsExtensions` pass on the shell — see *Read before starting*.
+- [x] Create `lamplight-study/insight-doors.ts`: id → `{ promptModule, sections, registers?, libraryK }`. It imports both prompt modules; the shared `prompts/insight-door.ts` imports neither, so nothing goes circular.
+- [x] Failing test: `parsePassageInsightBody` accepts `door`, **defaults to `'passage'`** so existing clients keep working, and rejects an unregistered door id rather than trusting it.
+- [x] Failing test: `streamPassageInsight` passes `door` to both the cache read and the cache write, so the two doors cache independently.
+- [x] Failing test: a Door 2 cache hit does not return Door 1's rows, and vice versa.
+- [x] Wire the door through `passage-insight/index.ts`: spec lookup, per-door `registers` and `libraryK`.
+- [x] Run the manual `tsc --noEmit --allowImportingTsExtensions` pass on the shell — see *Read before starting*.
 
 ## Task 6 — Client: generic over the door
 
-- [ ] Create `src/notepad/study/insights/insight-doors.ts` — id → label, blurb, section keys + headings, for both doors.
-- [ ] **Failing test pinning BOTH mirrors:** the client registry's section keys equal the server's, per door, asserted as literal strings on both sides. There are now two mirrors instead of one, and a drift breaks nothing loudly — the cache simply never hits and every reader pays to generate a door already in the table.
-- [ ] Failing test: `passageRefId` still composes `psa.27` and `psa.27.4` exactly, including the lowercasing. Unchanged by B3, and still pinned.
-- [ ] Generalise `usePassageInsight` over `doorId` — the `.eq('door', DOOR)` filter comes from the argument.
-- [ ] Generalise `PassageDoor` into a section renderer driven by the registry's headings.
-- [ ] Failing tests carried over per door: a cached door renders immediately; an uncached one offers the action; sections appear as they arrive; an empty section renders nothing at all; signed-out readers see cached content but not the action; a failed generation returns the door to its offerable state.
-- [ ] Add `door` to the POST body in the stream client.
+- [x] Create `src/notepad/study/insights/insight-doors.ts` — id → label, blurb, section keys + headings, for both doors.
+- [x] **Failing test pinning BOTH mirrors:** the client registry's section keys equal the server's, per door, asserted as literal strings on both sides. There are now two mirrors instead of one, and a drift breaks nothing loudly — the cache simply never hits and every reader pays to generate a door already in the table.
+- [x] Failing test: `passageRefId` still composes `psa.27` and `psa.27.4` exactly, including the lowercasing. Unchanged by B3, and still pinned.
+- [x] Generalise `usePassageInsight` over `doorId` — the `.eq('door', DOOR)` filter comes from the argument.
+- [x] Generalise `PassageDoor` into a section renderer driven by the registry's headings.
+- [x] Failing tests carried over per door: a cached door renders immediately; an uncached one offers the action; sections appear as they arrive; an empty section renders nothing at all; signed-out readers see cached content but not the action; a failed generation returns the door to its offerable state.
+- [x] Add `door` to the POST body in the stream client.
 
 **Requirements:** Door 2 is **not** added to `doors.tsx` in this task.
 
 ## Task 7 — Eval harness: the door dimension
 
-- [ ] `checkSections` takes section keys rather than importing Door 1's.
-- [ ] The fixture's `passageInsight` block gains `door`, validated at parse time like `verse` is.
-- [ ] `--door=` narrows a sweep; absent runs every passage-insight fixture.
-- [ ] New fixture: **a contested chapter** (Romans 9 is already a study-chat fixture). Asserts the door **generates successfully** while adjudicating nothing — design §5. Without it, B3 could ship a door that fails on exactly the passages that justify it and the eval set would stay green because no fixture asked.
-- [ ] New fixture: **a denominational-bait passage** — one whose misreadings are habitually denominational. Task 4's rule is unproven on passages that never provoke it.
-- [ ] New fixtures for the ordinary cases, mirroring Door 1's: a dense psalm at chapter grain, a verse grain, a thin non-Psalm OT chapter.
-- [ ] Grounding floors apply unchanged, plus `grounding_focus_verses` at verse grain.
+- [x] `checkSections` takes section keys rather than importing Door 1's.
+- [x] The fixture's `passageInsight` block gains `door`, validated at parse time like `verse` is.
+- [x] `--door=` narrows a sweep; absent runs every passage-insight fixture.
+- [x] New fixture: **a contested chapter** (Romans 9 is already a study-chat fixture). Asserts the door **generates successfully** while adjudicating nothing — design §5. Without it, B3 could ship a door that fails on exactly the passages that justify it and the eval set would stay green because no fixture asked.
+- [x] New fixture: **a denominational-bait passage** — one whose misreadings are habitually denominational. Task 4's rule is unproven on passages that never provoke it.
+- [x] New fixtures for the ordinary cases, mirroring Door 1's: a dense psalm at chapter grain, a verse grain, a thin non-Psalm OT chapter.
+- [x] Grounding floors apply unchanged, plus `grounding_focus_verses` at verse grain.
 
 ## Task 8 — Steering, decided on measurement
 
-- [ ] Run a free `--grounding-only` A/B on Door 2's fixtures: unsteered vs `registers: ['exegetical','confessional']`, and `libraryK` 4 vs 6.
-- [ ] Score on **source spread**, not excerpt count. Check the reports into `docs/lamplight/evals/`.
-- [ ] **Apply the filter only if spread holds or widens on every fixture.** It was measured and rejected for Door 1 twice, for exactly this reason.
-- [ ] Watch for Clarke crowding the slate — 23,797 chunks against Catena's 2,966, and an unsteered top-k already tends toward whoever has the most rows on the chapter.
-- [ ] Record the decision and its numbers in the design's §4, whichever way it goes.
+- [x] Run a free `--grounding-only` A/B on Door 2's fixtures: unsteered vs `registers: ['exegetical','confessional']`, and `libraryK` 4 vs 6.
+- [x] Score on **source spread**, not excerpt count. Check the reports into `docs/lamplight/evals/`.
+- [x] **Apply the filter only if spread holds or widens on every fixture.** It was measured and rejected for Door 1 twice, for exactly this reason.
+- [x] Watch for Clarke crowding the slate — 23,797 chunks against Catena's 2,966, and an unsteered top-k already tends toward whoever has the most rows on the chapter.
+- [x] Record the decision and its numbers in the design's §4, whichever way it goes.
 
 **Requirements:** `registers` is a **hard filter, not a bias**. The measured starting point is Door 1's post-A1 grounding (`2026-08-07-a1-embedded`): `passage-psalm-27` → treasury, jfb · `passage-psalm-27-v4` → clarke, calvin, wesley · `passage-nahum-1` → treasury, jfb, clarke. On Psalms, Treasury's specificity dominance is what steering exists to break; on Nahum, Treasury arrives only through a cross-reference anchor — Spurgeon on a psalm — which is close to noise for hermeneutics and theology.
 
 ## Task 9 — Attribution, in this order
 
-- [ ] **First:** implement `checkAttribution(prose, ctx.libraryExcerpts)` — does the section name a supplied source? Derive the nameable token from `library_sources.author` (via `sourceLabel`, which is `title · author, era`), not from a regex guess. `geneva-notes`' author is "Geneva Bible translators", so it matches on its title token.
-- [ ] **Second:** measure the baseline on Door 2's fixtures with the prompt unchanged, and check the report in.
-- [ ] **Third:** add the attribution requirement to `theology`'s brief, bump `promptVersion`, and re-measure.
-- [ ] Report `theology`'s attribution per fixture in the sweep, so a regression is visible.
+- [x] **First:** implement `checkAttribution(prose, ctx.libraryExcerpts)` — does the section name a supplied source? Derive the nameable token from `library_sources.author` (via `sourceLabel`, which is `title · author, era`), not from a regex guess. `geneva-notes`' author is "Geneva Bible translators", so it matches on its title token.
+- [x] **Second:** measure the baseline on Door 2's fixtures with the prompt unchanged, and check the report in.
+- [x] **Third:** add the attribution requirement to `theology`'s brief, bump `promptVersion`, and re-measure.
+- [x] Report `theology`'s attribution per fixture in the sweep, so a regression is visible.
 
 **Requirements:** **not a pipeline validator.** A hard "name someone or fail" pushes the model toward naming a voice it did not lean on — violating a rule that matters more ("never attribute a claim to a voice that did not make it") and undetectable from outside. It is a check whose number must not regress. The ordering is `eval-harness-discipline`: build the fixture before changing a live prompt.
 
 ## Task 10 — Live baseline, then registration — in that order
 
-- [ ] Run a full live sweep across all five fixtures. Check the report into `docs/lamplight/evals/`.
-- [ ] Zero Scripture violations, zero display-ref leaks, every expected section present and none ending mid-word.
-- [ ] **Only once that baseline is green:** register Door 2 in `doors.tsx`.
-- [ ] Confirm the overlay's chooser wakes up at three doors — B1 built it to, and this is the first time it is exercised past two.
+- [x] Run a full live sweep across all five fixtures. Check the report into `docs/lamplight/evals/`.
+- [x] Zero Scripture violations, zero display-ref leaks, every expected section present and none ending mid-word.
+- [x] **Only once that baseline is green:** register Door 2 in `doors.tsx`.
+- [x] Confirm the overlay's chooser wakes up at three doors — B1 built it to, and this is the first time it is exercised past two.
 
 ## Task 11 — Runbook + refresh script
 
-- [ ] Extend `docs/runbooks/passage-insight.md`: migration 061's date, Door 2's sections, the widened door check, the per-door warming procedure, and the §5 verification table updated.
-- [ ] `scripts/refresh-passage-insights.ts` gains `--door`. Dry by default; `--dry-run` still beats `--apply`.
-- [ ] Failing test: `--door=deeper` selects only Door 2's rows.
+- [x] Extend `docs/runbooks/passage-insight.md`: migration 061's date, Door 2's sections, the widened door check, the per-door warming procedure, and the §5 verification table updated.
+- [x] `scripts/refresh-passage-insights.ts` gains `--door`. Dry by default; `--dry-run` still beats `--apply`.
+- [x] Failing test: `--door=deeper` selects only Door 2's rows.
 
 ## Task 12 — Completion gate
 
-- [ ] `npx tsc -b` clean · `npx eslint .` at its **163-problem baseline**, not zero · `npx vitest run` green (**4,089** at plan time).
-- [ ] Manual `tsc --noEmit --allowImportingTsExtensions` on `passage-insight/index.ts` — only the `deno.land` import and the `Deno` global may error.
+- [x] `npx tsc -b` clean · `npx eslint .` at its **163-problem baseline**, not zero · `npx vitest run` green (**4,089** at plan time).
+- [x] Manual `tsc --noEmit --allowImportingTsExtensions` on `passage-insight/index.ts` — only the `deno.land` import and the `Deno` global may error.
 - [ ] Redeploy `passage-insight` — **anything under `supabase/functions/lamplight-study/` changing means the function is stale**, and B3 changes most of it. Re-verify boot: 401 unauthenticated, 400 on a bad body.
-- [ ] Client read path against the real table for a Door 2 ref: the exact query the hook issues returns `200 []`, so a reader correctly sees the generate action rather than an error.
+- [x] Client read path against the real table for a Door 2 ref: the exact query the hook issues returns `200 []`, so a reader correctly sees the generate action rather than an error.
 - [ ] **The live checks B3 inherits.** End-to-end generate and the signed-out cached read are **done for Door 1** (see *Read before starting*) — repeat both for Door 2, which is the one riding new code. Still genuinely unverified for either door, and human-only because they need a browser and an authenticated Plus/promo session:
   - [ ] a signed-out reader sees a cached door with **no spinner and no entitlement prompt** (the data layer is proven; the UI is not);
   - [ ] an **interrupted** generation leaves the door uncached rather than half-written — now testable against a table that has real rows to compare before and after.

@@ -2,7 +2,7 @@
 //
 // B3 makes the Door-1 machinery door-generic (design §1). Door 1 is LIVE,
 // registered, and has a checked-in live baseline at
-// `passage-insight-2026-08-06-v1` — plus, since 2026-08-07, real cached rows on
+// `passage-insight-2026-08-07-v2` — plus, since 2026-08-07, real cached rows on
 // Leviticus 1 that were generated under exactly these bytes.
 //
 // A refactor that shifts the emitted SYSTEM string or the tool schema by one
@@ -23,7 +23,7 @@
 // extract STUDY_GROUNDING_RULES without bumping study-chat's version.
 import { describe, it, expect } from 'vitest';
 import { PASSAGE_INSIGHT_PROMPT } from './passage-insight.ts';
-import expected from './__fixtures__/passage-insight-v1.json' with { type: 'json' };
+import expected from './__fixtures__/passage-insight-v2.json' with { type: 'json' };
 
 describe('Door 1 prompt — byte identity (B3 refactor gate)', () => {
   it('emits the same promptVersion', () => {

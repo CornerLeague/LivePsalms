@@ -11,6 +11,7 @@ import type { InsightsDoor } from './InsightsOverlay';
 import { ReferenceDoor } from './ReferenceDoor';
 import { PassageDoor } from './PassageDoor';
 import { makePassageInsightStreamInvoke, type PassageInsightInvoke } from './passage-insight-stream-client';
+import { DEEPER_DOOR_VIEW } from './insight-doors';
 
 export interface DoorDeps {
   translation: BibleTranslation;
@@ -49,6 +50,34 @@ export function passageDoor(deps: DoorDeps): InsightsDoor {
         invoke={passageInvoke}
         canGenerate={deps.canGenerate === true}
         userId={deps.userId}
+      />
+    ),
+  };
+}
+
+/**
+ * Deeper In — Door 2. How this kind of writing asks to be read, the world it
+ * came out of, the weight it carries, and where it is commonly misread.
+ *
+ * Registered only after its live baseline went green
+ * (`docs/lamplight/evals/2026-08-07-b3-both-doors`, 9/9 across both doors) —
+ * the same ordering B2 followed, and for the same reason.
+ *
+ * Same component and same hook as Door 1. The difference between the doors is a
+ * registry entry, not a second implementation.
+ */
+export function deeperDoor(deps: DoorDeps): InsightsDoor {
+  return {
+    id: DEEPER_DOOR_VIEW.id,
+    label: DEEPER_DOOR_VIEW.label,
+    blurb: DEEPER_DOOR_VIEW.blurb,
+    render: (scope) => (
+      <PassageDoor
+        scope={scope}
+        invoke={passageInvoke}
+        canGenerate={deps.canGenerate === true}
+        userId={deps.userId}
+        door={DEEPER_DOOR_VIEW}
       />
     ),
   };

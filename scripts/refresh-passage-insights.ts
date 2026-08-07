@@ -12,6 +12,7 @@
 //   npx tsx scripts/refresh-passage-insights.ts --stale --apply    # actually regenerate
 //   npx tsx scripts/refresh-passage-insights.ts --ref=psa.27 --apply
 //   npx tsx scripts/refresh-passage-insights.ts --stale --limit=5 --apply
+//   npx tsx scripts/refresh-passage-insights.ts --door=deeper --stale   # Door 2
 //
 //   --dry-run is the DEFAULT and wins over --apply. A script that spends money
 //   resolves an ambiguous invocation toward the safe reading.
@@ -26,7 +27,7 @@ import { createOpenAIAdapter } from '../supabase/functions/_shared/openai';
 import { verifyVerseRefs } from '../supabase/functions/_shared/verse-verify';
 import { buildStudyContext } from '../supabase/functions/lamplight-study/study-context';
 import { runPassageInsightPipeline } from '../supabase/functions/lamplight-study/passage-insight-pipeline';
-import { PASSAGE_DOOR_SPEC, PASSAGE_INSIGHT_PROMPT } from '../supabase/functions/lamplight-study/prompts/passage-insight';
+import { insightDoorById, INSIGHT_DOORS, DEFAULT_INSIGHT_DOOR_ID } from '../supabase/functions/lamplight-study/insight-doors';
 import {
   writePassageDoor,
   sourcesFromExcerpts,
@@ -55,6 +56,8 @@ export interface DoorSummary {
 export interface RefreshArgs {
   dryRun: boolean;
   staleOnly: boolean;
+  /** Which door's rows to refresh. Defaults to Door 1. */
+  doorId: string;
   scope?: PassageScope;
   refId?: string;
   limit?: number;
@@ -81,10 +84,19 @@ export function parseRefreshArgs(argv: string[]): RefreshArgs {
     }
   }
 
+  // Which door to refresh. Validated against the registry rather than passed
+  // through: an unrecognised id would select zero rows and report "nothing to
+  // refresh", which reads exactly like a warm corpus.
+  const doorId = get('door') ?? DEFAULT_INSIGHT_DOOR_ID;
+  if (!insightDoorById(doorId)) {
+    throw new Error(`--door must be one of ${INSIGHT_DOORS.map((d) => d.spec.id).join(', ')} (got "${doorId}")`);
+  }
+
   return {
     // Dry by default, and --dry-run beats --apply.
     dryRun: argv.includes('--dry-run') || !argv.includes('--apply'),
     staleOnly: argv.includes('--stale'),
+    doorId,
     ...(scope ? { scope } : {}),
     ...(get('ref') ? { refId: get('ref') } : {}),
     ...(limit !== undefined ? { limit } : {}),
@@ -209,7 +221,7 @@ export function formatRefreshPlan(
 
 const CROSSREF_K = 5;
 const NOTE_K = 4;
-const LIBRARY_K = 4;
+// libraryK and any register filter are PER DOOR — see insight-doors.ts.
 const TRANSLATION = 'BSB';
 
 function requiredEnv(name: string, ...fallbacks: string[]): string {
@@ -222,7 +234,11 @@ function requiredEnv(name: string, ...fallbacks: string[]): string {
 
 async function main(): Promise<void> {
   const args = parseRefreshArgs(process.argv.slice(2));
-  const currentVersion = PASSAGE_INSIGHT_PROMPT.promptVersion;
+  // Validated in parseRefreshArgs, so this cannot be null.
+  const doorEntry = insightDoorById(args.doorId)!;
+  // Per door: Door 1 and Door 2 version independently, so "stale" means stale
+  // against THIS door's current prompt, never the other's.
+  const currentVersion = doorEntry.spec.prompt.promptVersion;
 
   const supabaseUrl = requiredEnv('SUPABASE_URL', 'VITE_SUPABASE_URL');
   const serviceKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
@@ -234,7 +250,7 @@ async function main(): Promise<void> {
   const { data, error } = await supabase
     .from('bible_passage_insight')
     .select('scope, ref_id, section, prompt_version')
-    .eq('door', PASSAGE_DOOR_SPEC.id);
+    .eq('door', doorEntry.spec.id);
   if (error) throw new Error(`read failed: ${error.message}`);
 
   const doors = selectDoorsToRefresh((data ?? []) as DoorRow[], { currentVersion, ...args });
@@ -279,7 +295,8 @@ async function main(): Promise<void> {
       crossRefK: CROSSREF_K,
       noteK: NOTE_K,
       translation: TRANSLATION,
-      libraryK: LIBRARY_K,
+      libraryK: doorEntry.retrieval.libraryK,
+      ...(doorEntry.retrieval.registers ? { registers: [...doorEntry.retrieval.registers] } : {}),
       // Must match the edge function, or a refreshed door reads differently
       // from a freshly generated one.
       displayRefs: true,
@@ -289,7 +306,7 @@ async function main(): Promise<void> {
     const result = await runPassageInsightPipeline({
       llm,
       ctx,
-      door: PASSAGE_DOOR_SPEC,
+      door: doorEntry.spec,
       verifyScripture: {
         translation: TRANSLATION,
         verifyRefs: (refs, t) => verifyVerseRefs(supabase as never, refs, t),
@@ -317,7 +334,7 @@ async function main(): Promise<void> {
     const write = await writePassageDoor(supabase as never, {
       scope: door.scope,
       refId: door.refId,
-      door: PASSAGE_DOOR_SPEC,
+      door: doorEntry.spec,
       sections: result.sections,
       sources: sourcesFromExcerpts(ctx.libraryExcerpts),
       modelUsed: result.modelUsed,

@@ -12,7 +12,10 @@
 // shape, the ceiling derivation, the tool construction, and the three sentences
 // that ARE the two-bound design and the omission rule.
 
-import type { ChatPromptModule } from '../../lamplight-chat/bible-chat-pipeline.ts';
+import { CONTESTED_PASSAGES } from '../../_shared/voice.ts';
+import { buildContestedIndex, findContestedRefs } from '../../_shared/contested-refs.ts';
+import { renderStudyGrounding } from './study-chat.ts';
+import type { ChatPromptModule, BibleChatContext } from '../../lamplight-chat/bible-chat-pipeline.ts';
 
 /** One section of a door: a key, a heading, a word target, and a brief. */
 export interface InsightSection {
@@ -32,6 +35,19 @@ export interface InsightSection {
    * governs so the two can never be confused for each other.
    */
   forbidden?: InsightSectionRule;
+  /**
+   * This section's whole value depends on the reader seeing WHOSE reading they
+   * are being given, so the eval gates on it naming a supplied voice.
+   *
+   * Set on Door 2's Theological Significance and nowhere else. "This passage
+   * teaches X" with no voice behind it is the anonymous verdict
+   * STUDY_GROUNDING_RULES exists to prevent, and it is the section a reader is
+   * most likely to take as settled. Door 1's sections are not marked: its
+   * attribution gap is real and measured (see the design), but it predates B3
+   * and gating a surface this slice did not change would make the suite red for
+   * a reason B3 cannot fix without its own evidence.
+   */
+  requiresAttribution?: boolean;
 }
 
 /** A section-scoped content rule, with the retry instruction it earns. */
@@ -94,6 +110,65 @@ export function ceilingFor(maxWords: number): number {
 }
 
 /**
+ * The contested-passage steering sentence, shared by every generated door.
+ *
+ * Both doors keep the blanket `CONTESTED_PASSAGES` rejection — neither sets
+ * `allowContestedRefs` (Door 1: B2; Door 2: Myles, 2026-08-07). Study chat has
+ * the exemption because a reader asking a direct question deserves labeled
+ * readings; a door is descriptive, generated once, and served to everyone from
+ * a shared cache.
+ *
+ * Because the validator rejects rather than warns, the prompt has to steer AWAY
+ * where study chat's steers toward — and it is the same policy for both doors,
+ * so it is authored once. Two copies of a sentence this consequential is two
+ * chances for them to drift apart.
+ */
+export const INSIGHT_CONTESTED_RULE = [
+  'Where a passage turns on a question the church is genuinely divided about, describe what the text plainly says and note that the question is disputed — then stop. Do not lay out the competing positions and do not adjudicate between them; a reader who wants that should be pointed to Lamplight Study chat and to their own church.',
+  // Added 2026-08-07, after the deeper-romans-9 fixture caught BOTH doors
+  // failing outright on a contested chapter. The model was obeying the sentence
+  // above — its prose said "these verses involve disputed questions" — and the
+  // validator rejected the door anyway, because the contested rule rejects
+  // CITING those refs at all, not just interpreting them. The prompt and the
+  // validator disagreed about what the policy meant, and the prompt was the half
+  // that could not see the list.
+  'Some of the supplied verses are listed below as uncitable. You may describe the passage they sit in and say that the question they raise is disputed, but you must not cite those refs — not in the prose and not in the citations array. Write the sections from the verses you may cite. If that leaves a section nothing honest to say, return it empty rather than working around the restriction.',
+].join(' ');
+
+/**
+ * Which of this passage's supplied refs the contested rule will reject.
+ *
+ * Computed with **the same reference-aware matcher the validator uses**, against
+ * the same list — so the prompt and the validator cannot drift apart about what
+ * is contested, which is the failure this whole block exists to fix. A
+ * hand-maintained second list would have re-created it in a week.
+ */
+export function uncitableRefs(ctx: BibleChatContext): string[] {
+  const index = buildContestedIndex(CONTESTED_PASSAGES);
+  return [...ctx.allowedVerseRefs].filter((ref) => findContestedRefs(ref, index).length > 0);
+}
+
+/**
+ * The grounding turn a generated door sends: the shared study apparatus, plus
+ * the uncitable list when the open passage has one.
+ *
+ * NOT folded into `renderStudyGrounding`, which study chat also uses — study
+ * chat is deliberately EXEMPT from the contested rejection (`allowContestedRefs`),
+ * so handing it a do-not-cite list would forbid exactly the labeled readings it
+ * exists to give.
+ */
+export function renderDoorGrounding(ctx: BibleChatContext): string {
+  const refs = uncitableRefs(ctx);
+  const grounding = renderStudyGrounding(ctx);
+  if (refs.length === 0) return grounding;
+  return [
+    grounding,
+    'Uncitable verses — the church is genuinely divided about these. Do not cite them:',
+    refs.map((r) => `- ${r}`).join('\n'),
+  ].join('\n\n');
+}
+
+/**
  * The three sentences every door's system prompt ends with, in order.
  *
  * Load-bearing, all three, and shared rather than restated:
@@ -108,23 +183,6 @@ export function ceilingFor(maxWords: number): number {
  *   inconsistently — and an empty citations array passes the allowlist
  *   vacuously, which is exactly how it enforced nothing before B2's Task 5.
  */
-/**
- * The contested-passage steering sentence, shared by every generated door.
- *
- * Both doors keep the blanket `CONTESTED_PASSAGES` rejection — neither sets
- * `allowContestedRefs` (Door 1: B2; Door 2: Myles, 2026-08-07). Study chat has
- * the exemption because a reader asking a direct question deserves labeled
- * readings; a door is descriptive, generated once, and served to everyone from
- * a shared cache.
- *
- * Because the validator rejects rather than warns, the prompt has to steer AWAY
- * where study chat's steers toward — and it is the same policy for both doors,
- * so it is authored once. Two copies of a sentence this consequential is two
- * chances for them to drift apart.
- */
-export const INSIGHT_CONTESTED_RULE =
-  'Where a passage turns on a question the church is genuinely divided about, describe what the text plainly says and note that the question is disputed — then stop. Do not lay out the competing positions and do not adjudicate between them; a reader who wants that should be pointed to Lamplight Study chat and to their own church.';
-
 export const INSIGHT_SECTION_RULES: readonly string[] = [
   'Stay inside each word range and finish every sentence you begin — never break off mid-thought to fit.',
   'If the supplied grounding gives you nothing real to say for a section, return it empty. An empty section is a legitimate answer and is rendered as nothing at all; padding it with generalities is worse than omitting it.',

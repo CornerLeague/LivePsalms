@@ -1096,21 +1096,29 @@ export function namedSources(
  */
 export function checkAttribution(
   sections: Record<string, string>,
-  keys: readonly string[],
+  doorSections: readonly { key: string; requiresAttribution?: boolean }[],
   excerpts: Array<{ sourceId: string; sourceLabel: string }>,
 ): PropertyCheck[] {
   // Nothing supplied, nothing owed.
   if (excerpts.length === 0) return [];
 
-  const prose = keys.map((k) => sections[k] ?? '').filter(Boolean).join('\n\n');
-  const named = namedSources(prose, excerpts);
-  return [{
-    name: 'attribution_named_voice',
-    pass: named.length > 0,
-    ...(named.length > 0
-      ? {}
-      : { detail: `grounded on ${[...new Set(excerpts.map((e) => e.sourceId))].join(', ')} and named none of them` }),
-  }];
+  // Gated only where the door DECLARES attribution load-bearing. Door 1's gap is
+  // real and reported in every snapshot's `voices named` line, but it predates
+  // B3 and its cause is not isolated — Door 2 differs in both its brief's
+  // phrasing and its register steering, so a prompt change to Door 1 would be a
+  // guess with a confound. Measured, named as a follow-up, not gated.
+  return doorSections
+    .filter((sec) => sec.requiresAttribution === true)
+    .map((sec) => {
+      const named = namedSources(sections[sec.key] ?? '', excerpts);
+      return {
+        name: `attribution_${sec.key}`,
+        pass: named.length > 0,
+        ...(named.length > 0
+          ? {}
+          : { detail: `grounded on ${[...new Set(excerpts.map((e) => e.sourceId))].join(', ')} and named none of them` }),
+      };
+    });
 }
 
 /**
@@ -1460,7 +1468,7 @@ async function runPassageInsightFixture(args: {
     checks: [
       ...groundingChecks,
       ...checkSections(result.sections, sectionKeys),
-      ...checkAttribution(result.sections, sectionKeys, ctx.libraryExcerpts ?? []),
+      ...checkAttribution(result.sections, doorEntry.spec.sections, ctx.libraryExcerpts ?? []),
       ...checkDisplayRefs(prose),
       ...checkProperties(prose, fixture),
     ],

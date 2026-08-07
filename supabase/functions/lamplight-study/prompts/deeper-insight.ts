@@ -20,11 +20,12 @@
 // contested rule, the three tail sentences — is shared with Door 1 via
 // ./insight-door.ts. This file is the editorial half.
 import { TRADITION_TERMS } from '../../_shared/voice.ts';
-import { STUDY_GROUNDING_RULES, renderStudyGrounding } from './study-chat.ts';
+import { STUDY_GROUNDING_RULES } from './study-chat.ts';
 import {
   INSIGHT_CONTESTED_RULE,
   INSIGHT_SECTION_RULES,
   buildInsightTool,
+  renderDoorGrounding,
   renderSectionBrief,
   type InsightDoorSpec,
   type InsightSection,
@@ -59,6 +60,9 @@ export const DEEPER_INSIGHT_SECTIONS: readonly InsightSection[] = [
     maxWords: 200,
     brief:
       "what the passage carries doctrinally and how the church's study has read it, following the supplied voices rather than your own memory of what commentators say",
+    // A1's watch item lands here: a theological reading with no named voice is
+    // exactly the anonymous verdict STUDY_GROUNDING_RULES exists to prevent.
+    requiresAttribution: true,
   },
   {
     // ⚠️ Governed by parent design §9, which is a HARD RULE. See the section
@@ -138,7 +142,7 @@ export const DEEPER_INSIGHT_PROMPT: ChatPromptModule = {
     // One turn: the shared study grounding, and nothing else. Identical to
     // Door 1 — the two doors are grounded the same way and differ in what they
     // are asked to make of it.
-    return [{ role: 'user' as const, content: renderStudyGrounding(ctx) }];
+    return [{ role: 'user' as const, content: renderDoorGrounding(ctx) }];
   },
 };
 
