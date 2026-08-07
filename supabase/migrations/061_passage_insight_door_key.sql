@@ -11,15 +11,16 @@
 -- B3's four section keys — hermeneutics, historical_setting, theology,
 -- read_with_care — do not collide with B2's. They are chosen not to, and a test
 -- pins it. But "no collision today" is not a constraint, and the table holds
--- ZERO rows, so widening the key is free right now: no rewrite, no dedup, no
--- backfill. It will never be cheaper.
+-- EIGHT rows, all on door = 'passage' (two Door 1 doors on Leviticus 1), so
+-- widening the key is free right now: no rewrite, no dedup, no backfill, and no
+-- possible conflict. It will never be cheaper.
 --
 -- ⚠️ APPLY AND DEPLOY TOGETHER. Postgres requires an upsert's conflict target to
 -- match a real unique constraint, so between this migration landing and the
 -- `passage-insight` function being redeployed with
 -- `onConflict: 'scope,ref_id,door,section'`, Door 1's generate path fails. It
--- fails LOUDLY rather than corrupting anything, and with 0 rows nobody is
--- affected — but do not leave the window open.
+-- fails LOUDLY rather than corrupting anything, and nobody is mid-generation at
+-- eight rows on one door — but do not leave the window open.
 --
 -- Re-running is safe: every step below checks the state it is about to change
 -- rather than assuming, because 060 taught us that a hand-applied migration gets
