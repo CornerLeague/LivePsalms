@@ -171,6 +171,24 @@ Two things that table says about Door 2:
 
 `libraryK` is a second knob in the same spec. Door 1 uses 4. Door 2 asks three of its four sections to lean on voices, so 6 is the candidate — also measured on the same free sweep, and also only adopted if it buys spread rather than more of the same source.
 
+### Measured, 2026-08-07 — steering ADOPTED, and `libraryK: 6` with it
+
+Three free sweeps: `2026-08-07-b3-deeper-unsteered`, `-steered`, `-steered-k6`. The harness now reports **per-source counts** rather than a deduped list, because "4 — clarke, calvin, geneva" hides whether that is 2/1/1 or 1/1/2, and the question the decision turns on is exactly whether one high-volume source is taking the slate.
+
+| fixture | unsteered (k=4) | steered (k=4) | steered (k=6) |
+|---|---|---|---|
+| `deeper-psalm-27` | **treasury×3**, jfb×1 | jfb×1, geneva×1, clarke×2 | jfb×2, geneva×1, clarke×2, calvin×1 |
+| `deeper-psalm-27-verse-4` | clarke×2, calvin×1, wesley×1 | clarke×2, calvin×1, geneva×1 | clarke×3, calvin×1, geneva×2 |
+| `deeper-nahum-1` | treasury×2, jfb×1, clarke×1 | jfb×1, clarke×2, geneva×1 | jfb×1, clarke×2, geneva×1, calvin×2 |
+| `deeper-romans-9` | clarke×1, calvin×2, wesley×1 | clarke×1, calvin×2, geneva×1 | **clarke×3**, calvin×2, geneva×1 |
+| `deeper-james-2` | wesley×1, calvin×2, geneva×1 | calvin×2, geneva×1, clarke×1 | calvin×2, geneva×1, clarke×2, jfb×1 |
+
+**Steering is a clear win, and the counts are what make it clear.** Unsteered, Psalm 27 gives **three of four slots to Treasury** — one devotional source, on the door whose hermeneutics and theology sections want exegetical and confessional ones. That is A1's specificity dominance, and the deduped view ("treasury, jfb") understated it badly. Steered, no source exceeds two of four. The filter **never narrowed the distinct-source count on any fixture**, and it took a confessional voice from **1 of 5 fixtures to 5 of 5** — which is precisely what parent design §7 asked for and what A1 bought Geneva for. On Nahum it also drops Treasury, which reaches that book only through a psalm cross-reference anchor.
+
+**`libraryK: 6` adopted, with a caveat worth keeping.** It adds a fourth distinct source on 3 of 5 fixtures and never reduces the count. But on `deeper-romans-9` both extra slots went to Clarke, taking it from 1/4 to 3/6 — the crowding this section said to watch for. Adopted because it never costs a voice; revisit if a later sweep shows Clarke taking the slate on more than one fixture.
+
+**Door 1 is unchanged**, verified rather than assumed: `2026-08-07-b3-door1-regression` returns the same sources in the same order as `2026-08-07-a1-embedded` on all three of its fixtures.
+
 **`displayRefs: true` is not a knob.** Every reader-facing surface sets it, and Door 2's prose is reader-facing.
 
 ---

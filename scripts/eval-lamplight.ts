@@ -1083,8 +1083,16 @@ function formatGroundingSnapshot(
     '',
     `- cross-references: ${ctx.crossRefs.length}` +
       (ctx.crossRefs.length ? ` — ${ctx.crossRefs.map((c) => c.ref).join(', ')}` : ''),
+    // Per-source COUNTS, not a deduped list. "4 — clarke, calvin, geneva" hides
+    // whether that is 2/1/1 or 1/1/2, and the question a steering decision turns
+    // on is exactly whether one high-volume source is taking the slate — Clarke
+    // has 23,797 chunks against Catena's 2,966, and an unsteered top-k drifts
+    // toward whoever has the most rows on the chapter.
     `- library excerpts: ${excerpts.length}` +
-      (excerpts.length ? ` — ${[...new Set(excerpts.map((e) => e.sourceId))].join(', ')}` : ''),
+      (excerpts.length
+        ? ` — ${[...excerpts.reduce((m, e) => m.set(e.sourceId, (m.get(e.sourceId) ?? 0) + 1), new Map<string, number>())]
+            .map(([id, n]) => `${id}×${n}`).join(', ')}`
+        : ''),
     `- lexicon entries: ${(ctx.lexiconEntries ?? []).length}`,
     `- book context: ${ctx.bookContext ? ctx.bookContext.book : 'none'}`,
     '- semantic channels: **off** — the harness runs on the anon key, which cannot reach',

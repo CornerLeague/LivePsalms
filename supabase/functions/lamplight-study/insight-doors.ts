@@ -63,12 +63,26 @@ export const INSIGHT_DOORS: readonly InsightDoorEntry[] = [
   {
     spec: DEEPER_DOOR_SPEC,
     retrieval: {
-      // Provisional, pending plan Task 8's measurement. Door 2 asks three of its
-      // four sections to lean on voices, so 6 is the candidate — but a bigger k
-      // that returns more of the SAME source buys nothing, and that is what the
-      // sweep is for. Until it runs, Door 2 retrieves exactly as Door 1 does,
-      // which is the behaviour we already have evidence for.
-      libraryK: 4,
+      // Both values MEASURED, 2026-08-07, on free `--grounding-only` sweeps —
+      // `b3-deeper-unsteered` vs `b3-deeper-steered` vs `b3-deeper-steered-k6`.
+      //
+      // Steering earns its place, unlike on Door 1. Unsteered, Psalm 27 comes
+      // back `treasury×3, jfb×1` — three of four slots to one DEVOTIONAL source,
+      // on the door whose hermeneutics and theology sections want exegetical and
+      // confessional ones. Steered it is `jfb×1, geneva×1, clarke×2`. Across all
+      // five fixtures the filter NEVER narrowed the distinct-source count, and
+      // it put a confessional voice (Geneva) in the grounding of 5/5 rather than
+      // 1/5. On Nahum it also drops Treasury, which reaches that book only
+      // through a psalm cross-reference anchor — Spurgeon on a psalm, informing
+      // a Nahum door.
+      libraryK: 6,
+      registers: ['exegetical', 'confessional'],
+      // k=6 over k=4 adds a FOURTH distinct source on 3 of 5 fixtures and never
+      // reduces the count. The honest caveat: on `deeper-romans-9` the two extra
+      // slots both went to Clarke, taking it from 1/4 to 3/6 — the crowding the
+      // plan said to watch for, Clarke having 23,797 chunks against Catena's
+      // 2,966. Adopted anyway because it never costs a voice; revisit if a later
+      // sweep shows Clarke taking the slate on more than one fixture.
     },
   },
 ];
