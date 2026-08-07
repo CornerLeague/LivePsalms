@@ -97,7 +97,7 @@ Extracted per the brainstorm §5: themes (controlled vocabulary + free), posture
 Two constraints worth fixing now:
 
 - **`note_distillates` is under the same RLS as `notes`** — same owner, same delete cascade. A distillate is derived personal data and inherits every protection the source has.
-- **The crisis classification lands here too**, as a column on the distillate rather than a separate table. One row per note, one place to look, one place to delete.
+- **The crisis classification lives on the same row**, not in a separate table — one row per note, one place to look, one place to delete. **2a creates the table with the safety columns and 2b widens it**, so there is no rename and no second home for per-note derived signals.
 
 Cost, from the brainstorm's envelope: ~$0.001–0.003 per note.
 
@@ -152,8 +152,8 @@ Matching Phase 1's shape (1a–1d), each with its own plan:
 
 | Slice | What | Gated on |
 |---|---|---|
-| **2a — the crisis layer** | Prefilter, classifier, the use-point gate, static response, consent disclosure, lament fixtures | Nothing. **Ships first and alone** |
-| **2b — note distillates** | `note_distillates` + RLS, the job kind, extraction prompt, backfill | 2a (the classification column lands with it) |
+| **2a — the crisis layer** | `note_distillates` (safety fields only) + RLS, prefilter, classifier, the use-point gate, backfill, static response, consent disclosure, lament fixtures | Nothing. **Ships first and alone** |
+| **2b — note distillates** | The distillate signals themselves — themes, posture, questions, scripture engaged — widening 2a's table | 2a |
 | **2c — the Thread + seasons** | `journey_thread` rows, monthly refresh, season inference + rename | 2b |
 | **2d — surfaces + transparency** | Injection into Today's Lamp / chats / Waymarks, callbacks, "What Lamplight carries" | 2c |
 
@@ -169,7 +169,13 @@ Matching Phase 1's shape (1a–1d), each with its own plan:
 - **No raw-vault re-reads.** The Thread is built from distillates and Waymarks structs, by construction.
 - **No tradition lens.** `tradition_hint` stays dormant (§14.6).
 
-## 9. Open items
+## 9. A hazard the slicing creates — recorded here because the design caused it
+
+**Unclassified fails closed, and every note that exists today is unclassified.** So the moment the gate turns on, every existing user's note context is empty at once: Today's Lamp short-circuits to `no_notes`, Waymarks likewise, study chat loses its note channel.
+
+That is not an argument for failing open. It is a sequencing constraint, and it belongs next to the decision that creates it: **the gate ships dark, the backfill runs to completion, and only then does the gate turn on.** 2a's plan carries it as its own task, and it is the one step there whose reversal is visible to every user simultaneously.
+
+## 10. Open items
 
 1. **The crisis response copy itself** — authored by Myles, reviewed by the board. Engineering ships the mechanism and the placeholder; the words are not an engineering artifact.
 2. **Which resources, for which regions.** A US-only helpline list is wrong for a global app, and a wrong number is worse than none.
