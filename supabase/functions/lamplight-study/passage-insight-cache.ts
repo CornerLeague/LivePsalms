@@ -151,7 +151,12 @@ export async function writePassageDoor(
     created_by: args.createdBy,
   }));
 
-  const { error } = await supabase.from(TABLE).upsert(rows, { onConflict: 'scope,ref_id,section' });
+  // Matches the primary key as widened by migration 061 — `door` is IN the key
+  // now, so two doors on the same passage no longer share a row. Postgres
+  // requires the conflict target to match a real unique constraint, so if this
+  // and the migration ever disagree the write fails loudly rather than landing
+  // somewhere unintended.
+  const { error } = await supabase.from(TABLE).upsert(rows, { onConflict: 'scope,ref_id,door,section' });
   // Throw rather than return a failure the caller might report as written: the
   // terminal `done` beat tells the client the door is cached, and it must not
   // say so about rows that never landed.

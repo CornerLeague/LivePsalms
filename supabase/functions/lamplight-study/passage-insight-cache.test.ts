@@ -172,10 +172,13 @@ describe('writePassageDoor', () => {
     }
   });
 
+  // Migration 061 widened the primary key to include `door`. The conflict target
+  // must move with it: Postgres requires it to match a real unique constraint,
+  // so a stale target does not silently mis-upsert — it fails the whole write.
   it('conflicts on the primary key, so a re-warm replaces rather than duplicates', async () => {
     const { client, upserts } = makeSupabase();
     await writePassageDoor(client, args);
-    expect(upserts[0].opts).toMatchObject({ onConflict: 'scope,ref_id,section' });
+    expect(upserts[0].opts).toMatchObject({ onConflict: 'scope,ref_id,door,section' });
   });
 
   it('writes a door with SOME empty sections — omission is first-class', async () => {

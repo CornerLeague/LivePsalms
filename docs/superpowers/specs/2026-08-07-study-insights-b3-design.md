@@ -128,6 +128,8 @@ A1's completion sweep measured, per study-chat reply: `study-hebrews-11` grounde
 
 Door 1's own baseline shows the same pattern in miniature: `passage-psalm-27` names Spurgeon and Jamieson — in *Reflection & Application*, the last section — and `passage-nahum-1` names nobody at all.
 
+**And so does real production output.** The two Door 1 doors warmed on Leviticus 1 (§11) name a voice in **2 of 8 sections** — Jamieson/Fausset/Brown in `lev.1`'s Overview, Clarke in `lev.1.1`'s In the Chapter. Every door names somebody, no section names anyone twice, and three-quarters of the prose a reader actually sees carries no attribution at all. That is the pattern to improve on, measured on the surface itself rather than inferred from study chat.
+
 **Theological Significance is the section where an anonymous verdict does the most damage.** "This passage teaches X" with no voice behind it is precisely the thing the rule exists to prevent, and it is the section a reader is most likely to take as settled.
 
 Three moves, in this order — the order is the point, per `eval-harness-discipline`:
@@ -199,7 +201,7 @@ primary key (scope, ref_id, door, section)
 
 **The PK widening is the landmine B2 wrote down and left.** `primary key (scope, ref_id, section)` makes `('chapter','psa.27','overview')` unique across *all* doors, so a section name shared between two doors would have the second door's write silently overwrite the first's row — and the first door's read, filtered on `door`, would come back with three sections instead of four. B3's four keys do not collide with B2's, and they are chosen not to, but "no collision today" is not a constraint.
 
-**Widen it rather than rely on non-collision.** The table holds **0 rows**, so this is free — no rewrite, no dedup, no backfill — and it will never be cheaper.
+**Widen it rather than rely on non-collision.** The table holds **8 rows** — two Door 1 doors on Leviticus 1, warmed by hand on 2026-08-07 (§11) — all under `door = 'passage'`. Widening the key over eight rows is still free: no rewrite, no dedup, no backfill, and no possibility of a conflict. It will never be cheaper than it is now.
 
 Three details the migration must get right, because it is applied by hand through the SQL Editor:
 
@@ -278,8 +280,8 @@ Steps 1–7 are server-only and independently verifiable; the door stays unregis
 
 Both are recorded here because B3 rides them and would inherit any breakage.
 
-- **`bible_passage_insight` still holds 0 rows, and three B2 checks have never run live** — end-to-end generate through the deployed function, a second reader getting the cached door instantly, and an interrupted generation leaving the door uncached. They need an authenticated Plus/promo session; `docs/runbooks/passage-insight.md` §6 is the procedure. **Worth running before B3 ships**, because B3 rides the same edge function, the same quota bucket, and the same cache contract.
-- **`tsc -b` does not typecheck `supabase/functions` at all.** `tsconfig.app.json` includes only `src`, so the gate covers none of the edge functions; the logic modules are at least exercised by vitest, the Deno shells by nothing. This is not theoretical — **it is how `passage-insight/index.ts` came to reference an undefined `DOOR_REGISTERS` on the generate path**, added in `a7572bc8` alongside a comment block explaining that Door 1 deliberately takes no register filter. It would have thrown on the first real generation. Fixed on this branch in `867445b0`; **PR #117 still carries it.** A standing typecheck for `supabase/functions` is worth its own slice.
+- **Two of B2's three outstanding live checks are now actually done — the handoff, the runbook and the B2 plan all say "0 rows", and all three are stale.** Measured against the live table on 2026-08-07: `bible_passage_insight` holds **8 rows**, two complete Door 1 doors on Leviticus 1 — `lev.1` at chapter grain (00:57 UTC) and `lev.1.1` at verse grain (06:24 UTC), both `passage-insight-2026-08-06-v1` on `gpt-5.6-sol`, all eight sections non-empty and none ending mid-word. So **end-to-end generation through the deployed function works, on both grains**, and the deployed prose carries **no OSIS leaks** and names voices (Jamieson/Fausset/Brown on `lev.1`, Clarke on `lev.1.1`). The **public cached read is verified too**: the exact query the client hook issues, sent with no bearer token, returns `200` and all four sections. What is left of that check is only what needs a browser — that a signed-out reader sees it with no spinner and no entitlement prompt — plus the interrupted-generation case, which remains untested. `docs/runbooks/passage-insight.md` §6 is the procedure.
+- **`tsc -b` does not typecheck `supabase/functions` at all.** `tsconfig.app.json` includes only `src`, so the gate covers none of the edge functions; the logic modules are at least exercised by vitest, the Deno shells by nothing. This is not theoretical — **it is how `passage-insight/index.ts` came to reference an undefined `DOOR_REGISTERS` on the generate path**, added in `a7572bc8` alongside a comment block explaining that Door 1 deliberately takes no register filter. The successful `lev.1.1` generation *after* that commit existed confirms the reading: the line was committed but never deployed, so **B3's own redeploy is exactly when it would have gone live**, on the first door anyone generated afterwards. Fixed on this branch in `867445b0`; **PR #117 still carries it.** A standing typecheck for `supabase/functions` is worth its own slice.
 
 ---
 

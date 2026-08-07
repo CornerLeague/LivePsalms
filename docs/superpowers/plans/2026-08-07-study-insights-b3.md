@@ -43,9 +43,11 @@ _Every task's requirements implicitly include this section._
 
 B3 adds a `door` parameter to that same shell. **Every change to `supabase/functions/*/index.ts` in this plan is unguarded by the gate** and needs a deliberate `tsc --noEmit --allowImportingTsExtensions` pass, whose only acceptable errors are the `deno.land` import and the `Deno` global.
 
-**2. The three B2 live checks have still never run.** `bible_passage_insight` holds 0 rows. End-to-end generate through the deployed function, a second reader getting the cached door instantly, and an interrupted generation leaving the door uncached are all unverified; `docs/runbooks/passage-insight.md` §6 is the procedure. B3 rides the same function, quota bucket and cache contract. **Run them before Door 2 registers** — Task 12.
+**2. "0 rows" is stale — two of B2's three live checks are actually done.** The handoff, the runbook §5 table and the B2 plan all say the corpus is empty. Measured 2026-08-07: **8 rows**, two complete Door 1 doors on Leviticus 1 (`lev.1` chapter grain, `lev.1.1` verse grain), both `passage-insight-2026-08-06-v1` on `gpt-5.6-sol`, all eight sections non-empty, none ending mid-word, no OSIS leaks, voices named in two of them. The public cached read is verified too — the exact query the client hook issues, with no bearer token, returns `200` and four sections.
 
-**3. Migration 061 and the deploy must land together.** Widening the PK without moving `writePassageDoor`'s `onConflict` breaks Door 1's upsert (Postgres requires the conflict target to match a real unique constraint). The failure is loud rather than corrupting, and with 0 rows the window is harmless — but apply and deploy in the same sitting.
+So **end-to-end generation works on both grains**, and the read path works signed-out. What is genuinely still unverified: the browser-level half of the second-reader check (no spinner, no entitlement prompt), and the interrupted-generation case. `docs/runbooks/passage-insight.md` §6 is the procedure; its §5 table is corrected in Task 11.
+
+**3. Migration 061 and the deploy must land together.** Widening the PK without moving `writePassageDoor`'s `onConflict` breaks Door 1's upsert (Postgres requires the conflict target to match a real unique constraint). The failure is loud rather than corrupting, and at eight rows on one door the window is harmless — but Door 1 is now a door readers actually generate, so apply and deploy in the same sitting.
 
 ---
 
@@ -90,7 +92,7 @@ B3 adds a `door` parameter to that same shell. **Every change to `supabase/funct
 - [ ] Apply by hand via the SQL Editor, then verify from the repo with an anon-key select (`200 []`), exactly as 060 was verified.
 - [ ] Record the application date and the pre-existing row count in the runbook.
 
-**Requirements:** the table holds **0 rows**, which is why this is free — no rewrite, no dedup, no backfill. It will never be cheaper. Do not defer it on the argument that B3's section keys don't collide with B2's; "no collision today" is not a constraint, and B2 wrote this landmine down precisely so B3 would close it.
+**Requirements:** the table holds **8 rows**, all on `door = 'passage'` (two Leviticus 1 doors — see *Read before starting*), which is why this is still free: no rewrite, no dedup, no backfill, no possible conflict. It will never be cheaper. Do not defer it on the argument that B3's section keys don't collide with B2's; "no collision today" is not a constraint, and B2 wrote this landmine down precisely so B3 would close it.
 
 ## Task 2 — The generic seam, under a byte-identity gate
 
@@ -207,7 +209,10 @@ B3 adds a `door` parameter to that same shell. **Every change to `supabase/funct
 - [ ] Manual `tsc --noEmit --allowImportingTsExtensions` on `passage-insight/index.ts` — only the `deno.land` import and the `Deno` global may error.
 - [ ] Redeploy `passage-insight` — **anything under `supabase/functions/lamplight-study/` changing means the function is stale**, and B3 changes most of it. Re-verify boot: 401 unauthenticated, 400 on a bad body.
 - [ ] Client read path against the real table for a Door 2 ref: the exact query the hook issues returns `200 []`, so a reader correctly sees the generate action rather than an error.
-- [ ] **B2's three outstanding live checks, which B3 inherits** — end-to-end generate through the deployed function, a second reader getting the cached door instantly, an interrupted generation leaving the door uncached. Human-only: they need an authenticated Plus/promo session. `docs/runbooks/passage-insight.md` §6 has the steps. **Run them for both doors** and record the first warmed passages.
+- [ ] **The live checks B3 inherits.** End-to-end generate and the signed-out cached read are **done for Door 1** (see *Read before starting*) — repeat both for Door 2, which is the one riding new code. Still genuinely unverified for either door, and human-only because they need a browser and an authenticated Plus/promo session:
+  - [ ] a signed-out reader sees a cached door with **no spinner and no entitlement prompt** (the data layer is proven; the UI is not);
+  - [ ] an **interrupted** generation leaves the door uncached rather than half-written — now testable against a table that has real rows to compare before and after.
+- [ ] Record the newly warmed passages in the runbook, alongside the two Leviticus 1 doors.
 
 ---
 

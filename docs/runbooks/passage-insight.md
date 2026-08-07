@@ -2,7 +2,7 @@
 
 How the Passage door's shared cache is migrated, deployed, warmed, and refreshed. Mirrors the evidence-trail standard of `library-ingest.md` and `cross-references-ingest.md`: the run records what was done and what the counts were, so a later state can be checked against it.
 
-**Recorded state: 2026-08-06.** Migration applied, function deployed, door registered, eval baseline green. **The corpus holds 0 rows** — warming is on-demand and no reader has pressed *Study this passage* yet. See §5 for the checks that are still outstanding because they need an authenticated session.
+**Recorded state: 2026-08-07.** Migration applied, function deployed, door registered, eval baseline green. **The corpus holds 8 rows — two doors, on Leviticus 1 at both grains** (§6). Warming is on-demand; these are the first two passages a reader generated. See §5 for the two checks still outstanding.
 
 ---
 
@@ -70,11 +70,11 @@ Two writes that deliberately never happen:
 | Function deployed and booting | ✅ 2026-08-06, `401` on unauthenticated POST |
 | Prompt quality across dense / thin / verse grains | ✅ `docs/lamplight/evals/2026-08-06-b2-passage-door` — 3/3, $0.17, zero Scripture violations, zero display-ref leaks |
 | Client read path against the real table | ✅ The exact query `usePassageInsight` issues returns `200 []` for `psa.27`, `psa.27.4`, `nam.1` — a reader today correctly sees *Study this passage* rather than an error |
-| **End-to-end generate through the deployed function** | ❌ **Never run.** The eval drives the pipeline directly, not the edge function |
-| **A second reader gets the cached door instantly** | ❌ Unit-tested only |
+| **End-to-end generate through the deployed function** | ✅ **2026-08-07** — Leviticus 1 at both grains. See §6 |
+| **A second reader gets the cached door instantly** | ⚠️ **Data layer verified, UI not.** The exact query the client hook issues, sent with no bearer token, returns `200` and all four sections against the real `lev.1` rows. That a signed-out reader sees it with no spinner and no entitlement prompt still needs a browser |
 | **An interrupted generation leaves the door uncached** | ❌ Unit-tested only |
 
-The three outstanding checks all need an authenticated Plus/promo session, which is why they are listed rather than done. §6 is the procedure.
+The two outstanding checks need a browser and an authenticated Plus/promo session, which is why they are listed rather than done. §6 is the procedure.
 
 ## 6. Running the outstanding checks
 
@@ -90,14 +90,29 @@ Signed in as a Plus (or promo-active) user, in the Study workspace:
 
 Record the first warmed passages below when step 1 lands.
 
-**First warmed passages:** _(none yet — pending the checks above)_
+### First warmed passages — 2026-08-07
+
+| `ref_id` | Grain | Generated (UTC) | `prompt_version` | `model_used` |
+|---|---|---|---|---|
+| `lev.1` | chapter | 2026-08-07 00:57:38 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
+| `lev.1.1` | verse | 2026-08-07 06:24:16 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
+
+**Steps 1, 2, 5 and 7 pass.** Both doors wrote four rows; all eight sections are non-empty and every one ends on terminal punctuation, so nothing truncated mid-word. **No OSIS codes reached the prose** — the `displayRefs` fix holds in production, not just in the eval. Voices are named in two of the eight sections (Jamieson/Fausset/Brown in `lev.1` Overview, Clarke in `lev.1.1` In the Chapter), which is the attribution pattern B3 is measuring against.
+
+**Step 3 (second reader) is half-proven** — see §5. **Step 6 (interruption) has still not been run**, and is easier now: there are real rows to diff against.
+
+Verify the current state from the repo at any time:
+
+```bash
+curl -s "$VITE_SUPABASE_URL/rest/v1/bible_passage_insight?select=scope,ref_id,door,section,prompt_version,created_at&order=created_at" -H "apikey: $VITE_SUPABASE_ANON_KEY"
+```
 
 ## 7. Known issues
 
 - ~~Study chat still prints OSIS codes at readers.~~ **Fixed 2026-08-06.** `displayRefs` is now on for study chat and study insight too (`study-chat-…-v7`, `study-insight-…-v5`), verified live: `docs/lamplight/evals/2026-08-07-study-display-refs`, 4/4, zero leaks. `lamplight-study` redeployed. The client's `humanizeRef` already handled both forms, so no client change was needed and existing messages still render.
 - ~~Journaling chat (`lamplight-chat`) still prints OSIS codes.~~ **Fixed 2026-08-06**, after its own eval kind was built first. `buildChatContext` extracted from the Deno shell to `lamplight-chat/chat-context.ts` so it could be unit-tested at all, then given the same `displayRefs`. `bible-chat` v2→v3, redeployed. Baseline: `docs/lamplight/evals/2026-08-07-journaling-baseline`.
   - **All three reader-facing surfaces now use display refs**, each with a live baseline, all re-confirmed together on 2026-08-07: study chat 4/4, journaling chat 2/2, Door 1 3/3 — zero OSIS leaks in any reply and every citation properly cased, including numbered books (`2 Corinthians 5:7`) and ranges (`Genesis 1:26–31`). The remaining generated surfaces (daily devotion, connection-why, monthly reflection) go through `buildPassages`, which has used `formatDisplayVerseRef` since slice 1d.
-- **`door` is not in the primary key.** `primary key (scope, ref_id, section)` makes `('chapter','psa.27','overview')` unique across *all* doors. B3's Deeper door has no colliding section names today, but it is one careless name away from two doors silently overwriting each other. Widen the PK when B3 lands.
+- ~~**`door` is not in the primary key.**~~ **Closed by migration `061`** (B3): the key is now `(scope, ref_id, door, section)`, and `writePassageDoor`'s `onConflict` moved with it. It also widened the door check to `('passage','deeper')`. Applied over eight rows on a single door, so there was nothing to reconcile. **Apply 061 and redeploy in the same sitting** — between the two, the upsert's conflict target no longer matches a unique constraint and Door 1's generate path fails (loudly, not silently).
 - **The refresh script writes no usage row**, so its spend does not reach the admin dashboard and does not count against the global daily ceiling. `lamplight_usage.user_id` is `not null references profiles(id)` and a maintenance sweep has no user; a fabricated id would corrupt per-user cost attribution. The spend is printed to the operator instead.
 
 ## 8. Refreshing
