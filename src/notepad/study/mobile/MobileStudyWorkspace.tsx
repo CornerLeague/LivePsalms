@@ -19,7 +19,7 @@ import { SupabaseLamplightAdapter } from '@/notepad/storage/supabase-lamplight-a
 import { supabase } from '@/lib/supabase';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { InsightsOverlay } from '../insights/InsightsOverlay';
-import { referenceDoor, passageDoor, deeperDoor } from '../insights/doors';
+import { referenceDoor, passageDoor, deeperDoor, canGenerateInsights } from '../insights/doors';
 import { useLamplightEntitlement } from '@/notepad/hooks/useLamplightEntitlement';
 import '../study-theme.css';
 
@@ -49,7 +49,9 @@ export function MobileStudyWorkspace() {
   // Gates the GENERATE action on the Passage door only. A cached door is public
   // and free, so this never hides content that already exists.
   const { hasAccess } = useLamplightEntitlement({ adapter: lamplightAdapter, userId: lamplightAdapter ? userId : null });
-  const canGenerate = hasAccess('inline');
+  // Both halves: a global promo makes hasAccess true for everyone, signed in or
+  // not. See canGenerateInsights.
+  const canGenerate = canGenerateInsights({ userId, hasInlineAccess: hasAccess('inline') });
   const doors = useMemo(
     // Door order is reading order: The Passage first, Sources & Reference last.
     () => [

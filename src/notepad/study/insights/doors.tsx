@@ -13,6 +13,34 @@ import { PassageDoor } from './PassageDoor';
 import { makePassageInsightStreamInvoke, type PassageInsightInvoke } from './passage-insight-stream-client';
 import { DEEPER_DOOR_VIEW } from './insight-doors';
 
+/**
+ * May this reader press "Study this passage"?
+ *
+ * BOTH conditions, and the `userId` half is the one that was missing.
+ * `hasAccess` short-circuits on a global promo — `if (promoActive) return true`
+ * — before it ever considers who is asking, so while a promo is running it
+ * answers `true` for a signed-out visitor. Both workspaces passed that straight
+ * through as `canGenerate`.
+ *
+ * The reader-visible result, reproduced in the browser on 2026-08-07: a
+ * signed-out reader on an uncached door saw the generate button, pressed it,
+ * and got "That didn't finish. Try again." — the request 401s with no bearer
+ * token, and no amount of trying again will fix it. What they should see is the
+ * sign-in path, which `PassageDoor` already renders correctly the moment
+ * `canGenerate` tells it the truth.
+ *
+ * Pre-dates B3: Door 1 has behaved this way since B2. Registering Door 2 simply
+ * doubled the surface it appears on. The component's own test asserted the right
+ * behaviour and passed, because it sets `canGenerate` directly — the defect was
+ * always in the caller.
+ */
+export function canGenerateInsights(args: {
+  userId: string | null;
+  hasInlineAccess: boolean;
+}): boolean {
+  return args.userId !== null && args.hasInlineAccess;
+}
+
 export interface DoorDeps {
   translation: BibleTranslation;
   userId: string | null;
