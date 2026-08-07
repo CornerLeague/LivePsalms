@@ -738,11 +738,27 @@ function todayStamp(): string {
 
 // A minimal structural view of the anon client. createClient's generics vary
 // with the schema type parameters and are not worth threading through a script.
+type AnonRows = Promise<{ data: unknown[] | null; error: { message: string } | null }>;
+
+/**
+ * Deliberately minimal, and kept that way.
+ *
+ * It describes the only two queries the harness may run — both against
+ * `bible_passages`, which is public reference data — so an eval can never be
+ * pointed at a real vault by accident. Widening it to `SupabaseClient` would
+ * hand the harness the whole database and lose that guarantee, so a new query
+ * shape earns a new branch here rather than a looser type.
+ */
 type AnonClient = {
   from(table: string): {
     select(cols: string): {
       eq(col: string, val: string): {
-        in(col: string, vals: string[]): Promise<{ data: unknown[] | null; error: { message: string } | null }>;
+        /** Canonical text for a fixture's listed refs. */
+        in(col: string, vals: string[]): AnonRows;
+        /** A whole chapter, in verse order. */
+        like(col: string, pattern: string): {
+          order(col: string, opts: { ascending: boolean }): AnonRows;
+        };
       };
     };
   };

@@ -12,7 +12,7 @@
 // line as `<Book> <Chapter>:<Verse>\t<Text>`, preceded by a 3-line preamble).
 // Cached locally at scripts/data/<translation>.txt so re-runs are offline.
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { sha256 } from 'js-sha256';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -273,7 +273,7 @@ async function main() {
 // halving the chunk until it fits. Idempotent on conflict, so partial-write
 // retries are safe — they just no-op the rows that already landed.
 async function upsertWithRetry(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   rows: Array<Record<string, unknown>>,
   attempt = 0,
 ): Promise<void> {

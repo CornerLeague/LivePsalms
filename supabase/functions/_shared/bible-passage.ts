@@ -161,7 +161,11 @@ export function buildPassages(
     passageById.set(r.id, r);
   }
   return retrieved
-    .map(r => {
+    // Annotated rather than inferred: without it the element type is the object
+    // literal, whose `metadata` is narrower than BiblePassage's
+    // Record<string, unknown> — which makes the `x is BiblePassage` predicate
+    // below invalid (TS2677) even though the values are right. Type-only.
+    .map((r): BiblePassage | null => {
       const p = passageById.get(r.source_id);
       if (!p) return null;
       const ref = formatDisplayVerseRef(p);
