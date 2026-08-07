@@ -44,11 +44,9 @@ export interface RequestStudyOpenerArgs { book: string; chapter: number; transla
  * question, answered once and cached globally for everyone. A billed-per-open
  * opener beside a shared cached door is a call for Myles.
  *
- * The wire value is the legacy spelling for the deploy-ordering reason given on
- * `requestOpeningInsight`, which is the one that actually fires today.
  */
 export async function requestStudyOpener(invoke: InvokeFn, args: RequestStudyOpenerArgs): Promise<SendStudyResult> {
-  const { data, error } = await invoke('lamplight-study', { body: { book: args.book, chapter: args.chapter, mode: 'insight', translation: args.translation } });
+  const { data, error } = await invoke('lamplight-study', { body: { book: args.book, chapter: args.chapter, mode: 'opener', translation: args.translation } });
   if (error) return { ok: false, reason: error.message };
   const d = data as { ok?: boolean; reason?: string; skipped?: boolean; thread_id?: string; reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] } | null;
   if (!d || d.ok !== true) return { ok: false, reason: d?.reason ?? 'unknown_error' };

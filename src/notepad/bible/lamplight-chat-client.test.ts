@@ -27,22 +27,22 @@ describe('sendChatMessage', () => {
 });
 
 describe('requestOpeningInsight', () => {
-  it('⚠️ still sends the LEGACY `insight` wire value, and that is deliberate', async () => {
-    // The mode is called `opener` everywhere else after B4, and both edge
-    // functions accept either spelling. The client is NOT switched, because
-    // Vercel deploys it automatically on merge while `supabase functions
-    // deploy` is run by hand — so the client reaches production first, and a
-    // function that predates this branch would read 'opener' as 'chat', find an
-    // empty message, and 400 EVERY journaling passage open.
+  it('sends the current `opener` wire value', async () => {
+    // Flipped from the legacy 'insight' once the edge functions carrying
+    // `_shared/chat-mode.ts` were deployed (2026-08-07). Until then the client
+    // deliberately sent the old spelling, because Vercel deploys it on merge
+    // while the functions deploy by hand — so the client always arrives first,
+    // and a function that had not learned 'opener' would read it as 'chat',
+    // find an empty message, and 400 EVERY journaling passage open.
     //
-    // Do not "tidy" this to 'opener' without deploying both functions first.
-    // See `supabase/functions/_shared/chat-mode.ts`.
+    // ⚠️ The SERVER's tolerance of 'insight' is not dead code: a reader with
+    // the app already open keeps their loaded bundle until they reload.
     const invoke = vi.fn().mockResolvedValue({
       data: { ok: true, thread_id: 't1', reply: 'An opening thought.', citations: [] }, error: null,
     });
     await requestOpeningInsight(invoke, { book: 'jhn', chapter: 10, translation: 'KJV' });
     const body = invoke.mock.calls[0][1].body as { mode: string };
-    expect(body.mode).toBe('insight');
+    expect(body.mode).toBe('opener');
   });
 
   it('invokes lamplight-chat in opener mode and returns the reply', async () => {
@@ -50,7 +50,7 @@ describe('requestOpeningInsight', () => {
       data: { ok: true, thread_id: 't1', reply: 'An opening thought.', citations: [] }, error: null,
     });
     const out = await requestOpeningInsight(invoke, { book: 'jhn', chapter: 10, translation: 'KJV' });
-    expect(invoke).toHaveBeenCalledWith('lamplight-chat', { body: { book: 'jhn', chapter: 10, mode: 'insight', translation: 'KJV' } });
+    expect(invoke).toHaveBeenCalledWith('lamplight-chat', { body: { book: 'jhn', chapter: 10, mode: 'opener', translation: 'KJV' } });
     expect(out).toEqual({ ok: true, threadId: 't1', reply: 'An opening thought.', citations: [] });
   });
 

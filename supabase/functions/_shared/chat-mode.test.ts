@@ -6,13 +6,16 @@ describe('parseChatMode', () => {
     expect(parseChatMode('opener')).toBe('opener');
   });
 
-  it('⚠️ still reads the LEGACY spelling', () => {
-    // `requestOpeningInsight` is called on every journaling passage open and
-    // sends `mode: 'insight'`. Vercel deploys the client automatically on merge
-    // while edge functions deploy by hand, so the client reaches production
-    // FIRST — and a function that stopped understanding 'insight' would 400
-    // every opener until somebody ran a deploy. The tolerance is what makes the
-    // rename safe to land in one PR.
+  it('⚠️ still reads the LEGACY spelling — and this is not dead code', () => {
+    // The clients now send 'opener' (flipped once these functions deployed,
+    // 2026-08-07). This is NOT therefore removable.
+    //
+    // There is no service worker, but a reader with the app open in a tab runs
+    // whatever bundle they loaded until they reload, and the journaling opener
+    // fires on every passage open. Dropping 'insight' would make those requests
+    // fall through to `chat`, meet an empty message, and 400.
+    //
+    // Every client that has RELOADED sends 'opener'. That is not every client.
     expect(parseChatMode('insight')).toBe('opener');
   });
 

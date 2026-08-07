@@ -234,10 +234,14 @@ B4 touches **`lamplight-study` and `lamplight-chat`**, not `passage-insight`. It
 - **`streamBibleChat` types the mode once and both chat functions call it**, so the rename could not stop at Study. `lamplight-chat` carries ~10 sites of its own plus its opener prompt.
 - **`requestOpeningInsight` is a live wire.** It fires on every journaling passage open with `mode: 'insight'` and no message; `lamplight-chat` rejects chat-mode with an empty message, so a client sending `'opener'` to a function that has not been redeployed returns **`400 bad payload` on every passage open, for every reader**. Vercel deploys the client automatically on merge; `supabase functions deploy` is run by hand. The client therefore reaches production first.
 
-So the ordering is enforced twice, and neither depends on remembering it:
+So the ordering was enforced twice, and neither depended on remembering it:
 
 1. **`_shared/chat-mode.ts` accepts both spellings.** `'opener'` and `'insight'` both mean `opener`; anything else is `chat`.
-2. **The clients still SEND `'insight'`**, pinned by a test that says why. Flipping them to `'opener'` is a one-line follow-up that is safe once both functions are deployed — and unsafe before.
+2. **The clients sent `'insight'`** until the functions shipped, pinned by a test that said why.
+
+**Both clients flipped to `'opener'` on 2026-08-07, after the deploy.** Verified against the deployed functions: `mode=opener` and `mode=insight` both return `401` on `lamplight-chat` and `lamplight-study`.
+
+⚠️ **Rule 1 is now the part that must not be removed, and its reason has changed.** The deploy-ordering argument is spent; the standing one is that **old client bundles keep sending the old spelling**. There is no service worker, but a reader with the app open in a tab runs whatever bundle they loaded until they reload, and the journaling opener fires on every passage open. Dropping `'insight'` would make those requests fall through to `chat`, meet an empty message, and `400`. Every client that has *reloaded* sends `'opener'`; that is not every client.
 
 **Deploy both functions** when this ships:
 

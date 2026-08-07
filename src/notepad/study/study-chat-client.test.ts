@@ -30,7 +30,7 @@ describe('requestStudyOpener', () => {
   it('sends the opener mode and maps a skipped opener to ok:false', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { ok: true, thread_id: 't', skipped: true }, error: null });
     const out = await requestStudyOpener(invoke, { book: 'rom', chapter: 8 });
-    expect(invoke).toHaveBeenCalledWith('lamplight-study', { body: { book: 'rom', chapter: 8, mode: 'insight' } });
+    expect(invoke).toHaveBeenCalledWith('lamplight-study', { body: { book: 'rom', chapter: 8, mode: 'opener' } });
     expect(out).toEqual({ ok: false, reason: 'skipped' });
   });
 });
@@ -54,7 +54,7 @@ describe('study-chat-client passes translation', () => {
   it('requestStudyOpener forwards the active translation in the body', async () => {
     const { invoke, bodies } = captureInvoke();
     await requestStudyOpener(invoke, { book: 'jhn', chapter: 3, translation: 'WEB' });
-    expect(bodies[0]).toMatchObject({ book: 'jhn', chapter: 3, mode: 'insight', translation: 'WEB' });
+    expect(bodies[0]).toMatchObject({ book: 'jhn', chapter: 3, mode: 'opener', translation: 'WEB' });
   });
 });
 

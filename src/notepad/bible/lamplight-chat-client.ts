@@ -22,30 +22,28 @@ export async function sendChatMessage(invoke: InvokeFn, args: SendChatArgs): Pro
   return { ok: true, threadId: d.thread_id ?? '', reply: d.reply ?? '', citations: d.citations ?? [] };
 }
 
-/** See the note on `requestOpeningInsight`. */
-const LEGACY_OPENER_MODE = 'insight';
-
 export interface RequestInsightArgs { book: string; chapter: number; translation: BibleTranslation }
 
 /**
- * ⚠️ The wire value is still the LEGACY `'insight'`, on purpose.
+ * The journaling opener — one grounded observation on a passage the reader has
+ * just opened and not yet asked about. Fires on every passage open.
  *
- * The mode is called `opener` everywhere else now (parent design §10) and both
- * edge functions accept either spelling — see `_shared/chat-mode.ts`. But the
- * client and the functions do not deploy together: Vercel ships the client
- * automatically on merge, while `supabase functions deploy` is run by hand. So
- * the client reaches production FIRST, and a deployed function that predates
- * this branch would read `'opener'` as `'chat'`, find an empty message, and
- * return `400 bad payload` — on every journaling passage open, for every
- * reader.
+ * Sends `mode: 'opener'` (parent design §10). It sent the legacy `'insight'`
+ * until the edge functions carrying `_shared/chat-mode.ts` were deployed on
+ * 2026-08-07, because Vercel ships the client on merge while
+ * `supabase functions deploy` is run by hand — so the client always reaches
+ * production first, and a function that had not yet learned `'opener'` would
+ * read it as `'chat'`, find an empty message, and return `400 bad payload` on
+ * every passage open.
  *
- * Keeping the old spelling here makes the ordering a property of the code
- * rather than something an operator has to remember. Flip it to `'opener'` in a
- * follow-up once both functions are deployed; nothing breaks either way at that
- * point, which is the whole reason the tolerance exists.
+ * ⚠️ The server's tolerance of `'insight'` is NOT dead code now that this
+ * flipped, and must not be removed as such. There is no service worker, but a
+ * reader with the app already open in a tab keeps whatever bundle they loaded
+ * until they reload — so old clients go on sending the old spelling for as long
+ * as those tabs live.
  */
 export async function requestOpeningInsight(invoke: InvokeFn, args: RequestInsightArgs): Promise<SendChatResult> {
-  const { data, error } = await invoke('lamplight-chat', { body: { book: args.book, chapter: args.chapter, mode: LEGACY_OPENER_MODE, translation: args.translation } });
+  const { data, error } = await invoke('lamplight-chat', { body: { book: args.book, chapter: args.chapter, mode: 'opener', translation: args.translation } });
   if (error) return { ok: false, reason: error.message };
   const d = data as { ok?: boolean; reason?: string; skipped?: boolean; thread_id?: string; reply?: string; citations?: ChatCitation[] } | null;
   if (!d || d.ok !== true) return { ok: false, reason: d?.reason ?? 'unknown_error' };

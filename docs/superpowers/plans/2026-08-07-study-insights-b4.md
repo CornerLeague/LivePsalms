@@ -59,7 +59,7 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 | 5 — the footer | done | signed-out readers get none, see below |
 | 6 — mobile parity | done | safe areas, 44px targets, ellipsis; plus a test using the REAL overlay |
 | 7 — the rename | done, **twice the scoped size** | gate committed first, on its own |
-| 8 — the client half | done, **wire value deliberately NOT flipped** | see below |
+| 8 — the client half | done, **wire values flipped after the deploy** | three senders; tolerance kept for open tabs |
 | 9 — registry tidy | done | |
 | 10 — runbook | done | runbook §9 |
 | 11 — completion gate | **partly — browser checks left** | gate green; **all three functions deployed 2026-08-07**, 16/16 boot checks |
@@ -80,7 +80,7 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 2. **The interrupted-generation check** — the one inherited row still open. Needs a Plus/promo session. Runbook §6 step 6.
 3. **The cost figure** — admin dashboard, the `passage_insight` row stamped 19:35:29 UTC.
 4. **The B4 browser checks** — runbook §6 steps 11 and 12, on a real phone.
-5. **Then**, optionally, flip the two client wire values to `'opener'`. Safe now that both functions are deployed.
+5. ~~Flip the client wire values to `'opener'`~~ — **done 2026-08-07.** The server's tolerance of `'insight'` stays: its reason shifted from deploy ordering (spent) to old client bundles in open tabs (standing).
 
 ---
 
@@ -199,7 +199,7 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 - [x] `requestOpeningInsight` keeps its name (it is already the right one).
 - [x] `mode?: 'chat' | 'insight'` → `'chat' | 'opener' | 'insight'` in `study-stream-client.ts` — the legacy spelling stays in the union because the client still sends it.
 - [x] Update the client tests that assert the sent body.
-- [ ] **Flip both clients' wire value to `'opener'` — AFTER the deploy.** A one-line follow-up, and the only part of this task that is unsafe today.
+- [x] **Flip both clients' wire value to `'opener'` — done 2026-08-07, after the deploy.** Three senders, not two: the buffered journaling opener, its streaming twin in `LamplightChat.tsx`, and the parked study opener. Verified against the deployed functions — both spellings return `401` on both.
 
 **Requirements — REVISED while implementing.** The plan said this task ships after Task 11's deploy, treating the ordering as something an operator honours. It is not: **Vercel deploys the client automatically on merge and `supabase functions deploy` is run by hand**, so the client reaches production first no matter what anyone intends. The ordering has to be a property of the code.
 

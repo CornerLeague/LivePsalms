@@ -23,8 +23,8 @@ export interface StreamStudyArgs {
   includeNotes?: boolean;
   noteIds?: string[];
   translation?: string;
-  /** `'insight'` is the legacy spelling of `'opener'`; both are accepted. */
-  mode?: 'chat' | 'opener' | 'insight';
+  /** The server still ACCEPTS the legacy `'insight'`; no client sends it. */
+  mode?: 'chat' | 'opener';
   threadId?: string;
 }
 
