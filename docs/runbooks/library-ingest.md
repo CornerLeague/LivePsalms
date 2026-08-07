@@ -20,6 +20,60 @@ All three authors died before 1900; the works are public domain by age in the US
 grep -i DistributionLicense /opt/homebrew/share/sword/mods.d/{tdavid,mhcc,jfb}.conf
 ```
 
+## 1b. Phase A1 sources (added 2026-08-07)
+
+Five public-domain works added to broaden the corpus beyond one tradition — the prerequisite for Insights Door 2 (*Deeper In*), whose value over Door 1 is breadth of interpretation. Plan: `docs/superpowers/plans/2026-08-07-library-a1.md`.
+
+| Source id | Work | Author | Module | Register | License evidence |
+|---|---|---|---|---|---|
+| `wesley-notes` | Explanatory Notes on the Bible | John Wesley (1754–1765) | CrossWire `Wesley` 1.1 | devotional | `wesley.conf` → `DistributionLicense=Public Domain` |
+| `adam-clarke` | Commentary and Critical Notes | Adam Clarke (1810–1826) | CrossWire `Clarke` 2.0 | exegetical | `clarke.conf` → `DistributionLicense=Public Domain` |
+| `calvin-commentaries` | Calvin's Commentaries | John Calvin (1540–1564) | CrossWire `CalvinCommentaries` 1.1 | exegetical | `calvincommentaries.conf` → `DistributionLicense=Public Domain` |
+| `catena-aurea` | Catena Aurea | Aquinas, tr. Newman (1841) | CrossWire `Catena` 1.0.1 | exegetical | `catena.conf` → `DistributionLicense=Public Domain` |
+| `geneva-notes` | Geneva Bible Translation Notes | Geneva translators (1560–1599) | CrossWire `Geneva` 1.1 | confessional | **none — see below** |
+
+```bash
+installmgr --allow-internet-access-and-risk-tracing-and-jail-or-martyrdom -ri CrossWire Wesley
+# …likewise Clarke, CalvinCommentaries, Catena, Geneva
+```
+
+### Three provenance facts, recorded rather than smoothed over
+
+- **`Geneva` declares NO `DistributionLicense` at all.** Its `.conf` carries `InstallSize` and `SwordVersionDate` but no licence field, so there is nothing to quote against this runbook's own evidence standard. It is ingested on the **age** argument — the 1560/1599 marginalia are unambiguously public domain — and that is the claim recorded in `library_sources.license`, not a declaration that does not exist. The module is a 2001 ThML conversion of unstated provenance; if a cleaner source appears, prefer it.
+- **`Clarke`'s `TextSource` is Wikisource**, which the Insights design flags for ShareAlike quarantine handling. Clarke died in 1832, so the underlying text is PD by age, and a faithful transcription of a public-domain work creates no new copyright. Recorded because the flag was raised and deserves an answer.
+- **`CalvinCommentaries`'s `TextSource` is `ccel.org`** — and §1 above already excludes "CCEL's own editions (their formatting copyright)". The module itself declares Public Domain and the CTS translation is PD by age; what is inherited is a *conversion* of CCEL-hosted text, not a CCEL edition claim we are asserting. Flagged so a future audit starts from the fact rather than rediscovering it.
+
+### Module behaviour — observed, not assumed
+
+Probed with `parseChapterDump` against real output, per §3's standing instruction:
+
+| Module | Keying | Note |
+|---|---|---|
+| `Wesley` | clean per-verse | Catchword notes; many verses empty |
+| `Clarke` | clean per-verse | Verse 1 carries a chapter preface; bodies up to 26k chars |
+| `Geneva` | clean per-verse | Body is **verse text + `{a}`-marked glosses**; the verse text is stripped at ingest |
+| `Catena` | clean per-verse | Gospels only; inline patristic attributions, preserved |
+| `CalvinCommentaries` | **range-repeats, varying BY BOOK** | Psalm 27: 14 verse keys → **1 distinct body**. Romans 9: 33 → 33 |
+
+Calvin takes the same consecutive-collapse path as JFB and MHCC, and it must not be assumed off for any book — the behaviour varies *within* the module. No dumper changes were needed: `buildEntries` special-cases only `TDavid`.
+
+**Geneva's verse text is stripped** (`stripGenevaVerseText`), because it duplicates `bible_passages` and is half the corpus by character count. Two things only the real 14,695-entry dump revealed: markers are **alphanumeric** (`(1)` in Genesis 6:16, not just `(a)`), and **"The Argument" book prefaces must survive** — 28 of the 35 sit *before* the first note marker, so cutting at the marker would delete the best summary Geneva has for those books.
+
+### Recorded run — 2026-08-07
+
+| Source | Chunks | Unanchored |
+|---|---:|---:|
+| `adam-clarke` | 23,797 | 0 |
+| `calvin-commentaries` | 19,129 | 0 |
+| `wesley-notes` | 16,968 | 0 |
+| `geneva-notes` | 14,701 | 0 |
+| `catena-aurea` | 2,966 | 0 |
+| **Total** | **77,561** | **0** |
+
+Corpus **34,076 → 111,637**. Registers went from two (devotional, exegetical) to three, `confessional` gaining its first member. Zero unanchored chunks — every one resolved to a book/chapter/verse ref.
+
+**Load order:** Catena first, as the smallest, to prove the write path before committing the larger sources. `--dry-run` for all five first; the parsed counts matched the adapter counts exactly.
+
 **Not ingested, deliberately:** BibleProject (no-derivatives), Got Questions (200-word commercial cap), Louw-Nida (UBS copyright), CCEL's own editions (their formatting copyright — take PD text from SWORD instead), Chambers' *My Utmost* (renewed copyright), NET notes and Enduring Word (permission pending — v2). Lexical data is **not** a library source: `bible_strongs` + `bible_interlinear` (migration 041) already hold it publicly, and slice 1c's lexicon block reads them directly.
 
 ## 2. Install the SWORD tooling and modules
