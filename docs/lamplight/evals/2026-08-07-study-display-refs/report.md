@@ -1,10 +1,10 @@
 # Lamplight eval — study-display-refs
 
-**PASS** · 4 passed, 0 failed · 0 scripture violation(s) · $0.1593
+**PASS** · 4 passed, 0 failed · 0 scripture violation(s) · $0.1650
 
 | Artifact | Runs | Tokens in | Tokens out | Cost |
 |---|---:|---:|---:|---:|
-| study-chat | 4 | 18179 | 2281 | $0.1593 |
+| study-chat | 4 | 18179 | 2471 | $0.1650 |
 
 ## What this run does not prove
 

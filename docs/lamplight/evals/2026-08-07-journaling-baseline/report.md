@@ -1,10 +1,10 @@
 # Lamplight eval — journaling-baseline
 
-**PASS** · 2 passed, 0 failed · 0 scripture violation(s) · $0.0164
+**PASS** · 2 passed, 0 failed · 0 scripture violation(s) · $0.0163
 
 | Artifact | Runs | Tokens in | Tokens out | Cost |
 |---|---:|---:|---:|---:|
-| journaling-chat | 2 | 4391 | 634 | $0.0164 |
+| journaling-chat | 2 | 4391 | 629 | $0.0163 |
 
 ## What this run does not prove
 

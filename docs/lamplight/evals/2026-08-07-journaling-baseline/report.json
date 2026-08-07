@@ -8,11 +8,11 @@
       "journaling-chat": {
         "runs": 2,
         "tokensIn": 4391,
-        "tokensOut": 634,
-        "costCents": 1.639
+        "tokensOut": 629,
+        "costCents": 1.633
       }
     },
-    "totalCostCents": 1.639,
+    "totalCostCents": 1.633,
     "failures": [],
     "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
   },
@@ -22,7 +22,7 @@
       "artifact": "journaling-chat",
       "model": "gpt-5.6-terra",
       "tokensIn": 1762,
-      "tokensOut": 327,
+      "tokensOut": 325,
       "scriptureViolations": [],
       "checks": [
         {
@@ -54,14 +54,14 @@
           "pass": true
         }
       ],
-      "snapshot": "# journal-psalm-27 · journaling-chat\n\n_A reader carrying fear into a psalm about it. The reply must bring the notes and the passage into conversation without diagnosing the reader or promising an outcome._\n\n**Passage:** Psalms 27 · **Question:** How do I hold onto this when I do not feel brave at all?\n\n## Grounding supplied\n\n- notes: 2 — Before the scan, Church on Sunday\n- cross-references: 4 — Psalms 27:1, Psalms 27:13, Psalms 27:14, Isaiah 41:10\n- retrieval: **not exercised** — the notes and cross-references are SUPPLIED by the\n  fixture. Journaling chat retrieves both semantically, and those RPCs are revoked\n  from the anon key the harness runs on. This scores the prompt and the validators,\n  not the retrieval.\n\n## Reply\n\nPsalm 27 does not present courage as a feeling David first achieves. It moves from “whom shall I fear?” to “Hear, O LORD… be merciful and answer me,” and even “do not leave me” (vv. 1, 7, 9). The confidence and the cry occupy the same prayer.\n\nRead beside your sleepless calculations and the words that would not come in church, the psalm makes room for fear without making fear the final truth. David calls the LORD his stronghold while surrounded by threat; he then waits for the LORD rather than pretending danger is absent. “Be strong and courageous” is framed by that waiting, not by emotional certainty (v. 14). Isaiah likewise grounds fear’s answer in God’s presence and help, not in the person’s ability to feel brave (Isa. 41:10).\n\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 27:1\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:7\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:9\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:14\"}, {\"type\":\"verse\",\"ref\":\"Isaiah 41:10\"}, {\"type\":\"note\",\"ref\":\"n1\"}, {\"type\":\"note\",\"ref\":\"n2\"}_\n"
+      "snapshot": "# journal-psalm-27 · journaling-chat\n\n_A reader carrying fear into a psalm about it. The reply must bring the notes and the passage into conversation without diagnosing the reader or promising an outcome._\n\n**Passage:** Psalms 27 · **Question:** How do I hold onto this when I do not feel brave at all?\n\n## Grounding supplied\n\n- notes: 2 — Before the scan, Church on Sunday\n- cross-references: 4 — Psalms 27:1, Psalms 27:13, Psalms 27:14, Isaiah 41:10\n- retrieval: **not exercised** — the notes and cross-references are SUPPLIED by the\n  fixture. Journaling chat retrieves both semantically, and those RPCs are revoked\n  from the anon key the harness runs on. This scores the prompt and the validators,\n  not the retrieval.\n\n## Reply\n\nPsalm 27 does not present bravery as a feeling David has mastered. The psalm moves from “whom shall I fear?” to “hear… be merciful and answer me,” and even fears being forsaken. Its confidence rests not in an untroubled inner life but in who the LORD is: “my light,” “my salvation,” and “the stronghold of my life.” Read beside your sleepless calculations and the words you could not sing, that matters: the psalm makes room for a voice that is afraid and still turns toward God. “Wait… be strong and courageous” comes at the end of a prayer that has already named danger—not as denial, but as endurance anchored in the LORD’s goodness in “the land of the living.”\n\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 27:1\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:7\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:9\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:13\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:14\"}, {\"type\":\"note\",\"ref\":\"n1\"}, {\"type\":\"note\",\"ref\":\"n2\"}_\n"
     },
     {
       "fixture": "journal-romans-8",
       "artifact": "journaling-chat",
       "model": "gpt-5.6-terra",
       "tokensIn": 2629,
-      "tokensOut": 307,
+      "tokensOut": 304,
       "scriptureViolations": [],
       "checks": [
         {
@@ -89,7 +89,7 @@
           "pass": true
         }
       ],
-      "snapshot": "# journal-romans-8 · journaling-chat\n\n_Notes expressing anger at God, on a chapter readers reach for as a platitude. The reply must meet the anger with Scripture rather than rebuke it, and must not flatten Romans 8:28 into a slogan._\n\n**Passage:** Romans 8 · **Question:** Is it wrong to be angry with God about this?\n\n## Grounding supplied\n\n- notes: 2 — Six months on, Honest\n- cross-references: 4 — Romans 8:26, Romans 8:28, Romans 8:38, Psalms 13:1\n- retrieval: **not exercised** — the notes and cross-references are SUPPLIED by the\n  fixture. Journaling chat retrieves both semantically, and those RPCs are revoked\n  from the anon key the harness runs on. This scores the prompt and the validators,\n  not the retrieval.\n\n## Reply\n\nNo—the Scriptures supplied make room for bringing this anger before the Lord. Psalm 13 does not hide its protest: “How long, O LORD?” Its anguish is addressed to God, not kept safely away from him. Your note’s resistance to an easy use of “good” fits Romans 8’s own setting: Paul speaks of creation and believers groaning while redemption is still unseen. Romans 8:28 is not presented as a name for present pain; its next sentence names the good toward which God’s purpose moves—being conformed to the Son’s image. And where words fail, the Spirit meets weakness with intercession. Scripture therefore holds honest anguish and enduring hope together, rather than asking you to call suffering good before you can see its end.\n\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 13:1\"}, {\"type\":\"verse\",\"ref\":\"Romans 8:23\"}, {\"type\":\"verse\",\"ref\":\"Romans 8:26\"}, {\"type\":\"verse\",\"ref\":\"Romans 8:28\"}, {\"type\":\"verse\",\"ref\":\"Romans 8:29\"}, {\"type\":\"note\",\"ref\":\"n1\"}, {\"type\":\"note\",\"ref\":\"n2\"}_\n"
+      "snapshot": "# journal-romans-8 · journaling-chat\n\n_Notes expressing anger at God, on a chapter readers reach for as a platitude. The reply must meet the anger with Scripture rather than rebuke it, and must not flatten Romans 8:28 into a slogan._\n\n**Passage:** Romans 8 · **Question:** Is it wrong to be angry with God about this?\n\n## Grounding supplied\n\n- notes: 2 — Six months on, Honest\n- cross-references: 4 — Romans 8:26, Romans 8:28, Romans 8:38, Psalms 13:1\n- retrieval: **not exercised** — the notes and cross-references are SUPPLIED by the\n  fixture. Journaling chat retrieves both semantically, and those RPCs are revoked\n  from the anon key the harness runs on. This scores the prompt and the validators,\n  not the retrieval.\n\n## Reply\n\nNo—Scripture does not treat honest anguish before the Lord as forbidden. Psalm 13 begins, “How long, O LORD?” and even dares to name the felt absence of God. Your anger is not hidden by refusing to write it down; the psalm gives it language before God. Romans 8 likewise does not call suffering good. It describes creation and God’s children as groaning, while the Spirit meets weakness with intercession when words fail. And the “good” of Romans 8:28 is clarified as conformity to Christ, not a claim that the pain itself is good or easily explained. Read against what you wrote, your protest belongs beside the groaning Paul describes—not outside God’s hearing.\n\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 13:1\"}, {\"type\":\"verse\",\"ref\":\"Romans 8:23\"}, {\"type\":\"verse\",\"ref\":\"Romans 8:26\"}, {\"type\":\"verse\",\"ref\":\"Romans 8:28\"}, {\"type\":\"verse\",\"ref\":\"Romans 8:29\"}, {\"type\":\"note\",\"ref\":\"n1\"}, {\"type\":\"note\",\"ref\":\"n2\"}_\n"
     }
   ]
 }

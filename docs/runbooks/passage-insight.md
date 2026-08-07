@@ -69,7 +69,7 @@ Two writes that deliberately never happen:
 | Migration applied, public read live | ✅ 2026-08-06, anon select returns `200 []` |
 | Function deployed and booting | ✅ 2026-08-06, `401` on unauthenticated POST |
 | Prompt quality across dense / thin / verse grains | ✅ `docs/lamplight/evals/2026-08-06-b2-passage-door` — 3/3, $0.17, zero Scripture violations, zero display-ref leaks |
-| Study chat unaffected by the shared `displayRefs` change | ✅ `docs/lamplight/evals/2026-08-06-b2-studychat-regression` (free, grounding-only) |
+| Study chat unaffected by the shared `displayRefs` change **at the time B2 landed** | ✅ `docs/lamplight/evals/2026-08-06-b2-studychat-regression` (free, grounding-only). Historical: study chat was deliberately switched over afterwards — see §7 |
 | Client read path against the real table | ✅ The exact query `usePassageInsight` issues returns `200 []` for `psa.27`, `psa.27.4`, `nam.1` — a reader today correctly sees *Study this passage* rather than an error |
 | **End-to-end generate through the deployed function** | ❌ **Never run.** The eval drives the pipeline directly, not the edge function |
 | **A second reader gets the cached door instantly** | ❌ Unit-tested only |
@@ -95,9 +95,9 @@ Record the first warmed passages below when step 1 lands.
 
 ## 7. Known issues
 
-- ~~Study chat still prints OSIS codes at readers.~~ **Fixed 2026-08-06.** `displayRefs` is now on for study chat and study insight too (`study-chat-…-v7`, `study-insight-…-v5`), verified live: `docs/lamplight/evals/2026-08-06-study-display-refs`, 4/4, zero leaks. `lamplight-study` redeployed. The client's `humanizeRef` already handled both forms, so no client change was needed and existing messages still render.
+- ~~Study chat still prints OSIS codes at readers.~~ **Fixed 2026-08-06.** `displayRefs` is now on for study chat and study insight too (`study-chat-…-v7`, `study-insight-…-v5`), verified live: `docs/lamplight/evals/2026-08-07-study-display-refs`, 4/4, zero leaks. `lamplight-study` redeployed. The client's `humanizeRef` already handled both forms, so no client change was needed and existing messages still render.
 - ~~Journaling chat (`lamplight-chat`) still prints OSIS codes.~~ **Fixed 2026-08-06**, after its own eval kind was built first. `buildChatContext` extracted from the Deno shell to `lamplight-chat/chat-context.ts` so it could be unit-tested at all, then given the same `displayRefs`. `bible-chat` v2→v3, redeployed. Baseline: `docs/lamplight/evals/2026-08-07-journaling-baseline`.
-  - **All three reader-facing surfaces now use display refs**, each with a live baseline. The remaining generated surfaces (daily devotion, connection-why, monthly reflection) go through `buildPassages`, which has used `formatDisplayVerseRef` since slice 1d.
+  - **All three reader-facing surfaces now use display refs**, each with a live baseline, all re-confirmed together on 2026-08-07: study chat 4/4, journaling chat 2/2, Door 1 3/3 — zero OSIS leaks in any reply and every citation properly cased, including numbered books (`2 Corinthians 5:7`) and ranges (`Genesis 1:26–31`). The remaining generated surfaces (daily devotion, connection-why, monthly reflection) go through `buildPassages`, which has used `formatDisplayVerseRef` since slice 1d.
 - **`door` is not in the primary key.** `primary key (scope, ref_id, section)` makes `('chapter','psa.27','overview')` unique across *all* doors. B3's Deeper door has no colliding section names today, but it is one careless name away from two doors silently overwriting each other. Widen the PK when B3 lands.
 - **The refresh script writes no usage row**, so its spend does not reach the admin dashboard and does not count against the global daily ceiling. `lamplight_usage.user_id` is `not null references profiles(id)` and a maintenance sweep has no user; a fabricated id would corrupt per-user cost attribution. The spend is printed to the operator instead.
 
