@@ -39,13 +39,12 @@ import { buildStudyContext } from '../supabase/functions/lamplight-study/study-c
 import { STUDY_CHAT_PROMPT } from '../supabase/functions/lamplight-study/prompts/study-chat';
 import { runBibleChatPipeline } from '../supabase/functions/lamplight-chat/bible-chat-pipeline';
 import { runPassageInsightPipeline } from '../supabase/functions/lamplight-study/passage-insight-pipeline';
-import { PASSAGE_DOOR_SPEC, PASSAGE_INSIGHT_SECTIONS } from '../supabase/functions/lamplight-study/prompts/passage-insight';
+import { insightDoorById, INSIGHT_DOORS, DEFAULT_INSIGHT_DOOR_ID } from '../supabase/functions/lamplight-study/insight-doors';
 import type { VoyageDeps } from '../supabase/functions/_shared/voyage';
 
 // The harness is a script, not a `src` module, so it imports the real section
 // list rather than copying it. A door whose sections drifted from the prompt's
 // would otherwise score four checks against keys nothing writes.
-const PASSAGE_SECTION_KEYS = PASSAGE_INSIGHT_SECTIONS.map((s) => s.key);
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -105,6 +104,8 @@ export interface FixturePassageInsight {
   chapter: number;
   /** Absent = the chapter grain. Present = the verse grain. */
   verse?: number;
+  /** Which door. Absent = 'passage', so every B2 fixture keeps its meaning. */
+  door: string;
   expectGrounding?: FixtureStudyChat['expectGrounding'];
 }
 
@@ -211,9 +212,19 @@ export function parseFixture(raw: unknown): EvalFixture {
     if (pi.verse !== undefined && (typeof pi.verse !== 'number' || !Number.isInteger(pi.verse) || pi.verse < 1)) {
       throw new Error(`fixture ${where}: "verse" must be a positive integer when present`);
     }
+    // Validated against the registry, not merely typechecked: a fixture naming
+    // a door that does not exist would otherwise be scored as Door 1 and its
+    // report would read as a pass for a door nobody ran.
+    const doorId = pi.door === undefined ? DEFAULT_INSIGHT_DOOR_ID : pi.door;
+    if (typeof doorId !== 'string' || !insightDoorById(doorId)) {
+      throw new Error(
+        `fixture ${where}: "door" must be one of ${INSIGHT_DOORS.map((d) => d.spec.id).join(', ')}`,
+      );
+    }
     passageInsight = {
       book: req(pi, 'book', where),
       chapter: pi.chapter,
+      door: doorId,
       ...(pi.verse !== undefined ? { verse: pi.verse as number } : {}),
       expectGrounding: (pi.expectGrounding ?? {}) as FixtureStudyChat['expectGrounding'],
     };
@@ -580,6 +591,16 @@ async function main(): Promise<void> {
 
   let fixtures = fixturesFor(loadFixtures(FIXTURE_DIR), artifact);
   if (only) fixtures = fixtures.filter((f) => f.name === only);
+  // --door narrows a passage-insight sweep to one door. Absent runs both, which
+  // is the right default for a completion gate and the wrong one for iterating
+  // on a single door's prompt.
+  const doorFilter = arg('door');
+  if (doorFilter) {
+    if (!insightDoorById(doorFilter)) {
+      throw new Error(`--door=${doorFilter} names no registered door (${INSIGHT_DOORS.map((d) => d.spec.id).join(', ')})`);
+    }
+    fixtures = fixtures.filter((f) => f.passageInsight?.door === doorFilter);
+  }
   if (fixtures.length === 0) {
     throw new Error(
       `no ${artifact} fixtures matched${only ? ` --fixture=${only}` : ''}. ` +
@@ -984,9 +1005,9 @@ const ENDS_COMPLETE = /[.!?…:][)"'”’\]]*$/;
  * has no last character to judge, and stacking a second red on it would make
  * the report read as two problems where there is one.
  */
-export function checkSections(sections: Record<string, string>): PropertyCheck[] {
+export function checkSections(sections: Record<string, string>, keys: readonly string[]): PropertyCheck[] {
   const checks: PropertyCheck[] = [];
-  for (const key of PASSAGE_SECTION_KEYS) {
+  for (const key of keys) {
     const body = (sections[key] ?? '').trim();
     const present = body.length > 0;
     checks.push({
@@ -1198,6 +1219,9 @@ async function runPassageInsightFixture(args: {
   const { fixture, llm, supabase } = args;
   const pi = fixture.passageInsight!;
   const grain = pi.verse === undefined ? 'chapter' : `verse ${pi.verse}`;
+  // Validated at parse time, so this cannot be null here.
+  const doorEntry = insightDoorById(pi.door)!;
+  const sectionKeys = doorEntry.spec.sections.map((s) => s.key);
 
   // The door has no reader question, so the retrieval query is the passage
   // itself — the same substitution `lamplight-study` makes for insight mode and
@@ -1219,7 +1243,11 @@ async function runPassageInsightFixture(args: {
     crossRefK: STUDY_EVAL.crossRefK,
     noteK: 0,
     translation: 'BSB',
-    libraryK: STUDY_EVAL.libraryK,
+    // From the registry, exactly as the edge function reads them — so a
+    // steering decision made in Task 8 is measured by the sweep that argues
+    // for it rather than by a constant the harness keeps separately.
+    libraryK: doorEntry.retrieval.libraryK,
+    ...(doorEntry.retrieval.registers ? { registers: [...doorEntry.retrieval.registers] } : {}),
     skipSemanticRetrieval: true,
     displayRefs: true,
     ...(pi.verse !== undefined ? { verse: pi.verse } : {}),
@@ -1241,7 +1269,7 @@ async function runPassageInsightFixture(args: {
   const groundingSnapshot = [
     formatGroundingSnapshot(
       fixture,
-      { book: pi.book, chapter: pi.chapter, question: grain },
+      { book: pi.book, chapter: pi.chapter, question: `${doorEntry.spec.id} · ${grain}` },
       ctx,
       'passage-insight',
     ),
@@ -1268,7 +1296,7 @@ async function runPassageInsightFixture(args: {
   const result = await runPassageInsightPipeline({
     llm,
     ctx,
-    door: PASSAGE_DOOR_SPEC,
+    door: doorEntry.spec,
     verifyScripture: {
       translation: 'BSB',
       verifyRefs: (refs, t) => verifyVerseRefs(supabase as never, refs, t),
@@ -1297,10 +1325,10 @@ async function runPassageInsightFixture(args: {
     };
   }
 
-  const prose = PASSAGE_SECTION_KEYS.map((k) => result.sections[k]).filter(Boolean).join('\n\n');
+  const prose = sectionKeys.map((k) => result.sections[k]).filter(Boolean).join('\n\n');
   const snapshot = [
     groundingSnapshot,
-    ...PASSAGE_INSIGHT_SECTIONS.flatMap((s) => {
+    ...doorEntry.spec.sections.flatMap((s) => {
       const body = result.sections[s.key] ?? '';
       // An omitted section is SHOWN as omitted rather than skipped: a reader of
       // the report must be able to tell "the door left this out" from "the
@@ -1317,7 +1345,7 @@ async function runPassageInsightFixture(args: {
     scriptureViolations: [],
     checks: [
       ...groundingChecks,
-      ...checkSections(result.sections),
+      ...checkSections(result.sections, sectionKeys),
       ...checkDisplayRefs(prose),
       ...checkProperties(prose, fixture),
     ],
