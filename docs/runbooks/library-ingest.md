@@ -197,6 +197,49 @@ What this baseline pins, beyond "retrieval works":
 
 **Resolved 2026-08-06 (slice 1c).** `npx tsx scripts/library-fusion-smoke.ts` — which runs the real two-channel fusion rather than the bare RPC — surfaces all three sources across its four queries, MHCC included. The verse-anchor channel plus block-level questions are what reach it; a single-verse semantic query alone does not. MHCC is earning its place; Matthew Henry *Complete* stays deferred.
 
+## 6c. Acceptance re-run after Phase A1 (2026-08-07)
+
+Corpus **111,637 chunks across 8 sources**.
+
+| §6 query | result |
+|---|---|
+| per-source counts | clarke 23,797 · calvin 19,129 · jfb 17,195 · wesley 16,968 · geneva 14,701 · treasury 12,745 · mhcc 4,136 · catena 2,966 |
+| unembedded | **0** across all eight (checked per source) |
+| versification canary | Treasury on Psalm 51 still anchors to `psa 51` ✓ |
+| unknown book codes | see note below |
+
+**Book coverage per new source** — a better check than the sampled one, and it matches each module's stated scope exactly:
+
+| source | books |
+|---|---|
+| `adam-clarke` | 66/66 |
+| `wesley-notes` | 64/66 |
+| `geneva-notes` | 63/66 |
+| `calvin-commentaries` | 48/66 *(its partial canon)* |
+| `catena-aurea` | **4/66 — the four Gospels**, exactly as the module scopes |
+
+**On the unknown-book-code query:** the whole-table `book not.in.(66 codes)` form times out — a full scan of 111,637 rows, the same shape as §Known limits below. The property still holds structurally: `parseHeadingRef` resolves against `BIBLE_BOOKS` and returns null for anything it cannot match, the driver **skips** unresolvable refs, and the A1 ingest recorded **zero unanchored chunks** across all 77,561. An unknown code is not reachable from the adapter.
+
+### 6d. Retrieval baseline re-run (2026-08-07)
+
+Same query as §6b, `"waiting on the Lord in a season of fear"`:
+
+| # | sim | source | heading |
+|---|---|---|---|
+| 1 | **0.561** | **adam-clarke** | Psalm 27:14 |
+| 2 | 0.551 | jfb | Psalm 130:5-6 |
+| 3 | **0.549** | **wesley-notes** | Exodus 14:13 |
+| 4 | 0.536 | treasury-of-david | Psalm 27:14 |
+| 5 | 0.530 | treasury-of-david | Psalm 130:5 [2] |
+
+**Source diversity doubled: 2 sources → 4** in the top five. Treasury's share fell from 4-of-5 to 2-of-5, and the new top hit (Clarke, 0.561) outscores the old top hit (JFB, 0.551).
+
+The most interesting arrival is #3: Wesley on **Exodus 14:13** — *"Stand still and see the salvation of the LORD"* — a waiting-in-fear passage from **outside the Psalms**, which the three-source corpus never surfaced for this query. That is precisely what broadening was for. The similarity band is unchanged (~0.53–0.56), so slice-1c thresholds still hold.
+
+`npx tsx scripts/library-fusion-smoke.ts` surfaces **five** sources across its four Psalm 27 queries — Treasury, Matthew Henry, Clarke, JFB and Calvin — with MHCC still placing.
+
+**Watch item, in the tradition of §6b's MHCC note:** `catena-aurea`, `geneva-notes` and `wesley-notes` do not place in the fusion smoke. For Catena that is correct and expected — it is Gospels-only and every fusion query is on Psalm 27. Geneva and Wesley cover the Psalms and did not rank; not necessarily wrong (Geneva's notes are terse glosses, Wesley's are catchwords), but if neither surfaces across varied Gospel and Epistle queries, investigate before assuming they earn their place.
+
 ## 7. Re-running / rollback
 
 Chunks upsert on `library_chunks_ident (source_id, heading, book, chapter, verse_start)` with `nulls not distinct`, and sources upsert on `id` — so a re-run is safe and idempotent.
