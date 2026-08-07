@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/lib/supabase', () => ({ supabase: { from: () => ({}), auth: {} } }));
 
-import { referenceDoor, passageDoor, deeperDoor, type DoorDeps } from './doors';
+import { referenceDoor, passageDoor, deeperDoor, canGenerateInsights, type DoorDeps } from './doors';
 import { INSIGHT_DOOR_VIEWS } from './insight-doors';
 
 const deps: DoorDeps = {
@@ -62,5 +62,31 @@ describe('the Insights door registry', () => {
       expect(at).toBeGreaterThan(cursor);
       cursor = at;
     }
+  });
+});
+
+// ── Who may press "Study this passage" ───────────────────────────────────────
+//
+// Reproduced in the browser on 2026-08-07, signed out: the generate button was
+// offered, pressing it returned "That didn't finish. Try again.", and trying
+// again could never work — the request 401s with no bearer token.
+//
+// The cause was never in PassageDoor, whose own tests assert the right thing and
+// pass. It was in the CALLER: `hasAccess` short-circuits on a global promo
+// before it considers who is asking, and both workspaces passed that straight
+// through. The defect had been in Door 1 since B2; registering Door 2 doubled
+// the surface.
+describe('canGenerateInsights', () => {
+  it('refuses a signed-out reader even while a promo makes hasAccess true', () => {
+    // The exact production state on 2026-08-07: lamplight_promo_active = true.
+    expect(canGenerateInsights({ userId: null, hasInlineAccess: true })).toBe(false);
+  });
+
+  it('refuses a signed-in reader without the entitlement', () => {
+    expect(canGenerateInsights({ userId: 'u1', hasInlineAccess: false })).toBe(false);
+  });
+
+  it('allows a signed-in reader who has it', () => {
+    expect(canGenerateInsights({ userId: 'u1', hasInlineAccess: true })).toBe(true);
   });
 });
