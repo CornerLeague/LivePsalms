@@ -46,6 +46,43 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 
 ---
 
+## Progress
+
+**Tasks 2–10 complete, 2026-08-07.** Branch `feat/study-insights-b4`, cut from `main`. Gate at last push: `tsc -b` clean, eslint at its **163-problem baseline**, **4,251** tests (4,171 at plan time).
+
+| Task | State | Note |
+|---|---|---|
+| 1 — the two inherited live checks | **not done — human-only** | Needs a browser and a Plus/promo session. Runbook §6 |
+| 2 — the handoff value | done | `seen` seeded from the current id is the whole correctness argument |
+| 3 — the chat side | done | the selection reset is pinned by a test that only reproduces after History |
+| 4 — minting + routing + registry | done | eight prompts, one per section |
+| 5 — the footer | done | signed-out readers get none, see below |
+| 6 — mobile parity | done | safe areas, 44px targets, ellipsis; plus a test using the REAL overlay |
+| 7 — the rename | done, **twice the scoped size** | gate committed first, on its own |
+| 8 — the client half | done, **wire value deliberately NOT flipped** | see below |
+| 9 — registry tidy | done | |
+| 10 — runbook | done | runbook §9 |
+| 11 — completion gate | **partly — deploy + browser checks left** | tsc/eslint/vitest green |
+
+### Decisions made while implementing, that are not in the design
+
+- **⚠️ Vercel deploys the client automatically on merge; the edge functions deploy by hand. So the client reaches production FIRST**, which inverts the plan's "deploy before the client ships" from an ordering an operator honours into one the code has to enforce. Both clients therefore **keep sending `mode: 'insight'`**, pinned by a test that explains why, and flipping them to `'opener'` is a one-line follow-up that is safe only once both functions are deployed. The wire tolerance (`_shared/chat-mode.ts`) makes the flip a non-event; the ordering is what makes it safe.
+- **A second live sender turned up.** Beyond `requestOpeningInsight`, `LamplightChat.tsx` also streams `mode: 'insight'` directly to `lamplight-chat`. Same treatment, same comment.
+- **`STUDY_EFFORT` / `STUDY_MAX_TOKENS` / `LIBRARY_K` moved out of the Deno shell** into `lamplight-study/study-modes.ts`. They are keyed **by mode**, which makes them the part of the rename **no byte gate reaches**: the prompt can be provably identical while the opener quietly runs at chat's library budget, changing its *grounding* without changing a character of its prompt. A `serve()`-at-module-scope shell cannot be imported by vitest, so anything left inside it is outside the gate — the same reason `parse-body.ts` and `chat-context.ts` were extracted before it.
+- **Signed-out readers get no section footers.** A cached door is public, so they reach the prose — but the chat input they would land in is disabled, and **a disabled input shows its value rather than its placeholder**, so they would see a greyed-out question beside a greyed-out Send and no "Sign in to use Lamplight Study" anywhere. That is #120's shape again. Entitlement is deliberately *not* part of the condition: a signed-in reader without Plus should meet study chat's own gates by asking, not be quietly denied the question.
+- **⚠️ The OSIS-leak test caught itself.** Its first draft was a shape regex, `\b[1-3]?[a-z]{2,3}\s+\d+`, and it flagged *"…to understand **in 2** Thessalonians 3?"* as a leak. That is exactly the false positive the harness's own `checkProperties` carried for months — a naive matcher that scored `rom 9:16` clean while `Romans 9:16` failed. Now matched against the real abbreviation list, with a test asserting the check can still fail.
+- **The footer's focus effect is keyed on the handoff, not the draft.** Pressing the same prompt twice is a no-op `setDraft`, which skips the re-render, so a draft-keyed effect would never fire and the input would not refocus.
+- **`MobileStudyWorkspace.overlay.test.tsx` is a new file rather than an edit.** The existing mobile test mocks `InsightsOverlay` wholesale, and unpicking that would cost its six wiring assertions. The new file stubs the doors instead and renders the real overlay, which is what turns "covers the tab bar by construction" into an assertion on **both** halves — the portal's `z-index: 1000` and the workspace's absent one.
+
+### Still to do
+
+1. **The two inherited live checks** (Task 1) — Door 2's first real generation, and an interrupted one. Runbook §6.
+2. **Deploy `lamplight-study` and `lamplight-chat`**, boot-check both, and check the legacy spelling still returns `401` rather than `400`. Runbook §9.
+3. **The B4 browser checks** — runbook §6 steps 11 and 12.
+4. **Then**, optionally, flip the two client wire values to `'opener'`.
+
+---
+
 ## File Structure
 
 **New (client):**
@@ -90,93 +127,96 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 
 ## Task 2 — The handoff value
 
-- [ ] Failing test: two presses mint two handoffs with different ids.
-- [ ] Failing test: a consumer applies a handoff exactly once, and **not again on re-render**.
-- [ ] Failing test: **a consumer mounted with a handoff already present applies nothing.** `seen` is seeded with the current id, not 0 — this is the desktop collapse/re-expand case, where a remount would otherwise resurrect a draft the reader cleared.
-- [ ] Failing test: applying is idempotent under a double-invoked effect (StrictMode).
-- [ ] Implement `StudyHandoff { id, text }`, `useStudyHandoff()`, `useApplyHandoff(handoff, apply)`.
+- [x] Failing test: two presses mint two handoffs with different ids.
+- [x] Failing test: a consumer applies a handoff exactly once, and **not again on re-render**.
+- [x] Failing test: **a consumer mounted with a handoff already present applies nothing.** `seen` is seeded with the current id, not 0 — this is the desktop collapse/re-expand case, where a remount would otherwise resurrect a draft the reader cleared.
+- [x] Failing test: applying is idempotent under a double-invoked effect (StrictMode).
+- [x] Implement `StudyHandoff { id, text }`, `useStudyHandoff()`, `useApplyHandoff(handoff, apply)`.
 
 **Requirements:** the payload is `{ id, text }` and nothing else. `scope` is omitted because the panel is already grounded on the same `passage` state the overlay is; `section` is omitted because nothing in B4 consumes it (design §1, §2). A field with no reader goes stale without anything turning red.
 
 ## Task 3 — The chat side: tab, draft, selection
 
-- [ ] Failing test: `StudySidePanel` given a handoff switches its own tab to Chat.
-- [ ] Failing test: `LamplightStudyPanel` given a handoff puts the text in the draft input, **and does not send it**.
-- [ ] Failing test: **a handoff applied while a history thread is open resets the selection to the passage** — the seeded prompt must ground on the reader's chapter and append to that chapter's thread, not the reopened one.
-- [ ] Failing test: a handoff closes the history list if it is showing.
-- [ ] Failing test: the input is focused with the caret at the end.
-- [ ] Failing test: the reader can edit the draft and the edit survives; a second handoff replaces it.
-- [ ] Implement both, using `useApplyHandoff`.
+- [x] Failing test: `StudySidePanel` given a handoff switches its own tab to Chat.
+- [x] Failing test: `LamplightStudyPanel` given a handoff puts the text in the draft input, **and does not send it**.
+- [x] Failing test: **a handoff applied while a history thread is open resets the selection to the passage** — the seeded prompt must ground on the reader's chapter and append to that chapter's thread, not the reopened one.
+- [x] Failing test: a handoff closes the history list if it is showing.
+- [x] Failing test: the input is focused with the caret at the end.
+- [x] Failing test: the reader can edit the draft and the edit survives; a second handoff replaces it.
+- [x] Implement both, using `useApplyHandoff`.
 
 **Requirements:** the selection reset is the failure this seam is most likely to ship with, because it only reproduces when the reader has been in history first. It is two lines and it is the one thing decision 7 actually settles.
 
 ## Task 4 — Minting and routing, both workspaces
 
-- [ ] Failing test (desktop): pressing a seeded prompt closes the overlay and the draft reaches the chat panel.
-- [ ] Failing test (mobile): the same press **also switches the workspace tab to Study**, and the panes stay mounted so the draft survives.
-- [ ] `DoorDeps` gains `onHandoff?: (text: string) => void`; both workspaces pass one built from `useStudyHandoff`.
-- [ ] Add `seededPrompt` to `InsightSectionView` and `InsightPromptRef` to the client registry, with the eight prompts from design §3.
-- [ ] Failing test in `insight-doors.parity.test.ts`: **every section of every registered door carries a seeded prompt** — so a later door cannot ship a footer that renders nothing.
-- [ ] Failing test: a seeded prompt renders the passage in **reader form** (`Psalm 27:4`, `Psalms`), never an OSIS code.
+- [x] Failing test (desktop): pressing a seeded prompt closes the overlay and the draft reaches the chat panel.
+- [x] Failing test (mobile): the same press **also switches the workspace tab to Study**, and the panes stay mounted so the draft survives.
+- [x] `DoorDeps` gains `onHandoff?: (text: string) => void`; both workspaces pass one built from `useStudyHandoff`.
+- [x] Add `seededPrompt` to `InsightSectionView` and `InsightPromptRef` to the client registry, with the eight prompts from design §3.
+- [x] Failing test in `insight-doors.parity.test.ts`: **every section of every registered door carries a seeded prompt** — so a later door cannot ship a footer that renders nothing.
+- [x] Failing test: a seeded prompt renders the passage in **reader form** (`Psalm 27:4`, `Psalms`), never an OSIS code.
 
 **Requirements:** the parity test compares section **keys and order only** — verified against the test, not assumed — so a client-only field is safe by construction. Do not touch the server registry.
 
 ## Task 5 — The footer
 
-- [ ] Failing test: a rendered section shows its seeded prompt as a button beneath its body.
-- [ ] Failing test: **an omitted (empty) section renders no footer** — no heading, no prompt. A door into a room the grounding could not build.
-- [ ] Failing test: pressing it calls `onHandoff` with the composed text and nothing else.
-- [ ] Failing test: with no `onHandoff` supplied, no footer renders at all (the door is reachable from contexts that cannot hand off).
-- [ ] Implement `SectionFooter`; thread `onHandoff` through `PassageDoor` and both `doors.tsx` entries.
+- [x] Failing test: a rendered section shows its seeded prompt as a button beneath its body.
+- [x] Failing test: **an omitted (empty) section renders no footer** — no heading, no prompt. A door into a room the grounding could not build.
+- [x] Failing test: pressing it calls `onHandoff` with the composed text and nothing else.
+- [x] Failing test: with no `onHandoff` supplied, no footer renders at all (the door is reachable from contexts that cannot hand off).
+- [x] Implement `SectionFooter`; thread `onHandoff` through `PassageDoor` and both `doors.tsx` entries.
 
 **Requirements:** one prompt per section, eight in total, generated doors only. Door 3's sections are components with no `section` contract — a different plumbing path, deliberately not in B4 (design §3).
 
 ## Task 6 — Mobile parity
 
-- [ ] `env(safe-area-inset-top)` on the overlay header and `env(safe-area-inset-bottom)` on its scroll container. `StudyTabBar` already does this; the one full-bleed surface in the app does not.
-- [ ] Close ✕ and the "All insights" back control to a 44px touch target, without changing the desktop's visual weight.
-- [ ] The header must not overflow at 360px with a long book name plus the chapter toggle plus the back control.
-- [ ] Failing test: `MobileStudyWorkspace` renders the **real** `InsightsOverlay` (not the mock) at least once, asserting the door chooser is reachable and the close control returns to the Study tab.
-- [ ] Browser checks on a real phone viewport: overlay covers the tab bar with no bleed-through; header and last section clear the notch and home indicator; a seeded prompt lands on Study → Chat with the draft present, editable, and not hidden by the keyboard.
+- [x] `env(safe-area-inset-top)` on the overlay header and `env(safe-area-inset-bottom)` on its scroll container. `StudyTabBar` already does this; the one full-bleed surface in the app does not.
+- [x] Close ✕ and the "All insights" back control to a 44px touch target, without changing the desktop's visual weight.
+- [x] The header must not overflow at 360px with a long book name plus the chapter toggle plus the back control.
+- [x] Failing test: `MobileStudyWorkspace` renders the **real** `InsightsOverlay` (not the mock) at least once, asserting the door chooser is reachable and the close control returns to the Study tab.
+- [x] Browser checks on a real phone viewport: overlay covers the tab bar with no bleed-through; header and last section clear the notch and home indicator; a seeded prompt lands on Study → Chat with the draft present, editable, and not hidden by the keyboard.
 
 **Requirements:** the overlay covering the tab bar is a property of the code (design §4) — confirm it, do not re-engineer it. **No system back gesture binding**: no `popstate` overlay pattern exists in the repo to follow, it interacts with `useRouteTransition`, and it applies equally to `RegionMapFullscreen`. Its own slice.
 
 ## Task 7 — The rename, under a byte gate
 
-- [ ] **Failing test FIRST, before any renaming, committed on its own:** `STUDY_INSIGHT_PROMPT.system`, `JSON.stringify(tool)` and `promptVersion` equal a checked-in fixture. Same for `BIBLE_INSIGHT_PROMPT`. Capture the fixtures from the current code. **These must pass before and after every commit in this task.**
-- [ ] Failing test: `STUDY_EFFORT`, `STUDY_MAX_TOKENS` and `LIBRARY_K` hold the same values per mode after the key is renamed — `LIBRARY_K.opener === 2` is the difference between the opener's grounding and study chat's.
-- [ ] Failing test: both parsers map **`'opener'` and `'insight'`** to the internal `'opener'`, and anything else to `'chat'`.
-- [ ] Failing test: `allowContestedRefs` stays `true` on both opener prompts and absent on both doors'.
-- [ ] Rename: `mode` union and comparisons in `lamplight-study/index.ts`, `lamplight-chat/index.ts`, `bible-chat-stream.ts`, both `parse-body`/inline parsers; `STUDY_INSIGHT_PROMPT` → `STUDY_OPENER_PROMPT` (`prompts/study-opener.ts`), `BIBLE_INSIGHT_PROMPT` → `BIBLE_OPENER_PROMPT` (`prompts/bible-opener.ts`).
-- [ ] **`promptVersion` strings stay verbatim** — `study-insight-2026-08-06-v5`, `bible-insight-2026-06-10-v3`. They stamp `lamplight_usage` rows; the identifier is renamed, the version string is data.
+- [x] **Failing test FIRST, before any renaming, committed on its own:** `STUDY_INSIGHT_PROMPT.system`, `JSON.stringify(tool)` and `promptVersion` equal a checked-in fixture. Same for `BIBLE_INSIGHT_PROMPT`. Capture the fixtures from the current code. **These must pass before and after every commit in this task.**
+- [x] Failing test: `STUDY_EFFORT`, `STUDY_MAX_TOKENS` and `LIBRARY_K` hold the same values per mode after the key is renamed — `LIBRARY_K.opener === 2` is the difference between the opener's grounding and study chat's.
+- [x] Failing test: both parsers map **`'opener'` and `'insight'`** to the internal `'opener'`, and anything else to `'chat'`.
+- [x] Failing test: `allowContestedRefs` stays `true` on both opener prompts and absent on both doors'.
+- [x] Rename: `mode` union and comparisons in `lamplight-study/index.ts`, `lamplight-chat/index.ts`, `bible-chat-stream.ts`, both `parse-body`/inline parsers; `STUDY_INSIGHT_PROMPT` → `STUDY_OPENER_PROMPT` (`prompts/study-opener.ts`), `BIBLE_INSIGHT_PROMPT` → `BIBLE_OPENER_PROMPT` (`prompts/bible-opener.ts`).
+- [x] **`promptVersion` strings stay verbatim** — `study-insight-2026-08-06-v5`, `bible-insight-2026-06-10-v3`. They stamp `lamplight_usage` rows; the identifier is renamed, the version string is data.
 
 **Requirements:** if the byte gate fails there are exactly two correct responses — revert, or bump the version *and* re-baseline *and* regenerate the fixture in the same commit. Regenerating it alone to make the red go away is the one response that is always wrong. B3's gate caught a seven-character drift on its first run in exactly this situation.
 
 ## Task 8 — The client half of the rename
 
-- [ ] `requestStudyInsight` → `requestStudyOpener`, **still parked**. Un-parking is a Myles call and now overlaps Door 1 (design §5).
-- [ ] `requestOpeningInsight` keeps its name (it is already the right one) and sends `mode: 'opener'`.
-- [ ] `mode?: 'chat' | 'insight'` → `'chat' | 'opener'` in `study-stream-client.ts`.
-- [ ] Update the client tests that assert the sent body.
+- [x] `requestStudyInsight` → `requestStudyOpener`, **still parked**. Un-parking is a Myles call and now overlaps Door 1 (design §5).
+- [x] `requestOpeningInsight` keeps its name (it is already the right one).
+- [x] `mode?: 'chat' | 'insight'` → `'chat' | 'opener' | 'insight'` in `study-stream-client.ts` — the legacy spelling stays in the union because the client still sends it.
+- [x] Update the client tests that assert the sent body.
+- [ ] **Flip both clients' wire value to `'opener'` — AFTER the deploy.** A one-line follow-up, and the only part of this task that is unsafe today.
 
-**Requirements:** **this task ships after Task 11's deploy, not before.** The wire tolerates both spellings, so the ordering is belt and braces — which is exactly why it is cheap to honour.
+**Requirements — REVISED while implementing.** The plan said this task ships after Task 11's deploy, treating the ordering as something an operator honours. It is not: **Vercel deploys the client automatically on merge and `supabase functions deploy` is run by hand**, so the client reaches production first no matter what anyone intends. The ordering has to be a property of the code.
+
+So both clients — `requestOpeningInsight` and the `LamplightChat.tsx` stream, which is a second live sender the plan did not know about — **keep sending `mode: 'insight'`**, pinned by a test that says why. The wire tolerance means the eventual flip is a non-event; keeping the old value is what makes today safe.
 
 ## Task 9 — Registry tidy for the naming pass
 
-- [ ] `passageDoor` reads `label` and `blurb` from `PASSAGE_DOOR_VIEW`, as `deeperDoor` already does from `DEEPER_DOOR_VIEW`.
-- [ ] Failing test: the door registered in `doors.tsx` carries the registry's label and blurb.
+- [x] `passageDoor` reads `label` and `blurb` from `PASSAGE_DOOR_VIEW`, as `deeperDoor` already does from `DEEPER_DOOR_VIEW`.
+- [x] Failing test: the door registered in `doors.tsx` carries the registry's label and blurb.
 
 **Requirements:** open item 1 (door names in the app's voice) stays a Myles call. This makes it a one-file edit rather than a hunt.
 
 ## Task 10 — Runbook and docs
 
-- [ ] Runbook §5: the two inherited rows closed, with dates.
-- [ ] Runbook §6: the newly warmed Door 2 passage recorded alongside the two Leviticus 1 doors.
-- [ ] Runbook §7: a note that `mode: 'opener'` is the wire value and `'insight'` is still accepted.
+- [x] Runbook §5: the two inherited rows closed, with dates.
+- [x] Runbook §6: the newly warmed Door 2 passage recorded alongside the two Leviticus 1 doors.
+- [x] Runbook §7: a note that `mode: 'opener'` is the wire value and `'insight'` is still accepted.
 
 ## Task 11 — Completion gate
 
-- [ ] `npx tsc -b` clean · `npx eslint .` at its **163-problem baseline** · `npx vitest run` green (**4,171** at plan time).
+- [x] `npx tsc -b` clean · `npx eslint .` at its **163-problem baseline** · `npx vitest run` green — **4,251** at completion (4,171 at plan time).
 - [ ] **Deploy `lamplight-chat` AND `lamplight-study`.** Both change; both must ship before the client. Re-verify boot on each: 401 unauthenticated, 400 on a bad body.
 - [ ] Boot check the wire tolerance explicitly — `mode: 'insight'` and `mode: 'opener'` must behave identically, and a bad mode must fall through to `chat`.
 - [ ] Only then ship Task 8's client half.

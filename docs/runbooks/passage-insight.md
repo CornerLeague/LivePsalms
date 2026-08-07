@@ -6,6 +6,8 @@ How the generated doors' shared cache is migrated, deployed, warmed, and refresh
 
 **Migration `061` applied and `passage-insight` redeployed, 2026-08-07, in the same sitting** — §2 and §3. Both doors are live; Door 2 has generated nothing yet.
 
+⚠️ **B4 changes `lamplight-study` and `lamplight-chat`, not `passage-insight`** — but it changes them in a way that has an ordering rule attached. See §9.
+
 ⚠️ **Door 1's prompt moved to `passage-insight-2026-08-07-v2`**, so the two warmed Leviticus doors are stale. That is the designed behaviour (D2 — serve stale, refresh deliberately): the reader is never blocked, and `scripts/refresh-passage-insights.ts --stale` reports them at an estimated $0.11 whenever someone chooses to spend it.
 
 ---
@@ -124,6 +126,8 @@ Two writes that deliberately never happen:
 | **The three-door chooser** | ✅ First time exercised past two doors since B1 built it. The Passage · Deeper In · Sources & Reference, in reading order, with blurbs |
 | **A signed-out reader is offered generation** | ✅ **FIXED 2026-08-07 — it was.** See §7 |
 | **An interrupted generation leaves the door uncached** | ❌ Unit-tested only |
+| **A seeded prompt lands in study chat, prefilled and unsent** (B4) | ❌ Unit-tested only — §6 step 11 |
+| **The overlay on a real phone: tab bar, safe areas, 360px header** (B4) | ❌ Asserted in jsdom; needs a device — §6 step 12 |
 
 The remaining checks need a browser and an authenticated Plus/promo session, which is why they are listed rather than done. §6 is the procedure.
 
@@ -142,6 +146,8 @@ Signed in as a Plus (or promo-active) user, in the Study workspace:
    `select door, section, prompt_version from bible_passage_insight where ref_id = 'psa.27' order by door, section;`
 9. **Door 2 on a contested chapter.** Romans 9. It must generate — describing the argument, naming the question as disputed, and citing nothing in 9:11–23. Before B3 this failed outright on both doors.
 10. **Read With Care.** On any Door 2 passage, that section must describe how the passage gets misread and never name a tradition, denomination or group. If it names one, the door should have been rejected — check the function is actually running the B3 bundle.
+11. **The handoff (B4).** On a warm door, press the question under any section. The overlay closes, the Study side panel switches to Chat, and the question is sitting in the input — **editable, and not sent**. Press Send: the reply must append to the passage's existing thread rather than opening a new one (`select id, passage_ref, created_at from lamplight_chat_threads where passage_ref = 'psa.27' and surface = 'study' and archived = false;` — one row, not two). Then reopen a past conversation from History on a *different* passage and press a seeded prompt again: it must return to the open passage rather than adding to the reopened thread.
+12. **Mobile (B4).** On a real phone, not a narrow desktop window: the overlay covers the tab bar completely; its header clears the notch and its last section clears the home indicator; a long book name (2 Thessalonians 3, verse selected) ellipsizes rather than pushing the close control off-screen; and a seeded prompt lands on Study → Chat with the draft visible and **not hidden by the keyboard**.
 
 Record the first warmed passages below when step 1 lands.
 
@@ -202,7 +208,49 @@ Other filters: `--scope=verse|chapter`, `--ref=psa.27`, `--door=passage|deeper`.
 
 **Two readers can see different prose for the same passage**, generated under different prompt versions. Acceptable here because the content is neither personalized nor time-sensitive: a correct Overview of Psalm 27 does not rot.
 
+## 9. B4 — the handoff seam and the `opener` rename
+
+B4 touches **`lamplight-study` and `lamplight-chat`**, not `passage-insight`. It is recorded here because the surface it decorates is this one.
+
+### The deploy ordering, and why it is in the code rather than in this runbook
+
+`mode: 'insight'` became `mode: 'opener'` (parent design §10). The mode is a request value only — **nothing persists it**, so there is no migration and no backfill. Two things make it more than a find-and-replace:
+
+- **`streamBibleChat` types the mode once and both chat functions call it**, so the rename could not stop at Study. `lamplight-chat` carries ~10 sites of its own plus its opener prompt.
+- **`requestOpeningInsight` is a live wire.** It fires on every journaling passage open with `mode: 'insight'` and no message; `lamplight-chat` rejects chat-mode with an empty message, so a client sending `'opener'` to a function that has not been redeployed returns **`400 bad payload` on every passage open, for every reader**. Vercel deploys the client automatically on merge; `supabase functions deploy` is run by hand. The client therefore reaches production first.
+
+So the ordering is enforced twice, and neither depends on remembering it:
+
+1. **`_shared/chat-mode.ts` accepts both spellings.** `'opener'` and `'insight'` both mean `opener`; anything else is `chat`.
+2. **The clients still SEND `'insight'`**, pinned by a test that says why. Flipping them to `'opener'` is a one-line follow-up that is safe once both functions are deployed — and unsafe before.
+
+**Deploy both functions** when this ships:
+
+```bash
+supabase functions deploy lamplight-study
+supabase functions deploy lamplight-chat
+```
+
+Boot-check each (`401` unauthenticated is healthy), and check the tolerance explicitly — both spellings must behave identically:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_SUPABASE_URL/functions/v1/lamplight-chat" -H "apikey: $VITE_SUPABASE_ANON_KEY" -H 'content-type: application/json' -d '{"book":"psa","chapter":27,"mode":"insight"}'
+```
+
+`401` is healthy — the body parsed and only the auth gate stopped it. **`400` means the legacy spelling was rejected**, which is the failure this section exists to prevent.
+
+⚠️ **`prompt_version` strings did not move.** `study-insight-2026-08-06-v5` and `bible-insight-2026-06-10-v3` keep the word "insight" inside them, because they stamp `lamplight_usage` rows and the rename changed no emitted byte. Byte-identity fixtures in each `prompts/__fixtures__/` prove it. If one of those gates ever fails, the two correct responses are revert, or bump the version *and* re-baseline *and* regenerate the fixture in the same commit — never the fixture alone.
+
+### The handoff seam
+
+Every rendered section of a generated door carries **one seeded question** in its footer. Pressing it closes the overlay, switches the Study pane to Chat, and prefills the draft. It **never sends** — the reader is the author (parent decision 7) — and it appends to the passage's existing thread because study chat already grounds on the open passage.
+
+Operationally there is nothing to deploy or warm: the prompts are client strings composed from the open passage, no per-user content enters the cache, and no new request shape reaches any function. `section` and `scope` deliberately do **not** travel with the handoff; the section rides in the prompt's own words, which is what study chat uses as its retrieval query.
+
+**A signed-out reader gets no footers**, though they still read the cached prose. The chat input they would land in is disabled, and a disabled input shows its value rather than its "Sign in" placeholder — a greyed question beside a greyed Send, with no explanation. Same shape as the §7 defect fixed on 2026-08-07.
+
 ---
 
 *Door 1 — design: `docs/superpowers/specs/2026-08-06-study-insights-b2-design.md`, plan: `docs/superpowers/plans/2026-08-06-study-insights-b2.md`.*
 *Door 2 — design: `docs/superpowers/specs/2026-08-07-study-insights-b3-design.md`, plan: `docs/superpowers/plans/2026-08-07-study-insights-b3.md`.*
+*B4 — design: `docs/superpowers/specs/2026-08-07-study-insights-b4-design.md`, plan: `docs/superpowers/plans/2026-08-07-study-insights-b4.md`.*
