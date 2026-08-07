@@ -137,9 +137,10 @@ Two writes that deliberately never happen:
 | **A signed-out reader is offered generation** | ✅ **FIXED 2026-08-07 — it was.** See §7 |
 | **An interrupted generation leaves the door uncached** | ✅ **2026-08-07, in a browser, signed in.** Psalm 27 Door 1, interrupted **mid-stream** with 201 of ~6,500 characters on screen. Zero rows written, watched for 5 minutes. See §6 |
 | **A seeded prompt lands in study chat, prefilled and unsent** (B4) | ✅ **2026-08-07** — Leviticus 1, signed in. Prefilled and NOT sent; the send appended to a thread created 2026-08-06 rather than opening a second. See §6 step 11 |
-| **The overlay on a real phone: tab bar, safe areas, 360px header** (B4) | ❌ Asserted in jsdom; needs a device — §6 step 12 |
+| **The overlay at a mobile viewport: tab bar, narrow header, touch targets** (B4) | ✅ **2026-08-07**, emulated 375×812 against production. See §6 step 12 |
+| **The overlay on real hardware: notch/home-indicator clearance, and the keyboard over the seeded draft** (B4) | ❌ **Needs a device.** `env()` resolves to 0 in emulation and there is no software keyboard — §6 step 12 |
 
-**One row is left, and it needs a device rather than a login** (§6 step 12). jsdom asserts the CSS; only a phone answers whether the keyboard covers the seeded draft. §6 is the procedure.
+**One row is left, and it needs real hardware** — not a login, and not an emulator. §6 step 12 is now split, because most of it turned out to be answerable at an emulated viewport and two parts genuinely are not. §6 is the procedure.
 
 Everything else in this table is now closed. The distinction is worth keeping in mind for whatever comes next, because "needs a browser" was used loosely here for a while and it hid which checks a person could actually run: a login and a device are different blockers.
 
@@ -179,7 +180,27 @@ Verified against the table afterwards:
 | Other study threads touched since 22:30 | **none** |
 
 **The thread predating the test by a day is what makes it conclusive.** A newly created thread would be consistent with either behaviour; appending to one created 2026-08-06 can only be an append. And nothing landed on another passage's thread, so the seeded prompt never leaked across the History boundary.
-12. **Mobile (B4).** On a real phone, not a narrow desktop window: the overlay covers the tab bar completely; its header clears the notch and its last section clears the home indicator; a long book name (2 Thessalonians 3, verse selected) ellipsizes rather than pushing the close control off-screen; and a seeded prompt lands on Study → Chat with the draft visible and **not hidden by the keyboard**.
+12. **Mobile (B4).** The overlay covers the tab bar completely; its header clears the notch and its last section clears the home indicator; a long book name (2 Thessalonians 3, verse selected) ellipsizes rather than pushing the close control off-screen; and a seeded prompt lands on Study → Chat with the draft visible and **not hidden by the keyboard**.
+
+### Step 12 — partly run 2026-08-07, at an emulated 375×812
+
+Run against **production**, signed out, at a Pixel 8 user agent with 5 touch points. The iOS Simulator was tried first and is unavailable on this machine — Xcode is installed but `simctl list runtimes` is empty, so there is no iOS platform to boot.
+
+**Verified — the layout half, which turned out not to need hardware at all:**
+
+| | |
+|---|---|
+| Overlay covers the tab bar | ✅ 375×812 at `z-index: 1000`, and a hit test at the tab bar's own centre point lands **inside the overlay** |
+| Body scroll locked while open | ✅ `overflow: hidden` |
+| Header at the worst case | ✅ back + scope + toggle + close, **no overflow**, and the document does not scroll horizontally |
+| The long-name rule | ✅ "2 Thessalonians 3:17" is **truncated** (`scrollWidth > clientWidth`) rather than pushing controls off-screen — the ellipsis renders |
+| Touch targets | ✅ back 90×**44**, close **44×44**, both fully inside the 375px viewport |
+
+**Not verified, and genuinely needing a device — but narrower than it looks:**
+
+- **The safe-area rule is proven WIRED, just not exercised.** `env(safe-area-inset-*)` resolves to `0px` in emulation, so `calc(6px + env(safe-area-inset-top))` computes to exactly **`6px`** — which is itself the useful result: the declaration **parsed and applied** rather than being dropped as invalid, so a device with real insets will add them. What a phone still has to answer is whether the resulting clearance actually looks right at the notch and the home indicator.
+- **The keyboard over the seeded draft.** No software keyboard exists in emulation. This is the one part of step 12 that no amount of viewport resizing can reach, and the reason the row stays open.
+- **The mobile handoff end to end** — needs a signed-in session as well as a device, since section footers render only for `userId != null`.
 
 Record the first warmed passages below when step 1 lands.
 
