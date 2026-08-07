@@ -19,7 +19,8 @@ import {
   type PassageInsightInvoke,
   type PassageInsightScope,
 } from './passage-insight-stream-client';
-import { PASSAGE_DOOR_VIEW, type InsightDoorView } from './insight-doors';
+import { PASSAGE_DOOR_VIEW, insightPromptRef, type InsightDoorView } from './insight-doors';
+import { SectionFooter } from './SectionFooter';
 
 export interface PassageDoorProps {
   scope: PassageInsightScope;
@@ -31,6 +32,11 @@ export interface PassageDoorProps {
   userId?: string | null;
   /** Which door to render. Defaults to Door 1, matching B2's call sites. */
   door?: InsightDoorView;
+  /**
+   * Carry a section's seeded prompt into study chat. Omitted where there is no
+   * chat to carry it to, and the footers then do not render at all.
+   */
+  onHandoff?: (prompt: string) => void;
 }
 
 export function PassageDoor({
@@ -39,12 +45,35 @@ export function PassageDoor({
   canGenerate,
   userId = null,
   door = PASSAGE_DOOR_VIEW,
+  onHandoff,
 }: PassageDoorProps) {
   const { sections, loading, streaming, error, generate } = usePassageInsight(
     scope,
     canGenerate ? invoke : null,
     door,
   );
+
+  // Composed from the CURRENT scope on every render, not frozen at mount: the
+  // overlay's "Whole chapter" toggle changes `scope` without unmounting, and a
+  // stale prompt would ask about a passage the reader has left.
+  const promptRef = insightPromptRef(scope);
+
+  /**
+   * ⚠️ Signed-out readers get no footer, and that is deliberate.
+   *
+   * A cached door is public and free, so a signed-out reader reaches this prose
+   * — but the chat input they would land in is disabled, and a disabled input
+   * with a value shows the value rather than its "Sign in to use Lamplight
+   * Study" placeholder. They would see a greyed-out question beside a greyed-out
+   * Send and no explanation. That is #120's shape exactly: `hasAccess`
+   * short-circuited on the promo and offered a signed-out reader a button that
+   * dead-ended. Check who is asking before offering the action.
+   *
+   * Entitlement is NOT part of this. Study chat runs its own gates, and a
+   * signed-in reader without Plus should reach them by asking, not by being
+   * quietly denied the question.
+   */
+  const handoff = userId != null ? onHandoff ?? null : null;
 
   if (loading) return null;
 
@@ -102,6 +131,9 @@ export function PassageDoor({
             <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--deep-umber)', margin: 0, whiteSpace: 'pre-wrap' }}>
               {body}
             </p>
+            {handoff && (
+              <SectionFooter prompt={section.seededPrompt(promptRef)} onPress={handoff} />
+            )}
           </section>
         );
       })}

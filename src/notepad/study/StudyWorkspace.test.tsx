@@ -5,17 +5,35 @@ import { ThemeContext, type ThemeContextValue } from '../theme/theme-context';
 
 vi.mock('./panes/ApparatusRail', () => ({ ApparatusRail: () => <div>rail</div> }));
 vi.mock('./panes/StudySidePanel', () => ({
-  StudySidePanel: (p: { onOpenInsights?: () => void }) => (
-    <div>
+  StudySidePanel: (p: { onOpenInsights?: () => void; handoff?: { id: number; text: string } | null }) => (
+    <div data-testid="side-panel" data-handoff={p.handoff ? p.handoff.text : ''}>
       panel
       {p.onOpenInsights && <button onClick={p.onOpenInsights}>Open Insights</button>}
     </div>
   ),
 }));
+// The doors are built by the workspace, so `onHandoff` is only reachable through
+// the registry. Capture the deps and expose a press.
+const doorDeps: Array<{ onHandoff?: (p: string) => void }> = [];
+vi.mock('./insights/doors', async (orig) => {
+  const actual = await orig<typeof import('./insights/doors')>();
+  return {
+    ...actual,
+    passageDoor: (deps: { onHandoff?: (p: string) => void }) => {
+      doorDeps.push(deps);
+      return { id: 'passage', label: 'The Passage', blurb: '', render: () => null };
+    },
+    deeperDoor: () => ({ id: 'deeper', label: 'Deeper In', blurb: '', render: () => null }),
+    referenceDoor: () => ({ id: 'reference', label: 'Sources & Reference', blurb: '', render: () => null }),
+  };
+});
 vi.mock('./insights/InsightsOverlay', () => ({
   InsightsOverlay: (p: { book: string; chapter: number; selectedVerse: number | null; onClose: () => void }) => (
     <div data-testid="insights-overlay" data-book={p.book} data-chapter={String(p.chapter)} data-verse={String(p.selectedVerse)}>
       <button onClick={p.onClose}>Close overlay</button>
+      <button onClick={() => doorDeps[doorDeps.length - 1]?.onHandoff?.('What is Psalm 27 not saying?')}>
+        press-seeded-prompt
+      </button>
     </div>
   ),
 }));
@@ -142,5 +160,26 @@ describe('StudyWorkspace', () => {
     const overlay = screen.getByTestId('insights-overlay');
     expect(overlay.getAttribute('data-book')).toBe('jhn');   // DEFAULT_PASSAGE
     expect(overlay.getAttribute('data-chapter')).toBe('1');
+  });
+});
+
+describe('DesktopStudyWorkspace — the Insights handoff (B4)', () => {
+  it('closes the overlay and lands the seeded prompt in the side panel', () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByRole('button', { name: /open insights/i }));
+    expect(screen.getByTestId('side-panel').getAttribute('data-handoff')).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: /press-seeded-prompt/i }));
+
+    // One press: the full-screen study gets out of the way, and the question is
+    // waiting in the pane the reader is returned to.
+    expect(screen.queryByTestId('insights-overlay')).toBeNull();
+    expect(screen.getByTestId('side-panel').getAttribute('data-handoff')).toBe('What is Psalm 27 not saying?');
+  });
+
+  it('gives the doors a handoff handler at all', () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByRole('button', { name: /open insights/i }));
+    expect(typeof doorDeps[doorDeps.length - 1]?.onHandoff).toBe('function');
   });
 });

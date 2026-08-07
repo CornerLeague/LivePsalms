@@ -21,17 +21,35 @@ vi.mock('../panes/StudyReader', () => ({
   ),
 }));
 vi.mock('../panes/StudySidePanel', () => ({
-  StudySidePanel: (p: { onOpenInsights?: () => void }) => (
-    <div>
+  StudySidePanel: (p: { onOpenInsights?: () => void; handoff?: { id: number; text: string } | null }) => (
+    <div data-testid="side-panel" data-handoff={p.handoff ? p.handoff.text : ''}>
       side-panel
       {p.onOpenInsights && <button onClick={p.onOpenInsights}>Open Insights</button>}
     </div>
   ),
 }));
+// `onHandoff` is baked into the doors by the workspace, so the only way to
+// press a seeded prompt from out here is to capture the deps.
+const doorDeps: Array<{ onHandoff?: (p: string) => void }> = [];
+vi.mock('../insights/doors', async (orig) => {
+  const actual = await orig<typeof import('../insights/doors')>();
+  return {
+    ...actual,
+    passageDoor: (deps: { onHandoff?: (p: string) => void }) => {
+      doorDeps.push(deps);
+      return { id: 'passage', label: 'The Passage', blurb: '', render: () => null };
+    },
+    deeperDoor: () => ({ id: 'deeper', label: 'Deeper In', blurb: '', render: () => null }),
+    referenceDoor: () => ({ id: 'reference', label: 'Sources & Reference', blurb: '', render: () => null }),
+  };
+});
 vi.mock('../insights/InsightsOverlay', () => ({
   InsightsOverlay: (p: { book: string; chapter: number; selectedVerse: number | null; onClose: () => void }) => (
     <div data-testid="insights-overlay" data-book={p.book} data-chapter={String(p.chapter)} data-verse={String(p.selectedVerse)}>
       <button onClick={p.onClose}>Close overlay</button>
+      <button onClick={() => doorDeps[doorDeps.length - 1]?.onHandoff?.('What is Psalm 27 not saying?')}>
+        press-seeded-prompt
+      </button>
     </div>
   ),
 }));
@@ -148,5 +166,33 @@ describe('MobileStudyWorkspace', () => {
     expect(screen.queryByRole('tab', { name: /reader/i })).toBeNull();
     fireEvent.click(screen.getByText('editor-back'));
     expect(openNote).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('MobileStudyWorkspace — the Insights handoff (B4)', () => {
+  it('closes the overlay, switches to the Study tab, and lands the draft there', () => {
+    renderWorkspace();
+    // Open Insights from the Reader tab, which is where a reader actually is.
+    fireEvent.click(screen.getByRole('tab', { name: /study/i }));
+    fireEvent.click(screen.getByRole('button', { name: /open insights/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /reader/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /press-seeded-prompt/i }));
+
+    expect(screen.queryByTestId('insights-overlay')).toBeNull();
+    expect(screen.getByRole('tab', { name: /study/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('side-panel').getAttribute('data-handoff')).toBe('What is Psalm 27 not saying?');
+  });
+
+  it('leaves the reader pane mounted through the handoff, so nothing is lost behind it', () => {
+    // Parent §8: the seam is shared draft state, not a remount. The panes are
+    // display-toggled, which is WHY a draft set here survives.
+    renderWorkspace();
+    fireEvent.click(screen.getByRole('tab', { name: /study/i }));
+    fireEvent.click(screen.getByRole('button', { name: /open insights/i }));
+    fireEvent.click(screen.getByRole('button', { name: /press-seeded-prompt/i }));
+
+    expect(screen.getByText('reader-pane')).toBeInTheDocument();
+    expect(screen.getByTestId('side-panel')).toBeInTheDocument();
   });
 });
