@@ -1,12 +1,12 @@
 # Handoff: the entitlement sweep, and what Phase B left
 
 **Date:** 2026-08-07
-**Status:** READY TO BUILD. **One task is a confirmed live defect and should be fixed first** (§1); the rest is a ranked list of what Phase B named and deferred. There is no design or plan yet — §1 does not need one, and §3 mostly wants triage rather than design.
+**Status:** READY TO BUILD. **§1 is DONE — the live defect it opens with is fixed** (see §1). What remains is §2's three live checks and §3's ranked backlog. There is no design or plan yet, and §3 mostly wants triage rather than design.
 **Branch:** cut from `origin/main`. Everything through B4 is merged — #112, #113, #114, #115, #117, #118, #119, #120, #122.
 
 ## Read these first, in this order
 
-1. **This document's §1.** It is the only part with a reader currently affected, and it is a one-line fix with a test.
+1. **This document's §1.** Already done, and read anyway — its lesson about mocks governs everything else here.
 2. **`docs/runbooks/passage-insight.md`** — operational state. §5's verification table is the authority on what is and is not proven; §9 carries B4's deploy rule and the `chat-mode` tolerance.
 3. **`docs/superpowers/specs/2026-08-07-study-insights-b4-design.md`** — §1 for why section→retrieval steering was deferred (the decision most likely to be reopened by accident), §6 for what B4 declined and why.
 4. **The parent design** `2026-08-06-study-insights-design.md` — §11 (the eval hazard cases still uncovered) and §13 (open items 1 and 2, both Myles calls).
@@ -24,7 +24,7 @@
 
 ---
 
-## 1. ⚠️ The entitlement sweep — a live defect, reproduced
+## 1. ✅ The entitlement sweep — DONE (a live defect, reproduced and fixed)
 
 **`hasAccess` short-circuits on the global promo before it considers who is asking:**
 
@@ -42,16 +42,20 @@ if (promoActive) return true;
 | `bible/BibleStudyPane.tsx:84` | ✅ `if (!user) return <SignInGate />` at :73 |
 | `components/lamplight/LamplightTabPanel.tsx:66` | ✅ `if (!user) return <SignInGate />` at :25 |
 | `components/waymarks/waymarks-routes.tsx:22` | ✅ consumer bails — `if (!adapter || !userId) return null` |
-| **`study/lexicon/EtymologyPanel.tsx:126`** | ❌ **`const canGenerate = hasAccess('inline');` — no `userId` check** |
+| **`study/lexicon/EtymologyPanel.tsx`** | ✅ **FIXED** — was `const canGenerate = hasAccess('inline');` with no `userId` check |
 
-**One unfixed instance. It is live, and it is reproduced, not inferred.** In a browser, signed out, on the Study workspace's ETYMOLOGY panel:
+**One unfixed instance — now fixed.** It was live, and it was reproduced rather than inferred. In a browser, signed out, on the Study workspace's ETYMOLOGY panel:
 
-- the card offers **"Ask Lamplight about this verse"**;
-- **no sign-in affordance renders anywhere** on the panel;
-- pressing it **fires a real request** to `etymology-insight` (confirmed in the console), which cannot succeed — the function does `deriveUserId` → `401 unauthorized` at `index.ts:40` with no bearer token;
-- nothing on screen changes. No spinner, no error copy. **This is worse than #120's failure**, which at least said *"That didn't finish. Try again."*
+- the card offered **"Ask Lamplight about this verse"**;
+- **no sign-in affordance rendered anywhere** on the panel;
+- pressing it **fired a real request** to `etymology-insight` (confirmed in the console), which could not succeed — the function does `deriveUserId` → `401 unauthorized` at `index.ts:40` with no bearer token;
+- nothing on screen changed. No spinner, no error copy. **This is worse than #120's failure**, which at least said *"That didn't finish. Try again."*
 
-**The fix is one line, and the correct code is already there.** `EtymologyPanel.tsx:168` renders exactly the right blocked affordance — `userId == null ? <SignInGate /> : <PaywallCard />` — and it is unreachable while the promo runs, because `canGenerate` is `true`. Mirror `canGenerateInsights`: require a signed-in reader as well as the entitlement.
+**The correct code was already there.** `EtymologyPanel.tsx` renders exactly the right blocked affordance — `userId == null ? <SignInGate /> : <PaywallCard />` — and it was unreachable while the promo runs, because `canGenerate` was `true`.
+
+**Fixed by `entitledAndSignedIn` in `src/notepad/hooks/useLamplightEntitlement.ts`**, which both `EtymologyPanel` and `canGenerateInsights` now call, so the rule has one home rather than two copies. Verified in the browser, signed out, scoped to the panel: the generate button is gone and the gate's own *Sign in / Sign up* links render in its place.
+
+The predicate is deliberately **not** folded into `hasAccess` itself. That short-circuit is correct for what it answers — *does this feature exist for this session* — and `waymarks-routes.tsx` relies on the consumer guarding. Tightening the hook would relocate the blast radius rather than shrink it. **Who is asking is the caller's question.**
 
 ### Why no test caught it, which is the part worth carrying forward
 
@@ -67,12 +71,12 @@ vi.mock('@/notepad/hooks/useLamplightEntitlement', () => ({
 
 This is #120's lesson repeating with a sharper edge. There it was *"the component's own test asserted the right behaviour and passed, because it sets `canGenerate` directly — the defect was always in the caller."* Here the mock does not merely bypass the caller; **it encodes the assumption the defect lives in.** A mock that hardcodes the safe branch of a condition cannot fail on the unsafe one.
 
-**So the sweep is two things, and the second is the durable one:**
+**So the sweep was two things, and the second is the durable one:**
 
-1. Fix `EtymologyPanel`.
-2. **Make the promo case testable rather than mocked away.** A shared signed-out-during-promo assertion that runs against the *real* `hasAccess` — every surface offering a generate action must render a sign-in path for `userId: null, promoActive: true`. Without that, the next surface added repeats this exactly.
+1. ✅ Fix `EtymologyPanel`.
+2. ✅ **Make the promo case testable rather than mocked away.** `EtymologyPanel.promo.test.tsx` drives the **real** `useLamplightEntitlement` with a `FakeLamplightAdapter` whose promo is on and a null `userId` — no entitlement mock at all. The three files that *did* mock the module wholesale now spread `importActual` so the real predicate survives, and one of them broke loudly the moment it did, which is the point.
 
-**Do not "fix" it in `hasAccess` itself.** The promo short-circuit is correct for what `hasAccess` answers — *does this feature exist for this session* — and `waymarks-routes.tsx` relies on the consumer guarding. Changing the hook's semantics would move the blast radius rather than shrink it. The rule is: **who is asking is the caller's question.**
+**Still open, and worth doing before the next surface is added:** the same assertion as a *shared* one, so every generate action is checked rather than the two that have already bitten. Two data points is a pattern.
 
 ---
 
@@ -156,7 +160,9 @@ Everything below was deferred deliberately, with a reason. The reason matters mo
 >
 > Read `docs/superpowers/handoffs/2026-08-07-entitlement-sweep-and-phase-b-leftovers.md` first, then the docs its §"Read these first" lists in order.
 >
-> Start with §1: `EtymologyPanel.tsx:126` calls `hasAccess('inline')` with no `userId` check, so while the global promo is on a signed-out reader is offered "Ask Lamplight about this verse" and pressing it fires a request that 401s. Reproduced in a browser. The correct blocked affordance is already in the file at :168 and is unreachable. Fix it the way `canGenerateInsights` fixed the doors — and then make the promo case testable rather than mocked away, because `EtymologyPanel.test.tsx` hardcodes `promoActive: false`, which is the bug's own precondition.
+> §1 is already done — read it anyway, because its lesson governs the rest: a mock that hardcodes the safe side of a condition cannot fail on the unsafe one, and that is now twice this codebase has shipped a signed-out reader a button that dead-ends. The one piece of §1 left is the *shared* signed-out-during-promo assertion, so the next surface added is checked rather than the two that have already bitten.
+>
+> Then §2's three live checks and §3's ranked backlog.
 >
 > Do not relitigate: the handoff prefills and never auto-sends, cross-references stay shown rather than explained, and section → retrieval steering is deferred with an argument in B4 design §1 rather than for lack of time.
 >

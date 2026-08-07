@@ -6,7 +6,7 @@ import { normalizeStrongs } from './normalizeStrongs';
 import { isFunctionWord, buildEtymologyDeck, type EtymologyDeckCard } from './buildEtymologyDeck';
 import { useReviewedEtymologyEntries } from './useReviewedEtymologyEntries';
 import { useEtymologyVerseInsight } from './useEtymologyVerseInsight';
-import { useLamplightEntitlement } from '@/notepad/hooks/useLamplightEntitlement';
+import { useLamplightEntitlement, entitledAndSignedIn } from '@/notepad/hooks/useLamplightEntitlement';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SignInGate } from '@/notepad/components/lamplight/SignInGate';
 import { PaywallCard } from '@/notepad/components/lamplight/PaywallCard';
@@ -123,7 +123,15 @@ function LexicalCard({ card, verseId, userId, adapter }: { card: Extract<Etymolo
   const { entry, word } = card;
   const { hasAccess } = useLamplightEntitlement({ adapter, userId: adapter ? userId : null });
   const { insight, generating, error, generate } = useEtymologyVerseInsight(card.strongs, verseId, adapter);
-  const canGenerate = hasAccess('inline');
+  // BOTH halves. `hasAccess` short-circuits on a global promo before it
+  // considers who is asking, so on its own it offered a signed-out reader "Ask
+  // Lamplight about this verse" — and pressing it fired a request that 401s
+  // with no bearer token, leaving nothing on screen at all. The SignInGate
+  // below was right the whole time and simply unreachable.
+  //
+  // Same defect as #120 on the Insights doors, on a surface that fix did not
+  // reach. The rule lives in one place now: `entitledAndSignedIn`.
+  const canGenerate = entitledAndSignedIn({ userId, hasFeatureAccess: hasAccess('inline') });
 
   return (
     <div style={{ borderRadius: 8, background: 'var(--cream, #F4F1EA)', padding: 12 }}>

@@ -11,7 +11,12 @@ const hasAccess = vi.fn();
 vi.mock('./useVerseLexicon', () => ({ useVerseLexicon: (...a: unknown[]) => useVerseLexicon(...a) }));
 vi.mock('./useReviewedEtymologyEntries', () => ({ useReviewedEtymologyEntries: (...a: unknown[]) => useReviewedEtymologyEntries(...a) }));
 vi.mock('./useEtymologyVerseInsight', () => ({ useEtymologyVerseInsight: (...a: unknown[]) => useEtymologyVerseInsight(...a) }));
-vi.mock('@/notepad/hooks/useLamplightEntitlement', () => ({ useLamplightEntitlement: () => ({ isLoading: false, tier: 'plus', promoActive: false, hasAccess }) }));
+// Stubs the HOOK only, keeping the real `entitledAndSignedIn` — it is a pure
+// predicate, and mocking it away is how the promo defect stayed invisible.
+vi.mock('@/notepad/hooks/useLamplightEntitlement', async (orig) => ({
+  ...(await orig<typeof import('@/notepad/hooks/useLamplightEntitlement')>()),
+  useLamplightEntitlement: () => ({ isLoading: false, tier: 'plus', promoActive: false, hasAccess }),
+}));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => true }));
 
 import { EtymologyPanel } from './EtymologyPanel';

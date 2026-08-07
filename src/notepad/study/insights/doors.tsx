@@ -12,6 +12,7 @@ import { ReferenceDoor } from './ReferenceDoor';
 import { PassageDoor } from './PassageDoor';
 import { makePassageInsightStreamInvoke, type PassageInsightInvoke } from './passage-insight-stream-client';
 import { DEEPER_DOOR_VIEW, PASSAGE_DOOR_VIEW } from './insight-doors';
+import { entitledAndSignedIn } from '@/notepad/hooks/useLamplightEntitlement';
 
 /**
  * May this reader press "Study this passage"?
@@ -38,7 +39,11 @@ export function canGenerateInsights(args: {
   userId: string | null;
   hasInlineAccess: boolean;
 }): boolean {
-  return args.userId !== null && args.hasInlineAccess;
+  // Delegates rather than restating the rule. The same defect turned up on
+  // EtymologyPanel afterwards, on a surface #120 did not reach — so a second
+  // copy of `userId !== null && …` would have been a second thing to drift,
+  // and the shared predicate is what makes the next surface cheap to get right.
+  return entitledAndSignedIn({ userId: args.userId, hasFeatureAccess: args.hasInlineAccess });
 }
 
 export interface DoorDeps {

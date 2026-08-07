@@ -35,7 +35,10 @@ vi.mock('./MobileStudyEditorView', () => ({ MobileStudyEditorView: () => <div>ed
 vi.mock('@/notepad/recordings/RecordingsDock', () => ({ RecordingsDock: () => <div>recordings-dock</div> }));
 vi.mock('@/notepad/bible/prefs/bible-prefs-context', () => ({ useBiblePrefs: () => ({ translation: 'BSB' }) }));
 vi.mock('@/components/notes-menu/NotesMenu', () => ({ NotesMenu: () => <div>notes-menu</div> }));
-vi.mock('@/notepad/hooks/useLamplightEntitlement', () => ({
+// Stubs the HOOK only, keeping the real `entitledAndSignedIn` — it is a pure
+// predicate, and mocking it away is how the promo defect stayed invisible.
+vi.mock('@/notepad/hooks/useLamplightEntitlement', async (orig) => ({
+  ...(await orig<typeof import('@/notepad/hooks/useLamplightEntitlement')>()),
   useLamplightEntitlement: () => ({ hasAccess: () => true }),
 }));
 vi.mock('../insights/doors', async (orig) => {
