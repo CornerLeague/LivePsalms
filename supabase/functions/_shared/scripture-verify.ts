@@ -14,7 +14,7 @@
 // Book names come from verse-verify.ts's OSIS_BOOK_MAP so there is exactly one
 // canonical list in the edge runtime. No Deno globals (vitest imports this).
 
-import { OSIS_BOOK_MAP, BOOK_ALIASES, canonicalBook, parseRefToIds, verifyVerseRefs, type VerseFlag } from './verse-verify.ts';
+import { OSIS_BOOK_MAP, BOOK_ALIASES, canonicalBook, parseRefToIds, verifyVerseRefs, type VerseFlag, type VerseLookupClient } from './verse-verify.ts';
 import { stripPsalmSuperscription } from './bible-passage.ts';
 
 // ── Reference detection in prose ─────────────────────────────────────────────
@@ -461,7 +461,7 @@ export async function verifyVerseField(
  * fallback) to the translation the artifact was grounded in.
  */
 export function makeScriptureDeps(
-  supabase: Parameters<typeof verifyVerseRefs>[0],
+  supabase: VerseLookupClient,
   translation: string,
 ): ScriptureDeps {
   return {

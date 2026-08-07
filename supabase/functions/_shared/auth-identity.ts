@@ -5,7 +5,7 @@
 
 export interface AuthClient {
   auth: {
-    getUser(token: string): Promise<{ data: { user: { id: string } | null }; error: unknown }>;
+    getUser(token: string): PromiseLike<{ data: { user: { id: string } | null }; error: unknown }>;
   };
 }
 
