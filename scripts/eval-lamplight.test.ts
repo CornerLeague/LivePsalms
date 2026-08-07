@@ -519,3 +519,39 @@ describe('checkDisplayRefs', () => {
     expect(detail).toContain('jhn 10:14');
   });
 });
+
+describe('checkProperties — contested refs', () => {
+  const fixture: EvalFixture = parseFixture(RAW_FIXTURE);
+  const voice = (text: string, opts?: { allowContestedRefs?: boolean }) =>
+    checkProperties(text, fixture, opts).find((c) => c.name === 'voice_families')!;
+
+  it('catches a contested ref written the way the config spells it', () => {
+    expect(voice('Paul argues in Romans 9:16 that it rests on mercy.').pass).toBe(false);
+  });
+
+  it('catches the SAME ref in OSIS form — reference-aware, not a substring scan', () => {
+    // The bug this replaced: a substring scan matched only "Romans 9:16", so
+    // every reply spelling it "rom 9:16" scored clean. The pipeline's own
+    // checker was reference-aware the whole time; the harness was not.
+    expect(voice('Paul argues in rom 9:16 that it rests on mercy.').pass).toBe(false);
+  });
+
+  it('honours the exemption a surface actually has', () => {
+    // Study chat is asked to NAME contested readings and label them. Scoring it
+    // against the blanket rejection marks a correct answer wrong — which is what
+    // happened the moment its refs moved to display form.
+    expect(voice('Paul argues in Romans 9:16 that it rests on mercy.', { allowContestedRefs: true }).pass)
+      .toBe(true);
+  });
+
+  it('still catches banned phrasing on an exempt surface', () => {
+    // The exemption covers ONE family. A surface that may discuss Romans 9 may
+    // still not speak prophetically.
+    expect(voice('God is telling you to move on.', { allowContestedRefs: true }).pass).toBe(false);
+  });
+
+  it('reports each contested ref once, however often it appears', () => {
+    const detail = voice('Romans 9:16 and again Romans 9:16 and rom 9:16.').detail!;
+    expect(detail.split(',').length).toBe(1);
+  });
+});

@@ -95,7 +95,8 @@ Record the first warmed passages below when step 1 lands.
 
 ## 7. Known issues
 
-- **Study chat still prints OSIS codes at readers.** `2026-08-06-study-baseline` shows `rom 9:16` and `psa 27:4` in shipped replies. Door 1 was fixed with `buildStudyContext`'s `displayRefs`, which is **off by default** so study chat is unchanged. Flipping it there changes a live prompt's grounding *and* its citation allowlist, so it needs its own eval sweep and a `promptVersion` bump. Not a Door 1 defect; a separate slice.
+- ~~Study chat still prints OSIS codes at readers.~~ **Fixed 2026-08-06.** `displayRefs` is now on for study chat and study insight too (`study-chat-…-v7`, `study-insight-…-v5`), verified live: `docs/lamplight/evals/2026-08-06-study-display-refs`, 4/4, zero leaks. `lamplight-study` redeployed. The client's `humanizeRef` already handled both forms, so no client change was needed and existing messages still render.
+- **Journaling chat (`lamplight-chat`) still prints OSIS codes.** It builds its own context (`lamplight-chat/index.ts`, not `buildStudyContext`), so the flag does not reach it. **It has no eval fixtures at all** — `ArtifactKind` carries no journaling-chat kind — so a fix there cannot be verified the way this one was. Wiring a fixture is the prerequisite, not the fix.
 - **`door` is not in the primary key.** `primary key (scope, ref_id, section)` makes `('chapter','psa.27','overview')` unique across *all* doors. B3's Deeper door has no colliding section names today, but it is one careless name away from two doors silently overwriting each other. Widen the PK when B3 lands.
 - **The refresh script writes no usage row**, so its spend does not reach the admin dashboard and does not count against the global daily ceiling. `lamplight_usage.user_id` is `not null references profiles(id)` and a maintenance sweep has no user; a fabricated id would corrupt per-user cost attribution. The spend is printed to the operator instead.
 

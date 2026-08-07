@@ -23,6 +23,7 @@ import { join } from 'node:path';
 import { createIngestClient } from './ingest-library';
 import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../supabase/functions/_shared/voice';
 import { applyContentRules } from '../supabase/functions/_shared/validators';
+import { buildContestedIndex, findContestedRefs } from '../supabase/functions/_shared/contested-refs';
 import { estCostCentsPrecise } from '../src/admin/lamplight-cost';
 import { createOpenAIAdapter } from '../supabase/functions/_shared/openai';
 import {
@@ -305,11 +306,32 @@ function countWholeWord(text: string, word: string): number {
  * regex-only: the Layer-C classifier is a model call, and the harness scores
  * what it can check for free before it scores what costs money.
  */
-export function checkProperties(text: string, fixture: EvalFixture): PropertyCheck[] {
+// Reference-aware, like the pipeline's own check — NOT a substring scan.
+// A substring scan matches the configured spelling ("Romans 9:16") and misses
+// every other form of the same reference, which is how study-chat replies
+// citing "rom 9:16" scored clean for months against a rule they were exempt
+// from anyway. Built once: the index is derived from a constant list.
+const CONTESTED_INDEX = buildContestedIndex(CONTESTED_PASSAGES);
+
+export function checkProperties(
+  text: string,
+  fixture: EvalFixture,
+  opts: {
+    /**
+     * Mirror of `ChatPromptModule.allowContestedRefs`. A surface the PIPELINE
+     * exempts must not be failed by the HARNESS — study chat is asked to name
+     * contested readings and label them, and scoring it against the blanket
+     * rejection marks a correct answer wrong.
+     */
+    allowContestedRefs?: boolean;
+  } = {},
+): PropertyCheck[] {
   const checks: PropertyCheck[] = [];
 
   const banned = [...BANNED_PHRASES, ...GROWTH_BANNED_PHRASES].filter((re) => re.test(text));
-  const contested = CONTESTED_PASSAGES.filter((p) => text.toLowerCase().includes(p.toLowerCase()));
+  const contested = opts.allowContestedRefs
+    ? []
+    : [...new Set(findContestedRefs(text, CONTESTED_INDEX).map((h) => h.rule))];
   checks.push({
     name: 'voice_families',
     pass: banned.length === 0 && contested.length === 0,
@@ -995,6 +1017,7 @@ async function runStudyChatFixture(args: {
     translation: 'BSB',
     libraryK: STUDY_EVAL.libraryK,
     skipSemanticRetrieval: true,
+    displayRefs: true,
   });
 
   const groundingChecks = checkGrounding(ctx, sc.expectGrounding);
@@ -1069,7 +1092,15 @@ async function runStudyChatFixture(args: {
   return {
     ...base,
     scriptureViolations: [],
-    checks: [...groundingChecks, ...checkProperties(result.reply, fixture)],
+    checks: [
+      ...groundingChecks,
+      ...checkDisplayRefs(result.reply),
+      // Composed, not restated: study chat's exemption lives on the prompt
+      // module, and a second hand-maintained copy would drift from it.
+      ...checkProperties(result.reply, fixture, {
+        allowContestedRefs: STUDY_CHAT_PROMPT.allowContestedRefs === true,
+      }),
+    ],
     snapshot,
   };
 }

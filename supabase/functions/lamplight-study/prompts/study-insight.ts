@@ -21,7 +21,10 @@ export const STUDY_INSIGHT_PROMPT: ChatPromptModule = {
   //  · exempt from the contested-passage rejection, since an opener on a
   //    divided chapter needs the same freedom to name the text — and inherits
   //    the same duty not to settle it.
-  promptVersion: 'study-insight-2026-08-06-v4',
+  // v5: reader-facing refs, inherited. This surface reuses STUDY_CHAT_PROMPT's
+  // grounding wholesale, so `displayRefs` changes it here too — same passage
+  // opener, "Psalms 27:4" instead of "psa 27:4".
+  promptVersion: 'study-insight-2026-08-06-v5',
   system: SYSTEM,
   allowContestedRefs: true,
   tool: makeChatReplyTool({ maxReplyChars: 1400 }),

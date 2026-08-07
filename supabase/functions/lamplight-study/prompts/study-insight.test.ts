@@ -21,7 +21,7 @@ describe('STUDY_INSIGHT_PROMPT', () => {
 
 describe('STUDY_INSIGHT_PROMPT — slice 1c', () => {
   it('bumps its version alongside the study system it composes', () => {
-    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v4');
+    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v5');
   });
 
   it('overrides the study word target — an opener is a doorway, not an answer', () => {

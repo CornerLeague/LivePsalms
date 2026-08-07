@@ -148,10 +148,17 @@ export function renderStudyGrounding(ctx: BibleChatContext): string {
 }
 
 export const STUDY_CHAT_PROMPT: ChatPromptModule = {
+  // v7: reader-facing refs. The grounding now supplies "Psalms 27:4" rather
+  // than the OSIS key "psa 27:4", and the citation allowlist moves with it —
+  // the model prints back whatever form it is handed, and every reply in the
+  // 2026-08-06 baseline that carried a ref showed the key form to the reader.
+  // The SYSTEM text below is unchanged; the bump is because the GROUNDING is
+  // what changed, and prompt_version is what makes that reviewable later.
+  //
   // v6: own reply ceiling (3000, was journaling's 1400) + the word target that
   // keeps the model away from it; exempt from the contested-passage rejection,
   // with the labeled-readings requirement moved into SYSTEM above.
-  promptVersion: 'study-chat-2026-08-06-v6',
+  promptVersion: 'study-chat-2026-08-06-v7',
   system: SYSTEM,
   allowContestedRefs: true,
   tool: makeChatReplyTool({ maxReplyChars: STUDY_REPLY_MAX_CHARS }),
