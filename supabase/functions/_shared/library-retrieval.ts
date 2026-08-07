@@ -365,7 +365,28 @@ async function safely<T>(what: string, run: () => Promise<T>, fallback: T): Prom
 // A chapter's worth of commentary is a few dozen rows; the cap only bites on
 // pathological chapters, where losing the tail costs nothing (the semantic
 // channel still reaches it).
-const LIBRARY_ROW_CAP = 500;
+/**
+ * Anchor-channel rows fetched **per source**, not in total.
+ *
+ * A single global cap made breadth a matter of physical row order. Psalm 119
+ * carries 627 Treasury chunks against 22 Matthew Henry and 70 JFB — and every
+ * one of those Treasury chunks has `verse_start = null`, so it overlaps ANY
+ * anchor — which means one source can crowd the others out of the result
+ * entirely. It does not today, but only because of how the rows happen to sit;
+ * nothing in the query defends it, and the margin disappears as the corpus
+ * grows.
+ *
+ * Fetching per source makes breadth structural: a thin source arrives whole, a
+ * flooding one is bounded. 200 covers the longest chapter in the canon (Psalm
+ * 119, 176 verses) at one chunk per verse.
+ *
+ * KNOWN LIMIT: rows are ordered by verse, so truncating a flooding source drops
+ * the TAIL of the chapter. A verse-scope anchor late in a huge chapter can
+ * therefore miss that source. The real fix is to push the verse-overlap filter
+ * into SQL rather than filtering in `searchLibrary` after the fetch, which
+ * needs `fetchByChapters` to take anchors instead of chapter pairs.
+ */
+const PER_SOURCE_ROW_CAP = 200;
 // Psalm 119 is ~1,700 interlinear words, so this truncates there: the frequency
 // ranking is then drawn from the chapter's first 1,000 words rather than all of
 // them. Acceptable for a prompt heuristic; if it ever matters, page it the way
@@ -377,15 +398,49 @@ export function makeLibraryDeps(
   voyage: VoyageDeps,
 ): LibraryRetrievalDeps & LexiconDeps {
   let sources: Map<string, { label: string; register: string }> | null = null;
+
+  // Shared by fetchByChapters and loadSources: the anchor channel needs the
+  // source list to fan out per source, and re-reading it per turn would be a
+  // second round trip for data already cached here.
+  const loadSourcesOnce = async (): Promise<Map<string, { label: string; register: string }>> => {
+    if (sources) return sources;
+    const { data, error } = await supabase
+      .from('library_sources')
+      .select('id, title, author, era, register');
+    if (error) throw error;
+    const map = new Map<string, { label: string; register: string }>();
+    for (const s of (data ?? []) as Array<{ id: string; title: string; author: string; era: string; register: string }>) {
+      map.set(s.id, { label: composeSourceLabel(s), register: s.register });
+    }
+    sources = map;
+    return map;
+  };
+
   return {
     async fetchByChapters(pairs) {
-      const { data, error } = await supabase
-        .from('library_chunks')
-        .select('id, source_id, heading, content, book, chapter, verse_start, verse_end')
-        .or(chapterOrFilter(pairs))
-        .limit(LIBRARY_ROW_CAP);
-      if (error) throw error;
-      return (data ?? []) as LibraryChunkRow[];
+      if (pairs.length === 0) return [];
+      const sourceIds = [...(await loadSourcesOnce()).keys()];
+      if (sourceIds.length === 0) return [];
+
+      // One bounded query PER SOURCE, run together. See PER_SOURCE_ROW_CAP: a
+      // single global cap let one source crowd the rest out, and with no
+      // ORDER BY the survivors were whatever the planner returned first.
+      const or = chapterOrFilter(pairs);
+      const batches = await Promise.all(sourceIds.map(async (sourceId) => {
+        const { data, error } = await supabase
+          .from('library_chunks')
+          .select('id, source_id, heading, content, book, chapter, verse_start, verse_end')
+          .eq('source_id', sourceId)
+          .or(or)
+          // Deterministic, so truncation is reproducible and testable rather
+          // than a function of row layout. `id` breaks ties.
+          .order('verse_start', { ascending: true, nullsFirst: false })
+          .order('id', { ascending: true })
+          .limit(PER_SOURCE_ROW_CAP);
+        if (error) throw error;
+        return (data ?? []) as LibraryChunkRow[];
+      }));
+      return batches.flat();
     },
     async matchSemantic({ embedding, limit, registers }) {
       // Raw number[] for p_query_vector, matching match_bible_embeddings in
@@ -399,19 +454,7 @@ export function makeLibraryDeps(
       return (data ?? []) as LibraryChunkRow[];
     },
     rerank: (query, documents, topK) => rerank(query, documents, topK, voyage),
-    async loadSources() {
-      if (sources) return sources;   // one read per invocation
-      const { data, error } = await supabase
-        .from('library_sources')
-        .select('id, title, author, era, register');
-      if (error) throw error;
-      const map = new Map<string, { label: string; register: string }>();
-      for (const s of (data ?? []) as Array<{ id: string; title: string; author: string; era: string; register: string }>) {
-        map.set(s.id, { label: composeSourceLabel(s), register: s.register });
-      }
-      sources = map;
-      return map;
-    },
+    loadSources: loadSourcesOnce,
     async fetchInterlinear({ book, chapter }) {
       // verse_id is 'psa.27.4'; the trailing dot keeps 'psa.2.%' off 'psa.27.4'.
       const { data, error } = await supabase
