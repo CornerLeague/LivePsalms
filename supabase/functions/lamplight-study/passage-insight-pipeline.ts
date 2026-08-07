@@ -15,6 +15,7 @@ import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_s
 import {
   validateChatReplyCitations,
   applyContentRules,
+  applySectionRules,
   formatContentFamilyStricter,
   type Citation,
   type ContentRuleViolation,
@@ -136,8 +137,25 @@ export function makePassageInsightValidate(
       classifier,
     });
 
-    const violations: ChatViolations = { citation: citation.violations, content: content.violations };
-    const baseOk = citation.ok && content.ok;
+    // ── Section-scoped rules ─────────────────────────────────────────────
+    // Door 2's Read With Care carries parent design §9: a caution may name an
+    // interpretive move and never a tradition. Run PER SECTION, never over the
+    // flattened door — the same door's theology section is REQUIRED to name
+    // whose reading it is giving, so a door-wide check would forbid exactly
+    // what the door demands.
+    const sectionViolations: ContentRuleViolation[] = [];
+    for (const s of door.sections) {
+      if (!s.forbidden) continue;
+      sectionViolations.push(
+        ...applySectionRules(sections[s.key] ?? '', s.forbidden.rule, s.forbidden.patterns),
+      );
+    }
+
+    const violations: ChatViolations = {
+      citation: citation.violations,
+      content: [...content.violations, ...sectionViolations],
+    };
+    const baseOk = citation.ok && content.ok && sectionViolations.length === 0;
 
     // Cheapest gates first; a citation failure makes verification moot.
     if (!baseOk || !verifyScripture) return { ok: baseOk, violations };
@@ -172,13 +190,28 @@ export function makePassageInsightValidate(
   };
 }
 
-function formatPassageInsightStricter(violations: ChatViolations): string {
-  const parts: string[] = [];
-  if (violations.citation.length > 0) {
-    parts.push('On retry: the citations array must contain only the verse refs supplied to you, spelled exactly as supplied — or be empty.');
-  }
-  parts.push(...formatContentFamilyStricter(violations.content));
-  return parts.join(' ');
+/**
+ * The retry instruction, per door.
+ *
+ * A factory rather than a constant because a section-scoped rule brings its own
+ * `stricter` text: telling the model "do not use prophetic language" — the
+ * generic `banned` message — when what it actually did was name a denomination
+ * asks it to fix something it never did, and the retry is wasted.
+ */
+function makeInsightStricter(door: InsightDoorSpec) {
+  return (violations: ChatViolations): string => {
+    const parts: string[] = [];
+    if (violations.citation.length > 0) {
+      parts.push('On retry: the citations array must contain only the verse refs supplied to you, spelled exactly as supplied — or be empty.');
+    }
+    parts.push(...formatContentFamilyStricter(violations.content));
+    for (const s of door.sections) {
+      if (s.forbidden && violations.content.some((v) => v.rule === s.forbidden!.rule)) {
+        parts.push(s.forbidden.stricter);
+      }
+    }
+    return parts.join(' ');
+  };
 }
 
 // ── Outcome → result mapping ─────────────────────────────────────────────────
@@ -234,7 +267,7 @@ function generateConfig(args: {
     // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
     tool: args.door.prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
     validate: makePassageInsightValidate(args.ctx, args.door, args.classifier, args.verifyScripture),
-    formatStricter: formatPassageInsightStricter,
+    formatStricter: makeInsightStricter(args.door),
   };
 }
 

@@ -23,6 +23,24 @@ export interface InsightSection {
   maxWords: number;
   /** What the section is for, stated to the model in its own words. */
   brief: string;
+  /**
+   * Content rules applied to THIS section alone, never the flattened door.
+   *
+   * Set on Door 2's *Read With Care* to enforce parent design §9, which forbids
+   * a caution aimed at a tradition — while the same door's *Theological
+   * Significance* is required to name one. The rule lives on the section it
+   * governs so the two can never be confused for each other.
+   */
+  forbidden?: InsightSectionRule;
+}
+
+/** A section-scoped content rule, with the retry instruction it earns. */
+export interface InsightSectionRule {
+  /** Names the violation so the stricter retry can speak to it specifically. */
+  rule: string;
+  patterns: readonly RegExp[];
+  /** What to tell the model on retry. Belongs to the rule, not to a shared formatter. */
+  stricter: string;
 }
 
 /**

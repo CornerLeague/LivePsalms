@@ -19,6 +19,7 @@
 // The MECHANISM — section shape, ceiling derivation, tool construction, the
 // contested rule, the three tail sentences — is shared with Door 1 via
 // ./insight-door.ts. This file is the editorial half.
+import { TRADITION_TERMS } from '../../_shared/voice.ts';
 import { STUDY_GROUNDING_RULES, renderStudyGrounding } from './study-chat.ts';
 import {
   INSIGHT_CONTESTED_RULE,
@@ -68,6 +69,15 @@ export const DEEPER_INSIGHT_SECTIONS: readonly InsightSection[] = [
     maxWords: 130,
     brief:
       'the interpretive moves this passage invites but does not support — the ways it is commonly misread, and what the text itself does not say',
+    // §9, enforced rather than requested. Scoped to THIS section: the theology
+    // section above is required to name whose reading it is giving, so the same
+    // check applied door-wide would forbid what the door demands.
+    forbidden: {
+      rule: 'tradition_caution',
+      patterns: TRADITION_TERMS,
+      stricter:
+        'On retry: Read With Care must not name a tradition, a denomination, a movement, or any group of Christians. Describe the interpretive move itself — what the text does not support and why — and say nothing about who makes it. If the caution cannot be written that way, leave the section empty.',
+    },
   },
 ];
 
