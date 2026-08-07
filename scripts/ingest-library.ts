@@ -22,6 +22,7 @@ import { embedDocuments } from '../supabase/functions/_shared/voyage';
 import type { LibraryAdapter, LibraryChunkRow } from './library-adapters/types';
 import {
   TREASURY_OF_DAVID, MATTHEW_HENRY_CONCISE, JAMIESON_FAUSSET_BROWN,
+  WESLEY_NOTES, ADAM_CLARKE, CALVIN_COMMENTARIES, CATENA_AUREA, GENEVA_NOTES,
 } from './library-adapters/commentary';
 
 // ── Source registry ───────────────────────────────────────────────────────
@@ -29,6 +30,12 @@ export const ADAPTERS: Record<string, LibraryAdapter> = {
   [TREASURY_OF_DAVID.sourceId]: TREASURY_OF_DAVID,
   [MATTHEW_HENRY_CONCISE.sourceId]: MATTHEW_HENRY_CONCISE,
   [JAMIESON_FAUSSET_BROWN.sourceId]: JAMIESON_FAUSSET_BROWN,
+  // Phase A1 — tradition-broadening public-domain sources.
+  [WESLEY_NOTES.sourceId]: WESLEY_NOTES,
+  [ADAM_CLARKE.sourceId]: ADAM_CLARKE,
+  [CALVIN_COMMENTARIES.sourceId]: CALVIN_COMMENTARIES,
+  [CATENA_AUREA.sourceId]: CATENA_AUREA,
+  [GENEVA_NOTES.sourceId]: GENEVA_NOTES,
 };
 
 export function resolveAdapter(sourceId: string): LibraryAdapter {
