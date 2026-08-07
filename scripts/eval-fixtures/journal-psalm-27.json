@@ -1,0 +1,27 @@
+{
+  "name": "journal-psalm-27",
+  "description": "A reader carrying fear into a psalm about it. The reply must bring the notes and the passage into conversation without diagnosing the reader or promising an outcome.",
+  "firstName": "Ruth",
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [
+    { "id": "n1", "title": "Before the scan", "text": "Waiting for the results this week. I keep telling people I am fine and then lying awake at 3am doing the maths on what each outcome means.", "daysAgo": 2 },
+    { "id": "n2", "title": "Church on Sunday", "text": "We sang about God being a fortress and I could not get the words out. I want to believe it the way the person next to me seemed to.", "daysAgo": 5 }
+  ],
+  "highlights": [],
+  "candidateVerses": ["psa.27.1", "psa.27.13", "psa.27.14", "isa.41.10"],
+  "journalingChat": {
+    "book": "psa",
+    "chapter": 27,
+    "question": "How do I hold onto this when I do not feel brave at all?"
+  },
+  "expect": {
+    "maxFirstNameMentions": 2,
+    "mustNotContain": [
+      "everything happens for a reason",
+      "God will heal you",
+      "you just need to have faith",
+      "do not worry"
+    ]
+  }
+}

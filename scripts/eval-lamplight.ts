@@ -32,7 +32,8 @@ import {
 } from '../supabase/functions/lamplight-generate/daily-devotion-pipeline';
 import { verifyVerseRefs } from '../supabase/functions/_shared/verse-verify';
 import { selectDevotionCandidates } from '../supabase/functions/_shared/note-context';
-import { buildPassages } from '../supabase/functions/_shared/bible-passage';
+import { buildPassages, formatDisplayVerseRef } from '../supabase/functions/_shared/bible-passage';
+import { osisToBookName } from '../supabase/functions/_shared/verse-verify';
 import { OSIS_TO_ABBREV } from '../supabase/functions/_shared/bible-books';
 import { buildStudyContext } from '../supabase/functions/lamplight-study/study-context';
 import { STUDY_CHAT_PROMPT } from '../supabase/functions/lamplight-study/prompts/study-chat';
@@ -107,6 +108,28 @@ export interface FixturePassageInsight {
   expectGrounding?: FixtureStudyChat['expectGrounding'];
 }
 
+/**
+ * A journaling-chat scenario: the reader's own notes brought into conversation
+ * with an open passage.
+ *
+ * The fixture SUPPLIES the grounding rather than retrieving it, and that is a
+ * real limitation stated plainly. Journaling chat's notes and cross-references
+ * both come from semantic RPCs that are revoked from public, and the harness
+ * runs on the anon key precisely so it can never reach a real vault. Unlike
+ * study chat — whose deterministic half survives `skipSemanticRetrieval` —
+ * journaling chat has NO deterministic half: with retrieval off there is no
+ * grounding at all, and an eval of that would be scoring a surface nobody uses.
+ *
+ * So the fixture's `notes` become the notes, and its `candidateVerses` become
+ * the cross-references. What this exercises is the PROMPT and the validators
+ * given real grounding; what it cannot exercise is retrieval itself.
+ */
+export interface FixtureJournalingChat {
+  book: string;          // lowercase OSIS, e.g. 'psa'
+  chapter: number;
+  question: string;
+}
+
 export interface EvalFixture {
   name: string;
   description: string;
@@ -119,6 +142,8 @@ export interface EvalFixture {
   studyChat?: FixtureStudyChat;
   /** Present only on Insights Door 1 fixtures. */
   passageInsight?: FixturePassageInsight;
+  /** Present only on journaling-chat fixtures. */
+  journalingChat?: FixtureJournalingChat;
   /**
    * The Scripture the devotion may anchor on. Production retrieves these
    * SEMANTICALLY from the theme query, so every user gets candidates whether or
@@ -194,6 +219,20 @@ export function parseFixture(raw: unknown): EvalFixture {
     };
   }
 
+  let journalingChat: FixtureJournalingChat | undefined;
+  if (o.journalingChat != null) {
+    const jc = o.journalingChat as Record<string, unknown>;
+    const where = `${name} journalingChat`;
+    if (typeof jc.chapter !== 'number' || jc.chapter < 1) {
+      throw new Error(`fixture ${where}: "chapter" must be a positive number`);
+    }
+    journalingChat = {
+      book: req(jc, 'book', where),
+      chapter: jc.chapter,
+      question: req(jc, 'question', where),
+    };
+  }
+
   return {
     name,
     description: req(o, 'description', name),
@@ -204,6 +243,7 @@ export function parseFixture(raw: unknown): EvalFixture {
     highlights,
     ...(studyChat ? { studyChat } : {}),
     ...(passageInsight ? { passageInsight } : {}),
+    ...(journalingChat ? { journalingChat } : {}),
     candidateVerses: Array.isArray(o.candidateVerses)
       ? o.candidateVerses.map((v, i) => {
           if (typeof v !== 'string' || v.trim().length === 0) {
@@ -266,6 +306,22 @@ export function validateFixtureRefs(fixture: EvalFixture): string[] {
     return problems;   // a door anchors on its passage, not candidates
   }
 
+  if (fixture.journalingChat) {
+    if (!(fixture.journalingChat.book in OSIS_TO_ABBREV)) {
+      problems.push(`journalingChat.book "${fixture.journalingChat.book}" (unknown book code)`);
+    }
+    // Unlike the other chat kinds, this one DOES need candidates: they are the
+    // cross-references, and a fixture with none grounds the reply on the open
+    // chapter alone while claiming to bring notes and Scripture together.
+    if (candidateVerseIds(fixture).length === 0) {
+      problems.push('no candidate verses: journaling chat has no cross-references to bring in');
+    }
+    if (fixture.notes.length === 0) {
+      problems.push('no notes: journaling chat has nothing of the reader\'s to converse with');
+    }
+    return problems;
+  }
+
   // A fixture that expects an artifact but offers nothing to anchor on sets the
   // model an impossible task and fails with a confusing empty-ref citation error.
   if (!fixture.expect.expectNoArtifact && candidateVerseIds(fixture).length === 0) {
@@ -282,10 +338,12 @@ export function validateFixtureRefs(fixture: EvalFixture): string[] {
 export function fixturesFor(fixtures: EvalFixture[], artifact: ArtifactKind): EvalFixture[] {
   if (artifact === 'study-chat') return fixtures.filter((f) => f.studyChat !== undefined);
   if (artifact === 'passage-insight') return fixtures.filter((f) => f.passageInsight !== undefined);
+  if (artifact === 'journaling-chat') return fixtures.filter((f) => f.journalingChat !== undefined);
   // Devotion is the default kind, so it must EXCLUDE every other block rather
   // than merely excluding studyChat — otherwise adding a fixture kind silently
   // sweeps it into devotion runs and scores an artifact it never described.
-  return fixtures.filter((f) => f.studyChat === undefined && f.passageInsight === undefined);
+  return fixtures.filter((f) =>
+    f.studyChat === undefined && f.passageInsight === undefined && f.journalingChat === undefined);
 }
 
 // ── Property checks (pure) ───────────────────────────────────────────────────
@@ -381,7 +439,7 @@ export async function checkDoctrine(
 
 // ── Report aggregation (pure) ────────────────────────────────────────────────
 
-export type ArtifactKind = 'reflection' | 'devotion' | 'study-chat' | 'passage-insight';
+export type ArtifactKind = 'reflection' | 'devotion' | 'study-chat' | 'passage-insight' | 'journaling-chat';
 
 export interface FixtureRun {
   fixture: string;
@@ -529,7 +587,9 @@ async function main(): Promise<void> {
         ? 'Study-chat fixtures are the ones carrying a "studyChat" block.'
         : artifact === 'passage-insight'
           ? 'Insights Door 1 fixtures are the ones carrying a "passageInsight" block.'
-          : 'Devotion fixtures are the ones carrying neither a "studyChat" nor a "passageInsight" block.'),
+          : artifact === 'journaling-chat'
+            ? 'Journaling-chat fixtures are the ones carrying a "journalingChat" block.'
+            : 'Devotion fixtures are the ones carrying none of the "studyChat", "passageInsight" or "journalingChat" blocks.'),
     );
   }
 
@@ -542,7 +602,9 @@ async function main(): Promise<void> {
     // knowing before paying for a live sweep.
     let refProblems = 0;
     for (const f of fixtures) {
-      const corpus = f.studyChat
+      const corpus = f.journalingChat
+        ? [f.journalingChat.question, ...f.notes.map((n) => `${n.title}\n${n.text}`)].join('\n\n')
+        : f.studyChat
         ? f.studyChat.question
         : f.passageInsight
           ? `${f.passageInsight.book} ${f.passageInsight.chapter}`
@@ -550,7 +612,9 @@ async function main(): Promise<void> {
       const bad = checkProperties(corpus, f).filter((c) => !c.pass);
       const refs = validateFixtureRefs(f);
       refProblems += refs.length;
-      const shape = f.studyChat
+      const shape = f.journalingChat
+        ? `${f.journalingChat.book} ${f.journalingChat.chapter}, ${f.notes.length} note(s)`
+        : f.studyChat
         ? `${f.studyChat.book} ${f.studyChat.chapter}`
         : f.passageInsight
           ? `${f.passageInsight.book} ${f.passageInsight.chapter}` +
@@ -607,7 +671,9 @@ async function main(): Promise<void> {
       ? await runStudyChatFixture({ fixture, llm, supabase: supabase as unknown as AnonClient, groundingOnly })
       : artifact === 'passage-insight'
         ? await runPassageInsightFixture({ fixture, llm, supabase: supabase as unknown as AnonClient, groundingOnly })
-        : await runDevotionFixture({ fixture, llm, supabase: supabase as unknown as AnonClient });
+        : artifact === 'journaling-chat'
+          ? await runJournalingChatFixture({ fixture, llm, supabase: supabase as unknown as AnonClient })
+          : await runDevotionFixture({ fixture, llm, supabase: supabase as unknown as AnonClient });
     runs.push(run);
     const bad = run.checks.filter((c) => !c.pass).length + run.scriptureViolations.length;
     console.log(bad === 0 ? '✓' : `✗ ${bad} issue(s)`);
@@ -1240,6 +1306,143 @@ async function runPassageInsightFixture(args: {
     ],
     snapshot,
   };
+}
+
+// ── Journaling-chat runner ───────────────────────────────────────────────────
+
+async function runJournalingChatFixture(args: {
+  fixture: EvalFixture;
+  llm: ReturnType<typeof createOpenAIAdapter>;
+  supabase: AnonClient;
+}): Promise<FixtureRun> {
+  const { fixture, llm, supabase } = args;
+  const jc = fixture.journalingChat!;
+
+  // The open chapter, from the public table.
+  const chapter = await loadChapter(supabase, jc.book, jc.chapter);
+  const passageText = chapter.map((v) => `${v.verse_start} ${v.text}`).join(' ');
+  // NOT lowercased — mirrors buildChatContext. BIBLE_CHAT_PROMPT renders this
+  // set into the prompt, so the model cites back the casing it is shown.
+  const chapterVerseRefs = new Set(chapter.map((v) => formatDisplayVerseRef(v)));
+
+  // The fixture's candidates ARE the cross-references — see FixtureJournalingChat
+  // for why they are supplied rather than retrieved.
+  const crossRefPassages = await loadPassages(supabase, candidateVerseIds(fixture));
+  const crossRefs = crossRefPassages.map((p) => ({ ref: p.ref, text: p.text }));
+
+  const notes = fixture.notes.map((n) => ({ id: n.id, title: n.title, plaintext: n.text }));
+
+  const ctx = {
+    passageRef: `${osisToBookName(jc.book) ?? jc.book} ${jc.chapter}`,
+    passageText,
+    crossRefs,
+    notes,
+    history: [] as Array<{ role: 'user' | 'assistant'; content: string }>,
+    userMessage: jc.question,
+    allowedNoteIds: new Set(notes.map((n) => n.id)),
+    allowedVerseRefs: new Set<string>([...chapterVerseRefs, ...crossRefs.map((c) => c.ref)]),
+  };
+
+  // Floors, stated as the fixture's own claims rather than a config block: a
+  // journaling fixture that lost its notes or its cross-references is scoring a
+  // reply built on less than it says it supplies.
+  const groundingChecks: PropertyCheck[] = [
+    {
+      name: 'grounding_notes',
+      pass: notes.length > 0,
+      ...(notes.length > 0 ? {} : { detail: 'no notes reached the prompt' }),
+    },
+    {
+      name: 'grounding_cross_refs',
+      pass: crossRefs.length > 0,
+      ...(crossRefs.length > 0
+        ? {}
+        : { detail: `0 of ${candidateVerseIds(fixture).length} candidate verse(s) resolved` }),
+    },
+    {
+      name: 'grounding_chapter',
+      pass: passageText.length > 0,
+      ...(passageText.length > 0 ? {} : { detail: `${jc.book} ${jc.chapter} returned no verses` }),
+    },
+  ];
+
+  const result = await runBibleChatPipeline({
+    llm,
+    ctx,
+    model: 'balanced',
+    verifyScripture: {
+      translation: 'BSB',
+      verifyRefs: (refs, t) => verifyVerseRefs(supabase as never, refs, t),
+    },
+  });
+
+  const base: Omit<FixtureRun, 'checks' | 'scriptureViolations'> = {
+    fixture: fixture.name,
+    artifact: 'journaling-chat',
+    model: result.usage?.model ?? 'unknown',
+    tokensIn: result.usage?.tokens_in ?? 0,
+    tokensOut: result.usage?.tokens_out ?? 0,
+  };
+
+  if (!result.ok) {
+    const v = result.violations;
+    const detail = [
+      `pipeline returned ${result.reason}`,
+      ...(v?.citation ?? []).map((c) => `citation:${c.reason} ${c.detail}`),
+      ...(v?.content ?? []).map((c) => `content:${c.family}/${c.rule} "${c.snippet}"`),
+    ].join(' · ');
+    return { ...base, scriptureViolations: [], checks: [...groundingChecks, { name: 'generation', pass: false, detail }] };
+  }
+
+  const snapshot = [
+    `# ${fixture.name} · journaling-chat`,
+    '',
+    `_${fixture.description}_`,
+    '',
+    `**Passage:** ${ctx.passageRef} · **Question:** ${jc.question}`,
+    '',
+    '## Grounding supplied',
+    '',
+    `- notes: ${notes.length} — ${notes.map((n) => n.title).join(', ')}`,
+    `- cross-references: ${crossRefs.length}` + (crossRefs.length ? ` — ${crossRefs.map((c) => c.ref).join(', ')}` : ''),
+    '- retrieval: **not exercised** — the notes and cross-references are SUPPLIED by the',
+    '  fixture. Journaling chat retrieves both semantically, and those RPCs are revoked',
+    '  from the anon key the harness runs on. This scores the prompt and the validators,',
+    '  not the retrieval.',
+    '',
+    '## Reply',
+    '',
+    result.reply,
+    '',
+    `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
+    '',
+  ].join('\n');
+
+  return {
+    ...base,
+    scriptureViolations: [],
+    checks: [
+      ...groundingChecks,
+      ...checkDisplayRefs(result.reply),
+      ...checkProperties(result.reply, fixture),
+    ],
+    snapshot,
+  };
+}
+
+async function loadChapter(
+  supabase: AnonClient,
+  book: string,
+  chapter: number,
+): Promise<Array<{ book: string; chapter: number; verse_start: number; verse_end: number; text: string }>> {
+  const { data, error } = await supabase
+    .from('bible_passages')
+    .select('book, chapter, verse_start, verse_end, text')
+    .eq('translation', 'BSB')
+    .like('id', `${book}.${chapter}.%`)
+    .order('verse_start', { ascending: true });
+  if (error) throw new Error(`bible_passages: ${error.message}`);
+  return (data ?? []) as Array<{ book: string; chapter: number; verse_start: number; verse_end: number; text: string }>;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

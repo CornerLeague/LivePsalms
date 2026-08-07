@@ -48,7 +48,11 @@ export function makeChatReplyTool(opts: { maxReplyChars: number }) {
 }
 
 export const BIBLE_CHAT_PROMPT = {
-  promptVersion: 'bible-chat-2026-06-09-v2',
+  // v3: reader-facing refs. The grounding now supplies "Psalms 27:4" rather
+  // than the OSIS key "psa 27:4", and the citation allowlist moves with it.
+  // The SYSTEM text below is unchanged; the bump is because the GROUNDING
+  // changed, and prompt_version is what makes that reviewable later.
+  promptVersion: 'bible-chat-2026-08-06-v3',
 
   system: `You are helping someone study a specific passage of Scripture. They may ask open questions. Answer ONLY from (a) the passage and cross-reference passages supplied, and (b) the user's own notes supplied. Bring the two into conversation, drawing out the principle at work and how it bears on what the user has written.
 

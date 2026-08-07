@@ -555,3 +555,83 @@ describe('checkProperties — contested refs', () => {
     expect(detail.split(',').length).toBe(1);
   });
 });
+
+// ── Journaling chat ──────────────────────────────────────────────────────────
+
+const RAW_JOURNAL = {
+  ...RAW_FIXTURE,
+  name: 'journal-psalm-27',
+  candidateVerses: ['psa.27.1', 'isa.41.10'],
+  journalingChat: { book: 'psa', chapter: 27, question: 'How do I hold onto this?' },
+};
+
+describe('parseFixture — journalingChat', () => {
+  it('parses a journaling-chat block', () => {
+    expect(parseFixture(RAW_JOURNAL).journalingChat)
+      .toEqual({ book: 'psa', chapter: 27, question: 'How do I hold onto this?' });
+  });
+
+  it('needs a question — journaling chat is a reader asking something', () => {
+    expect(() => parseFixture({ ...RAW_JOURNAL, journalingChat: { book: 'psa', chapter: 27 } }))
+      .toThrow(/question/);
+  });
+
+  it('leaves journalingChat undefined on the other fixture kinds', () => {
+    expect(parseFixture(RAW_STUDY).journalingChat).toBeUndefined();
+    expect(parseFixture(RAW_PASSAGE).journalingChat).toBeUndefined();
+  });
+});
+
+describe('validateFixtureRefs — journalingChat', () => {
+  it('catches an unknown book code offline', () => {
+    const f = parseFixture({ ...RAW_JOURNAL, journalingChat: { ...RAW_JOURNAL.journalingChat, book: 'psalms' } });
+    expect(validateFixtureRefs(f).join(' ')).toMatch(/unknown book code/);
+  });
+
+  it('DEMANDS candidate verses, unlike the other chat kinds', () => {
+    // They are the cross-references. A fixture with none grounds the reply on
+    // the open chapter alone while claiming to bring notes and Scripture
+    // together — the shortfall would be invisible in the report.
+    // Both emptied: `candidateVerseIds` falls back to highlights, so clearing
+    // only `candidateVerses` leaves a fixture that still has something to cite.
+    const f = parseFixture({ ...RAW_JOURNAL, candidateVerses: [], highlights: [] });
+    expect(validateFixtureRefs(f).join(' ')).toMatch(/no candidate verses/);
+  });
+
+  it('accepts highlights as the cross-references when candidateVerses is empty', () => {
+    // The same fallback the devotion path uses. A fixture that highlighted
+    // verses has named the Scripture it wants brought in.
+    const f = parseFixture({ ...RAW_JOURNAL, candidateVerses: [] });
+    expect(validateFixtureRefs(f)).toEqual([]);
+  });
+
+  it('demands notes — there is nothing of the reader\'s to converse with otherwise', () => {
+    const f = parseFixture({ ...RAW_JOURNAL, notes: [] });
+    expect(validateFixtureRefs(f).join(' ')).toMatch(/no notes/);
+  });
+
+  it('accepts a well-formed journaling fixture', () => {
+    expect(validateFixtureRefs(parseFixture(RAW_JOURNAL))).toEqual([]);
+  });
+});
+
+describe('fixturesFor — four kinds, no crossover', () => {
+  const devotion = parseFixture(RAW_FIXTURE);
+  const study = parseFixture(RAW_STUDY);
+  const door = parseFixture(RAW_PASSAGE);
+  const journal = parseFixture(RAW_JOURNAL);
+  const all = [devotion, study, door, journal];
+
+  it('gives journaling-chat only the fixtures that describe one', () => {
+    expect(fixturesFor(all, 'journaling-chat').map((f) => f.name)).toEqual(['journal-psalm-27']);
+  });
+
+  it('keeps journaling fixtures out of every other run', () => {
+    // A journaling fixture has notes and candidateVerses, which is exactly the
+    // shape a devotion fixture has — so without an explicit exclusion it would
+    // be scored as a devotion it never described.
+    expect(fixturesFor(all, 'devotion').map((f) => f.name)).toEqual(['grief-month']);
+    expect(fixturesFor(all, 'study-chat').map((f) => f.name)).toEqual(['study-psalm-27']);
+    expect(fixturesFor(all, 'passage-insight').map((f) => f.name)).toEqual(['passage-psalm-27']);
+  });
+});
