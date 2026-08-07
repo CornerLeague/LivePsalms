@@ -246,13 +246,29 @@ supabase functions deploy lamplight-study
 supabase functions deploy lamplight-chat
 ```
 
-Boot-check each (`401` unauthenticated is healthy), and check the tolerance explicitly — both spellings must behave identically:
+### Deployed 2026-08-07 — `lamplight-study` v10 (20:27:41 UTC), `lamplight-chat` v14 (20:27:59 UTC)
 
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_SUPABASE_URL/functions/v1/lamplight-chat" -H "apikey: $VITE_SUPABASE_ANON_KEY" -H 'content-type: application/json' -d '{"book":"psa","chapter":27,"mode":"insight"}'
-```
+Boot-checked with the matrix below. **The last two rows are the ones that matter**, and they are what tells a fresh bundle from a stale one:
 
-`401` is healthy — the body parsed and only the auth gate stopped it. **`400` means the legacy spelling was rejected**, which is the failure this section exists to prevent.
+| body | `lamplight-chat` | `lamplight-study` | |
+|---|---|---|---|
+| `{"book","chapter","mode":"insight"}` | ✅ 401 | ✅ 401 | the legacy spelling still parses |
+| `{"book","chapter","mode":"opener"}` | ✅ 401 | ✅ 401 | the new spelling parses |
+| `{"book","chapter","message":"hi"}` | ✅ 401 | ✅ 401 | ordinary chat |
+| `{"book","chapter","message":"  "}` | ✅ 400 | ✅ 400 | **the discriminator** |
+| `{"chapter":27}` | ✅ 400 | ✅ 400 | bad payload |
+
+**Why row 4 is the proof, not row 1.** An opener body carries no message. If `'opener'` were falling through to `chat` — the stale-bundle failure — the parser would then reject it for the empty message and return **400**, exactly as row 4 does. Rows 2 and 4 returning *different* codes for the same absent message is what establishes that `'opener'` is genuinely being read as an opener rather than quietly mishandled. Row 1 alone would pass on a bundle that never heard of `'opener'` at all.
+
+**`400` on row 1 is the failure this section exists to prevent** — it would mean the legacy spelling was rejected, and every journaling passage open would break.
+
+### `passage-insight` was NOT redeployed, deliberately
+
+Its bundle *does* shift: `passage-insight/index.ts:29` imports `VALID_TRANSLATIONS` and `Translation` from `lamplight-study/parse-body.ts`, which now imports `_shared/chat-mode.ts`. Traced rather than assumed — the only delta reaching that bundle is **an unused import of a pure function**; the values it actually consumes are unchanged, and no mode parsing happens anywhere in its path.
+
+Left at **v4 (18:30:37 UTC)** and re-verified healthy after the other two shipped: `{"book","chapter"}` → 401, `door=deeper` → 401, `door=nonsense` → 400, `{"chapter"}` → 400. That 401/deeper + 400/nonsense **pair** is what proves the B3 door registry is still live in it.
+
+The conservative reading of §3's "redeploy whenever anything under `lamplight-study/` changes" would say to ship it anyway. Both are defensible; what is not defensible is leaving it undecided, because the next person's "is it stale?" question then needs this whole trace redone. **Redeploying it is a safe no-op** if you would rather the deployed bundle simply match `main`.
 
 ⚠️ **`prompt_version` strings did not move.** `study-insight-2026-08-06-v5` and `bible-insight-2026-06-10-v3` keep the word "insight" inside them, because they stamp `lamplight_usage` rows and the rename changed no emitted byte. Byte-identity fixtures in each `prompts/__fixtures__/` prove it. If one of those gates ever fails, the two correct responses are revert, or bump the version *and* re-baseline *and* regenerate the fixture in the same commit — never the fixture alone.
 

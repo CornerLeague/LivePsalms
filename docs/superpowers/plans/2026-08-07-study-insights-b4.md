@@ -62,7 +62,7 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 | 8 — the client half | done, **wire value deliberately NOT flipped** | see below |
 | 9 — registry tidy | done | |
 | 10 — runbook | done | runbook §9 |
-| 11 — completion gate | **partly — deploy + browser checks left** | tsc/eslint/vitest green |
+| 11 — completion gate | **partly — browser checks left** | gate green; **both functions deployed 2026-08-07**, 10/10 boot checks |
 
 ### Decisions made while implementing, that are not in the design
 
@@ -76,10 +76,11 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 
 ### Still to do
 
-1. **The two inherited live checks** (Task 1) — Door 2's first real generation, and an interrupted one. Runbook §6.
-2. **Deploy `lamplight-study` and `lamplight-chat`**, boot-check both, and check the legacy spelling still returns `401` rather than `400`. Runbook §9.
-3. **The B4 browser checks** — runbook §6 steps 11 and 12.
-4. **Then**, optionally, flip the two client wire values to `'opener'`.
+1. ~~**Deploy `lamplight-study` and `lamplight-chat`**~~ — **done 2026-08-07**, 10/10 boot checks. Runbook §9.
+2. **The interrupted-generation check** — the one inherited row still open. Needs a Plus/promo session. Runbook §6 step 6.
+3. **The cost figure** — admin dashboard, the `passage_insight` row stamped 19:35:29 UTC.
+4. **The B4 browser checks** — runbook §6 steps 11 and 12, on a real phone.
+5. **Then**, optionally, flip the two client wire values to `'opener'`. Safe now that both functions are deployed.
 
 ---
 
@@ -220,8 +221,9 @@ So both clients — `requestOpeningInsight` and the `LamplightChat.tsx` stream, 
 ## Task 11 — Completion gate
 
 - [x] `npx tsc -b` clean · `npx eslint .` at its **163-problem baseline** · `npx vitest run` green — **4,251** at completion (4,171 at plan time).
-- [ ] **Deploy `lamplight-chat` AND `lamplight-study`.** Both change; both must ship before the client. Re-verify boot on each: 401 unauthenticated, 400 on a bad body.
-- [ ] Boot check the wire tolerance explicitly — `mode: 'insight'` and `mode: 'opener'` must behave identically, and a bad mode must fall through to `chat`.
+- [x] **Deploy `lamplight-chat` AND `lamplight-study`.** **Done 2026-08-07** — `lamplight-study` v10 (20:27:41 UTC), `lamplight-chat` v14 (20:27:59 UTC).
+- [x] Boot check the wire tolerance explicitly. **10/10 pass**, runbook §9. The discriminator is the empty-message row: an opener body carries no message, so if `'opener'` were falling through to `chat` the parser would reject it for that and return 400 — which is exactly what the empty-message row does return. The two rows differing is what proves the mode parses.
+- [x] **`passage-insight` traced and deliberately left at v4.** Its bundle shifts (`index.ts:29` imports from `parse-body.ts`, which now imports `chat-mode.ts`) but the only delta is an unused import of a pure function. Re-verified healthy afterwards; the `door=deeper` 401 / `door=nonsense` 400 pair still proves the B3 registry is live.
 - [ ] Only then ship Task 8's client half.
 - [ ] The browser checks from Task 6.
 
