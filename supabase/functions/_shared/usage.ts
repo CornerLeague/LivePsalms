@@ -20,9 +20,22 @@ export type UsageCore = Omit<UsageRow, 'user_id' | 'artifact_kind'>;
 // Minimal Supabase client shape required by this helper. Keeping the type
 // narrow makes it easy to fake in unit tests and avoids cross-runtime
 // (Deno vs Node) type drag from the official client.
+// NOTE ON `PromiseLike` BELOW, which reads like a nicety and is not.
+//
+// supabase-js query builders are THENABLE, not Promises: a PostgrestFilterBuilder
+// has `then` but no `catch`, no `finally`, no [Symbol.toStringTag]. Declaring
+// these minimal shapes as `Promise<...>` therefore described something the real
+// client cannot satisfy — which nothing noticed while the Deno shells (the only
+// callers that pass a REAL client; every test passes a fake returning a true
+// Promise) were outside the typechecker.
+//
+// `PromiseLike` is the honest contract: this code only ever awaits the result,
+// and await needs nothing more. It accepts both the real builder and the fakes,
+// and it widens NOTHING about the query surface — `from`/`select`/`eq` stay as
+// narrow as they were, which is the whole point of these types.
 export interface UsageSupabaseClient {
   from(table: 'lamplight_usage'): {
-    insert(row: UsageRow): Promise<{ error: { message: string } | null }>;
+    insert(row: UsageRow): PromiseLike<{ error: { message: string } | null }>;
   };
 }
 

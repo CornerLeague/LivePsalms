@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.functions.tsbuildinfo",
+
+    /* Deno's runtime, not Node's: these modules get Request/Response/fetch and
+       the web platform, and deliberately NOT node's globals — importing `fs`
+       here should be an error, because it would be one at runtime. */
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "types": [],
+
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    /* Deno imports siblings with their extension; Node-flavoured tsc needs
+       telling that is allowed. */
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Same bar as the rest of the repo. */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": [
+    "supabase/functions/deno-ambient.d.ts",
+    "supabase/functions/**/*.ts"
+  ],
+  "exclude": [
+    /* The edge-fn unit tests run under vitest in the NODE project's world, not
+       Deno's — they import `vitest`, which this project deliberately has no
+       types for. They are already typechecked transitively wherever a script or
+       a src module imports the code under test; giving them a Deno-shaped
+       project would only teach them the wrong globals. */
+    "supabase/functions/**/*.test.ts"
+  ]
+}

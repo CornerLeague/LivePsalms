@@ -4,9 +4,9 @@
 //
 // Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... TRANSLATION=KJV \
 //   npx tsx scripts/bible-parity-check.ts
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-async function keysFor(supabase: ReturnType<typeof createClient>, translation: string): Promise<Set<string>> {
+async function keysFor(supabase: SupabaseClient, translation: string): Promise<Set<string>> {
   const keys = new Set<string>();
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {

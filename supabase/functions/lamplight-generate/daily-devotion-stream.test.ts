@@ -206,3 +206,40 @@ describe('streamDailyDevotion — source_library_chunks provenance', () => {
     expect(inserts[0].source_library_chunks).toBeNull();
   });
 });
+
+// ── Scripture verification reaches the pipeline (regression) ─────────────────
+//
+// It did not, from the day this module was written until 2026-08-07. The shell
+// built `makeScriptureDeps(...)` and passed it in; `DailyDevotionStreamDeps` did
+// not declare the field, so JavaScript dropped it silently at the boundary and
+// the streamed devotion never verified a quote — while the BUFFERED path, a few
+// lines further down the same shell, always did.
+//
+// Nothing caught it: the Deno shells were outside every typechecker until that
+// date, the eval harness drives the buffered path, and this suite never asked.
+// So this is the test that would have.
+describe('streamDailyDevotion — Scripture verification', () => {
+  it('hands the injected verifyScripture to the pipeline', async () => {
+    const verifyRefs = vi.fn(async (refs: string[]) =>
+      refs.map((ref) => ({ ref, status: 'found' as const, canonicalText: 'Even though I walk through the valley of the shadow of death…' })),
+    );
+
+    const res = await streamDailyDevotion(
+      makeDeps({ verifyScripture: { translation: 'BSB', verifyRefs } }),
+      { userId: 'user-1', localDate: '2026-05-27' },
+    );
+    await res.text();
+
+    // The pipeline only calls verifyRefs when it was actually given the deps —
+    // asserting the CALL rather than the plumbing is what makes this a
+    // behavioural guard rather than a restatement of the interface.
+    expect(verifyRefs).toHaveBeenCalled();
+  });
+
+  it('still streams when no verifyScripture is supplied', async () => {
+    // Optional, and must stay optional: every existing caller and test omits it.
+    const res = await streamDailyDevotion(makeDeps(), { userId: 'user-1', localDate: '2026-05-27' });
+    expect(res.headers.get('content-type')).toContain('text/event-stream');
+    expect(await res.text()).toContain('"t":"done"');
+  });
+});

@@ -31,6 +31,7 @@
   },
   "include": [
     "vite.config.ts",
+    "scripts",
     "src/components/sections/moodboard-assets.test.ts",
     "src/components/sections/moodboard-aspect.test.ts",
     "src/data/devotion-moodboards.test.ts"

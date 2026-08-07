@@ -42,10 +42,10 @@ import {
   runConnectionWhyPipeline,
   type ConnectionWhyContext,
 } from './connection-why-pipeline.ts';
-import { runMonthlyReflectionPipeline } from './monthly-reflection-pipeline.ts';
+import { runMonthlyReflectionPipeline, type ReflectionUsageRecord } from './monthly-reflection-pipeline.ts';
 import { buildMonthlyReflectionContext, isValidPeriodKey } from './monthly-reflection-context.ts';
 import { hasReflectionAccess, type LamplightTier } from '../_shared/entitlement.ts';
-import { recordLamplightUsage } from '../_shared/usage.ts';
+import { recordLamplightUsage, type UsageCore } from '../_shared/usage.ts';
 import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generation-lifecycle.ts';
 import { clearReflectionJob } from '../_shared/reflection-jobs.ts';
 import { runReflectionSweep, claimReflectionJobs } from './reflection-sweep.ts';
@@ -55,6 +55,38 @@ import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
 import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
 import { classifyGenerateError } from './classify-error.ts';
 export { classifyGenerateError };
+
+/**
+ * `ReflectionUsageRecord` → `UsageCore`, because the two disagree on names.
+ *
+ * ⚠️ THIS WAS SILENT DATA LOSS, not a typing nicety. The monthly-reflection
+ * pipeline reports `{ model_used, prompt_tokens, completion_tokens }`;
+ * `lamplight_usage` has columns `model`, `tokens_in`, `tokens_out` and no others
+ * (migration 015). So every reflection usage insert carried three columns the
+ * table does not have and omitted three it requires — PostgREST rejected it, and
+ * `recordLamplightUsage` swallows insert errors by design, so that a usage-table
+ * outage can never break a generation. The result: monthly reflection's cost has
+ * never reached the admin dashboard, and nothing anywhere went red.
+ *
+ * Mapped here at the boundary rather than by renaming the pipeline's own fields:
+ * the pipeline and its tests are a wider blast radius than this bug warrants,
+ * and this is the one place the two vocabularies meet.
+ *
+ * `tokens_in`/`tokens_out` fall back to 0 because those columns are NOT NULL
+ * with a 0 default; `model` falls back to null, which the column has allowed
+ * since migration 022 precisely because a fictional model id would corrupt cost
+ * attribution.
+ */
+function reflectionUsageToCore(usage: ReflectionUsageRecord | null): UsageCore | null {
+  if (!usage) return null;
+  return {
+    model: usage.model_used ?? null,
+    tokens_in: usage.prompt_tokens ?? 0,
+    tokens_out: usage.completion_tokens ?? 0,
+    status: usage.status,
+    ...(usage.error_code !== undefined ? { error_code: usage.error_code } : {}),
+  };
+}
 
 serve(async (req) => {
   const cors = corsHeaders(req, resolveAllowedOrigins(Deno.env));
@@ -244,7 +276,7 @@ async function handleGenerate(req: Request): Promise<Response> {
           embed: (text) => embedQuery(text, voyageDeps),
         });
         const result = await runMonthlyReflectionPipeline({ llm, classifier, supabase, ctx, userId, periodKey });
-        return { response: result, usage: result.usage };
+        return { response: result, usage: reflectionUsageToCore(result.usage) };
       },
     );
     // On-demand mirror of Task 8's cohort SQL exclusion: a fresh success (a NEW

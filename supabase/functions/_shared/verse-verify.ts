@@ -86,27 +86,78 @@ export function parseRefToIds(ref: string): string[] | null {
   return ids;
 }
 
-type _VerifyQueryBuilder = {
-  in(col: string, ids: string[]): {
-    order(col: string, opts: { ascending: boolean }): Promise<{
-      data: { id: string; verse_start: number; text: string }[] | null;
-      error: { message: string } | null;
-    }>;
-  };
-};
+// NOTE ON `PromiseLike` AND THE NAMED LEVELS BELOW — both load-bearing.
+//
+// `PromiseLike`: supabase-js query builders are THENABLE, not Promises. A
+// PostgrestFilterBuilder has `then` but no `catch`, no `finally`, no
+// [Symbol.toStringTag]. Declaring these shapes as `Promise<...>` described
+// something the real client cannot satisfy — unnoticed while the Deno shells
+// (the only callers passing a REAL client; every test passes a fake returning a
+// true Promise) sat outside the typechecker. This code only ever awaits the
+// result, and await needs no more than PromiseLike.
+//
+// NAMED, not inline: every level below is its own interface rather than an
+// anonymous object literal nested inside the one above. That is not style.
+// Checking `SupabaseClient` against this shape instantiates
+// PostgrestFilterBuilder's eight type parameters once per level, and with
+// anonymous literals the compiler cannot memoise the relation — so the cost
+// multiplied and tipped two shells past its instantiation-depth limit
+// (TS2589 in etymology-insight and lamplight-chat, which drive the most
+// supabase chains from a single expression tree). Naming the levels makes each
+// comparison cacheable and the error goes away without a single cast.
 
+/** Rows for a verse lookup, as the code consumes them: awaited, nothing more. */
+type VerseLookupResult = PromiseLike<{
+  data: { id: string; verse_start: number; text: string }[] | null;
+  error: { message: string } | null;
+}>;
+
+interface VerseOrderStep {
+  order(col: string, opts: { ascending: boolean }): VerseLookupResult;
+}
+
+interface VerseInStep {
+  in(col: string, ids: string[]): VerseOrderStep;
+}
+
+interface VerseSelectStep {
+  eq(col: string, val: string): VerseInStep;
+  in(col: string, ids: string[]): VerseOrderStep;
+}
+
+interface VerseTableStep {
+  select(cols: string): VerseSelectStep;
+}
+
+/**
+ * The precise shape this module's queries rely on. INTERNAL — see below.
+ */
 interface MinimalSupabase {
-  from(table: 'bible_passages'): {
-    select(cols: string): {
-      eq(col: string, val: string): _VerifyQueryBuilder;
-      in(col: string, ids: string[]): {
-        order(col: string, opts: { ascending: boolean }): Promise<{
-          data: { id: string; verse_start: number; text: string }[] | null;
-          error: { message: string } | null;
-        }>;
-      };
-    };
-  };
+  from(table: 'bible_passages'): VerseTableStep;
+}
+
+/**
+ * What CALLERS are asked for: a client, checked one level deep.
+ *
+ * The precise shape above stays inside, where it fully checks every step of the
+ * chain and the row shape that comes back. It is deliberately NOT what the
+ * public signature asks for, because at the boundary that precision is
+ * ruinously expensive: comparing supabase-js's client against a four-level
+ * nested interface instantiates PostgrestFilterBuilder's eight type parameters
+ * at every level, and the compiler's instantiation-depth budget is SHARED
+ * across the program and spent in file order. With all ten Deno shells in the
+ * typecheck it ran out.
+ *
+ * Casting at whichever site failed only moved the failure — measured: a cast in
+ * `etymology-insight` relocated it to `lamplight-chat`, and narrowing
+ * `makeScriptureDeps` alone relocated it to `transcribe-note`. So the deep
+ * comparison happens ONCE, here, instead of at every door.
+ *
+ * A caller still has to hand over something with a `from(table)` on it, so
+ * passing a non-client is still an error.
+ */
+export interface VerseLookupClient {
+  from(table: string): unknown;
 }
 
 /**
@@ -119,15 +170,19 @@ interface MinimalSupabase {
  * marking the ref not_found.
  */
 export async function verifyVerseRefs(
-  supabase: MinimalSupabase,
+  supabase: VerseLookupClient,
   refs: string[],
   translation = 'BSB',
 ): Promise<VerseFlag[]> {
+  // The one assertion, and the only place the two shapes meet. Everything below
+  // is checked against the precise type.
+  const sb = supabase as MinimalSupabase;
+
   const queryForTranslation = async (
     ids: string[],
     t: string,
   ): Promise<{ id: string; verse_start: number; text: string }[]> => {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('bible_passages')
       .select('id, verse_start, text')
       .eq('translation', t)

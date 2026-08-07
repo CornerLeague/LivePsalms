@@ -11,7 +11,7 @@ import { CANDIDATE_POOL_MAX } from '../_shared/reflection-constants.ts';
 // Permissive structural view of the Supabase client: the real client satisfies
 // it and hand-rolled test fakes fit without an `as unknown` cast.
 // deno-lint-ignore no-explicit-any
-export type EdgeSupabase = { from(table: string): any; rpc(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> };
+export type EdgeSupabase = { from(table: string): any; rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: { message: string } | null }> };
 
 export interface BuildReflectionCandidatesDeps {
   supabase: EdgeSupabase;

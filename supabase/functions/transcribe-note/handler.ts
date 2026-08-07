@@ -13,24 +13,35 @@ export interface TranscribeResult {
   transcription_id: string;
 }
 
-export interface TranscribeDeps {
+/**
+ * Generic over the client so the handler stays client-agnostic — it never
+ * touches `supabase`, it only hands it to the injected `verifyVerseRefs` — while
+ * the two still have to AGREE.
+ *
+ * Both were `unknown` before, which typechecks in isolation and pairs nothing:
+ * a `verifyVerseRefs` requiring a real client sat happily beside a `supabase`
+ * that could be anything, and the mismatch only surfaced once the Deno shells
+ * entered the typecheck. `TClient` makes the pairing the thing that is checked,
+ * without the handler learning what a Supabase client is.
+ */
+export interface TranscribeDeps<TClient = unknown> {
   llm: LLMAdapter;
   downloadImage: (key: string) => Promise<{ base64: string; mimeType: string }>;
-  verifyVerseRefs: (supabase: unknown, refs: string[]) => Promise<VerseFlag[]>;
+  verifyVerseRefs: (supabase: TClient, refs: string[]) => Promise<VerseFlag[]>;
   extractVerseRefs: (text: string) => string[];
   insertRow: (row: Record<string, unknown>) => Promise<string>;
   recordUsage: (row: {
     user_id: string; model: string; artifact_kind: string;
     tokens_in: number; tokens_out: number; status: 'ok' | 'error'; error_code?: string;
   }) => Promise<void>;
-  supabase: unknown;
+  supabase: TClient;
 }
 
 export interface TranscribeBody { image_key?: string }
 export interface HandlerResponse { status: number; body: TranscribeResult | { error: string } }
 
-export async function handleTranscribe(
-  deps: TranscribeDeps,
+export async function handleTranscribe<TClient>(
+  deps: TranscribeDeps<TClient>,
   body: TranscribeBody,
   userId: string,
 ): Promise<HandlerResponse> {

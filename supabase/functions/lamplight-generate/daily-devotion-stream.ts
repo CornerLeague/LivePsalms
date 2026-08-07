@@ -12,6 +12,7 @@ import { runDailyDevotionStreaming, type DailyDevotionContext } from './daily-de
 import type { UsageRow } from '../_shared/usage.ts';
 import type { LLMAdapter } from '../_shared/openai.ts';
 import type { ContentRuleViolation } from '../_shared/validators.ts';
+import type { ScriptureDeps } from '../_shared/scripture-verify.ts';
 
 export interface DailyDevotionStreamDeps {
   cors: Record<string, string>;
@@ -22,6 +23,19 @@ export interface DailyDevotionStreamDeps {
   llm: LLMAdapter;
   // Layer C (P0-5) doctrinal classifier, threaded to applyContentRules.
   classifier?: (text: string) => Promise<ContentRuleViolation[]>;
+  /**
+   * Scripture verification, with repair-before-reject.
+   *
+   * ⚠️ THIS WAS MISSING, AND THE SHELL HAS BEEN PASSING IT ALL ALONG. `index.ts`
+   * builds `makeScriptureDeps(...)` and hands it in; this interface did not
+   * declare it, so JavaScript dropped it silently at the boundary and the
+   * streamed devotion never verified a quote — while the BUFFERED path, three
+   * lines further down the same shell, always has.
+   *
+   * Nothing caught it because the Deno shells were outside every typechecker
+   * until 2026-08-07, and the eval harness drives the buffered path.
+   */
+  verifyScripture?: ScriptureDeps;
   buildContext: () => Promise<DailyDevotionContext | null>;
 }
 
@@ -69,7 +83,7 @@ export async function streamDailyDevotion(
       const ctx = await deps.buildContext();
 
       const result = await runDailyDevotionStreaming(
-        { llm: deps.llm, supabase: deps.supabase, ctx, userId: args.userId, localDate: args.localDate, classifier: deps.classifier, signal: args.signal },
+        { llm: deps.llm, supabase: deps.supabase, ctx, userId: args.userId, localDate: args.localDate, classifier: deps.classifier, verifyScripture: deps.verifyScripture, signal: args.signal },
         {
           onStage: (s) => void emit({ t: 'stage', stage: s }),
           onPiece: (field, value) => void emit({ t: 'piece', field, value }),
