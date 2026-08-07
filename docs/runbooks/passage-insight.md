@@ -138,9 +138,11 @@ Two writes that deliberately never happen:
 | **An interrupted generation leaves the door uncached** | ✅ **2026-08-07, in a browser, signed in.** Psalm 27 Door 1, interrupted **mid-stream** with 201 of ~6,500 characters on screen. Zero rows written, watched for 5 minutes. See §6 |
 | **A seeded prompt lands in study chat, prefilled and unsent** (B4) | ✅ **2026-08-07** — Leviticus 1, signed in. Prefilled and NOT sent; the send appended to a thread created 2026-08-06 rather than opening a second. See §6 step 11 |
 | **The overlay at a mobile viewport: tab bar, narrow header, touch targets** (B4) | ✅ **2026-08-07**, emulated 375×812 against production. See §6 step 12 |
-| **The overlay on real hardware: notch/home-indicator clearance, and the keyboard over the seeded draft** (B4) | ❌ **Needs a device.** `env()` resolves to 0 in emulation and there is no software keyboard — §6 step 12 |
+| **The overlay on real hardware: notch/home-indicator clearance, and the keyboard over the seeded draft** (B4) | ❌ **Needs a device AND a signed-in session.** `env()` is 0 in emulation and there is no software keyboard; and the keyboard case needs a seeded draft, which only renders for a signed-in reader — §6 step 12 |
 
-**One row is left, and it needs real hardware** — not a login, and not an emulator. §6 step 12 is now split, because most of it turned out to be answerable at an emulated viewport and two parts genuinely are not. §6 is the procedure.
+**One row is left. It needs a device *and* a signed-in session** — both, not either. §6 step 12 is now split, because most of it turned out to be answerable at an emulated viewport and two parts genuinely are not.
+
+The login half is easy to miss and would waste the trip: the keyboard case can only be reached through a **seeded prompt**, and section footers render only for `userId != null`. A tester who arranges a phone but not a session gets no footer, no draft, and nothing to check. §6 is the procedure.
 
 Everything else in this table is now closed. The distinction is worth keeping in mind for whatever comes next, because "needs a browser" was used loosely here for a while and it hid which checks a person could actually run: a login and a device are different blockers.
 
@@ -194,13 +196,15 @@ Run against **production**, signed out, at a Pixel 8 user agent with 5 touch poi
 | Body scroll locked while open | ✅ `overflow: hidden` |
 | Header at the worst case | ✅ back + scope + toggle + close, **no overflow**, and the document does not scroll horizontally |
 | The long-name rule | ✅ "2 Thessalonians 3:17" is **truncated** (`scrollWidth > clientWidth`) rather than pushing controls off-screen — the ellipsis renders |
-| Touch targets | ✅ back 90×**44**, close **44×44**, both fully inside the 375px viewport |
+| Touch targets | ✅ **every interactive control in the header, measured individually** — back 90×**44**, *Whole chapter* 72×**44**, close **44×44**. All inside the 375px viewport |
 
 **Not verified, and genuinely needing a device — but narrower than it looks:**
 
 - **The safe-area rule is proven WIRED, just not exercised.** `env(safe-area-inset-*)` resolves to `0px` in emulation, so `calc(6px + env(safe-area-inset-top))` computes to exactly **`6px`** — which is itself the useful result: the declaration **parsed and applied** rather than being dropped as invalid, so a device with real insets will add them. What a phone still has to answer is whether the resulting clearance actually looks right at the notch and the home indicator.
 - **The keyboard over the seeded draft.** No software keyboard exists in emulation. This is the one part of step 12 that no amount of viewport resizing can reach, and the reason the row stays open.
-- **The mobile handoff end to end** — needs a signed-in session as well as a device, since section footers render only for `userId != null`.
+- **The mobile handoff end to end** — needs a signed-in session as well as a device, since section footers render only for `userId != null`. **This is also why the keyboard case above needs a login**: the draft it asks about arrives only via a seeded prompt.
+
+**A note on the touch-target measurement, because the first pass got it wrong.** It measured the header's direct *children* — which made the scope block look like a 44px control when it is a container, and never measured the *Whole chapter* toggle inside it at all. Re-run against every `button`/`a` in the header individually: all three pass. Measuring containers and reporting controls is an easy substitution to make and an easy one to miss.
 
 Record the first warmed passages below when step 1 lands.
 
