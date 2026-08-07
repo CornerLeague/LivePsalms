@@ -183,12 +183,12 @@ async function handleChat(req: Request): Promise<Response> {
         .limit(HISTORY_LIMIT);
       const history = ((histRows ?? []) as Array<{ role: 'user' | 'assistant'; content: string }>).reverse();
 
-      // Insight only fires on an empty thread — refuse otherwise (idempotent, no cost).
+      // The opener only fires on an empty thread — refuse otherwise (idempotent, no cost).
       if (mode === 'opener' && history.length > 0) {
         return { response: { ok: true, thread_id: threadId, skipped: true }, usage: null };
       }
 
-      // 3. Fetch the open chapter once so insight can seed retrieval from its text.
+      // 3. Fetch the open chapter once so the opener can seed retrieval from its text.
       //    (buildChatContext fetches it again for allowed refs; acceptable for V1.)
       let retrievalQuery = message;
       if (mode === 'opener') {
