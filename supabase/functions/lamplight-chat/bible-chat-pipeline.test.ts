@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runBibleChatPipeline, runBibleChatStreaming, type BibleChatContext } from './bible-chat-pipeline.ts';
 import type { LLMAdapter, GenerateOutput, GenerateStreamInput, StreamHandlers } from '../_shared/openai.ts';
-import { BIBLE_INSIGHT_PROMPT } from './prompts/bible-insight.ts';
+import { BIBLE_OPENER_PROMPT } from './prompts/bible-opener.ts';
 
 const baseCtx: BibleChatContext = {
   passageRef: 'jhn 10',
@@ -44,13 +44,13 @@ describe('runBibleChatPipeline', () => {
 
   it('runs with an injected prompt module (insight) and still validates', async () => {
     const llm = fakeLLM({ reply: 'A quiet opening thought on the shepherd.', citations: [{ type: 'verse', ref: 'jhn 10:11' }] });
-    const out = await runBibleChatPipeline({ llm, ctx: baseCtx, prompt: BIBLE_INSIGHT_PROMPT });
+    const out = await runBibleChatPipeline({ llm, ctx: baseCtx, prompt: BIBLE_OPENER_PROMPT });
     expect(out.ok).toBe(true);
-    if (out.ok) expect(out.promptVersion).toBe(BIBLE_INSIGHT_PROMPT.promptVersion);
+    if (out.ok) expect(out.promptVersion).toBe(BIBLE_OPENER_PROMPT.promptVersion);
   });
 
   it('uses the bumped insight prompt version', () => {
-    expect(BIBLE_INSIGHT_PROMPT.promptVersion).toBe('bible-insight-2026-06-10-v3');
+    expect(BIBLE_OPENER_PROMPT.promptVersion).toBe('bible-insight-2026-06-10-v3');
   });
 
   it('runs the insight path cleanly with an empty-notes context', async () => {
@@ -61,14 +61,14 @@ describe('runBibleChatPipeline', () => {
       userMessage: '',
     };
     // buildMessages must still emit the no-notes marker the model relies on.
-    const msg = BIBLE_INSIGHT_PROMPT.buildMessages(emptyNotesCtx)[0].content;
+    const msg = BIBLE_OPENER_PROMPT.buildMessages(emptyNotesCtx)[0].content;
     expect(msg).toContain('no related notes yet');
 
     const llm = fakeLLM({
       reply: 'You haven’t connected any notes here yet — still, the shepherd lays down his life freely.',
       citations: [{ type: 'verse', ref: 'jhn 10:11' }],
     });
-    const out = await runBibleChatPipeline({ llm, ctx: emptyNotesCtx, prompt: BIBLE_INSIGHT_PROMPT });
+    const out = await runBibleChatPipeline({ llm, ctx: emptyNotesCtx, prompt: BIBLE_OPENER_PROMPT });
     expect(out.ok).toBe(true);
     if (out.ok) expect(out.citations).toEqual([{ type: 'verse', ref: 'jhn 10:11' }]);
   });

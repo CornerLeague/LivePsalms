@@ -28,26 +28,26 @@
 //      as both.
 // Regenerating it alone, to make the red go away, is always wrong.
 import { describe, it, expect } from 'vitest';
-import { STUDY_INSIGHT_PROMPT } from './study-insight.ts';
+import { STUDY_OPENER_PROMPT } from './study-opener.ts';
 import expected from './__fixtures__/study-opener-v5.json' with { type: 'json' };
 
 describe('Study opener prompt — byte identity (B4 rename gate)', () => {
   it('keeps its promptVersion verbatim, "insight" and all', () => {
-    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe(expected.promptVersion);
-    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v5');
+    expect(STUDY_OPENER_PROMPT.promptVersion).toBe(expected.promptVersion);
+    expect(STUDY_OPENER_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v5');
   });
 
   it('emits a byte-identical system prompt', () => {
     // Length first: a failure reads as "42 characters appeared" rather than
     // dumping several thousand characters of near-identical prose.
-    expect(STUDY_INSIGHT_PROMPT.system.length).toBe(expected.system.length);
-    expect(STUDY_INSIGHT_PROMPT.system).toBe(expected.system);
+    expect(STUDY_OPENER_PROMPT.system.length).toBe(expected.system.length);
+    expect(STUDY_OPENER_PROMPT.system).toBe(expected.system);
   });
 
   it('emits a byte-identical tool schema', () => {
     // Serialized rather than deep-equal: KEY ORDER is part of what the model is
     // shown, and a structural comparison would call a reordered schema equal.
-    expect(JSON.stringify(STUDY_INSIGHT_PROMPT.tool)).toBe(JSON.stringify(expected.tool));
+    expect(JSON.stringify(STUDY_OPENER_PROMPT.tool)).toBe(JSON.stringify(expected.tool));
   });
 
   it('keeps the contested-passage exemption', () => {
@@ -56,6 +56,6 @@ describe('Study opener prompt — byte identity (B4 rename gate)', () => {
     // opener on a divided chapter needs the freedom to name the text, and
     // inherits the duty not to settle it. Both doors decline this exemption;
     // both openers take it.
-    expect(STUDY_INSIGHT_PROMPT.allowContestedRefs).toBe(true);
+    expect(STUDY_OPENER_PROMPT.allowContestedRefs).toBe(true);
   });
 });

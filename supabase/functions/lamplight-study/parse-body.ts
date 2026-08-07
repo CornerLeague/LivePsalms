@@ -1,18 +1,20 @@
 // parse-body.ts — extracted so unit tests can import without the Deno serve URL.
+import { parseChatMode, type ChatMode } from '../_shared/chat-mode.ts';
+
 export const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
 export type Translation = (typeof VALID_TRANSLATIONS)[number];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ParsedStudyBody =
-  | { ok: true; book: string; chapter: number; message: string; mode: 'chat' | 'insight'; includeNotes: boolean; noteIds: string[]; translation?: Translation; stream: boolean; threadId?: string }
+  | { ok: true; book: string; chapter: number; message: string; mode: ChatMode; includeNotes: boolean; noteIds: string[]; translation?: Translation; stream: boolean; threadId?: string }
   | { ok: false };
 
 export function parseStudyBody(body: {
   book?: unknown; chapter?: unknown; message?: unknown; mode?: unknown;
   include_notes?: unknown; note_ids?: unknown; translation?: unknown; stream?: unknown; thread_id?: unknown;
 }): ParsedStudyBody {
-  const mode = body.mode === 'insight' ? 'insight' : 'chat';
+  const mode = parseChatMode(body.mode);
   if (typeof body.book !== 'string' || typeof body.chapter !== 'number') return { ok: false };
   if (mode === 'chat' && (typeof body.message !== 'string' || !body.message.trim())) return { ok: false };
   return {

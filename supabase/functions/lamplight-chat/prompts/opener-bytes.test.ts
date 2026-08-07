@@ -19,21 +19,21 @@
 // `bible-insight-2026-06-10-v3` stays verbatim for the same reason its Study
 // twin does — it is a stored value, and the rename changes no emitted byte.
 import { describe, it, expect } from 'vitest';
-import { BIBLE_INSIGHT_PROMPT } from './bible-insight.ts';
+import { BIBLE_OPENER_PROMPT } from './bible-opener.ts';
 import expected from './__fixtures__/bible-opener-v3.json' with { type: 'json' };
 
 describe('Journaling opener prompt — byte identity (B4 rename gate)', () => {
   it('keeps its promptVersion verbatim, "insight" and all', () => {
-    expect(BIBLE_INSIGHT_PROMPT.promptVersion).toBe(expected.promptVersion);
-    expect(BIBLE_INSIGHT_PROMPT.promptVersion).toBe('bible-insight-2026-06-10-v3');
+    expect(BIBLE_OPENER_PROMPT.promptVersion).toBe(expected.promptVersion);
+    expect(BIBLE_OPENER_PROMPT.promptVersion).toBe('bible-insight-2026-06-10-v3');
   });
 
   it('emits a byte-identical system prompt', () => {
-    expect(BIBLE_INSIGHT_PROMPT.system.length).toBe(expected.system.length);
-    expect(BIBLE_INSIGHT_PROMPT.system).toBe(expected.system);
+    expect(BIBLE_OPENER_PROMPT.system.length).toBe(expected.system.length);
+    expect(BIBLE_OPENER_PROMPT.system).toBe(expected.system);
   });
 
   it('emits a byte-identical tool schema', () => {
-    expect(JSON.stringify(BIBLE_INSIGHT_PROMPT.tool)).toBe(JSON.stringify(expected.tool));
+    expect(JSON.stringify(BIBLE_OPENER_PROMPT.tool)).toBe(JSON.stringify(expected.tool));
   });
 });

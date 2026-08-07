@@ -22,7 +22,9 @@ import { runBibleChatPipeline } from '../lamplight-chat/bible-chat-pipeline.ts';
 import { streamBibleChat, type BibleChatStreamDeps } from '../lamplight-chat/bible-chat-stream.ts';
 import { buildStudyContext } from './study-context.ts';
 import { STUDY_CHAT_PROMPT } from './prompts/study-chat.ts';
-import { STUDY_INSIGHT_PROMPT } from './prompts/study-insight.ts';
+import { STUDY_OPENER_PROMPT } from './prompts/study-opener.ts';
+// Per-mode effort / token / library budgets. Extracted so the gate can see them.
+import { STUDY_EFFORT, STUDY_MAX_TOKENS, LIBRARY_K } from './study-modes.ts';
 import { parseStudyBody, type ParsedStudyBody, VALID_TRANSLATIONS, type Translation } from './parse-body.ts';
 import { verifyStudyThread } from './verify-thread.ts';
 
@@ -32,17 +34,6 @@ const HISTORY_LIMIT = 10;
 const NOTE_K = 4;
 const CROSSREF_K = 5;
 
-// Study runs the flagship tier; effort differs by mode. Chat streams while the
-// reader waits, so it stays low to protect first-token latency; insight fires on
-// passage-open with nobody typing, so it can afford to think longer. Reasoning
-// tokens share the output budget, hence the raised ceilings.
-const STUDY_EFFORT = { chat: 'low', insight: 'medium' } as const;
-const STUDY_MAX_TOKENS = { chat: 4096, insight: 3072 } as const;
-
-// Library excerpts per turn (design §Retrieval budgets). Chat carries a real
-// question worth answering from the church's study; insight is one opening
-// observation, so it takes half. 0 disables the library for a mode.
-const LIBRARY_K = { chat: 4, insight: 2 } as const;
 
 serve(async (req) => {
   const cors = corsHeaders(req, resolveAllowedOrigins(Deno.env));
@@ -171,7 +162,7 @@ async function handleStudy(req: Request): Promise<Response> {
       },
       buildContext: async ({ history }) => {
         let retrievalQuery = message;
-        if (mode === 'insight') {
+        if (mode === 'opener') {
           const { data: chRows } = await supabase
             .from('bible_passages').select('text')
             .like('id', `${groundBook}.${groundChapter}.%`).order('verse_start', { ascending: true }).limit(20);
@@ -179,7 +170,7 @@ async function handleStudy(req: Request): Promise<Response> {
         }
         const { ctx, offered } = await buildStudyContext(supabase, {
           userId, book: groundBook, chapter: groundChapter, passageRef: groundPassageRef,
-          message: mode === 'insight' ? '' : message,
+          message: mode === 'opener' ? '' : message,
           retrievalQuery, history,
           includeNotes, noteIds,
           voyageDeps, rerankEnabled,
@@ -196,7 +187,7 @@ async function handleStudy(req: Request): Promise<Response> {
         return ctx;
       },
       llm,
-      prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
+      prompt: mode === 'opener' ? STUDY_OPENER_PROMPT : STUDY_CHAT_PROMPT,
       // Streaming and buffered MUST stay on the same tier/effort — they diverged
       // once already (streaming silently ran a tier below design).
       model: 'deep',
@@ -236,12 +227,12 @@ async function handleStudy(req: Request): Promise<Response> {
         .limit(HISTORY_LIMIT);
       const history = ((histRows ?? []) as Array<{ role: 'user' | 'assistant'; content: string }>).reverse();
 
-      if (mode === 'insight' && history.length > 0) {
+      if (mode === 'opener' && history.length > 0) {
         return { response: { ok: true, thread_id: threadId, skipped: true }, usage: null };
       }
 
       let retrievalQuery = message;
-      if (mode === 'insight') {
+      if (mode === 'opener') {
         const { data: chRows } = await supabase
           .from('bible_passages').select('text')
           .like('id', `${groundBook}.${groundChapter}.%`).order('verse_start', { ascending: true }).limit(20);
@@ -250,7 +241,7 @@ async function handleStudy(req: Request): Promise<Response> {
 
       const { ctx, offered } = await buildStudyContext(supabase, {
         userId, book: groundBook, chapter: groundChapter, passageRef: groundPassageRef,
-        message: mode === 'insight' ? '' : message,
+        message: mode === 'opener' ? '' : message,
         retrievalQuery, history,
         includeNotes, noteIds,
         voyageDeps, rerankEnabled,
@@ -266,7 +257,7 @@ async function handleStudy(req: Request): Promise<Response> {
         llm, ctx, model: 'deep',
         effort: STUDY_EFFORT[mode],
         maxTokens: STUDY_MAX_TOKENS[mode],
-        prompt: mode === 'insight' ? STUDY_INSIGHT_PROMPT : STUDY_CHAT_PROMPT,
+        prompt: mode === 'opener' ? STUDY_OPENER_PROMPT : STUDY_CHAT_PROMPT,
         classifier,
         verifyScripture: makeScriptureDeps(supabase, translation),
       });
@@ -274,7 +265,7 @@ async function handleStudy(req: Request): Promise<Response> {
         return { response: { ok: false, reason: result.reason }, usage: result.usage };
       }
 
-      const rows = mode === 'insight'
+      const rows = mode === 'opener'
         ? [{ thread_id: threadId, user_id: userId, role: 'assistant', content: result.reply, citations: result.citations }]
         : [
             { thread_id: threadId, user_id: userId, role: 'user', content: message, citations: [] },

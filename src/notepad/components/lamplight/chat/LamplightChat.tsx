@@ -140,6 +140,10 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
     };
 
     try {
+      // `'insight'` is the LEGACY spelling of `'opener'` (B4, parent §10).
+      // Kept on the wire on purpose: the client deploys before the edge
+      // functions do, and a stale function reads 'opener' as 'chat' and 400s
+      // an opener's empty message. See `_shared/chat-mode.ts`.
       await stream('lamplight-chat', { book, chapter, mode: 'insight', translation }, { onEvent, signal: controller.signal });
     } catch {
       if (alive()) {

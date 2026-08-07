@@ -7,7 +7,7 @@ afterEach(cleanup);
 const sendStudyMessage = vi.fn();
 vi.mock('../study-chat-client', () => ({
   sendStudyMessage: (...a: unknown[]) => sendStudyMessage(...a),
-  requestStudyInsight: vi.fn().mockResolvedValue({ ok: false, reason: 'skipped' }),
+  requestStudyOpener: vi.fn().mockResolvedValue({ ok: false, reason: 'skipped' }),
 }));
 const studyThreadMessages: Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: unknown[] }> = [];
 const studyThreadCalls: Array<unknown[]> = [];

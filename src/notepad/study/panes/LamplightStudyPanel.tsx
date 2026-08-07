@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useStudyChatThread } from '../useStudyChatThread';
 import { useStudyChatHistory } from '../useStudyChatHistory';
 import { useNotesOnOffer } from '../useNotesOnOffer';
-import { sendStudyMessage, requestStudyInsight } from '../study-chat-client';
+import { sendStudyMessage, requestStudyOpener } from '../study-chat-client';
 import type { OfferedNote } from '../study-chat-client';
 import { makeStudyStreamInvoke, type StudySseEvent } from '../study-stream-client';
 import type { ChatCitation, InvokeFn } from '@/notepad/bible/lamplight-chat-client';
@@ -276,8 +276,10 @@ export function LamplightStudyPanel({ book, chapter, userId, handoff = null }: L
     streamingContent === '' ||
     (sending && streamingContent === null && lastMsg?.role !== 'assistant');
 
-  // requestStudyInsight is available for future use (e.g. opening insight button)
-  void requestStudyInsight;
+  // Parked: the study opener would fire one observation on passage-open, which
+  // is now Door 1's question — answered once and cached globally rather than
+  // billed per reader per open. Un-parking it is a product call (design §5).
+  void requestStudyOpener;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Outfit, sans-serif' }}>
