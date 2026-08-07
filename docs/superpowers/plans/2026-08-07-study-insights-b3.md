@@ -19,7 +19,7 @@ _Every task's requirements implicitly include this section._
 - **§9's Read With Care constraint is a hard rule.** Forbidden is any caution aimed at a tradition, denomination or group. Task 4 is how that stops being a style note.
 - **Cached reads stay public and free.** No entitlement check on the read path, for either door.
 - **Omission is first-class.** A section with no warrant returns empty and renders nothing. Door 2 will hit this more often than Door 1 did.
-- **Completion gate MUST run `npx tsc -b`** as well as `eslint` and `vitest` — and note that `tsc -b` covers only `src`. Anything under `supabase/functions` needs a deliberate check (see *Read before starting*).
+- **Completion gate MUST run `npx tsc -b`** as well as `eslint` and `vitest`. At plan time it covered only `src`, which is why the tasks below prescribe hand-run checks for the edge functions. **#119 has since merged and `tsc -b` now covers the whole repo** — `src`, `scripts`, and every `supabase/functions` module including the ten Deno shells — so those hand-run steps are retired. They are left ticked as a record of what was actually done at the time.
 - **TDD.** Write the failing test first; watch it fail; implement minimally; watch it pass; commit per task.
 - **Branch:** `feat/study-insights-b3`, cut from `feat/library-a1` — PR #117 was still open at plan time. Repo squash-merges; for a focused PR, branch off `origin/main` and cherry-pick rather than PR-ing a long-lived branch.
 - **Migration number: `061`.** Applied manually via the SQL Editor before deploy — `db push` is broken on this machine.
@@ -30,7 +30,7 @@ _Every task's requirements implicitly include this section._
 
 ## ⚠️ Read before starting
 
-**1. A defect was found and fixed while designing B3, and PR #117 still carries it.**
+**1. A defect was found and fixed while designing B3. (RESOLVED — kept because the reasoning still matters.)**
 
 `supabase/functions/passage-insight/index.ts` referenced `DOOR_REGISTERS`, an identifier defined nowhere, on Door 1's generate path. Introduced by `a7572bc8` in the same hunk as the comment block explaining that Door 1 deliberately takes *no* register filter — a leftover from the measurement whose constant was deleted. Fixed on this branch in `867445b0` by removing the line (not by defining it as `[]`: `inRegister` reads `!args.registers || args.registers.includes(...)`, and an empty array is truthy, so `[]` would blank the library channel rather than leave it unfiltered).
 
@@ -41,7 +41,9 @@ _Every task's requirements implicitly include this section._
 - the deploy boot check (401 unauthenticated / 400 bad body) returns before `buildContext` runs;
 - `bible_passage_insight` holds 0 rows, so no reader has ever reached the line.
 
-B3 adds a `door` parameter to that same shell. **Every change to `supabase/functions/*/index.ts` in this plan is unguarded by the gate** and needs a deliberate `tsc --noEmit --allowImportingTsExtensions` pass, whose only acceptable errors are the `deno.land` import and the `Deno` global.
+B3 adds a `door` parameter to that same shell. At the time, **every change to `supabase/functions/*/index.ts` in this plan was unguarded by the gate** and needed a deliberate `tsc --noEmit --allowImportingTsExtensions` pass.
+
+**That gap is now closed.** #119 — split out of this branch, merged 2026-08-07 — put `scripts/` and every edge module including the ten Deno shells inside `tsc -b`. Re-verified after rebasing onto it: B3's own shell changes typecheck clean under the real gate, not just a hand-run. Closing the gap also surfaced two silent production bugs unrelated to Insights; #119 carries them.
 
 **2. "0 rows" is stale — two of B2's three live checks are actually done.** The handoff, the runbook §5 table and the B2 plan all say the corpus is empty. Measured 2026-08-07: **8 rows**, two complete Door 1 doors on Leviticus 1 (`lev.1` chapter grain, `lev.1.1` verse grain), both `passage-insight-2026-08-06-v1` on `gpt-5.6-sol`, all eight sections non-empty, none ending mid-word, no OSIS leaks, voices named in two of them. The public cached read is verified too — the exact query the client hook issues, with no bearer token, returns `200` and four sections.
 
@@ -272,11 +274,10 @@ Runbook §6 carries both, alongside the Door 2 steps (8–10) that also want a f
 
 ## Follow-ups this plan may surface
 
-- ~~**A standing typecheck for `scripts/` and `supabase/functions`.**~~ **Spun out into its own PR — see #119.** B3 found the need for it twice: `DOOR_REGISTERS` reached `main` through an ungated `supabase/functions`, and B3's own review caught a second of the same shape in the ungated `scripts/` — a snippet meant for the passage-insight runner pasted into all three by a replace-all, leaving two of them referencing an undefined `doorEntry` and aborting **after** paying for the model call.
+- ~~**A standing typecheck for `scripts/` and `supabase/functions`.**~~ **Done — split into #119, merged 2026-08-07.** B3 found the need for it twice: `DOOR_REGISTERS` reached `main` through an ungated `supabase/functions`, and B3's own review caught a second of the same shape in the ungated `scripts/` — a snippet meant for the passage-insight runner pasted into all three by a replace-all, leaving two of them referencing an undefined `doorEntry` and aborting **after** paying for the model call.
 
   **The "six errors" figure this note used to carry was wrong**, and worth recording as its own lesson: it came from an ad-hoc `tsc scripts/*.ts` with looser flags than the project uses, which missed the `email-templates/` subdirectory and pulled in nothing transitively. The real numbers were **13 in `scripts/` and 26 more in the Deno shells** — a measurement of an ungated directory is itself ungated. #119 has the full breakdown, and the two silent production bugs the shells' typecheck surfaced.
 
-- **PR #117 still carries the `DOOR_REGISTERS` defect.** Fixed here in `867445b0`; it wants the same one-line fix on that branch, or #117 merges and B3's fix arrives behind it.
 - If the register filter is adopted for Door 2 (Task 8), revisit **Door 1's** — A1's Task 3 note observed that classing Wesley `devotional` put that register at three members, and the rejection was measured when it had two.
 - The known A1 limit carries: anchor rows are ordered by verse, so truncating a flooding source drops the chapter's tail, and a verse-scope anchor late in a huge chapter can miss that source. The real fix pushes the verse-overlap filter into SQL.
 
