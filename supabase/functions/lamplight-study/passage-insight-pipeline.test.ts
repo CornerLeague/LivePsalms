@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runPassageInsightPipeline, type PassageInsightEmit } from './passage-insight-pipeline.ts';
-import { PASSAGE_INSIGHT_PROMPT, PASSAGE_INSIGHT_SECTIONS } from './prompts/passage-insight.ts';
+import {
+  runPassageInsightPipeline,
+  runPassageInsightStreaming,
+  type PassageInsightEmit,
+} from './passage-insight-pipeline.ts';
+import {
+  PASSAGE_DOOR_SPEC,
+  PASSAGE_INSIGHT_PROMPT,
+  PASSAGE_INSIGHT_SECTIONS,
+} from './prompts/passage-insight.ts';
+import { buildInsightTool, type InsightDoorSpec } from './prompts/insight-door.ts';
 import type { BibleChatContext } from '../lamplight-chat/bible-chat-pipeline.ts';
 import type { LLMAdapter } from '../_shared/openai.ts';
 import type { ScriptureDeps } from '../_shared/scripture-verify.ts';
@@ -246,5 +255,91 @@ describe('runPassageInsightPipeline — Scripture verification', () => {
   it('is optional — a door generates without it, exactly as before', async () => {
     const out = await runPassageInsightPipeline({ llm: fakeLLM(emit({ overview: MISQUOTE })), ctx: baseCtx });
     expect(out.ok).toBe(true);
+  });
+});
+
+// ── Door-genericity (B3) ─────────────────────────────────────────────────────
+// The pipeline is the SHARED engine, not Door 1's. It reads the section list and
+// the prompt from the spec it is handed, so a second door needs no second
+// pipeline. These tests drive it with a spec that is deliberately nothing like
+// Door 1's — different keys, different count — because a pipeline that silently
+// falls back to Door 1's four sections would pass every Door 1 test ever written.
+describe('runPassageInsightPipeline — door-generic', () => {
+  const FAKE_SECTIONS = [
+    { key: 'alpha', label: 'Alpha', minWords: 10, maxWords: 40, brief: 'the first thing' },
+    { key: 'beta', label: 'Beta', minWords: 10, maxWords: 40, brief: 'the second thing' },
+  ] as const;
+
+  const FAKE_DOOR: InsightDoorSpec = {
+    id: 'fake',
+    sections: FAKE_SECTIONS,
+    prompt: {
+      promptVersion: 'fake-door-v9',
+      system: 'You are a fake door.',
+      tool: buildInsightTool({ name: 'emit_fake', description: 'fake', sections: FAKE_SECTIONS }),
+      buildMessages: () => [{ role: 'user' as const, content: 'grounding' }],
+    },
+  };
+
+  it('returns the spec’s sections, not Door 1’s', async () => {
+    const out = await runPassageInsightPipeline({
+      llm: fakeLLM({ alpha: 'first body', beta: 'second body', citations: [] }),
+      ctx: baseCtx,
+      door: FAKE_DOOR,
+    });
+
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(Object.keys(out.sections)).toEqual(['alpha', 'beta']);
+    // The load-bearing half: no leakage the other way either.
+    expect(out.sections).not.toHaveProperty('overview');
+    expect(out.promptVersion).toBe('fake-door-v9');
+  });
+
+  it('sends the spec’s system prompt and tool to the model', async () => {
+    const llm = fakeLLM({ alpha: 'a', beta: 'b', citations: [] });
+    await runPassageInsightPipeline({ llm, ctx: baseCtx, door: FAKE_DOOR });
+
+    const call = (llm.generate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    // `artifactSystem` is composed into `system` by generateWithRetry, so assert
+    // on what the model is actually sent.
+    expect(call.system).toContain('You are a fake door.');
+    expect(call.system).not.toContain('Lamplight Study, writing a short study');
+    expect(call.tool.name).toBe('emit_fake');
+  });
+
+  it('streams the spec’s section keys as text fields', async () => {
+    const parsed = { alpha: 'first body', beta: 'second body', citations: [] };
+    const streamingLLM = {
+      generate: vi.fn(),
+      generateStream: vi.fn(async (input: { textFields?: string[] }, handlers: {
+        onText?: (f: string, d: string) => void;
+      }) => {
+        // Echo back exactly the fields the caller declared — so the assertion
+        // below is about what the SPEC asked to stream, not what a fake decided.
+        for (const f of input.textFields ?? []) {
+          handlers.onText?.(f, (parsed as Record<string, unknown>)[f] as string);
+        }
+        return { parsed, modelUsed: 'gpt-5.6-terra', promptTokens: 900, completionTokens: 1400 };
+      }),
+    } as unknown as LLMAdapter;
+
+    const fields: string[] = [];
+    await runPassageInsightStreaming(
+      { llm: streamingLLM, ctx: baseCtx, door: FAKE_DOOR },
+      {
+        onStage: () => {},
+        onText: (field) => { fields.push(field); },
+        onPiece: () => {},
+        onRefining: () => {},
+      },
+    );
+    expect(fields).toEqual(['alpha', 'beta']);
+  });
+
+  it('Door 1’s spec still describes Door 1', () => {
+    expect(PASSAGE_DOOR_SPEC.id).toBe('passage');
+    expect(PASSAGE_DOOR_SPEC.sections).toBe(PASSAGE_INSIGHT_SECTIONS);
+    expect(PASSAGE_DOOR_SPEC.prompt).toBe(PASSAGE_INSIGHT_PROMPT);
   });
 });

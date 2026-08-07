@@ -3,9 +3,8 @@ import {
   readPassageDoor,
   writePassageDoor,
   sourcesFromExcerpts,
-  PASSAGE_DOOR,
 } from './passage-insight-cache.ts';
-import { PASSAGE_INSIGHT_SECTIONS } from './prompts/passage-insight.ts';
+import { PASSAGE_DOOR_SPEC, PASSAGE_INSIGHT_SECTIONS } from './prompts/passage-insight.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface Op { method: string; args: unknown[] }
@@ -61,7 +60,7 @@ const FULL_DOOR = KEYS.map((k) => row(k, `body of ${k}`));
 describe('readPassageDoor', () => {
   it('returns every section of the door, keyed by section name', async () => {
     const { client } = makeSupabase({ rows: FULL_DOOR });
-    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27' });
+    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27', door: PASSAGE_DOOR_SPEC });
 
     expect(door).not.toBeNull();
     expect(Object.keys(door!.sections)).toEqual(KEYS);
@@ -73,7 +72,7 @@ describe('readPassageDoor', () => {
   it('D2: serves rows whose prompt_version is behind current, and never filters on it', async () => {
     const stale = KEYS.map((k) => row(k, `stale ${k}`, { prompt_version: 'passage-insight-2020-01-01-v0' }));
     const { client, ops } = makeSupabase({ rows: stale });
-    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27' });
+    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27', door: PASSAGE_DOOR_SPEC });
 
     // A reader is never blocked by a prompt bump; refreshing is deliberate.
     expect(door!.sections.overview).toBe('stale overview');
@@ -83,14 +82,14 @@ describe('readPassageDoor', () => {
 
   it('returns null when the door has no rows', async () => {
     const { client } = makeSupabase({ rows: [] });
-    expect(await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27' })).toBeNull();
+    expect(await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27', door: PASSAGE_DOOR_SPEC })).toBeNull();
   });
 
   it('distinguishes an uncached door from one whose sections are all legitimately empty', async () => {
     // The whole point of the null: "never generated" and "generated, and had
     // nothing warranted to say" must not look the same to the caller.
     const { client } = makeSupabase({ rows: KEYS.map((k) => row(k, '')) });
-    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27' });
+    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27', door: PASSAGE_DOOR_SPEC });
 
     expect(door).not.toBeNull();
     expect(KEYS.every((k) => door!.sections[k] === '')).toBe(true);
@@ -98,7 +97,7 @@ describe('readPassageDoor', () => {
 
   it('normalises a section the cache is missing to empty rather than undefined', async () => {
     const { client } = makeSupabase({ rows: [row('overview', 'only this one')] });
-    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27' });
+    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27', door: PASSAGE_DOOR_SPEC });
 
     expect(Object.keys(door!.sections)).toEqual(KEYS);
     expect(door!.sections.reflection).toBe('');
@@ -108,19 +107,19 @@ describe('readPassageDoor', () => {
     // The (scope, ref_id, door) index exists for exactly this; four queries
     // would make it pointless.
     const { client, ops } = makeSupabase({ rows: FULL_DOOR });
-    await readPassageDoor(client, { scope: 'verse', refId: 'psa.27.4' });
+    await readPassageDoor(client, { scope: 'verse', refId: 'psa.27.4', door: PASSAGE_DOOR_SPEC });
 
     expect(ops.filter((o) => o.method === 'from')).toEqual([
       { method: 'from', args: ['bible_passage_insight'] },
     ]);
     const filters = ops.filter((o) => o.method === 'eq').map((o) => o.args);
-    expect(filters).toEqual([['scope', 'verse'], ['ref_id', 'psa.27.4'], ['door', PASSAGE_DOOR]]);
+    expect(filters).toEqual([['scope', 'verse'], ['ref_id', 'psa.27.4'], ['door', PASSAGE_DOOR_SPEC.id]]);
   });
 
   it('carries the library provenance stored with the door', async () => {
     const sources = [{ chunk_id: 'lc1', source_id: 'treasury-of-david', heading: 'Psalm 27:4 [2]' }];
     const { client } = makeSupabase({ rows: KEYS.map((k) => row(k, `b ${k}`, { sources })) });
-    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27' });
+    const door = await readPassageDoor(client, { scope: 'chapter', refId: 'psa.27', door: PASSAGE_DOOR_SPEC });
 
     expect(door!.sources).toEqual(sources);
   });
@@ -129,7 +128,7 @@ describe('readPassageDoor', () => {
     // Returning null here would send the reader to the generate path and
     // re-bill a door that is already warm.
     const { client } = makeSupabase({ rows: [], selectError: { message: 'connection reset' } });
-    await expect(readPassageDoor(client, { scope: 'chapter', refId: 'psa.27' }))
+    await expect(readPassageDoor(client, { scope: 'chapter', refId: 'psa.27', door: PASSAGE_DOOR_SPEC }))
       .rejects.toThrow(/connection reset/);
   });
 });
@@ -139,6 +138,7 @@ describe('writePassageDoor', () => {
   const args = {
     scope: 'chapter' as const,
     refId: 'psa.27',
+    door: PASSAGE_DOOR_SPEC,
     sections,
     sources: [{ chunk_id: 'lc1', source_id: 'treasury-of-david', heading: 'Psalm 27:4 [2]' }],
     modelUsed: 'gpt-5.6-terra',
@@ -164,7 +164,7 @@ describe('writePassageDoor', () => {
     for (const r of upserts[0].rows) {
       expect(r.scope).toBe('chapter');
       expect(r.ref_id).toBe('psa.27');
-      expect(r.door).toBe(PASSAGE_DOOR);
+      expect(r.door).toBe(PASSAGE_DOOR_SPEC.id);
       expect(r.model_used).toBe('gpt-5.6-terra');
       expect(r.prompt_version).toBe('passage-insight-2026-08-06-v1');
       expect(r.created_by).toBe('user-1');

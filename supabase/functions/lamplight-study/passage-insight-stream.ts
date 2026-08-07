@@ -22,6 +22,8 @@ import { checkQuota, type QuotaConfig, type QuotaDeps } from '../_shared/quota.t
 import { hasInlineInsightAccess, type LamplightTier } from '../_shared/entitlement.ts';
 import { runPassageInsightStreaming } from './passage-insight-pipeline.ts';
 import { readPassageDoor, writePassageDoor, sourcesFromExcerpts, type PassageScope } from './passage-insight-cache.ts';
+import { PASSAGE_DOOR_SPEC } from './prompts/passage-insight.ts';
+import type { InsightDoorSpec } from './prompts/insight-door.ts';
 import type { BibleChatContext } from '../lamplight-chat/bible-chat-pipeline.ts';
 import type { LLMAdapter } from '../_shared/openai.ts';
 import type { UsageRow } from '../_shared/usage.ts';
@@ -32,6 +34,13 @@ export const PASSAGE_INSIGHT_KIND = 'passage_insight';
 
 export interface PassageInsightStreamDeps {
   cors: Record<string, string>;
+  /**
+   * Which door this request is for. ONE spec, used for the cache read, the
+   * generation and the cache write alike — so the three can never disagree
+   * about which door they are handling, which is the failure that would write
+   * one door's prose under another door's key.
+   */
+  door?: InsightDoorSpec;
   supabase: SupabaseClient;
   llm: LLMAdapter;
   quotaDeps: QuotaDeps;
@@ -91,8 +100,10 @@ export async function streamPassageInsight(
   deps: PassageInsightStreamDeps,
   args: { userId: string; scope: PassageScope; refId: string; signal?: AbortSignal },
 ): Promise<Response> {
+  const door = deps.door ?? PASSAGE_DOOR_SPEC;
+
   // 1. Cache read. Free, public, and ahead of every gate.
-  const cached = await readPassageDoor(deps.supabase, { scope: args.scope, refId: args.refId });
+  const cached = await readPassageDoor(deps.supabase, { scope: args.scope, refId: args.refId, door });
   if (cached) {
     return jsonResponse(deps.cors, {
       ok: true,
@@ -137,6 +148,7 @@ export async function streamPassageInsight(
         {
           llm: deps.llm,
           ctx,
+          door,
           classifier: deps.classifier,
           verifyScripture: deps.verifyScripture,
           signal: args.signal,
@@ -170,6 +182,7 @@ export async function streamPassageInsight(
       const write = await writePassageDoor(deps.supabase, {
         scope: args.scope,
         refId: args.refId,
+        door,
         sections: result.sections,
         sources: sourcesFromExcerpts(ctx.libraryExcerpts),
         modelUsed: result.modelUsed,

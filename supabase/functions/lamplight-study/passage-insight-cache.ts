@@ -10,14 +10,19 @@
 // exercised by a chainable fake without the SSE shell around it.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { PASSAGE_INSIGHT_SECTIONS } from './prompts/passage-insight.ts';
+import type { InsightDoorSpec } from './prompts/insight-door.ts';
 import type { PassageInsightSections } from './passage-insight-pipeline.ts';
 import type { LibraryExcerpt } from '../_shared/library-retrieval.ts';
 
 const TABLE = 'bible_passage_insight';
 
-/** B3 adds `'deeper'`; the table's check constraint is deliberately narrow until it does. */
-export const PASSAGE_DOOR = 'passage';
+// The door is REQUIRED on both paths, with no default — unlike the pipeline,
+// which defaults to Door 1.
+//
+// The asymmetry is deliberate. A pipeline called with the wrong door returns
+// prose nobody keeps; a cache called with the wrong door WRITES it, under
+// another door's key, into a table every reader is served from. Defaults are
+// fine where the output is transient and not where it is persisted.
 
 export type PassageScope = 'verse' | 'chapter';
 
@@ -69,14 +74,14 @@ export function sourcesFromExcerpts(excerpts?: LibraryExcerpt[]): PassageInsight
  */
 export async function readPassageDoor(
   supabase: SupabaseClient,
-  args: { scope: PassageScope; refId: string; door?: string },
+  args: { scope: PassageScope; refId: string; door: InsightDoorSpec },
 ): Promise<PassageDoorCache | null> {
   const { data, error } = await supabase
     .from(TABLE)
     .select('section, body, sources, model_used, prompt_version, created_at')
     .eq('scope', args.scope)
     .eq('ref_id', args.refId)
-    .eq('door', args.door ?? PASSAGE_DOOR);
+    .eq('door', args.door.id);
 
   // Throw rather than report an uncached door: returning null on a transport
   // failure would send the reader down the generate path and re-bill a door
@@ -88,7 +93,7 @@ export async function readPassageDoor(
 
   const bySection = new Map(rows.map((r) => [r.section, r]));
   const sections: PassageInsightSections = {};
-  for (const s of PASSAGE_INSIGHT_SECTIONS) {
+  for (const s of args.door.sections) {
     sections[s.key] = bySection.get(s.key)?.body ?? '';
   }
 
@@ -125,7 +130,7 @@ export async function writePassageDoor(
   args: {
     scope: PassageScope;
     refId: string;
-    door?: string;
+    door: InsightDoorSpec;
     sections: PassageInsightSections;
     sources?: PassageInsightSource[];
     modelUsed: string;
@@ -134,15 +139,14 @@ export async function writePassageDoor(
   },
 ): Promise<PassageDoorWriteResult> {
   const bodyOf = (key: string) => args.sections[key] ?? '';
-  const hasContent = PASSAGE_INSIGHT_SECTIONS.some((s) => bodyOf(s.key).trim().length > 0);
+  const hasContent = args.door.sections.some((s) => bodyOf(s.key).trim().length > 0);
   if (!hasContent) return { written: false, reason: 'empty_door' };
 
-  const door = args.door ?? PASSAGE_DOOR;
   const sources = args.sources ?? [];
-  const rows = PASSAGE_INSIGHT_SECTIONS.map((s) => ({
+  const rows = args.door.sections.map((s) => ({
     scope: args.scope,
     ref_id: args.refId,
-    door,
+    door: args.door.id,
     section: s.key,
     body: bodyOf(s.key),
     sources,

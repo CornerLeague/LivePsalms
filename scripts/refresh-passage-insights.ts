@@ -26,11 +26,10 @@ import { createOpenAIAdapter } from '../supabase/functions/_shared/openai';
 import { verifyVerseRefs } from '../supabase/functions/_shared/verse-verify';
 import { buildStudyContext } from '../supabase/functions/lamplight-study/study-context';
 import { runPassageInsightPipeline } from '../supabase/functions/lamplight-study/passage-insight-pipeline';
-import { PASSAGE_INSIGHT_PROMPT } from '../supabase/functions/lamplight-study/prompts/passage-insight';
+import { PASSAGE_DOOR_SPEC, PASSAGE_INSIGHT_PROMPT } from '../supabase/functions/lamplight-study/prompts/passage-insight';
 import {
   writePassageDoor,
   sourcesFromExcerpts,
-  PASSAGE_DOOR,
   type PassageScope,
 } from '../supabase/functions/lamplight-study/passage-insight-cache';
 
@@ -235,7 +234,7 @@ async function main(): Promise<void> {
   const { data, error } = await supabase
     .from('bible_passage_insight')
     .select('scope, ref_id, section, prompt_version')
-    .eq('door', PASSAGE_DOOR);
+    .eq('door', PASSAGE_DOOR_SPEC.id);
   if (error) throw new Error(`read failed: ${error.message}`);
 
   const doors = selectDoorsToRefresh((data ?? []) as DoorRow[], { currentVersion, ...args });
@@ -290,6 +289,7 @@ async function main(): Promise<void> {
     const result = await runPassageInsightPipeline({
       llm,
       ctx,
+      door: PASSAGE_DOOR_SPEC,
       verifyScripture: {
         translation: TRANSLATION,
         verifyRefs: (refs, t) => verifyVerseRefs(supabase as never, refs, t),
@@ -317,6 +317,7 @@ async function main(): Promise<void> {
     const write = await writePassageDoor(supabase as never, {
       scope: door.scope,
       refId: door.refId,
+      door: PASSAGE_DOOR_SPEC,
       sections: result.sections,
       sources: sourcesFromExcerpts(ctx.libraryExcerpts),
       modelUsed: result.modelUsed,

@@ -39,7 +39,7 @@ import { buildStudyContext } from '../supabase/functions/lamplight-study/study-c
 import { STUDY_CHAT_PROMPT } from '../supabase/functions/lamplight-study/prompts/study-chat';
 import { runBibleChatPipeline } from '../supabase/functions/lamplight-chat/bible-chat-pipeline';
 import { runPassageInsightPipeline } from '../supabase/functions/lamplight-study/passage-insight-pipeline';
-import { PASSAGE_INSIGHT_SECTIONS } from '../supabase/functions/lamplight-study/prompts/passage-insight';
+import { PASSAGE_DOOR_SPEC, PASSAGE_INSIGHT_SECTIONS } from '../supabase/functions/lamplight-study/prompts/passage-insight';
 import type { VoyageDeps } from '../supabase/functions/_shared/voyage';
 
 // The harness is a script, not a `src` module, so it imports the real section
@@ -1268,6 +1268,7 @@ async function runPassageInsightFixture(args: {
   const result = await runPassageInsightPipeline({
     llm,
     ctx,
+    door: PASSAGE_DOOR_SPEC,
     verifyScripture: {
       translation: 'BSB',
       verifyRefs: (refs, t) => verifyVerseRefs(supabase as never, refs, t),
