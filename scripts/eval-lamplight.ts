@@ -1028,6 +1028,92 @@ export function checkSections(sections: Record<string, string>, keys: readonly s
 }
 
 /**
+ * Which name a supplied source can plausibly be called in prose.
+ *
+ * `composeSourceLabel` builds "Title · Author, Era", so the author field is the
+ * nameable thing — derived from real data rather than guessed at with a regex
+ * of commentator names, which would go stale the moment Phase A2 lands a source.
+ *
+ * Surnames, because that is how prose names a commentator ("Calvin reads…",
+ * "Jamieson takes the phrase…"). Multi-author labels split on commas and "&", so
+ * "Jamieson, Fausset & Brown" yields all three. A translator credit
+ * ("Thomas Aquinas, tr. John Henry Newman") yields both.
+ *
+ * The awkward case is real and handled rather than ignored: `geneva-notes`'
+ * author is "Geneva Bible translators", whose last word is a common noun. When
+ * the derived surname is not capitalised, the title's first capitalised word is
+ * used instead — which is "Geneva", exactly what prose would call it.
+ */
+export function nameableTokens(sourceLabel: string): string[] {
+  const [title, rest] = sourceLabel.split(' · ');
+  if (!rest) return [];
+  // "Author, Era" — the era is always last, so cut at the final comma.
+  const author = rest.slice(0, rest.lastIndexOf(',')) || rest;
+
+  const tokens = author
+    .split(/,|&/)
+    .map((part) => part.replace(/\btr\.\s*/g, '').trim())
+    .filter(Boolean)
+    .map((part) => part.split(/\s+/).at(-1) ?? '')
+    .filter((w) => /^[A-Z][a-z]{2,}$/.test(w));
+
+  if (tokens.length > 0) return [...new Set(tokens)];
+
+  // "Geneva Bible translators" and anything else whose surname is a common noun.
+  const fromTitle = (title ?? '').split(/\s+/).find((w) => /^[A-Z][a-z]{2,}$/.test(w));
+  return fromTitle ? [fromTitle] : [];
+}
+
+/** Every supplied source that the prose actually names. */
+export function namedSources(
+  text: string,
+  excerpts: Array<{ sourceId: string; sourceLabel: string }>,
+): string[] {
+  const seen = new Set<string>();
+  for (const e of excerpts) {
+    for (const token of nameableTokens(e.sourceLabel)) {
+      if (new RegExp(`\\b${token}\\b`).test(text)) { seen.add(e.sourceId); break; }
+    }
+  }
+  return [...seen];
+}
+
+/**
+ * A1's watch item, made measurable.
+ *
+ * The A1 completion sweep found two of four study-chat replies naming NO voice
+ * despite being grounded on two or three, and Door 1's own production rows name
+ * one in 2 of 8 sections. STUDY_GROUNDING_RULES says the reader is owed the
+ * source of a reading, not an anonymous verdict — and Door 2's Theological
+ * Significance is where an anonymous verdict does the most damage.
+ *
+ * A FLOOR, not a per-section mandate. "Name someone in the theology section or
+ * fail" would push the model toward attributing a claim to a voice it did not
+ * lean on — a worse violation, of a rule that matters more, and undetectable
+ * from outside. So the check asks only that a door grounded on real voices names
+ * at least one of them somewhere, and the per-section breakdown is REPORTED so a
+ * regression is visible without being enforced.
+ */
+export function checkAttribution(
+  sections: Record<string, string>,
+  keys: readonly string[],
+  excerpts: Array<{ sourceId: string; sourceLabel: string }>,
+): PropertyCheck[] {
+  // Nothing supplied, nothing owed.
+  if (excerpts.length === 0) return [];
+
+  const prose = keys.map((k) => sections[k] ?? '').filter(Boolean).join('\n\n');
+  const named = namedSources(prose, excerpts);
+  return [{
+    name: 'attribution_named_voice',
+    pass: named.length > 0,
+    ...(named.length > 0
+      ? {}
+      : { detail: `grounded on ${[...new Set(excerpts.map((e) => e.sourceId))].join(', ')} and named none of them` }),
+  }];
+}
+
+/**
  * OSIS book CODES leaking into reader-facing prose.
  *
  * `bible_passages.book` holds the code, so `formatVerseRef` yields "psa 27:4" —
@@ -1196,6 +1282,16 @@ async function runStudyChatFixture(args: {
     '',
     result.reply,
     '',
+    // Reported, never gated. Which section named whom is the number A1's watch
+    // item is about, and it must be readable without re-running anything.
+    `_voices named: ${
+      doorEntry.spec.sections
+        .map((sec) => {
+          const hits = namedSources(result.sections[sec.key] ?? '', ctx.libraryExcerpts ?? []);
+          return `${sec.key}=${hits.length ? hits.join('+') : '—'}`;
+        })
+        .join(' · ')
+    }_`,
     `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
     '',
   ].join('\n');
@@ -1343,6 +1439,16 @@ async function runPassageInsightFixture(args: {
       // report forgot to print it".
       return [`## ${s.label}`, '', body.trim().length > 0 ? body : '_(omitted)_', ''];
     }),
+    // Reported, never gated. Which section named whom is the number A1's watch
+    // item is about, and it must be readable without re-running anything.
+    `_voices named: ${
+      doorEntry.spec.sections
+        .map((sec) => {
+          const hits = namedSources(result.sections[sec.key] ?? '', ctx.libraryExcerpts ?? []);
+          return `${sec.key}=${hits.length ? hits.join('+') : '—'}`;
+        })
+        .join(' · ')
+    }_`,
     `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
     `_prompt: ${result.promptVersion} · attempts: ${result.attempts}_`,
     '',
@@ -1354,6 +1460,7 @@ async function runPassageInsightFixture(args: {
     checks: [
       ...groundingChecks,
       ...checkSections(result.sections, sectionKeys),
+      ...checkAttribution(result.sections, sectionKeys, ctx.libraryExcerpts ?? []),
       ...checkDisplayRefs(prose),
       ...checkProperties(prose, fixture),
     ],
@@ -1467,6 +1574,16 @@ async function runJournalingChatFixture(args: {
     '',
     result.reply,
     '',
+    // Reported, never gated. Which section named whom is the number A1's watch
+    // item is about, and it must be readable without re-running anything.
+    `_voices named: ${
+      doorEntry.spec.sections
+        .map((sec) => {
+          const hits = namedSources(result.sections[sec.key] ?? '', ctx.libraryExcerpts ?? []);
+          return `${sec.key}=${hits.length ? hits.join('+') : '—'}`;
+        })
+        .join(' · ')
+    }_`,
     `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
     '',
   ].join('\n');
