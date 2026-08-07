@@ -1,0 +1,28 @@
+{
+  "name": "deeper-psalm-27",
+  "description": "Door 2 at chapter grain on a densely covered psalm. The best-supplied case — and the one where Treasury's specificity dominance makes the register-steering question visible, since Treasury is devotional and this door wants exegetical and confessional voices.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "passageInsight": {
+    "book": "psa",
+    "chapter": 27,
+    "door": "deeper",
+    "expectGrounding": {
+      "minCrossRefs": 3,
+      "minLibraryExcerpts": 2,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "the correct interpretation",
+      "clearly teaches",
+      "settles the debate",
+      "scholars agree"
+    ]
+  }
+}

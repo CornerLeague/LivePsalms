@@ -293,3 +293,99 @@ describe('usePassageInsight — generating', () => {
     expect(result.current.streaming).toBe(false);
   });
 });
+
+// ── Stale generations (B3 review) ────────────────────────────────────────────
+//
+// A generation in flight outlives the thing it was started for. The hook
+// instance survives BOTH a scope change (the overlay's "Whole chapter" toggle
+// changes `scope` without unmounting) and a door change, so a late `done` or
+// `error` beat from the old request lands on whatever the hook is showing now.
+describe('usePassageInsight — a generation that outlives its scope', () => {
+  /** An invoke whose stream we can finish by hand, after the caller has moved on. */
+  function suspendedInvoke() {
+    let fire: ((ev: PassageInsightSseEvent) => void) | undefined;
+    let release: (() => void) | undefined;
+    const invoke: PassageInsightInvoke = vi.fn(async (_scope, handlers) => {
+      fire = handlers.onEvent;
+      await new Promise<void>((r) => { release = r; });
+    });
+    return { invoke, fire: (ev: PassageInsightSseEvent) => fire?.(ev), finish: () => release?.() };
+  }
+
+  it('does not let a verse-scope door’s `done` beat overwrite the chapter door', async () => {
+    setResult({ data: [], error: null });
+    const { invoke, fire, finish } = suspendedInvoke();
+
+    const { result, rerender } = renderHook(
+      ({ scope }) => usePassageInsight(scope, invoke),
+      { initialProps: { scope: { book: 'psa', chapter: 27, verse: 4 } } },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => { void result.current.generate(); });
+
+    // The reader presses "Whole chapter" while the verse door is still streaming.
+    setResult({ data: cachedRows({ overview: 'the CHAPTER door' }), error: null });
+    rerender({ scope: { book: 'psa', chapter: 27, verse: null } });
+    await waitFor(() => expect(result.current.sections?.overview).toBe('the CHAPTER door'));
+
+    // The abandoned verse-scope stream now finishes.
+    await act(async () => {
+      fire({ t: 'done', payload: { ok: true, cached: true, sections: { overview: 'the VERSE door' } } });
+      finish();
+    });
+
+    // The reader is looking at the chapter. It must still be the chapter.
+    expect(result.current.sections?.overview).toBe('the CHAPTER door');
+  });
+
+  it('does not let a stale `error` beat blank a door the reader has moved to', async () => {
+    setResult({ data: [], error: null });
+    const { invoke, fire, finish } = suspendedInvoke();
+
+    const { result, rerender } = renderHook(
+      ({ scope }) => usePassageInsight(scope, invoke),
+      { initialProps: { scope: { book: 'psa', chapter: 27, verse: 4 } } },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { void result.current.generate(); });
+
+    setResult({ data: cachedRows(), error: null });
+    rerender({ scope: { book: 'psa', chapter: 27, verse: null } });
+    await waitFor(() => expect(result.current.sections).not.toBeNull());
+
+    await act(async () => {
+      fire({ t: 'error', reason: 'validators_failed' });
+      finish();
+    });
+
+    // A cached door must not be blanked, and no error shown, by a request that
+    // belonged to a scope the reader has left.
+    expect(result.current.sections).not.toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('aborts the in-flight request when the scope changes', async () => {
+    // Otherwise the client keeps reading a stream nobody will look at, and the
+    // reader pays the wait if they come back.
+    setResult({ data: [], error: null });
+    const seen: Array<AbortSignal | undefined> = [];
+    const invoke: PassageInsightInvoke = vi.fn(async (_scope, handlers) => {
+      seen.push(handlers.signal);
+      await new Promise<void>(() => {});
+    });
+
+    const { result, rerender } = renderHook(
+      ({ scope }) => usePassageInsight(scope, invoke),
+      { initialProps: { scope: { book: 'psa', chapter: 27, verse: 4 } } },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { void result.current.generate(); });
+
+    expect(seen[0]).toBeDefined();
+    expect(seen[0]!.aborted).toBe(false);
+
+    rerender({ scope: { book: 'psa', chapter: 27, verse: null } });
+    await waitFor(() => expect(seen[0]!.aborted).toBe(true));
+  });
+});

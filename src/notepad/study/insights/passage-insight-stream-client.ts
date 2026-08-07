@@ -17,26 +17,11 @@ export type PassageInsightSseEvent =
   | { t: 'done'; payload: unknown }
   | { t: 'error'; reason: string };
 
-export interface PassageSection {
-  key: string;
-  label: string;
-}
-
-/**
- * The door's four sections, in reading order.
- *
- * MIRRORS `PASSAGE_INSIGHT_SECTIONS` in
- * `supabase/functions/lamplight-study/prompts/passage-insight.ts`, which is the
- * source of truth — the keys here must match the `section` column values the
- * server writes, or a cached door renders blank. Copied for the same reason the
- * SSE type above is: this module must not import from the edge functions.
- */
-export const PASSAGE_SECTIONS: readonly PassageSection[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'in_chapter', label: 'In the Chapter' },
-  { key: 'chapter_shape', label: "The Chapter's Shape" },
-  { key: 'reflection', label: 'Reflection & Application' },
-];
+// The section lists moved to ./insight-doors.ts in B3, where both doors' live
+// together and a parity test compares them to the server registry directly.
+// Re-exported here so B2's importers keep working.
+export type { InsightSectionView as PassageSection } from './insight-doors';
+export { PASSAGE_SECTIONS } from './insight-doors';
 
 export interface PassageInsightScope {
   book: string;
@@ -69,6 +54,8 @@ export function passageScopeKind(scope: PassageInsightScope): 'verse' | 'chapter
 export type PassageInsightInvoke = (
   scope: PassageInsightScope,
   handlers: {
+    /** Which door to generate. Omitted means Door 1, matching the server default. */
+    doorId?: string;
     onEvent: (ev: PassageInsightSseEvent) => void;
     /** A cache hit answers in JSON, not SSE — the door was already warm. */
     onCached: (payload: { sections: Record<string, string> }) => void;
@@ -97,6 +84,9 @@ export function makePassageInsightStreamInvoke(client: SupabaseClient): PassageI
         book: scope.book,
         chapter: scope.chapter,
         ...(scope.verse !== null ? { verse: scope.verse } : {}),
+        // Omitted rather than defaulted here: the server's own default is
+        // 'passage', and sending nothing is exactly what a B2 client does.
+        ...(handlers.doorId !== undefined ? { door: handlers.doorId } : {}),
       }),
     });
 

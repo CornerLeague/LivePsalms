@@ -1,0 +1,56 @@
+{
+  "report": {
+    "ok": false,
+    "passed": 0,
+    "failed": 1,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "passage-insight": {
+        "runs": 1,
+        "tokensIn": 0,
+        "tokensOut": 0,
+        "costCents": 0
+      }
+    },
+    "totalCostCents": 0,
+    "failures": [
+      {
+        "fixture": "passage-romans-9",
+        "artifact": "passage-insight",
+        "reasons": [
+          "generation: pipeline returned validators_failed · content:contested/rom.9.11 \"rom both Jews and Gentiles (Romans 9:7; Romans 9:11; Romans 9:16; Romans 9:24). He finally \" · content:contested/rom.9.16 \" and Gentiles (Romans 9:7; Romans 9:11; Romans 9:16; Romans 9:24). He finally brings the ar\" · content:contested/rom.9.15 \"ple,” and Isaiah’s remnant (Romans 9:7; Romans 9:15; Romans 9:17; Romans 9:25; Romans 9:27)\" · content:contested/rom.9.17 \"iah’s remnant (Romans 9:7; Romans 9:15; Romans 9:17; Romans 9:25; Romans 9:27). The ending \" · content:contested/rom.9.11 \"or prior works (Romans 9:6; Romans 9:8; Romans 9:11). Third comes objection and reply. Paul\" · content:contested/rom.9.14 \"making known “the riches of His glory” (Romans 9:14; Romans 9:19; Romans 9:22; Romans 9:23)\" · content:contested/rom.9.19 \"“the riches of His glory” (Romans 9:14; Romans 9:19; Romans 9:22; Romans 9:23). These verse\" · content:contested/rom.9.22 \"f His glory” (Romans 9:14; Romans 9:19; Romans 9:22; Romans 9:23). These verses involve dis\" · content:contested/rom.9.23 \"(Romans 9:14; Romans 9:19; Romans 9:22; Romans 9:23). These verses involve disputed questio\" · content:contested/rom.9.16 \"s not rest on human desire or exertion (Romans 9:16). Against the second, his own sorrow re\""
+        ]
+      }
+    ],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "passage-romans-9",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "generation",
+          "pass": false,
+          "detail": "pipeline returned validators_failed · content:contested/rom.9.11 \"rom both Jews and Gentiles (Romans 9:7; Romans 9:11; Romans 9:16; Romans 9:24). He finally \" · content:contested/rom.9.16 \" and Gentiles (Romans 9:7; Romans 9:11; Romans 9:16; Romans 9:24). He finally brings the ar\" · content:contested/rom.9.15 \"ple,” and Isaiah’s remnant (Romans 9:7; Romans 9:15; Romans 9:17; Romans 9:25; Romans 9:27)\" · content:contested/rom.9.17 \"iah’s remnant (Romans 9:7; Romans 9:15; Romans 9:17; Romans 9:25; Romans 9:27). The ending \" · content:contested/rom.9.11 \"or prior works (Romans 9:6; Romans 9:8; Romans 9:11). Third comes objection and reply. Paul\" · content:contested/rom.9.14 \"making known “the riches of His glory” (Romans 9:14; Romans 9:19; Romans 9:22; Romans 9:23)\" · content:contested/rom.9.19 \"“the riches of His glory” (Romans 9:14; Romans 9:19; Romans 9:22; Romans 9:23). These verse\" · content:contested/rom.9.22 \"f His glory” (Romans 9:14; Romans 9:19; Romans 9:22; Romans 9:23). These verses involve dis\" · content:contested/rom.9.23 \"(Romans 9:14; Romans 9:19; Romans 9:22; Romans 9:23). These verses involve disputed questio\" · content:contested/rom.9.16 \"s not rest on human desire or exertion (Romans 9:16). Against the second, his own sorrow re\""
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 // src/notepad/study/insights/PassageDoor.tsx
-// Door 1 — The Passage. Four sections, progressively outward: what this passage
-// is doing, what sits either side of it, the shape of the chapter around it,
-// and where it lands.
+// A generated Insights door. Door-generic since B3: the headings, the section
+// order and the cache scope all come from the door view it is handed, so Door 1
+// and Door 2 are one component with two registry entries.
 //
 // TWO RENDER PATHS, and the difference is the point (design D3):
 //   cached   → one public DB read, on screen immediately. No spinner.
@@ -16,10 +16,10 @@ import { SignInGate } from '@/notepad/components/lamplight/SignInGate';
 import { PaywallCard } from '@/notepad/components/lamplight/PaywallCard';
 import { usePassageInsight } from './usePassageInsight';
 import {
-  PASSAGE_SECTIONS,
   type PassageInsightInvoke,
   type PassageInsightScope,
 } from './passage-insight-stream-client';
+import { PASSAGE_DOOR_VIEW, type InsightDoorView } from './insight-doors';
 
 export interface PassageDoorProps {
   scope: PassageInsightScope;
@@ -29,12 +29,21 @@ export interface PassageDoorProps {
   canGenerate: boolean;
   /** Chooses which blocked affordance a non-entitled reader sees. */
   userId?: string | null;
+  /** Which door to render. Defaults to Door 1, matching B2's call sites. */
+  door?: InsightDoorView;
 }
 
-export function PassageDoor({ scope, invoke, canGenerate, userId = null }: PassageDoorProps) {
+export function PassageDoor({
+  scope,
+  invoke,
+  canGenerate,
+  userId = null,
+  door = PASSAGE_DOOR_VIEW,
+}: PassageDoorProps) {
   const { sections, loading, streaming, error, generate } = usePassageInsight(
     scope,
     canGenerate ? invoke : null,
+    door,
   );
 
   if (loading) return null;
@@ -81,7 +90,7 @@ export function PassageDoor({ scope, invoke, canGenerate, userId = null }: Passa
 
   return (
     <div>
-      {PASSAGE_SECTIONS.map((section) => {
+      {door.sections.map((section) => {
         const body = sections[section.key] ?? '';
         // The heading belongs to the body. An empty section is not a section.
         if (body.trim().length === 0) return null;

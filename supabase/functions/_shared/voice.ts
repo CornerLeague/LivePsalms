@@ -56,6 +56,69 @@ export const CONTESTED_PASSAGES: string[] = [
   'Matthew 24', 'Mark 13', '2 Thessalonians 2',
 ];
 
+// Living traditions, denominations and movements — the thing parent design §9
+// forbids an Insights "Read With Care" section from aiming a caution at.
+//
+// §9 is a HARD RULE, not a style note: a Read-With-Care section names
+// interpretive MOVES (context-stripping, etymology-as-meaning, genre errors,
+// anachronism) and never the people who make them. A prompt sentence is a
+// request that usually works; this is what makes it a rule.
+//
+// SECTION-SCOPED, never door-wide. Theological Significance is REQUIRED to name
+// whose reading it is giving ("the Reformed tradition reads this as…"), and
+// Historical & Cultural Setting legitimately discusses groups. Applying this
+// list to a whole door would forbid in one section exactly what another demands.
+//
+// HARDCODED, not derived from `library_sources.tradition`. Deriving it would be
+// clever and wrong: an A2 source arriving would silently change what is
+// forbidden, and the corpus's tradition strings ("Reformed (Continental)") are
+// ingest metadata, not policy.
+//
+// Case-SENSITIVE where the lowercase word is ordinary English — "the church
+// reformed its practice", "the holy catholic church" of the creeds, "disputed
+// among orthodox Christians" — and case-insensitive where the word only ever
+// names a movement. Getting this wrong in the safe direction costs a stricter
+// retry, not a reader.
+//
+// Biblical-era groups are deliberately ABSENT. Pharisees and the circumcision
+// party are the passage's own cast; §9 is about aiming a caution at a living
+// tradition.
+export const TRADITION_TERMS: RegExp[] = [
+  // Capitalised only — each has a common lowercase meaning.
+  /\bReformed\b/,
+  /\bCatholic(ism)?\b/,
+  /\bOrthodox(y)?\b/,
+  /\bEvangelical(ism|s)?\b/,
+  /\bCharismatic(s)?\b/,
+  /\bPuritan(s|ism)?\b/,
+  // Unambiguous movement names. `Calvin` and `Wesley` are deliberately NOT here:
+  // they are named voices in the corpus, and naming a voice is required
+  // elsewhere in the door.
+  /\bCalvinis(t|ts|m|tic)\b/i,
+  /\bArminian(s|ism)?\b/i,
+  // ⚠️ "Baptist" needs two patterns, because John the Baptist is one of the most
+  // frequently named people in the Gospels and a blanket /\bBaptist\b/ rejects a
+  // valid Read With Care section on any passage that mentions him. The lookbehind
+  // drops "John the Baptist" and "the Baptist"; the second pattern puts the
+  // denomination back when "the Baptist" is modifying a noun.
+  /(?<!\bthe\s+)\bBaptist(s)?\b/i,
+  /\bthe\s+Baptist\s+(tradition|church|churches|reading|readings|position|view|interpretation)\b/i,
+  /\bMethodist(s)?\b/i,
+  /\bWesleyan(s|ism)?\b/i,
+  /\bLutheran(s|ism)?\b/i,
+  /\bAnglican(s|ism)?\b/i,
+  /\bPresbyterian(s|ism)?\b/i,
+  /\bPentecostal(s|ism)?\b/i,
+  /\bdispensationalis(t|ts|m)\b/i,
+  /\bfundamentalis(t|ts|m)\b/i,
+  /\bMormon(s|ism)?\b/i,
+  /\bLatter-day\s+Saint(s)?\b/i,
+  /\bJehovah'?s\s+Witness(es)?\b/i,
+  // Constructions that name a group without naming a denomination.
+  /\b(liberal|progressive|conservative|mainline)\s+(scholars?|christians?|churches?|theologians?)\b/i,
+  /\bprosperity\s+(gospel|preachers?|teaching)\b/i,
+];
+
 // Streak / effort-shaming language. Growth in this app is Scripture-measured, not consistency-measured.
 export const GROWTH_BANNED_PHRASES: RegExp[] = [
   /\b\d+[-\s]?day\s+streak\b/i,

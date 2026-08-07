@@ -1,0 +1,29 @@
+{
+  "name": "passage-romans-9",
+  "description": "CONTESTED, Door 1. Romans 9:11-23 is on the CONTESTED_PASSAGES list and Door 1 keeps the blanket rejection too \u2014 so this fixture answers whether a contested chapter can have ANY generated door, or whether the hole B3 found is Door 2's alone.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "passageInsight": {
+    "book": "rom",
+    "chapter": 9,
+    "door": "passage",
+    "expectGrounding": {
+      "minCrossRefs": 3,
+      "minLibraryExcerpts": 2,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "the correct interpretation",
+      "clearly teaches",
+      "settles the debate",
+      "scholars agree",
+      "the plain meaning is"
+    ]
+  }
+}

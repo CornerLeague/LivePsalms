@@ -21,7 +21,7 @@ import { saveBiblePassage } from '@/notepad/session/session-storage';
 import { loadInitialPassage } from '@/notepad/bible/initial-passage';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { InsightsOverlay } from './insights/InsightsOverlay';
-import { referenceDoor, passageDoor } from './insights/doors';
+import { referenceDoor, passageDoor, deeperDoor } from './insights/doors';
 import { useLamplightEntitlement } from '@/notepad/hooks/useLamplightEntitlement';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
@@ -67,6 +67,7 @@ export function DesktopStudyWorkspace() {
     // Door order is reading order: The Passage first, Sources & Reference last.
     () => [
       passageDoor({ translation, userId, adapter: lamplightAdapter, canGenerate }),
+      deeperDoor({ translation, userId, adapter: lamplightAdapter, canGenerate }),
       referenceDoor({ translation, userId, adapter: lamplightAdapter }),
     ],
     [translation, userId, lamplightAdapter, canGenerate],

@@ -1,0 +1,28 @@
+{
+  "name": "deeper-psalm-27-verse-4",
+  "description": "Door 2 at verse grain. Exercises the narrowed library anchor and the focus-verse supply; the grounding_focus_verses floor catches a verse that silently degraded to chapter scope and would otherwise be scored as a grain it is not.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "passageInsight": {
+    "book": "psa",
+    "chapter": 27,
+    "verse": 4,
+    "door": "deeper",
+    "expectGrounding": {
+      "minCrossRefs": 2,
+      "minLibraryExcerpts": 1,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "the correct interpretation",
+      "clearly teaches",
+      "settles the debate"
+    ]
+  }
+}

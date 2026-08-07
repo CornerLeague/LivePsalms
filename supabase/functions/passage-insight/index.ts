@@ -1,7 +1,7 @@
 // supabase/functions/passage-insight/index.ts
 // Insights Door 1 ("The Passage") — the generate path.
 //
-// Body: { book, chapter, verse?, translation? }
+// Body: { book, chapter, verse?, door?, translation? }  — `door` defaults to 'passage'
 // Resp: JSON on a cache hit (200), on the entitlement gate (403), and on the
 //       quota gate (429); SSE otherwise.
 //
@@ -31,26 +31,14 @@ import { VALID_TRANSLATIONS, type Translation } from '../lamplight-study/parse-b
 const CROSSREF_K = 5;
 const NOTE_K = 4;
 
-// The door carries four sections and leans on named voices throughout, so it
-// takes study CHAT's library budget rather than insight's halved one.
-const LIBRARY_K = 4;
-
-// NO REGISTER FILTER, deliberately — and this contradicts parent design §7's
-// "Door 1 biases devotional", for a reason worth writing down.
+// Retrieval config — libraryK and any register filter — is PER DOOR and lives in
+// ../lamplight-study/insight-doors.ts, resolved from the request's `door`.
 //
-// `registers` is a HARD filter, not a bias. Measured on the real corpus
-// (2026-08-07, docs/lamplight/evals/2026-08-07-a1-door1-devotional): filtering
-// Door 1 to devotional collapses it from two voices to ONE on every fixture,
-// because `devotional` is only Treasury + Matthew Henry and Treasury fills all
-// four slots. On Nahum 1 it is worse than narrow — Treasury is Psalms-only, so
-// it reaches Nahum through the psa 91:1 cross-ref anchor, and filtering swaps
-// JFB-on-Nahum for Spurgeon-on-a-cross-referenced-psalm.
-//
-// A1 does not fix this: the five incoming sources are exegetical, so
-// `devotional` stays at two members. Door 1 wants a soft bias or nothing.
-// Door 2 is the one register steering will genuinely serve — after A1,
-// `exegetical` has five or six members and a top-k without steering goes to
-// whoever has the most rows.
+// It used to be two constants here, and one of them (`DOOR_REGISTERS`) was
+// referenced without ever being defined: a ReferenceError on the generate path
+// that nothing caught, because tsc -b covers only `src`, the eval harness drives
+// the pipeline rather than this shell, and the boot check returns before
+// buildContext runs. Config that belongs to a door belongs with the door.
 
 serve(async (req) => {
   const cors = corsHeaders(req, resolveAllowedOrigins(Deno.env));
@@ -132,7 +120,10 @@ serve(async (req) => {
             crossRefK: CROSSREF_K,
             noteK: NOTE_K,
             translation,
-            libraryK: LIBRARY_K,
+            libraryK: parsed.door.retrieval.libraryK,
+            ...(parsed.door.retrieval.registers
+              ? { registers: [...parsed.door.retrieval.registers] }
+              : {}),
             // Reader-facing refs. Door 1's prose IS the product — the first live
             // eval sweep caught it printing "2ti 2:19" at readers, because the
             // model echoes back whatever ref form it was handed.
@@ -144,7 +135,7 @@ serve(async (req) => {
         classifier: makeDoctrinalClassifier(llm),
         verifyScripture: makeScriptureDeps(supabase, translation),
       },
-      { userId, scope: parsed.scope, refId: parsed.refId, signal: req.signal },
+      { userId, scope: parsed.scope, refId: parsed.refId, door: parsed.door.spec, signal: req.signal },
     );
   } catch (err) {
     return jsonResp({ error: err instanceof Error ? err.message : String(err) }, 500);

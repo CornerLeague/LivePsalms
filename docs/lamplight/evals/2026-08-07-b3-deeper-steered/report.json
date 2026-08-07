@@ -1,0 +1,140 @@
+{
+  "report": {
+    "ok": true,
+    "passed": 5,
+    "failed": 0,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "passage-insight": {
+        "runs": 5,
+        "tokensIn": 0,
+        "tokensOut": 0,
+        "costCents": 0
+      }
+    },
+    "totalCostCents": 0,
+    "failures": [],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "deeper-james-2",
+      "artifact": "passage-insight",
+      "model": "none",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-james-2 · passage-insight\n\n_DENOMINATIONAL BAIT. Faith and works is the passage whose misreadings are habitually named by tradition rather than described as moves, so it is where §9's Read With Care rule is actually tested. A rule like this cannot be proven on passages that never provoke it. The door must name the interpretive move — reading a verse apart from the argument that governs it — without naming who makes it._\n\n**Passage:** James 2 · **Grain:** deeper · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Galatians 3:10, Matthew 7:26, Matthew 5:3, Proverbs 24:23, Matthew 5:7\n- library excerpts: 4 — calvin-commentaries×2, geneva-notes×1, adam-clarke×1\n- lexicon entries: 12\n- book context: James\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n"
+    },
+    {
+      "fixture": "deeper-nahum-1",
+      "artifact": "passage-insight",
+      "model": "none",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-nahum-1 · passage-insight\n\n_A thinly covered non-Psalm OT chapter. The case where a section legitimately has nothing to say and padding is the temptation — and where Treasury reaches the passage only through a cross-reference anchor, which is Spurgeon on a psalm informing a Nahum door._\n\n**Passage:** Nahum 1 · **Grain:** deeper · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — 2 Timothy 2:19, John 10:27, Lamentations 3:25, John 10:14, Psalms 91:1\n- library excerpts: 4 — jfb×1, adam-clarke×2, geneva-notes×1\n- lexicon entries: 12\n- book context: Nahum\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n"
+    },
+    {
+      "fixture": "deeper-psalm-27-verse-4",
+      "artifact": "passage-insight",
+      "model": "none",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "grounding_focus_verses",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-psalm-27-verse-4 · passage-insight\n\n_Door 2 at verse grain. Exercises the narrowed library anchor and the focus-verse supply; the grounding_focus_verses floor catches a verse that silently degraded to chapter scope and would otherwise be scored as a grain it is not._\n\n**Passage:** Psalms 27 · **Grain:** deeper · verse 4\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 40:31, Hebrews 13:6, Psalms 118:6, Exodus 15:2, Psalms 31:24\n- library excerpts: 4 — adam-clarke×2, calvin-commentaries×1, geneva-notes×1\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 5 — Psalms 27:2, Psalms 27:3, Psalms 27:4*, Psalms 27:5, Psalms 27:6\n"
+    },
+    {
+      "fixture": "deeper-psalm-27",
+      "artifact": "passage-insight",
+      "model": "none",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-psalm-27 · passage-insight\n\n_Door 2 at chapter grain on a densely covered psalm. The best-supplied case — and the one where Treasury's specificity dominance makes the register-steering question visible, since Treasury is devotional and this door wants exegetical and confessional voices._\n\n**Passage:** Psalms 27 · **Grain:** deeper · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 40:31, Hebrews 13:6, Psalms 118:6, Exodus 15:2, Psalms 31:24\n- library excerpts: 4 — jfb×1, geneva-notes×1, adam-clarke×2\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n"
+    },
+    {
+      "fixture": "deeper-romans-9",
+      "artifact": "passage-insight",
+      "model": "none",
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-romans-9 · passage-insight\n\n_CONTESTED. Romans 9:11-23 is on the CONTESTED_PASSAGES list, and Door 2 keeps the blanket rejection — so this is the chapter where the deepest door could simply fail to exist. The door must GENERATE while adjudicating nothing: describe what the text plainly says, name the question as disputed, and stop. Without this fixture B3 could ship a door that fails on exactly the passages that justify it, and the eval set would stay green because nothing asked._\n\n**Passage:** Romans 9 · **Grain:** deeper · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 28:16, Exodus 33:19, Malachi 1:2, Exodus 9:16, Hosea 2:23\n- library excerpts: 4 — adam-clarke×1, calvin-commentaries×2, geneva-notes×1\n- lexicon entries: 12\n- book context: Romans\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n"
+    }
+  ]
+}

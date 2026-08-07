@@ -1,5 +1,6 @@
 // src/notepad/study/insights/usePassageInsight.ts
-// Insights Door 1 ("The Passage") — the reader's two paths.
+// A generated Insights door — the reader's two paths. Door-generic since B3:
+// the door's id and section list come from the registry entry it is given.
 //
 // CACHED → one public DB read, rendered immediately. No spinner, no stream, no
 // entitlement: `bible_passage_insight` is public-read (migration 060), exactly
@@ -10,15 +11,15 @@
 // The explicit generate is a product decision, not a performance one: a door
 // that generated on open would bill a model call for every passage anyone
 // glanced at.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
-  PASSAGE_SECTIONS,
   passageRefId,
   passageScopeKind,
   type PassageInsightInvoke,
   type PassageInsightScope,
 } from './passage-insight-stream-client';
+import { PASSAGE_DOOR_VIEW, type InsightDoorView } from './insight-doors';
 
 export interface UsePassageInsightResult {
   /** null = never generated. A door that generated with nothing to say is `{}` of empty strings, which is different. */
@@ -33,17 +34,19 @@ export interface UsePassageInsightResult {
   generate: () => Promise<void>;
 }
 
-const DOOR = 'passage';
-
 interface CacheRow { section: string; body: string }
 
 /**
  * @param invoke null for a reader who cannot generate (signed out, or without
  *   Plus/promo). The cache read still runs — cached doors are free and public.
+ * @param door which door to read and generate. Defaults to Door 1 so B2's
+ *   call sites keep working; the id is what scopes the cache query, and the
+ *   section list is what shapes the result.
  */
 export function usePassageInsight(
   scope: PassageInsightScope,
   invoke: PassageInsightInvoke | null,
+  door: InsightDoorView = PASSAGE_DOOR_VIEW,
 ): UsePassageInsightResult {
   const [sections, setSections] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,9 +54,27 @@ export function usePassageInsight(
   const [error, setError] = useState<string | null>(null);
   const [cached, setCached] = useState(false);
 
+  /**
+   * The generation currently allowed to write to this hook's state.
+   *
+   * A generation OUTLIVES the thing it was started for. The overlay's
+   * "Whole chapter" toggle changes `scope` without unmounting, and the hook
+   * instance survives a door change too — so without this, a late `done` beat
+   * from an abandoned request writes the old scope's prose into the door the
+   * reader is now looking at, and a late `error` beat blanks a door that is
+   * perfectly cached. Both reproduce; both are silent.
+   *
+   * Every callback below checks its own id before touching state, and a scope
+   * or door change aborts whatever is in flight.
+   */
+  const activeRef = useRef<{ id: number; controller: AbortController } | null>(null);
+  const nextIdRef = useRef(0);
+
   // Keyed on the primitive fields, not the object, so a caller passing an
   // inline literal does not refetch on every render.
   const { book, chapter, verse } = scope;
+  const doorId = door.id;
+  const sectionKeys = door.sections;
   const resolved = useMemo(
     () => ({ scope: { book, chapter, verse }, refId: passageRefId({ book, chapter, verse }) }),
     [book, chapter, verse],
@@ -74,7 +95,7 @@ export function usePassageInsight(
         .select('section, body')
         .eq('scope', passageScopeKind(resolved.scope))
         .eq('ref_id', resolved.refId)
-        .eq('door', DOOR);
+        .eq('door', doorId);
 
       if (cancelled) return;
 
@@ -86,31 +107,56 @@ export function usePassageInsight(
         setSections(null);
       } else {
         const bySection = new Map(rows.map((r) => [r.section, r.body]));
-        setSections(Object.fromEntries(PASSAGE_SECTIONS.map((s) => [s.key, bySection.get(s.key) ?? ''])));
+        setSections(Object.fromEntries(sectionKeys.map((s) => [s.key, bySection.get(s.key) ?? ''])));
         setCached(true);
       }
       setLoading(false);
     })();
 
-    return () => { cancelled = true; };
-  }, [resolved]);
+    return () => {
+      cancelled = true;
+      // The passage or the door changed, so any generation still running was
+      // started for something the reader has left. Abort it rather than let it
+      // finish into state that no longer belongs to it — and so the client
+      // stops reading a stream nobody will look at.
+      activeRef.current?.controller.abort();
+      activeRef.current = null;
+    };
+  }, [resolved, doorId, sectionKeys]);
+
+  // Unmount is the same case: nothing left to write to.
+  useEffect(() => () => { activeRef.current?.controller.abort(); }, []);
 
   const generate = useCallback(async () => {
     if (!invoke) return;
+
+    // Supersede anything already running for this hook — a second press, or a
+    // request left over from a scope the reader has moved off.
+    activeRef.current?.controller.abort();
+    const id = ++nextIdRef.current;
+    const controller = new AbortController();
+    activeRef.current = { id, controller };
+    /** Is this request still the one the reader is waiting on? */
+    const owns = () => activeRef.current?.id === id;
+
     setStreaming(true);
     setError(null);
     // Start from four empty strings rather than null: the sections are about to
     // fill in one at a time, and the door renders each as it arrives.
-    setSections(Object.fromEntries(PASSAGE_SECTIONS.map((s) => [s.key, ''])));
+    setSections(Object.fromEntries(sectionKeys.map((s) => [s.key, ''])));
 
     try {
       await invoke(resolved.scope, {
+        doorId,
+        signal: controller.signal,
         onCached: ({ sections: warm }) => {
+          if (!owns()) return;
           // Another reader warmed this door between our read and our press.
-          setSections(Object.fromEntries(PASSAGE_SECTIONS.map((s) => [s.key, warm[s.key] ?? ''])));
+          setSections(Object.fromEntries(sectionKeys.map((s) => [s.key, warm[s.key] ?? ''])));
           setCached(true);
         },
         onEvent: (ev) => {
+          if (!owns()) return;
           if (ev.t === 'text') {
             // ACCUMULATE. A delta is a fragment, not a field.
             setSections((prev) => ({ ...(prev ?? {}), [ev.field]: (prev?.[ev.field] ?? '') + ev.delta }));
@@ -124,7 +170,7 @@ export function usePassageInsight(
             const payload = ev.payload as { sections?: Record<string, string>; cached?: boolean } | null;
             if (payload?.sections) {
               setSections(Object.fromEntries(
-                PASSAGE_SECTIONS.map((s) => [s.key, payload.sections?.[s.key] ?? '']),
+                sectionKeys.map((s) => [s.key, payload.sections?.[s.key] ?? '']),
               ));
             }
             // FALSE when the server refused to write an all-empty door. Saying
@@ -144,12 +190,18 @@ export function usePassageInsight(
         },
       });
     } catch (err) {
+      // An abort is this hook superseding itself, not a failure to report — and
+      // the state it would report into belongs to something else by now.
+      if (!owns() || controller.signal.aborted) return;
       setError(err instanceof Error ? err.message : 'network');
       setSections(null);
     } finally {
-      setStreaming(false);
+      if (owns()) {
+        setStreaming(false);
+        activeRef.current = null;
+      }
     }
-  }, [invoke, resolved]);
+  }, [invoke, resolved, doorId, sectionKeys]);
 
   return { sections, loading, streaming, error, cached, generate };
 }

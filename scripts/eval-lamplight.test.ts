@@ -373,8 +373,26 @@ describe('parseFixture — passageInsight', () => {
     expect(parseFixture(RAW_PASSAGE).passageInsight).toEqual({
       book: 'psa',
       chapter: 27,
+      // Absent in the raw fixture: every B2 fixture keeps meaning Door 1.
+      door: 'passage',
       expectGrounding: { minCrossRefs: 3, minLibraryExcerpts: 2, requireBookContext: true },
     });
+  });
+
+  it('carries an explicit door when the fixture names one', () => {
+    expect(parseFixture({ ...RAW_PASSAGE, passageInsight: { ...(RAW_PASSAGE.passageInsight as object), door: 'deeper' } })
+      .passageInsight!.door).toBe('deeper');
+  });
+
+  it('REJECTS a fixture naming a door that does not exist', () => {
+    // Otherwise it would be scored as Door 1, and the report would read as a
+    // pass for a door nobody ran.
+    for (const bad of ['deeper-in', 'DEEPER', '', 'reference', 7]) {
+      expect(() => parseFixture({
+        ...RAW_PASSAGE,
+        passageInsight: { ...(RAW_PASSAGE.passageInsight as object), door: bad },
+      })).toThrow(/door/);
+    }
   });
 
   it('parses a verse-grain door fixture', () => {
@@ -437,6 +455,8 @@ describe('fixturesFor — three kinds, no crossover', () => {
   });
 });
 
+const PASSAGE_KEYS = ['overview', 'in_chapter', 'chapter_shape', 'reflection'] as const;
+
 describe('checkSections', () => {
   const full = {
     overview: 'David names the LORD his light and his salvation.',
@@ -446,19 +466,19 @@ describe('checkSections', () => {
   };
 
   it('passes a door whose sections are all present and all finish their sentence', () => {
-    expect(checkSections(full).every((c) => c.pass)).toBe(true);
+    expect(checkSections(full, PASSAGE_KEYS).every((c) => c.pass)).toBe(true);
   });
 
   it('fails a section that came back empty', () => {
     // The four-bound design exists to make omission legitimate — but a door
     // where a section silently vanishes is what only an eval will tell us.
-    const checks = checkSections({ ...full, chapter_shape: '' });
+    const checks = checkSections({ ...full, chapter_shape: '' }, PASSAGE_KEYS);
     const c = checks.find((x) => x.name === 'section_chapter_shape_present')!;
     expect(c.pass).toBe(false);
   });
 
   it('fails a section that stops mid-word — the 1400-char truncation, caught', () => {
-    const checks = checkSections({ ...full, overview: 'David names the LORD his light and his salv' });
+    const checks = checkSections({ ...full, overview: 'David names the LORD his light and his salv' }, PASSAGE_KEYS);
     const c = checks.find((x) => x.name === 'section_overview_complete')!;
     expect(c.pass).toBe(false);
     expect(c.detail).toMatch(/salv/);
@@ -466,13 +486,13 @@ describe('checkSections', () => {
 
   it('accepts every terminal punctuation a real section ends on', () => {
     for (const ending of ['.', '?', '!', '."', '.”', '.’', '.)']) {
-      const checks = checkSections({ ...full, overview: `A complete thought${ending}` });
+      const checks = checkSections({ ...full, overview: `A complete thought${ending}` }, PASSAGE_KEYS);
       expect(checks.find((x) => x.name === 'section_overview_complete')!.pass).toBe(true);
     }
   });
 
   it('does not report an absent section as also mid-word — one failure, not two', () => {
-    const checks = checkSections({ ...full, reflection: '' });
+    const checks = checkSections({ ...full, reflection: '' }, PASSAGE_KEYS);
     expect(checks.filter((c) => c.name.startsWith('section_reflection') && !c.pass))
       .toHaveLength(1);
   });
@@ -480,7 +500,7 @@ describe('checkSections', () => {
   it('reports a missing key exactly as it reports an empty one', () => {
     const partial = { ...full } as Record<string, string>;
     delete partial.reflection;
-    expect(checkSections(partial).find((c) => c.name === 'section_reflection_present')!.pass).toBe(false);
+    expect(checkSections(partial, PASSAGE_KEYS).find((c) => c.name === 'section_reflection_present')!.pass).toBe(false);
   });
 });
 

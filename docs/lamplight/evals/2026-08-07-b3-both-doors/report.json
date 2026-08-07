@@ -1,0 +1,652 @@
+{
+  "report": {
+    "ok": true,
+    "passed": 9,
+    "failed": 0,
+    "scriptureViolations": 0,
+    "byArtifact": {
+      "passage-insight": {
+        "runs": 9,
+        "tokensIn": 44881,
+        "tokensOut": 12196,
+        "costCents": 59.0285
+      }
+    },
+    "totalCostCents": 59.0285,
+    "failures": [],
+    "notes": "A green run means the deterministic checks passed. It does NOT mean the prose is good: register — \"does this sound like Lamplight?\" — is not machine-checkable. Read the snapshots."
+  },
+  "runs": [
+    {
+      "fixture": "deeper-james-2",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 5319,
+      "tokensOut": 1692,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_present",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_complete",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_present",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_complete",
+          "pass": true
+        },
+        {
+          "name": "section_theology_present",
+          "pass": true
+        },
+        {
+          "name": "section_theology_complete",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_present",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_complete",
+          "pass": true
+        },
+        {
+          "name": "attribution_theology",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-james-2 · passage-insight\n\n_DENOMINATIONAL BAIT. Faith and works is the passage whose misreadings are habitually named by tradition rather than described as moves, so it is where §9's Read With Care rule is actually tested. A rule like this cannot be proven on passages that never provoke it. The door must name the interpretive move — reading a verse apart from the argument that governs it — without naming who makes it._\n\n**Passage:** James 2 · **Grain:** deeper · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Galatians 3:10, Matthew 7:26, Matthew 5:3, Proverbs 24:23, Matthew 5:7\n- library excerpts: 6 — calvin-commentaries×2, geneva-notes×1, adam-clarke×2, jfb×1\n- lexicon entries: 12\n- book context: James\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## How to Read This Passage\n\nJames 2 is wisdom shaped as an epistle: it presses confession into concrete tests rather than constructing an abstract sequence of salvation. Its imagined visitors, needy believer, objector, Abraham, and Rahab expose whether professed faith has become visible in conduct (James 2:2–4; James 2:15–18; James 2:21–25). The passage turns on the difference between a claim to faith and living faith: James asks what benefit there is “if someone claims to have faith” while withholding needed care (James 2:14–16). The lexicon’s range for *pistis* includes both reliance and profession, while *ergon* can mean an act; here the immediate acts are mercy, material care, and costly allegiance. The two halves therefore belong together. Favoritism is not a detached etiquette problem but an enacted contradiction of faith in the glorious Lord, just as compassionate words without compassionate action reveal an empty profession (James 2:1; James 2:16–17).\n\n## Historical & Cultural Setting\n\nTraditionally attributed to James, the brother of Jesus, this wisdom-rich letter likely arose from a Jerusalem setting sometime between about AD 45 and 90; both authorship and precise date remain debated. Its readers inhabited a world where clothing, jewelry, seating, and proximity publicly signaled rank. Clarke notes that the word rendered “meeting” can refer to a synagogue, and he allows either a worshiping assembly or a judicial setting; the text itself does not settle which scene James intends (James 2:2–4). The surrounding references to oppression and being dragged into court show why deference to wealth was not socially neutral (James 2:6–7). Jamieson sees James’s repeated address, “brothers,” as establishing the Christian equality beneath the admonition (James 2:1). Yet Calvin rightly narrows the charge: James is not condemning every form of courtesy or honor, but elevating wealth in a way that humiliates the poor. The offense lies in allowing visible status to govern communal judgment against the royal law of neighbor-love (James 2:8–9).\n\n## Theological Significance\n\nThe chapter binds Christology, law, mercy, and faith together. Calvin and the Geneva notes read favoritism as incompatible with faith because Christ’s glory relativizes worldly display, while believers belong together under Him (James 2:1–4). The “royal law” names neighbor-love as the governing measure, and the “law that gives freedom” places speech and action under coming judgment; mercy is therefore not ornamental but evidence of a life answering to that law (James 2:8–13). Clarke reads the second half specifically as teaching that faith without works of charity and mercy is dead. James’s examples broaden the point: Abraham’s faith works together with his action, and Rahab’s allegiance becomes visible in risky hospitality (James 2:21–25). The chapter’s comparison is stark: as a body without spirit is dead, so faith without deeds is dead (James 2:26). How James’s language of being “justified by deeds” relates to other New Testament formulations is genuinely disputed. The text plainly rejects a merely asserted, inactive faith; fuller adjudication belongs in Lamplight Study chat and conversation with one’s church (James 2:14; James 2:24).\n\n## Read With Care\n\nThe prohibition of favoritism should not be expanded into a ban on every distinction or courtesy. Calvin observes that the context condemns honoring wealth *by despising the poor*, and James locates the sin in discriminatory judgment that violates neighbor-love (James 2:3–4; James 2:8–9). Nor does the chapter teach that poverty itself saves or that every wealthy person is condemned: it speaks of the poor as rich in faith and heirs of the promised kingdom, while identifying oppressive conduct rather than possession alone (James 2:5–7). Finally, James 2:24 should not be isolated from the repeated controlling concern: a claim to faith that produces no action is dead (James 2:14; James 2:17; James 2:26).\n\n_voices named: hermeneutics=— · historical_setting=calvin-commentaries+adam-clarke+jfb · theology=calvin-commentaries+geneva-notes+adam-clarke · read_with_care=calvin-commentaries_\n_citations: {\"type\":\"verse\",\"ref\":\"James 2:1\"}, {\"type\":\"verse\",\"ref\":\"James 2:2\"}, {\"type\":\"verse\",\"ref\":\"James 2:3\"}, {\"type\":\"verse\",\"ref\":\"James 2:4\"}, {\"type\":\"verse\",\"ref\":\"James 2:5\"}, {\"type\":\"verse\",\"ref\":\"James 2:6\"}, {\"type\":\"verse\",\"ref\":\"James 2:7\"}, {\"type\":\"verse\",\"ref\":\"James 2:8\"}, {\"type\":\"verse\",\"ref\":\"James 2:9\"}, {\"type\":\"verse\",\"ref\":\"James 2:10\"}, {\"type\":\"verse\",\"ref\":\"James 2:11\"}, {\"type\":\"verse\",\"ref\":\"James 2:12\"}, {\"type\":\"verse\",\"ref\":\"James 2:13\"}, {\"type\":\"verse\",\"ref\":\"James 2:14\"}, {\"type\":\"verse\",\"ref\":\"James 2:15\"}, {\"type\":\"verse\",\"ref\":\"James 2:16\"}, {\"type\":\"verse\",\"ref\":\"James 2:17\"}, {\"type\":\"verse\",\"ref\":\"James 2:18\"}, {\"type\":\"verse\",\"ref\":\"James 2:21\"}, {\"type\":\"verse\",\"ref\":\"James 2:22\"}, {\"type\":\"verse\",\"ref\":\"James 2:23\"}, {\"type\":\"verse\",\"ref\":\"James 2:24\"}, {\"type\":\"verse\",\"ref\":\"James 2:25\"}, {\"type\":\"verse\",\"ref\":\"James 2:26\"}_\n_prompt: deeper-insight-2026-08-07-v1 · attempts: 1_\n"
+    },
+    {
+      "fixture": "deeper-nahum-1",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 5442,
+      "tokensOut": 1333,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_present",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_complete",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_present",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_complete",
+          "pass": true
+        },
+        {
+          "name": "section_theology_present",
+          "pass": true
+        },
+        {
+          "name": "section_theology_complete",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_present",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_complete",
+          "pass": true
+        },
+        {
+          "name": "attribution_theology",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-nahum-1 · passage-insight\n\n_A thinly covered non-Psalm OT chapter. The case where a section legitimately has nothing to say and padding is the temptation — and where Treasury reaches the passage only through a cross-reference anchor, which is Spurgeon on a psalm informing a Nahum door._\n\n**Passage:** Nahum 1 · **Grain:** deeper · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — 2 Timothy 2:19, John 10:27, Lamentations 3:25, John 10:14, Psalms 91:1\n- library excerpts: 6 — jfb×1, adam-clarke×2, geneva-notes×1, calvin-commentaries×2\n- lexicon entries: 12\n- book context: Nahum\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## How to Read This Passage\n\nNahum 1 is prophetic poetry: a “burden” and “vision,” not detached reflection or neutral political analysis (Nahum 1:1). Calvin reads those labels as marking both the oracle’s grievous subject and its claimed divine origin. Its storms, drying waters, quaking mountains, fire, thorns, and darkness therefore work as concentrated poetic images of the Lord’s sovereign judgment, not as a timetable of meteorological events (Nahum 1:3; Nahum 1:4; Nahum 1:5; Nahum 1:6; Nahum 1:10). The chapter also changes its audience: it addresses Nineveh’s plotting, Judah’s affliction, and finally Judah’s restored worship (Nahum 1:9; Nahum 1:11; Nahum 1:12; Nahum 1:15). Adam Clarke accordingly describes a deliberate movement from God’s character, through Assyria’s overthrow, to freedom and good news for Judah. Read this oracle by holding together its two governing affirmations: the Lord does not acquit guilt, yet He is good and knows those who trust Him (Nahum 1:3; Nahum 1:7).\n\n## Historical & Cultural Setting\n\nNahum is placed in Judah before Nineveh’s fall in 612 BC, within the period roughly 650–612 BC. Nineveh was the Assyrian capital, and the oracle addresses a world in which Judah knew Assyrian power not as an abstraction but as a yoke and shackles (Nahum 1:13). The promise that the wicked invader would no longer march through Judah would therefore sound like national deliverance from an established imperial threat, not merely private encouragement (Nahum 1:15). Likewise, the command to resume feasts and fulfill vows pictures public worship no longer overshadowed by invasion (Nahum 1:15). Nineveh’s judgment reaches its political continuity, religious symbols, and civic honor: its name will have no future, its idols will be cut off, and its grave prepared (Nahum 1:14). Clarke proposes that redirected waters may stand behind the flood language and notes how water could damage sun-baked brick construction. That is a historical suggestion, not something the chapter itself explains; the text’s plain emphasis is that Nineveh’s end comes under the Lord’s judgment (Nahum 1:8).\n\n## Theological Significance\n\nThe chapter’s theology turns on the unity of divine patience, power, justice, and goodness. “Slow to anger” does not mean indifferent to evil: the same sentence says the Lord is great in power and will not leave guilt unpunished (Nahum 1:3). Nor does vengeance describe uncontrolled temper. The lexicon glosses the repeated verb as “avenge or punish,” while the oracle directs that action toward foes who plot against the Lord and impose bondage (Nahum 1:2; Nahum 1:9; Nahum 1:13). Adam Clarke therefore reads the opening as God’s justice and power “tempered by lenity and goodness.” The refuge statement is not an interruption but the other side of the same divine character: the Lord is a stronghold in distress and cares for those who trust Him (Nahum 1:7). This resonates with the firm foundation that “the Lord knows those who are His” (2 Timothy 2:19), and with the confession that the Lord is good to the soul seeking Him (Lamentations 3:25). Judgment and refuge are thus not rival portraits of God; in this oracle, both answer the reality of oppressive evil.\n\n## Read With Care\n\nReading the cosmic imagery as a coded chronology misses the genre: whirlwind, melting hills, shattered rocks, flood, thorns, and stubble magnify the Lord’s irresistible judgment (Nahum 1:3; Nahum 1:5; Nahum 1:6; Nahum 1:8; Nahum 1:10). The flood may invite historical reconstruction, and Clarke offers one, but the chapter does not identify the military mechanism. It is also misleading to detach “the LORD is good” from the surrounding judgment, or vengeance from His slowness to anger (Nahum 1:2; Nahum 1:3; Nahum 1:7). Finally, promises made to Judah under Assyrian oppression should not be converted without argument into guarantees that every present distress will end immediately (Nahum 1:12; Nahum 1:13).\n\n_voices named: hermeneutics=adam-clarke+calvin-commentaries · historical_setting=adam-clarke · theology=adam-clarke · read_with_care=adam-clarke_\n_citations: {\"type\":\"verse\",\"ref\":\"Nahum 1:1\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:2\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:3\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:4\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:5\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:6\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:7\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:8\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:9\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:10\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:11\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:12\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:13\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:14\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:15\"}, {\"type\":\"verse\",\"ref\":\"2 Timothy 2:19\"}, {\"type\":\"verse\",\"ref\":\"Lamentations 3:25\"}_\n_prompt: deeper-insight-2026-08-07-v1 · attempts: 1_\n"
+    },
+    {
+      "fixture": "deeper-psalm-27-verse-4",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 5229,
+      "tokensOut": 1312,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "grounding_focus_verses",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_present",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_complete",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_present",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_complete",
+          "pass": true
+        },
+        {
+          "name": "section_theology_present",
+          "pass": true
+        },
+        {
+          "name": "section_theology_complete",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_present",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_complete",
+          "pass": true
+        },
+        {
+          "name": "attribution_theology",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-psalm-27-verse-4 · passage-insight\n\n_Door 2 at verse grain. Exercises the narrowed library anchor and the focus-verse supply; the grounding_focus_verses floor catches a verse that silently degraded to chapter scope and would otherwise be scored as a grain it is not._\n\n**Passage:** Psalms 27 · **Grain:** deeper · verse 4\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 40:31, Hebrews 13:6, Psalms 118:6, Exodus 15:2, Psalms 31:24\n- library excerpts: 6 — adam-clarke×3, calvin-commentaries×1, geneva-notes×2\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 5 — Psalms 27:2, Psalms 27:3, Psalms 27:4*, Psalms 27:5, Psalms 27:6\n\n## How to Read This Passage\n\nPsalm 27 is lyric prayer: it gathers confidence, desire, fear, petition, and hope into speech addressed to the LORD. Its images therefore work poetically rather than as a timetable of deliverance. The selected verse is best read within the psalm’s movement from surrounding threat to a concentrated longing for God’s presence. “One thing” names the desire that orders the others; it does not deny the reality of enemies, danger, or unanswered prayer (Psalms 27:3; Psalms 27:4; Psalms 27:7). The sanctuary language also joins contemplation to worship: gazing on the LORD’s beauty belongs beside seeking Him and offering praise in the gathered place (Psalms 27:4; Psalms 27:6). The psalm does not remain at unbroken assurance. Its confidence opens into pleading and then waiting, so readers must hold trust and vulnerability together rather than treating one as less faithful than the other (Psalms 27:9; Psalms 27:14).\n\n## Historical & Cultural Setting\n\nPsalm 27 belongs to Israel’s collection of worship, lament, praise, and meditation, compiled over many centuries in Israel, roughly 1000–400 BC. Its heading attributes it to David, while its sanctuary vocabulary places the prayer within Israel’s world of tabernacle or temple worship, sacrifice, music, and communal praise (Psalms 27:4; Psalms 27:6). The first hearers would not have imagined “dwelling” merely as private religious feeling. The Geneva notes read the verse as grief over being unable to praise God “in the midst of the congregation.” Adam Clarke likewise connects the longing with restored access to divine worship, though he considers more than one possible setting: David’s withdrawal from warfare or the longing of captives to return. Because the supplied voices do not agree on a precise occasion, the historical circumstance should remain open. What is clear is that exclusion from the sanctuary meant loss of participation in Israel’s visible, communal life before the LORD, not simply loss of a favored building.\n\n## Theological Significance\n\nThe psalm presents God Himself as the center of salvation: the LORD is not only the giver of safety but “my light,” “my salvation,” and the sought-for beauty within worship (Psalms 27:1; Psalms 27:4). This keeps protection from becoming the psalm’s highest good. Shelter, elevation, sacrifice, and song all flow from communion with the LORD and return to His praise (Psalms 27:5; Psalms 27:6). Calvin reads the related confession in Exodus as acknowledging that strength and salvation come from God’s grace rather than human bravery, and that divine help properly issues in praise (Exodus 15:2). Clarke similarly observes that the One who is strength becomes song. Read alongside Psalm 27, that tradition highlights a theological sequence: dependence, deliverance, and worship belong together. Yet communion is not portrayed as effortless certainty. Seeking God’s face includes asking not to be forsaken, and hope takes the form of waiting for His goodness (Psalms 27:8; Psalms 27:9; Psalms 27:13; Psalms 27:14).\n\n## Read With Care\n\n“One thing” should not be isolated into a rejection of ordinary responsibilities or relationships. In the poem, concentrated desire for the LORD stands amid warfare, false accusation, communal sacrifice, and the need for guidance (Psalms 27:3; Psalms 27:6; Psalms 27:11; Psalms 27:12). Nor does sanctuary imagery promise exemption from hardship: the psalm explicitly places God’s shelter “in the day of trouble” (Psalms 27:5). Finally, the verse does not settle its own precise historical occasion. Clarke offers more than one possible setting, so reading a single reconstructed episode as certain would make the commentary firmer than the supplied evidence allows.\n\n_voices named: hermeneutics=— · historical_setting=adam-clarke+geneva-notes · theology=adam-clarke+calvin-commentaries · read_with_care=adam-clarke_\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 27:1\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:3\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:4\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:5\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:6\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:7\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:8\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:9\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:11\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:12\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:13\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:14\"}, {\"type\":\"verse\",\"ref\":\"Exodus 15:2\"}_\n_prompt: deeper-insight-2026-08-07-v1 · attempts: 1_\n"
+    },
+    {
+      "fixture": "deeper-psalm-27",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4914,
+      "tokensOut": 1343,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_present",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_complete",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_present",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_complete",
+          "pass": true
+        },
+        {
+          "name": "section_theology_present",
+          "pass": true
+        },
+        {
+          "name": "section_theology_complete",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_present",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_complete",
+          "pass": true
+        },
+        {
+          "name": "attribution_theology",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-psalm-27 · passage-insight\n\n_Door 2 at chapter grain on a densely covered psalm. The best-supplied case — and the one where Treasury's specificity dominance makes the register-steering question visible, since Treasury is devotional and this door wants exegetical and confessional voices._\n\n**Passage:** Psalms 27 · **Grain:** deeper · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 40:31, Hebrews 13:6, Psalms 118:6, Exodus 15:2, Psalms 31:24\n- library excerpts: 6 — jfb×2, geneva-notes×1, adam-clarke×2, calvin-commentaries×1\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## How to Read This Passage\n\nThis is lyric prayer: its images disclose the shape of faith under threat rather than provide a chronology of one crisis. The psalm moves between confident confession, concentrated desire, urgent petition, and patient exhortation. That movement matters. “Whom shall I fear?” does not mean danger is imaginary; armies, adversaries, and false witnesses remain present (Psalms 27:1–3; Psalms 27:12). Nor does seeking the Lord’s face cancel pleading for an answer (Psalms 27:7–9). Biblical confidence can therefore include exposed need. The governing desire is not merely escape but communion: safety, worship, guidance, and God’s beauty gather around the request to dwell with the Lord (Psalms 27:4–6; Psalms 27:11). The closing repetition of “wait patiently” asks the worshipper to inhabit the interval between prayer and deliverance, drawing courage from hope in the Lord rather than from certainty about circumstances (Psalms 27:13–14; Psalms 31:24).\n\n## Historical & Cultural Setting\n\nPsalm 27 belongs to Israel’s poetry of worship, lament, praise, and meditation, collected across roughly 1000–400 BC. Its heading associates it with David, but Adam Clarke cautions that proposed settings—before an anointing, during captivity, or after a particular battle—cannot be decided from the available title. The responsible historical reading therefore resists fastening the poem to one reconstructed episode. Its world is nevertheless recognizably Israelite: enemies may resemble ravenous beasts, military encirclement supplies the language of danger, and worship is pictured through the Lord’s house, temple, tent, tabernacle, music, and sacrifice (Psalms 27:2–6). Jamieson reads the flesh-devouring image as portraying the foes’ rapacity, not literal cannibalism. The first hearers would also hear seeking the Lord’s “face” as relational and worshipful language. The lexicon describes “seek” as searching or striving after, especially in worship or prayer, while “face” can function literally or figuratively; together they intensify the psalm’s longing for the Lord’s presence (Psalms 27:8–9).\n\n## Theological Significance\n\nThe passage holds divine protection and human dependence together. Jamieson takes “light” as a figure of comfort and “stronghold” as security against violence; the Geneva notes read the opening confidence as salvation laid up in God rather than courage generated by the worshipper (Psalms 27:1). Calvin makes the same theological move in his reading of Israel’s song: strength and salvation are received from the Lord, so praise belongs to him rather than to human bravery (Exodus 15:2). Yet such confidence does not eliminate supplication. The God confessed as helper is still asked not to forsake, to teach, and to lead (Psalms 27:9–11). Adam Clarke accordingly traces the psalm from confidence through prayer to exhortation. Divine goodness is expected “in the land of the living,” while the final word is waiting, not possession (Psalms 27:13–14). Isaiah likewise joins waiting to renewed strength, and Hebrews turns the Lord’s help into courage before human threat (Isaiah 40:31; Hebrews 13:6). Theologically, hope rests in who the Lord is while remaining honest about what has not yet changed.\n\n## Read With Care\n\nThe opening questions should not be read as a promise that faith removes fear automatically or prevents danger. The poem itself places confidence beside cries for mercy, guidance, and protection (Psalms 27:1; Psalms 27:7–12). Nor should the military and predatory images be forced into a detailed historical reconstruction; Clarke notes that the proposed occasions cannot be settled. Reading “one thing” as contempt for ordinary life also exceeds the poem: the desire for God’s presence generates shelter, worship, moral direction, and hope within “the land of the living,” not withdrawal from embodied life (Psalms 27:4–6; Psalms 27:11–13). Finally, “wait” is not passivity; the parallel call to strength and courage gives waiting an active posture of trust (Psalms 27:14).\n\n_voices named: hermeneutics=— · historical_setting=jfb+adam-clarke · theology=jfb+geneva-notes+adam-clarke+calvin-commentaries · read_with_care=adam-clarke_\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 27:1\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:2\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:3\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:4\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:5\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:6\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:7\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:8\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:9\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:10\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:11\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:12\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:13\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:14\"}, {\"type\":\"verse\",\"ref\":\"Psalms 31:24\"}, {\"type\":\"verse\",\"ref\":\"Exodus 15:2\"}, {\"type\":\"verse\",\"ref\":\"Isaiah 40:31\"}, {\"type\":\"verse\",\"ref\":\"Hebrews 13:6\"}_\n_prompt: deeper-insight-2026-08-07-v1 · attempts: 1_\n"
+    },
+    {
+      "fixture": "deeper-romans-9",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 6102,
+      "tokensOut": 1644,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_present",
+          "pass": true
+        },
+        {
+          "name": "section_hermeneutics_complete",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_present",
+          "pass": true
+        },
+        {
+          "name": "section_historical_setting_complete",
+          "pass": true
+        },
+        {
+          "name": "section_theology_present",
+          "pass": true
+        },
+        {
+          "name": "section_theology_complete",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_present",
+          "pass": true
+        },
+        {
+          "name": "section_read_with_care_complete",
+          "pass": true
+        },
+        {
+          "name": "attribution_theology",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# deeper-romans-9 · passage-insight\n\n_CONTESTED. Romans 9:11-23 is on the CONTESTED_PASSAGES list, and Door 2 keeps the blanket rejection — so this is the chapter where the deepest door could simply fail to exist. The door must GENERATE while adjudicating nothing: describe what the text plainly says, name the question as disputed, and stop. Without this fixture B3 could ship a door that fails on exactly the passages that justify it, and the eval set would stay green because nothing asked._\n\n**Passage:** Romans 9 · **Grain:** deeper · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 28:16, Exodus 33:19, Malachi 1:2, Exodus 9:16, Hosea 2:23\n- library excerpts: 6 — adam-clarke×3, calvin-commentaries×2, geneva-notes×1\n- lexicon entries: 12\n- book context: Romans\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## How to Read This Passage\n\nRomans 9 is theological argument within an epistle, not a detached catalogue of propositions. Its controlling problem is stated plainly: Israel’s widespread unbelief might appear to mean that God’s word has failed (Romans 9:6). Paul therefore reasons from Israel’s Scriptures, tracing how promise, calling, mercy, and faith disclose the freedom and faithfulness of God. The chapter must also be read through its emotional frame: the argument comes from “deep sorrow and unceasing anguish,” not hostility toward Israel (Romans 9:2–5). Its disputed middle section uses compressed scriptural examples and a potter-and-clay image; the church remains divided over the precise scope of election being described there, so that question is best explored in Lamplight Study chat and within one’s own church. The chapter’s conclusion supplies an essential interpretive horizon: Gentile inclusion is righteousness received by faith, while stumbling occurs where righteousness is pursued as though it came by works (Romans 9:30–33).\n\n## Historical & Cultural Setting\n\nPaul wrote Romans from Corinth around AD 56–57 to Christians living at the heart of the Roman world. The letter addresses a church in which the relation of Jews and Gentiles was not abstract: the gospel’s claim to unite both raised urgent questions about Israel’s covenant privileges and God’s reliability. Paul names those privileges without minimizing them—adoption, glory, covenants, law, worship, promises, patriarchs, and Christ’s human descent (Romans 9:4–5). His first hearers would also recognize that the chapter speaks in the language and story-world of Israel’s Scriptures. Hosea’s restoration language is brought into Paul’s account of God calling a people, including Gentiles (Romans 9:24–26; Hosea 2:23), while Isaiah’s remnant language keeps Israel’s story in view (Romans 9:27–29). Clarke reads the chapter against disputes over whether Gentile believers truly belonged to God’s covenant people. That setting helps explain why Paul argues both for Gentile inclusion and for the integrity of God’s promise.\n\n## Theological Significance\n\nThe chapter carries two claims together: God’s word has not failed, and belonging to the promised family cannot be reduced to physical descent (Romans 9:6–9). Calvin reads this as Paul removing a grave obstacle to faith: if Israel’s unbelief seemed to discredit either God’s promise or Jesus as Messiah, Paul’s argument vindicates the promise without diminishing Israel’s privileges. Clarke emphasizes the chapter’s covenantal and communal horizon, reading it as a defense of the Gentiles’ valid inclusion among God’s people. Paul himself identifies the called community as drawn “not only from the Jews, but also from the Gentiles” (Romans 9:24). The chapter finally locates righteousness not in human achievement but in faith, with Christ portrayed through Isaiah’s image as the stone before whom unbelief stumbles and on whom faith rests without shame (Romans 9:30–33; Isaiah 28:16). The exact reach of the election language in the chapter’s middle remains disputed in the church; the text plainly insists throughout that mercy belongs to God and never becomes a human entitlement.\n\n## Read With Care\n\nReading the chapter’s disputed middle apart from its frame distorts its force. Paul begins with anguish and an expansive acknowledgment of Israel’s gifts (Romans 9:2–5), asks whether God’s word has failed (Romans 9:6), and closes by contrasting righteousness by faith with pursuit “as if” by works (Romans 9:30–33). The argument therefore does not support contempt for Israel, fatalistic speculation, or treating divine sovereignty as an abstract puzzle detached from the gospel. Nor should the “stumbling stone” be turned into a general slogan about hardship; Paul applies Isaiah’s image specifically to faith, righteousness, and response to Christ (Romans 9:32–33; Isaiah 28:16).\n\n_voices named: hermeneutics=— · historical_setting=adam-clarke · theology=adam-clarke+calvin-commentaries · read_with_care=—_\n_citations: {\"type\":\"verse\",\"ref\":\"Romans 9:2\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:3\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:4\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:5\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:6\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:7\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:8\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:9\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:24\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:25\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:26\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:27\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:28\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:29\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:30\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:31\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:32\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:33\"}, {\"type\":\"verse\",\"ref\":\"Hosea 2:23\"}, {\"type\":\"verse\",\"ref\":\"Isaiah 28:16\"}_\n_prompt: deeper-insight-2026-08-07-v1 · attempts: 1_\n"
+    },
+    {
+      "fixture": "passage-nahum-1",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4277,
+      "tokensOut": 1354,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_overview_present",
+          "pass": true
+        },
+        {
+          "name": "section_overview_complete",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_present",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_complete",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_present",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_complete",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_present",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_complete",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# passage-nahum-1 · passage-insight\n\n_A thinly covered non-Psalm OT chapter (15 library chunks against Psalm 27's 123). The case where a section may legitimately have nothing to say — and where padding is the temptation._\n\n**Passage:** Nahum 1 · **Grain:** passage · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — 2 Timothy 2:19, John 10:27, Lamentations 3:25, John 10:14, Psalms 91:1\n- library excerpts: 4 — treasury-of-david×2, jfb×1, adam-clarke×1\n- lexicon entries: 12\n- book context: Nahum\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## Overview\n\nNahum 1 announces judgment on Nineveh, but its center is the character of the LORD. He is neither impulsive nor indifferent: He is “slow to anger and great in power,” yet He does not treat guilt as harmless (Nahum 1:3). The storm, sea, mountains, and earth imagery presents creation itself yielding before Him (Nahum 1:3–6). The decisive turn comes with “The LORD is good”: the same holy presence that overwhelms His enemies becomes a stronghold for those who trust Him (Nahum 1:7–8). Judah’s good news is therefore liberation, not merely Nineveh’s collapse. The oppressor’s yoke and shackles will be broken, allowing worship to resume without the invader’s threat (Nahum 1:12–15). Divine judgment and refuge are held together in one Lord.\n\n## In the Chapter\n\nBecause this passage is the book’s opening chapter, its title immediately identifies what follows as Nahum’s vision and a burden directed against Nineveh (Nahum 1:1). Before describing the city’s fall in detail, the chapter establishes why that fall belongs within the LORD’s justice rather than mere political reversal. Nineveh plots against Him, produces a counselor of wickedness, and trusts in numbers and alliances; the LORD answers that these powers will pass away (Nahum 1:9–12). Judah, meanwhile, has known affliction under that same oppressive power, but is promised release from its yoke (Nahum 1:12–13). Adam Clarke reads the chapter as a deliberate prelude: the LORD’s justice, power, patience, and goodness are introduced first; Assyria’s overthrow and Judah’s freedom follow; then the book turns toward the siege itself. That sequence matters. The military events are interpreted through the character and purpose of God, while the chapter lands not on spectacle but on peace, restored feasts, and fulfilled vows (Nahum 1:15).\n\n## The Chapter's Shape\n\nThe chapter moves in four clear stages. First comes a majestic portrait of the LORD: jealous for what is His, avenging evil, patient, powerful, and sovereign over creation (Nahum 1:2–6). Second, a brief hinge distinguishes those who trust Him from those who oppose Him. He knows and shelters the former, while the latter are pursued into darkness (Nahum 1:7–8). This contrast resembles the later affirmation that “the Lord knows those who are His,” while those who name Him must turn from evil (2 Timothy 2:19). Third, the oracle addresses Nineveh’s schemes and announces their end: numerical strength cannot preserve the city, its idols, dynasty, or reputation (Nahum 1:9–14). Finally, the camera turns toward Judah’s mountains. A messenger approaches with good news of peace, and fear gives way to worship (Nahum 1:15). Clarke similarly sees the poem opening with God’s character, turning to Assyria’s overthrow, proclaiming Judah’s release, and concluding with glad tidings.\n\n## Reflection & Application\n\nNahum refuses two distortions of the Lord: imagining goodness without justice, or power without patient care. The passage turns on the contrast between the enemies He confronts and the people for whom He is a stronghold (Nahum 1:3, 7–8). Read personally, this does not make every hardship easy to classify; it does make trust different from denial. Refuge rests in who the Lord is while distress remains real. Lamentations echoes that goodness toward the seeking soul (Lamentations 3:25), while Psalm 91 pictures nearness to God as dwelling beneath His shelter (Psalms 91:1). Spurgeon reads that dwelling as abiding fellowship rather than an occasional retreat. Nahum’s closing image then joins rescue to renewed worship: peace creates room for feasts, vows, and grateful faithfulness (Nahum 1:15).\n\n_voices named: overview=— · in_chapter=adam-clarke · chapter_shape=adam-clarke · reflection=treasury-of-david_\n_citations: {\"type\":\"verse\",\"ref\":\"Nahum 1:1\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:2\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:3\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:4\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:5\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:6\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:7\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:8\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:9\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:10\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:11\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:12\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:13\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:14\"}, {\"type\":\"verse\",\"ref\":\"Nahum 1:15\"}, {\"type\":\"verse\",\"ref\":\"2 Timothy 2:19\"}, {\"type\":\"verse\",\"ref\":\"Lamentations 3:25\"}, {\"type\":\"verse\",\"ref\":\"Psalms 91:1\"}_\n_prompt: passage-insight-2026-08-07-v2 · attempts: 1_\n"
+    },
+    {
+      "fixture": "passage-psalm-27-v4",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4770,
+      "tokensOut": 1014,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "grounding_focus_verses",
+          "pass": true
+        },
+        {
+          "name": "section_overview_present",
+          "pass": true
+        },
+        {
+          "name": "section_overview_complete",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_present",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_complete",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_present",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_complete",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_present",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_complete",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# passage-psalm-27-v4 · passage-insight\n\n_Door 1 at verse grain. 'In the Chapter' is unanswerable from a chapter blob alone, so this is the fixture that proves focus verses reached the prompt._\n\n**Passage:** Psalms 27 · **Grain:** passage · verse 4\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 40:31, Hebrews 13:6, Psalms 118:6, Exodus 15:2, Psalms 31:24\n- library excerpts: 4 — adam-clarke×2, calvin-commentaries×1, wesley-notes×1\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 5 — Psalms 27:2, Psalms 27:3, Psalms 27:4*, Psalms 27:5, Psalms 27:6\n\n## Overview\n\nPsalm 27 places danger and desire beside one another. David names enemies, armies, and war, yet his deepest request is not first for their removal. He asks “to dwell in the house of the LORD,” to behold the Lord’s beauty and seek Him there (Psalms 27:3; Psalms 27:4). The selected verse therefore reveals the source and direction of his courage: security is rooted in the Lord’s presence, not in favorable circumstances. The following promise of shelter develops that thought; communion with the Lord becomes the place from which trouble is faced (Psalms 27:5). The psalm does not deny fearsome realities. It gathers them beneath one governing desire—the Lord Himself—and moves from threatened confidence toward worship (Psalms 27:6).\n\n## In the Chapter\n\nImmediately before the selected verse, David remembers aggressors who “stumbled and fell” and imagines an army surrounding him (Psalms 27:2; Psalms 27:3). Against that martial setting, “one thing” is striking: his attention narrows from many threats to one desire (Psalms 27:4). Immediately afterward, the language of the Lord’s house becomes shelter, tent, and rock; David anticipates being raised above his enemies and responding with joyful sacrifice and song (Psalms 27:5; Psalms 27:6). Yet the chapter then turns from declaration to urgent prayer: “Hear, O LORD,” “Hide not Your face,” and “do not leave me” (Psalms 27:7; Psalms 27:9). That shift prevents confidence from sounding effortless. David’s trust includes felt vulnerability, dependence, and a longing for God’s answer. His desire to seek the Lord is thus neither escape nor decorative devotion; it is the center that holds together danger, prayer, and praise.\n\n## The Chapter's Shape\n\nThe psalm opens with three images of the Lord—light, salvation, and stronghold—and answers each with defiant questions about fear (Psalms 27:1). It then moves through remembered deliverance and imagined conflict before arriving at its focal desire: dwelling with, gazing upon, and seeking the Lord (Psalms 27:2; Psalms 27:4). From there, anticipated shelter rises into public worship and song (Psalms 27:5; Psalms 27:6). The chapter’s second movement becomes more exposed. David asks to be heard, seeks the Lord’s face, fears abandonment, and asks for a level path amid false witnesses and violence (Psalms 27:7; Psalms 27:8; Psalms 27:11; Psalms 27:12). It lands not in changed circumstances but in expectant resolve: confidence in seeing the Lord’s goodness and a repeated call to wait courageously (Psalms 27:13; Psalms 27:14). The whole psalm traces faith as both confession and petition.\n\n## Reflection & Application\n\nThe selected verse invites a revealing question: when life produces many urgent demands, what becomes the “one thing” around which they gather? David’s desire is not indifference to danger; the chapter repeatedly names enemies, abandonment, and false accusation (Psalms 27:2; Psalms 27:10; Psalms 27:12). Rather, he seeks the Lord’s face within that pressure (Psalms 27:8). The lexicon glosses “seek” as searching out, especially in worship or prayer, and striving after. Read this way, waiting for the Lord is active dependence rather than vacancy (Psalms 27:14). The psalm holds courage and need together: the heart can ask for mercy while remaining oriented toward the Lord’s goodness (Psalms 27:7; Psalms 27:13).\n\n_voices named: overview=— · in_chapter=— · chapter_shape=— · reflection=—_\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 27:1\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:2\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:3\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:4\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:5\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:6\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:7\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:8\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:9\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:10\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:11\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:12\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:13\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:14\"}_\n_prompt: passage-insight-2026-08-07-v2 · attempts: 2_\n"
+    },
+    {
+      "fixture": "passage-psalm-27",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4165,
+      "tokensOut": 1218,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_overview_present",
+          "pass": true
+        },
+        {
+          "name": "section_overview_complete",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_present",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_complete",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_present",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_complete",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_present",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_complete",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# passage-psalm-27 · passage-insight\n\n_Door 1 at chapter grain on a densely covered psalm — the best-supplied case, and the one where overreach is most tempting._\n\n**Passage:** Psalms 27 · **Grain:** passage · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 40:31, Hebrews 13:6, Psalms 118:6, Exodus 15:2, Psalms 31:24\n- library excerpts: 4 — treasury-of-david×3, jfb×1\n- lexicon entries: 12\n- book context: Psalms\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## Overview\n\nPsalm 27 holds confidence and pleading together. David begins not with the size of his enemies but with the identity of the LORD: “my light,” “my salvation,” and “the stronghold of my life” (Psalms 27:1). Jamieson takes “light” as an image of comfort and “stronghold” as security from violence; Spurgeon stresses the personal force of “my.” Yet courage is not the psalm’s deepest desire. David asks above all to dwell near the LORD, behold His beauty, and seek Him (Psalms 27:4). When the language turns from declaration to urgent prayer, faith does not disappear; it speaks from within danger (Psalms 27:7-12). The closing call to wait therefore arises neither from denial nor self-confidence, but from anticipated goodness: David expects to see the LORD’s goodness among the living (Psalms 27:13-14).\n\n## In the Chapter\n\nThe first half surrounds David with enemies, an army, and war, yet repeatedly directs attention toward the LORD’s presence (Psalms 27:2-6). This matters because the “one thing” David desires is not merely escape. Shelter, elevation, worship, and song gather around communion with the LORD in His house (Psalms 27:4-6). The latter half then changes key: bold testimony gives way to “Hear…be merciful and answer me” (Psalms 27:7). David seeks the LORD’s face while fearing abandonment, false testimony, and violence (Psalms 27:8-12). Even the stark possibility of parental forsaking is answered by the conviction that the LORD will receive him (Psalms 27:10). Read together, these halves keep confidence from becoming bravado and lament from becoming despair. David’s assurance has room for unanswered prayer, while his petition remembers that God has already been his helper (Psalms 27:9). The chapter’s ending therefore gathers both movements into a practiced posture of hopeful waiting (Psalms 27:13-14).\n\n## The Chapter's Shape\n\nThe psalm opens with three names for what the LORD is to David—light, salvation, and stronghold—and turns each into a challenge to fear (Psalms 27:1). It then widens the threat from attacking foes to an encamped army, while maintaining trust (Psalms 27:2-3). At the center, the imagery moves inward and upward: house, temple, shelter, tent, and rock. The purpose of safety is worship—gazing, seeking, sacrificing, singing (Psalms 27:4-6). A second movement begins with a direct cry to be heard (Psalms 27:7). “Seek His face” becomes the hinge between divine invitation and human response; the lexicon allows “seek” to carry the sense of searching or striving after, especially in worship or prayer (Psalms 27:8). The prayer then asks for presence, instruction, a level path, and protection from lies (Psalms 27:9-12). It lands not in resolved circumstances but in certainty about the LORD’s goodness and a doubled summons to wait (Psalms 27:13-14).\n\n## Reflection & Application\n\nPsalm 27 does not treat fearlessness as the absence of pressure. Armies, abandonment, accusation, and delayed relief remain visible; what changes is the center of attention (Psalms 27:3, Psalms 27:10, Psalms 27:12). For a reader carrying uncertainty, the passage turns on a desire deeper than immediate control: “Your face, O LORD, I will seek” (Psalms 27:8). That desire can coexist with the candid prayer, “do not leave me,” because biblical trust speaks honestly to the Lord rather than pretending danger is small (Psalms 27:9). Waiting here is not passivity. It is courage rooted in expected goodness, echoed by the promise that those who wait upon the LORD receive renewed strength (Psalms 27:13-14; Isaiah 40:31).\n\n_voices named: overview=treasury-of-david+jfb · in_chapter=— · chapter_shape=— · reflection=—_\n_citations: {\"type\":\"verse\",\"ref\":\"Psalms 27:1\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:2\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:3\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:4\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:5\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:6\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:7\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:8\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:9\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:10\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:11\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:12\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:13\"}, {\"type\":\"verse\",\"ref\":\"Psalms 27:14\"}, {\"type\":\"verse\",\"ref\":\"Isaiah 40:31\"}_\n_prompt: passage-insight-2026-08-07-v2 · attempts: 1_\n"
+    },
+    {
+      "fixture": "passage-romans-9",
+      "artifact": "passage-insight",
+      "model": "gpt-5.6-sol",
+      "tokensIn": 4663,
+      "tokensOut": 1286,
+      "scriptureViolations": [],
+      "checks": [
+        {
+          "name": "grounding_cross_refs",
+          "pass": true
+        },
+        {
+          "name": "grounding_library_excerpts",
+          "pass": true
+        },
+        {
+          "name": "grounding_book_context",
+          "pass": true
+        },
+        {
+          "name": "section_overview_present",
+          "pass": true
+        },
+        {
+          "name": "section_overview_complete",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_present",
+          "pass": true
+        },
+        {
+          "name": "section_in_chapter_complete",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_present",
+          "pass": true
+        },
+        {
+          "name": "section_chapter_shape_complete",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_present",
+          "pass": true
+        },
+        {
+          "name": "section_reflection_complete",
+          "pass": true
+        },
+        {
+          "name": "display_refs",
+          "pass": true
+        },
+        {
+          "name": "voice_families",
+          "pass": true
+        },
+        {
+          "name": "must_not_contain",
+          "pass": true
+        }
+      ],
+      "snapshot": "# passage-romans-9 · passage-insight\n\n_CONTESTED, Door 1. Romans 9:11-23 is on the CONTESTED_PASSAGES list and Door 1 keeps the blanket rejection too — so this fixture answers whether a contested chapter can have ANY generated door, or whether the hole B3 found is Door 2's alone._\n\n**Passage:** Romans 9 · **Grain:** passage · chapter\n\n## Grounding supplied\n\n- cross-references: 5 — Isaiah 28:16, Exodus 33:19, Malachi 1:2, Exodus 9:16, Hosea 2:23\n- library excerpts: 4 — adam-clarke×1, calvin-commentaries×2, wesley-notes×1\n- lexicon entries: 12\n- book context: Romans\n- semantic channels: **off** — the harness runs on the anon key, which cannot reach\n  `match_user_note_embeddings`, `match_bible_embeddings`, or `match_library_chunks`.\n\n- focus verses: 0\n\n## Overview\n\nRomans 9 begins not with abstraction but anguish. Paul’s argument about Israel is framed by love: he speaks with “deep sorrow and unceasing anguish” for his own people, whose covenant privileges culminate in Christ (Romans 9:1–5). He then insists that God’s word has not failed, distinguishing physical descent from the children formed by promise (Romans 9:6–9). The chapter’s disputed middle presses God’s freedom in mercy, election, and judgment; readers should approach those questions with their church or in Lamplight Study chat. The closing movement is plainer: Gentiles received righteousness by faith, while Israel stumbled by pursuing it as though it came through works. Christ is therefore both the stumbling stone and the sure ground of faith (Romans 9:30–33; Isaiah 28:16).\n\n## In the Chapter\n\nThis chapter follows Paul’s celebration that nothing can separate believers from God’s love in Christ. Romans 9 then confronts an apparent wound in that confidence: if many within Israel have rejected the Messiah, has God’s promise failed? Calvin identifies this as the chapter’s “twofold knot”—whether the promise was untrue or Jesus was not the promised Christ. Paul answers without contempt. He names Israel’s adoption, glory, covenants, law, worship, promises, patriarchs, and the Messiah’s human descent from them (Romans 9:4–5). Yet covenant privilege does not make faith unnecessary: the argument moves from promise, through God’s calling of Jews and Gentiles, to righteousness received by faith (Romans 9:8, 24, 30–33). What follows this chapter continues Paul’s concern for Israel rather than abandoning it. Thus Romans 9 should not be read as detached speculation; its reasoning serves Paul’s larger defense of the gospel for Jew and Gentile and arises from grief over unbelief (Romans 9:2–3).\n\n## The Chapter's Shape\n\nThe chapter opens personally: Paul solemnly affirms his truthfulness, then discloses sorrow so severe that he can imagine being cut off for his kin (Romans 9:1–3). Clarke reads this opening as necessary assurance that Paul takes no pleasure in Israel’s plight. The argument then turns on the declaration, “It is not as though God’s word has failed,” and traces the distinction between natural descent and promised offspring through Isaac and Sarah (Romans 9:6–9). Its central section raises deeply disputed questions about election, hardening, mercy, and the potter’s authority. The text then widens toward God’s call embracing both Jews and Gentiles (Romans 9:24). Hosea’s language turns outsiders into “My People” and “sons of the living God,” while Isaiah’s remnant imagery emphasizes preservation by the Lord (Romans 9:25–29; Hosea 2:23). Finally, the chapter lands on its decisive contrast: righteousness pursued as achievement becomes a stumbling place, but righteousness received by faith rests on Christ (Romans 9:30–33).\n\n## Reflection & Application\n\nRomans 9 holds conviction and grief together. Paul never softens his gospel to protect himself from misunderstanding, yet neither does he treat another person’s unbelief as material for triumph; his theology begins amid “unceasing anguish” (Romans 9:2). Read against ordinary disagreements about faith, this exposes two distortions: compassion without truth and truth without compassion. The chapter’s close also searches beneath religious effort. Israel pursued righteousness, but pursuit “as if it were by works” stumbled over Christ; Gentiles received righteousness by faith (Romans 9:30–33). The question for reflection is therefore not merely how earnestly one is striving, but where one’s confidence rests. The Lord’s cornerstone can offend self-reliance, yet the one who believes will not be put to shame (Romans 9:33; Isaiah 28:16).\n\n_voices named: overview=— · in_chapter=calvin-commentaries · chapter_shape=adam-clarke · reflection=—_\n_citations: {\"type\":\"verse\",\"ref\":\"Romans 9:1\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:2\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:3\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:4\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:5\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:6\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:7\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:8\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:9\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:24\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:25\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:26\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:27\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:28\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:29\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:30\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:31\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:32\"}, {\"type\":\"verse\",\"ref\":\"Romans 9:33\"}, {\"type\":\"verse\",\"ref\":\"Isaiah 28:16\"}, {\"type\":\"verse\",\"ref\":\"Hosea 2:23\"}_\n_prompt: passage-insight-2026-08-07-v2 · attempts: 1_\n"
+    }
+  ]
+}

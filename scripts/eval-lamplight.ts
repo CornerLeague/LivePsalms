@@ -39,13 +39,12 @@ import { buildStudyContext } from '../supabase/functions/lamplight-study/study-c
 import { STUDY_CHAT_PROMPT } from '../supabase/functions/lamplight-study/prompts/study-chat';
 import { runBibleChatPipeline } from '../supabase/functions/lamplight-chat/bible-chat-pipeline';
 import { runPassageInsightPipeline } from '../supabase/functions/lamplight-study/passage-insight-pipeline';
-import { PASSAGE_INSIGHT_SECTIONS } from '../supabase/functions/lamplight-study/prompts/passage-insight';
+import { insightDoorById, INSIGHT_DOORS, DEFAULT_INSIGHT_DOOR_ID } from '../supabase/functions/lamplight-study/insight-doors';
 import type { VoyageDeps } from '../supabase/functions/_shared/voyage';
 
 // The harness is a script, not a `src` module, so it imports the real section
 // list rather than copying it. A door whose sections drifted from the prompt's
 // would otherwise score four checks against keys nothing writes.
-const PASSAGE_SECTION_KEYS = PASSAGE_INSIGHT_SECTIONS.map((s) => s.key);
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -105,6 +104,8 @@ export interface FixturePassageInsight {
   chapter: number;
   /** Absent = the chapter grain. Present = the verse grain. */
   verse?: number;
+  /** Which door. Absent = 'passage', so every B2 fixture keeps its meaning. */
+  door: string;
   expectGrounding?: FixtureStudyChat['expectGrounding'];
 }
 
@@ -211,9 +212,19 @@ export function parseFixture(raw: unknown): EvalFixture {
     if (pi.verse !== undefined && (typeof pi.verse !== 'number' || !Number.isInteger(pi.verse) || pi.verse < 1)) {
       throw new Error(`fixture ${where}: "verse" must be a positive integer when present`);
     }
+    // Validated against the registry, not merely typechecked: a fixture naming
+    // a door that does not exist would otherwise be scored as Door 1 and its
+    // report would read as a pass for a door nobody ran.
+    const doorId = pi.door === undefined ? DEFAULT_INSIGHT_DOOR_ID : pi.door;
+    if (typeof doorId !== 'string' || !insightDoorById(doorId)) {
+      throw new Error(
+        `fixture ${where}: "door" must be one of ${INSIGHT_DOORS.map((d) => d.spec.id).join(', ')}`,
+      );
+    }
     passageInsight = {
       book: req(pi, 'book', where),
       chapter: pi.chapter,
+      door: doorId,
       ...(pi.verse !== undefined ? { verse: pi.verse as number } : {}),
       expectGrounding: (pi.expectGrounding ?? {}) as FixtureStudyChat['expectGrounding'],
     };
@@ -580,6 +591,16 @@ async function main(): Promise<void> {
 
   let fixtures = fixturesFor(loadFixtures(FIXTURE_DIR), artifact);
   if (only) fixtures = fixtures.filter((f) => f.name === only);
+  // --door narrows a passage-insight sweep to one door. Absent runs both, which
+  // is the right default for a completion gate and the wrong one for iterating
+  // on a single door's prompt.
+  const doorFilter = arg('door');
+  if (doorFilter) {
+    if (!insightDoorById(doorFilter)) {
+      throw new Error(`--door=${doorFilter} names no registered door (${INSIGHT_DOORS.map((d) => d.spec.id).join(', ')})`);
+    }
+    fixtures = fixtures.filter((f) => f.passageInsight?.door === doorFilter);
+  }
   if (fixtures.length === 0) {
     throw new Error(
       `no ${artifact} fixtures matched${only ? ` --fixture=${only}` : ''}. ` +
@@ -984,9 +1005,9 @@ const ENDS_COMPLETE = /[.!?…:][)"'”’\]]*$/;
  * has no last character to judge, and stacking a second red on it would make
  * the report read as two problems where there is one.
  */
-export function checkSections(sections: Record<string, string>): PropertyCheck[] {
+export function checkSections(sections: Record<string, string>, keys: readonly string[]): PropertyCheck[] {
   const checks: PropertyCheck[] = [];
-  for (const key of PASSAGE_SECTION_KEYS) {
+  for (const key of keys) {
     const body = (sections[key] ?? '').trim();
     const present = body.length > 0;
     checks.push({
@@ -1004,6 +1025,100 @@ export function checkSections(sections: Record<string, string>): PropertyCheck[]
     });
   }
   return checks;
+}
+
+/**
+ * Which name a supplied source can plausibly be called in prose.
+ *
+ * `composeSourceLabel` builds "Title · Author, Era", so the author field is the
+ * nameable thing — derived from real data rather than guessed at with a regex
+ * of commentator names, which would go stale the moment Phase A2 lands a source.
+ *
+ * Surnames, because that is how prose names a commentator ("Calvin reads…",
+ * "Jamieson takes the phrase…"). Multi-author labels split on commas and "&", so
+ * "Jamieson, Fausset & Brown" yields all three. A translator credit
+ * ("Thomas Aquinas, tr. John Henry Newman") yields both.
+ *
+ * The awkward case is real and handled rather than ignored: `geneva-notes`'
+ * author is "Geneva Bible translators", whose last word is a common noun. When
+ * the derived surname is not capitalised, the title's first capitalised word is
+ * used instead — which is "Geneva", exactly what prose would call it.
+ */
+export function nameableTokens(sourceLabel: string): string[] {
+  const [title, rest] = sourceLabel.split(' · ');
+  if (!rest) return [];
+  // "Author, Era" — the era is always last, so cut at the final comma.
+  const author = rest.slice(0, rest.lastIndexOf(',')) || rest;
+
+  const tokens = author
+    .split(/,|&/)
+    .map((part) => part.replace(/\btr\.\s*/g, '').trim())
+    .filter(Boolean)
+    .map((part) => part.split(/\s+/).at(-1) ?? '')
+    .filter((w) => /^[A-Z][a-z]{2,}$/.test(w));
+
+  if (tokens.length > 0) return [...new Set(tokens)];
+
+  // "Geneva Bible translators" and anything else whose surname is a common noun.
+  const fromTitle = (title ?? '').split(/\s+/).find((w) => /^[A-Z][a-z]{2,}$/.test(w));
+  return fromTitle ? [fromTitle] : [];
+}
+
+/** Every supplied source that the prose actually names. */
+export function namedSources(
+  text: string,
+  excerpts: Array<{ sourceId: string; sourceLabel: string }>,
+): string[] {
+  const seen = new Set<string>();
+  for (const e of excerpts) {
+    for (const token of nameableTokens(e.sourceLabel)) {
+      if (new RegExp(`\\b${token}\\b`).test(text)) { seen.add(e.sourceId); break; }
+    }
+  }
+  return [...seen];
+}
+
+/**
+ * A1's watch item, made measurable.
+ *
+ * The A1 completion sweep found two of four study-chat replies naming NO voice
+ * despite being grounded on two or three, and Door 1's own production rows name
+ * one in 2 of 8 sections. STUDY_GROUNDING_RULES says the reader is owed the
+ * source of a reading, not an anonymous verdict — and Door 2's Theological
+ * Significance is where an anonymous verdict does the most damage.
+ *
+ * A FLOOR, not a per-section mandate. "Name someone in the theology section or
+ * fail" would push the model toward attributing a claim to a voice it did not
+ * lean on — a worse violation, of a rule that matters more, and undetectable
+ * from outside. So the check asks only that a door grounded on real voices names
+ * at least one of them somewhere, and the per-section breakdown is REPORTED so a
+ * regression is visible without being enforced.
+ */
+export function checkAttribution(
+  sections: Record<string, string>,
+  doorSections: readonly { key: string; requiresAttribution?: boolean }[],
+  excerpts: Array<{ sourceId: string; sourceLabel: string }>,
+): PropertyCheck[] {
+  // Nothing supplied, nothing owed.
+  if (excerpts.length === 0) return [];
+
+  // Gated only where the door DECLARES attribution load-bearing. Door 1's gap is
+  // real and reported in every snapshot's `voices named` line, but it predates
+  // B3 and its cause is not isolated — Door 2 differs in both its brief's
+  // phrasing and its register steering, so a prompt change to Door 1 would be a
+  // guess with a confound. Measured, named as a follow-up, not gated.
+  return doorSections
+    .filter((sec) => sec.requiresAttribution === true)
+    .map((sec) => {
+      const named = namedSources(sections[sec.key] ?? '', excerpts);
+      return {
+        name: `attribution_${sec.key}`,
+        pass: named.length > 0,
+        ...(named.length > 0
+          ? {}
+          : { detail: `grounded on ${[...new Set(excerpts.map((e) => e.sourceId))].join(', ')} and named none of them` }),
+      };
+    });
 }
 
 /**
@@ -1062,8 +1177,16 @@ function formatGroundingSnapshot(
     '',
     `- cross-references: ${ctx.crossRefs.length}` +
       (ctx.crossRefs.length ? ` — ${ctx.crossRefs.map((c) => c.ref).join(', ')}` : ''),
+    // Per-source COUNTS, not a deduped list. "4 — clarke, calvin, geneva" hides
+    // whether that is 2/1/1 or 1/1/2, and the question a steering decision turns
+    // on is exactly whether one high-volume source is taking the slate — Clarke
+    // has 23,797 chunks against Catena's 2,966, and an unsteered top-k drifts
+    // toward whoever has the most rows on the chapter.
     `- library excerpts: ${excerpts.length}` +
-      (excerpts.length ? ` — ${[...new Set(excerpts.map((e) => e.sourceId))].join(', ')}` : ''),
+      (excerpts.length
+        ? ` — ${[...excerpts.reduce((m, e) => m.set(e.sourceId, (m.get(e.sourceId) ?? 0) + 1), new Map<string, number>())]
+            .map(([id, n]) => `${id}×${n}`).join(', ')}`
+        : ''),
     `- lexicon entries: ${(ctx.lexiconEntries ?? []).length}`,
     `- book context: ${ctx.bookContext ? ctx.bookContext.book : 'none'}`,
     '- semantic channels: **off** — the harness runs on the anon key, which cannot reach',
@@ -1198,6 +1321,9 @@ async function runPassageInsightFixture(args: {
   const { fixture, llm, supabase } = args;
   const pi = fixture.passageInsight!;
   const grain = pi.verse === undefined ? 'chapter' : `verse ${pi.verse}`;
+  // Validated at parse time, so this cannot be null here.
+  const doorEntry = insightDoorById(pi.door)!;
+  const sectionKeys = doorEntry.spec.sections.map((s) => s.key);
 
   // The door has no reader question, so the retrieval query is the passage
   // itself — the same substitution `lamplight-study` makes for insight mode and
@@ -1219,7 +1345,11 @@ async function runPassageInsightFixture(args: {
     crossRefK: STUDY_EVAL.crossRefK,
     noteK: 0,
     translation: 'BSB',
-    libraryK: STUDY_EVAL.libraryK,
+    // From the registry, exactly as the edge function reads them — so a
+    // steering decision made in Task 8 is measured by the sweep that argues
+    // for it rather than by a constant the harness keeps separately.
+    libraryK: doorEntry.retrieval.libraryK,
+    ...(doorEntry.retrieval.registers ? { registers: [...doorEntry.retrieval.registers] } : {}),
     skipSemanticRetrieval: true,
     displayRefs: true,
     ...(pi.verse !== undefined ? { verse: pi.verse } : {}),
@@ -1241,7 +1371,7 @@ async function runPassageInsightFixture(args: {
   const groundingSnapshot = [
     formatGroundingSnapshot(
       fixture,
-      { book: pi.book, chapter: pi.chapter, question: grain },
+      { book: pi.book, chapter: pi.chapter, question: `${doorEntry.spec.id} · ${grain}` },
       ctx,
       'passage-insight',
     ),
@@ -1268,6 +1398,7 @@ async function runPassageInsightFixture(args: {
   const result = await runPassageInsightPipeline({
     llm,
     ctx,
+    door: doorEntry.spec,
     verifyScripture: {
       translation: 'BSB',
       verifyRefs: (refs, t) => verifyVerseRefs(supabase as never, refs, t),
@@ -1296,16 +1427,26 @@ async function runPassageInsightFixture(args: {
     };
   }
 
-  const prose = PASSAGE_SECTION_KEYS.map((k) => result.sections[k]).filter(Boolean).join('\n\n');
+  const prose = sectionKeys.map((k) => result.sections[k]).filter(Boolean).join('\n\n');
   const snapshot = [
     groundingSnapshot,
-    ...PASSAGE_INSIGHT_SECTIONS.flatMap((s) => {
+    ...doorEntry.spec.sections.flatMap((s) => {
       const body = result.sections[s.key] ?? '';
       // An omitted section is SHOWN as omitted rather than skipped: a reader of
       // the report must be able to tell "the door left this out" from "the
       // report forgot to print it".
       return [`## ${s.label}`, '', body.trim().length > 0 ? body : '_(omitted)_', ''];
     }),
+    // Reported, never gated. Which section named whom is the number A1's watch
+    // item is about, and it must be readable without re-running anything.
+    `_voices named: ${
+      doorEntry.spec.sections
+        .map((sec) => {
+          const hits = namedSources(result.sections[sec.key] ?? '', ctx.libraryExcerpts ?? []);
+          return `${sec.key}=${hits.length ? hits.join('+') : '—'}`;
+        })
+        .join(' · ')
+    }_`,
     `_citations: ${result.citations.length ? result.citations.map((c) => JSON.stringify(c)).join(', ') : 'none'}_`,
     `_prompt: ${result.promptVersion} · attempts: ${result.attempts}_`,
     '',
@@ -1316,7 +1457,8 @@ async function runPassageInsightFixture(args: {
     scriptureViolations: [],
     checks: [
       ...groundingChecks,
-      ...checkSections(result.sections),
+      ...checkSections(result.sections, sectionKeys),
+      ...checkAttribution(result.sections, doorEntry.spec.sections, ctx.libraryExcerpts ?? []),
       ...checkDisplayRefs(prose),
       ...checkProperties(prose, fixture),
     ],

@@ -152,6 +152,42 @@ function snippetAround(text: string, start: number, end: number): string {
   return text.slice(lo, hi);
 }
 
+/**
+ * Content rules applied to ONE section rather than a whole artifact.
+ *
+ * `applyContentRules` flattens an artifact and checks the lot, which is right
+ * for every rule that is true everywhere — prophetic language is prophetic
+ * wherever it appears. Some rules are not like that: Insights' §9 forbids
+ * naming a tradition in *Read With Care* while another section of the same door
+ * is required to name one. A door-wide check would forbid in one place exactly
+ * what is demanded in another.
+ *
+ * Rides the `banned` family so it reaches the existing stricter-retry channel,
+ * but carries its own `rule` name so the retry can say something specific — a
+ * generic "do not use prophetic language" on a tradition violation would tell
+ * the model to fix something it did not do.
+ */
+export function applySectionRules(
+  text: string,
+  rule: string,
+  patterns: readonly RegExp[],
+): ContentRuleViolation[] {
+  const violations: ContentRuleViolation[] = [];
+  for (const re of patterns) {
+    const global = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+    let m: RegExpExecArray | null;
+    while ((m = global.exec(text)) !== null) {
+      violations.push({
+        family: 'banned',
+        rule,
+        snippet: snippetAround(text, m.index, m.index + m[0].length),
+      });
+      if (m[0].length === 0) global.lastIndex++;
+    }
+  }
+  return violations;
+}
+
 export async function applyContentRules(
   text: string,
   rules: ContentRules,

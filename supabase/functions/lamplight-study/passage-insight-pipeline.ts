@@ -15,6 +15,7 @@ import { BANNED_PHRASES, CONTESTED_PASSAGES, GROWTH_BANNED_PHRASES } from '../_s
 import {
   validateChatReplyCitations,
   applyContentRules,
+  applySectionRules,
   formatContentFamilyStricter,
   type Citation,
   type ContentRuleViolation,
@@ -22,7 +23,8 @@ import {
 import { generateWithRetry } from '../_shared/generate-with-retry.ts';
 import { generateStreamingWithRetry } from '../_shared/generate-streaming.ts';
 import { verifyArtifactScripture, type ScriptureDeps } from '../_shared/scripture-verify.ts';
-import { PASSAGE_INSIGHT_PROMPT, PASSAGE_INSIGHT_SECTIONS } from './prompts/passage-insight.ts';
+import { PASSAGE_DOOR_SPEC } from './prompts/passage-insight.ts';
+import type { InsightDoorSpec, InsightSection } from './prompts/insight-door.ts';
 import type { BibleChatContext, ChatViolations } from '../lamplight-chat/bible-chat-pipeline.ts';
 import type { UsageCore } from '../_shared/usage.ts';
 
@@ -85,9 +87,12 @@ const PASSAGE_INSIGHT_MAX_TOKENS = 6144;
  * a placeholder would put filler exactly where the model had nothing grounded
  * to say.
  */
-export function sectionsOf(parsed: PassageInsightEmit): PassageInsightSections {
+export function sectionsOf(
+  parsed: PassageInsightEmit,
+  sections: readonly InsightSection[],
+): PassageInsightSections {
   const out: PassageInsightSections = {};
-  for (const s of PASSAGE_INSIGHT_SECTIONS) {
+  for (const s of sections) {
     const value = (parsed as unknown as Record<string, unknown>)[s.key];
     out[s.key] = typeof value === 'string' ? value : '';
   }
@@ -95,21 +100,22 @@ export function sectionsOf(parsed: PassageInsightEmit): PassageInsightSections {
 }
 
 /** The door's prose as one string, for the content rules and the classifier. */
-function flattenSections(sections: PassageInsightSections): string {
-  return PASSAGE_INSIGHT_SECTIONS.map((s) => sections[s.key]).filter((b) => b.length > 0).join('\n\n');
+function flattenSections(bodies: PassageInsightSections, sections: readonly InsightSection[]): string {
+  return sections.map((s) => bodies[s.key]).filter((b) => b.length > 0).join('\n\n');
 }
 
 // ── Validation ───────────────────────────────────────────────────────────────
 
 export function makePassageInsightValidate(
   ctx: BibleChatContext,
+  door: InsightDoorSpec,
   classifier?: (text: string) => Promise<ContentRuleViolation[]>,
   verifyScripture?: ScriptureDeps,
 ) {
   return async (
     parsed: PassageInsightEmit,
   ): Promise<{ ok: boolean; violations: ChatViolations; repaired?: PassageInsightEmit }> => {
-    const sections = sectionsOf(parsed);
+    const sections = sectionsOf(parsed, door.sections);
     const citations = Array.isArray(parsed.citations) ? parsed.citations : [];
 
     // The same allowlist check study chat runs, on the same structured shape.
@@ -120,18 +126,36 @@ export function makePassageInsightValidate(
       { allowedNoteIds: ctx.allowedNoteIds, allowedVerseRefs: ctx.allowedVerseRefs },
     );
 
-    const content = await applyContentRules(flattenSections(sections), {
+    const content = await applyContentRules(flattenSections(sections, door.sections), {
       banned: BANNED_PHRASES,
-      // NOT exempted. Study chat passes [] here because a reader asking a hard
-      // question deserves labeled readings; Door 1 is descriptive, generated
-      // once, and served to everyone from a shared cache.
+      // NOT exempted, for EITHER door. Study chat passes [] here because a
+      // reader asking a hard question deserves labeled readings; a door is
+      // descriptive, generated once, and served to everyone from a shared
+      // cache. Door 2 keeps the rejection too (Myles, 2026-08-07).
       contested: CONTESTED_PASSAGES,
       growth: GROWTH_BANNED_PHRASES,
       classifier,
     });
 
-    const violations: ChatViolations = { citation: citation.violations, content: content.violations };
-    const baseOk = citation.ok && content.ok;
+    // ── Section-scoped rules ─────────────────────────────────────────────
+    // Door 2's Read With Care carries parent design §9: a caution may name an
+    // interpretive move and never a tradition. Run PER SECTION, never over the
+    // flattened door — the same door's theology section is REQUIRED to name
+    // whose reading it is giving, so a door-wide check would forbid exactly
+    // what the door demands.
+    const sectionViolations: ContentRuleViolation[] = [];
+    for (const s of door.sections) {
+      if (!s.forbidden) continue;
+      sectionViolations.push(
+        ...applySectionRules(sections[s.key] ?? '', s.forbidden.rule, s.forbidden.patterns),
+      );
+    }
+
+    const violations: ChatViolations = {
+      citation: citation.violations,
+      content: [...content.violations, ...sectionViolations],
+    };
+    const baseOk = citation.ok && content.ok && sectionViolations.length === 0;
 
     // Cheapest gates first; a citation failure makes verification moot.
     if (!baseOk || !verifyScripture) return { ok: baseOk, violations };
@@ -139,7 +163,7 @@ export function makePassageInsightValidate(
     // PER SECTION, never over the flattened text: a repair splices by character
     // offset, and an offset into a join belongs to no section.
     const verified = await Promise.all(
-      PASSAGE_INSIGHT_SECTIONS.map((s) =>
+      door.sections.map((s) =>
         verifyArtifactScripture(verifyScripture, {
           text: sections[s.key],
           translation: verifyScripture.translation,
@@ -150,7 +174,7 @@ export function makePassageInsightValidate(
     const repairedSections: PassageInsightSections = {};
     let repairs = 0;
     verified.forEach((result, i) => {
-      const key = PASSAGE_INSIGHT_SECTIONS[i].key;
+      const key = door.sections[i].key;
       violations.content.push(...result.violations);
       if (result.repairedText !== undefined) {
         repairedSections[key] = result.repairedText;
@@ -166,13 +190,28 @@ export function makePassageInsightValidate(
   };
 }
 
-function formatPassageInsightStricter(violations: ChatViolations): string {
-  const parts: string[] = [];
-  if (violations.citation.length > 0) {
-    parts.push('On retry: the citations array must contain only the verse refs supplied to you, spelled exactly as supplied — or be empty.');
-  }
-  parts.push(...formatContentFamilyStricter(violations.content));
-  return parts.join(' ');
+/**
+ * The retry instruction, per door.
+ *
+ * A factory rather than a constant because a section-scoped rule brings its own
+ * `stricter` text: telling the model "do not use prophetic language" — the
+ * generic `banned` message — when what it actually did was name a denomination
+ * asks it to fix something it never did, and the retry is wasted.
+ */
+function makeInsightStricter(door: InsightDoorSpec) {
+  return (violations: ChatViolations): string => {
+    const parts: string[] = [];
+    if (violations.citation.length > 0) {
+      parts.push('On retry: the citations array must contain only the verse refs supplied to you, spelled exactly as supplied — or be empty.');
+    }
+    parts.push(...formatContentFamilyStricter(violations.content));
+    for (const s of door.sections) {
+      if (s.forbidden && violations.content.some((v) => v.rule === s.forbidden!.rule)) {
+        parts.push(s.forbidden.stricter);
+      }
+    }
+    return parts.join(' ');
+  };
 }
 
 // ── Outcome → result mapping ─────────────────────────────────────────────────
@@ -181,8 +220,9 @@ function formatPassageInsightStricter(violations: ChatViolations): string {
 
 function passageInsightResult(
   outcome: Awaited<ReturnType<typeof generateWithRetry<PassageInsightEmit, ChatViolations>>>,
-  promptVersion: string,
+  door: InsightDoorSpec,
 ): PassageInsightResult {
+  const promptVersion = door.prompt.promptVersion;
   if (!outcome.ok) {
     return {
       ok: false,
@@ -196,7 +236,7 @@ function passageInsightResult(
 
   return {
     ok: true,
-    sections: sectionsOf(outcome.parsed),
+    sections: sectionsOf(outcome.parsed, door.sections),
     citations: Array.isArray(outcome.parsed.citations) ? outcome.parsed.citations : [],
     modelUsed: outcome.modelUsed,
     promptVersion,
@@ -209,6 +249,7 @@ function passageInsightResult(
 function generateConfig(args: {
   llm: LLMAdapter;
   ctx: BibleChatContext;
+  door: InsightDoorSpec;
   model?: LLMModel;
   effort?: ReasoningEffort;
   maxTokens?: number;
@@ -220,13 +261,13 @@ function generateConfig(args: {
     model: args.model ?? PASSAGE_INSIGHT_MODEL,
     effort: args.effort ?? PASSAGE_INSIGHT_EFFORT,
     maxTokens: args.maxTokens ?? PASSAGE_INSIGHT_MAX_TOKENS,
-    artifactSystem: PASSAGE_INSIGHT_PROMPT.system,
-    messages: PASSAGE_INSIGHT_PROMPT.buildMessages(args.ctx),
+    artifactSystem: args.door.prompt.system,
+    messages: args.door.prompt.buildMessages(args.ctx),
     // `as const` on the nested schema produces literal types narrower than
     // ToolSchema.input_schema (Record<string, unknown>); cast is type-only.
-    tool: PASSAGE_INSIGHT_PROMPT.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
-    validate: makePassageInsightValidate(args.ctx, args.classifier, args.verifyScripture),
-    formatStricter: formatPassageInsightStricter,
+    tool: args.door.prompt.tool as Parameters<LLMAdapter['generate']>[0]['tool'],
+    validate: makePassageInsightValidate(args.ctx, args.door, args.classifier, args.verifyScripture),
+    formatStricter: makeInsightStricter(args.door),
   };
 }
 
@@ -235,6 +276,8 @@ function generateConfig(args: {
 export async function runPassageInsightPipeline(args: {
   llm: LLMAdapter;
   ctx: BibleChatContext;
+  /** Which door to generate. Defaults to Door 1 — see the note on the constant. */
+  door?: InsightDoorSpec;
   model?: LLMModel;
   effort?: ReasoningEffort;
   maxTokens?: number;
@@ -243,8 +286,11 @@ export async function runPassageInsightPipeline(args: {
   /** Scripture verification with repair-before-reject. Optional at every call site. */
   verifyScripture?: ScriptureDeps;
 }): Promise<PassageInsightResult> {
-  const outcome = await generateWithRetry<PassageInsightEmit, ChatViolations>(generateConfig(args));
-  return passageInsightResult(outcome, PASSAGE_INSIGHT_PROMPT.promptVersion);
+  const door = args.door ?? PASSAGE_DOOR_SPEC;
+  const outcome = await generateWithRetry<PassageInsightEmit, ChatViolations>(
+    generateConfig({ ...args, door }),
+  );
+  return passageInsightResult(outcome, door);
 }
 
 // ── Streaming entry ──────────────────────────────────────────────────────────
@@ -258,13 +304,22 @@ export interface PassageInsightStreamHandlers {
   onRefining: () => void;
 }
 
-/** The four section fields stream as text; `citations` arrives whole. */
-export const PASSAGE_INSIGHT_TEXT_FIELDS = PASSAGE_INSIGHT_SECTIONS.map((s) => s.key);
+/**
+ * A door's section fields stream as text; `citations` arrives whole.
+ *
+ * Derived from the spec rather than fixed, so Door 2's fields stream on the
+ * same path with no second list to keep in step.
+ */
+export function insightTextFields(door: InsightDoorSpec): string[] {
+  return door.sections.map((s) => s.key);
+}
 
 export async function runPassageInsightStreaming(
   args: {
     llm: LLMAdapter;
     ctx: BibleChatContext;
+    /** Which door to generate. Defaults to Door 1 — see the note on the constant. */
+    door?: InsightDoorSpec;
     model?: LLMModel;
     effort?: ReasoningEffort;
     maxTokens?: number;
@@ -274,9 +329,10 @@ export async function runPassageInsightStreaming(
   },
   handlers: PassageInsightStreamHandlers,
 ): Promise<PassageInsightResult> {
+  const door = args.door ?? PASSAGE_DOOR_SPEC;
   const outcome = await generateStreamingWithRetry<PassageInsightEmit, ChatViolations>({
-    ...generateConfig(args),
-    textFields: PASSAGE_INSIGHT_TEXT_FIELDS,
+    ...generateConfig({ ...args, door }),
+    textFields: insightTextFields(door),
     // No perFieldValidate: the section ceilings live in the tool schema, and a
     // per-field length gate here would reject the ONE thing the design makes
     // first-class — a section that legitimately comes back empty.
@@ -287,5 +343,5 @@ export async function runPassageInsightStreaming(
     onRefining: handlers.onRefining,
   });
 
-  return passageInsightResult(outcome, PASSAGE_INSIGHT_PROMPT.promptVersion);
+  return passageInsightResult(outcome, door);
 }

@@ -1,0 +1,28 @@
+{
+  "name": "deeper-james-2",
+  "description": "DENOMINATIONAL BAIT. Faith and works is the passage whose misreadings are habitually named by tradition rather than described as moves, so it is where §9's Read With Care rule is actually tested. A rule like this cannot be proven on passages that never provoke it. The door must name the interpretive move — reading a verse apart from the argument that governs it — without naming who makes it.",
+  "firstName": null,
+  "localDate": "2026-08-07",
+  "periodKey": "2026-08",
+  "notes": [],
+  "highlights": [],
+  "candidateVerses": [],
+  "passageInsight": {
+    "book": "jas",
+    "chapter": 2,
+    "door": "deeper",
+    "expectGrounding": {
+      "minCrossRefs": 3,
+      "minLibraryExcerpts": 2,
+      "requireBookContext": true
+    }
+  },
+  "expect": {
+    "mustNotContain": [
+      "the correct interpretation",
+      "clearly teaches",
+      "settles the debate",
+      "scholars agree"
+    ]
+  }
+}
