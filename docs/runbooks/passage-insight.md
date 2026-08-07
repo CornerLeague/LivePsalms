@@ -4,7 +4,7 @@ How the generated doors' shared cache is migrated, deployed, warmed, and refresh
 
 **Recorded state: 2026-08-07, after B3.** **The corpus holds 8 rows — two Door 1 doors, on Leviticus 1 at both grains** (§6). Warming is on-demand; those are the first two passages a reader generated. Door 2 holds nothing yet.
 
-⚠️ **Migration `061` is written but NOT YET APPLIED**, and `passage-insight` has NOT been redeployed for B3. Until both happen, Door 2 cannot write a row and Door 1's generate path is fine only because the old `onConflict` still matches the old key. §2 and §3 have the steps, and they must be done in the same sitting.
+**Migration `061` applied and `passage-insight` redeployed, 2026-08-07, in the same sitting** — §2 and §3. Both doors are live; Door 2 has generated nothing yet.
 
 ⚠️ **Door 1's prompt moved to `passage-insight-2026-08-07-v2`**, so the two warmed Leviticus doors are stale. That is the designed behaviour (D2 — serve stale, refresh deliberately): the reader is never blocked, and `scripts/refresh-passage-insights.ts --stale` reports them at an estimated $0.11 whenever someone chooses to spend it.
 
@@ -43,7 +43,7 @@ curl -s "$VITE_SUPABASE_URL/rest/v1/bible_passage_insight?select=scope,ref_id,do
 
 **Re-running the migration:** the table and both indexes are `if not exists`, but `create policy` is not. A second run succeeds through the indexes and then errors `policy … already exists` — that error means it is already applied, not that something broke.
 
-### `061_passage_insight_door_key.sql` — ⚠️ NOT YET APPLIED
+### `061_passage_insight_door_key.sql` — applied 2026-08-07
 
 Widens the primary key to `(scope, ref_id, door, section)` and the door check to `('passage','deeper')`, and drops the `(scope, ref_id, door)` index the new key makes redundant.
 
@@ -61,6 +61,8 @@ order by contype;
 ```
 
 Expect `CHECK (door = ANY (ARRAY['passage','deeper']))` and a primary key over `(scope, ref_id, door, section)`.
+
+**Applied by Myles via the SQL Editor, 2026-08-07**, with `passage-insight` redeployed immediately after. Verified from the repo: the table still returns its 8 rows across 2 refs, all `door = 'passage'`, so the key change touched no data — which is what a constraint swap should do.
 
 ## 3. Deploy
 
@@ -106,8 +108,10 @@ Two writes that deliberately never happen:
 | Check | State |
 |---|---|
 | Migration `060` applied, public read live | ✅ 2026-08-06, anon select returns `200 []` |
-| **Migration `061` applied** | ❌ **Not yet.** Door 2 cannot write a row until it is — §2 |
-| **`passage-insight` redeployed for B3** | ❌ **Not yet.** Must follow `061` immediately — §3 |
+| **Migration `061` applied** | ✅ 2026-08-07, by Myles via the SQL Editor. 8 rows intact afterwards |
+| **`passage-insight` redeployed for B3** | ✅ 2026-08-07, same sitting. Bundle manifest carries `insight-doors.ts`, `deeper-insight.ts`, `insight-door.ts` |
+| **Door registry live in the deployed function** | ✅ `door=deeper` → `401` (accepted, then auth), `door=nonsense` → `400` (rejected). That PAIR is what tells a fresh bundle from a stale one — a stale one returns `401` for both |
+| Client read path, Door 2 | ✅ The exact query the hook issues returns `200 []` for `psa.27` at `door=deeper`, so a reader correctly sees *Study this passage* |
 | Function deployed and booting | ✅ 2026-08-06, `401` on unauthenticated POST |
 | Prompt quality, BOTH doors | ✅ `docs/lamplight/evals/2026-08-07-b3-both-doors` — **9/9**, $0.59, zero Scripture violations, zero display-ref leaks. Nine fixtures: dense psalm, verse grain, thin OT chapter, contested chapter and denominational bait |
 | Retrieval steering measured, not assumed | ✅ `2026-08-07-b3-deeper-unsteered` / `-steered` / `-steered-k6`, free grounding sweeps. Door 1 confirmed unchanged by `-door1-regression` |
@@ -119,7 +123,7 @@ Two writes that deliberately never happen:
 | **A second reader gets the cached door instantly** | ⚠️ **Data layer verified, UI not.** The exact query the client hook issues, sent with no bearer token, returns `200` and all four sections against the real `lev.1` rows. That a signed-out reader sees it with no spinner and no entitlement prompt still needs a browser |
 | **An interrupted generation leaves the door uncached** | ❌ Unit-tested only |
 
-The two reader-level checks need a browser and an authenticated Plus/promo session, which is why they are listed rather than done. §6 is the procedure. The migration and deploy are the two that block Door 2 entirely.
+The remaining checks need a browser and an authenticated Plus/promo session, which is why they are listed rather than done. §6 is the procedure.
 
 ## 6. Running the outstanding checks
 

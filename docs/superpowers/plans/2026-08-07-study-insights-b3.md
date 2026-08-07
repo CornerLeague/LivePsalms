@@ -91,7 +91,7 @@ So **end-to-end generation works on both grains**, and the read path works signe
 
 | Task | State | Note |
 |---|---|---|
-| 1 — migration 061 | code done, **SQL NOT APPLIED** | needs the SQL Editor; §2 of the runbook |
+| 1 — migration 061 | done, **APPLIED 2026-08-07** | via the SQL Editor; function redeployed the same sitting |
 | 2 — the generic seam | done | byte gate caught a 7-char drift on its first run |
 | 3 — Door 2's prompt | done | `deeper-insight-2026-08-07-v1` |
 | 4 — §9 as a rule | done | caught the John-the-Baptist false positive |
@@ -102,13 +102,16 @@ So **end-to-end generation works on both grains**, and the read path works signe
 | 9 — attribution | done, **prompt change NOT made** | the measurement said it was unwarranted |
 | 10 — baseline then registration | done | in that order |
 | 11 — runbook + `--door` | done | |
-| 12 — completion gate | **partly — 3 human-only steps** | see below |
+| 12 — completion gate | **partly — 2 browser checks left** | migration and deploy are done |
 
-### Still to do, and all three need a human
+### Still to do — two browser checks
 
-1. **Apply migration `061`** via the SQL Editor. **Until then Door 2 cannot write a row.**
-2. **Redeploy `passage-insight`**, in the same sitting as (1) — the `onConflict` and the new PK must land together, and the whole B3 server change is in `lamplight-study/`.
-3. **The two browser checks**: a signed-out reader seeing a cached door with no spinner and no entitlement prompt, and an interrupted generation leaving the door uncached.
+Migration `061` was applied and `passage-insight` redeployed on 2026-08-07, in the same sitting. Both doors are live and Door 2 has generated nothing yet.
+
+1. A signed-out reader sees a cached door with **no spinner and no entitlement prompt** — the data layer is proven, the UI is not.
+2. An **interrupted** generation leaves the door uncached rather than half-written.
+
+Runbook §6 carries both, alongside the Door 2 steps (8–10) that also want a first run.
 
 ### Decisions made while implementing, that are not in the design
 
@@ -131,8 +134,8 @@ So **end-to-end generation works on both grains**, and the read path works signe
 - [x] Write `061_passage_insight_door_key.sql`: drop and re-add the door check as `check (door in ('passage','deeper'))`; drop `bible_passage_insight_pkey` and add `primary key (scope, ref_id, door, section)`.
 - [x] Drop the now-redundant `bible_passage_insight_door` index — the new PK's index covers the `(scope, ref_id, door)` prefix.
 - [x] Failing test: `writePassageDoor` upserts with `onConflict: 'scope,ref_id,door,section'`.
-- [ ] Apply by hand via the SQL Editor, then verify from the repo with an anon-key select (`200 []`), exactly as 060 was verified.
-- [ ] Record the application date and the pre-existing row count in the runbook.
+- [x] Apply by hand via the SQL Editor, then verify from the repo with an anon-key select (`200 []`), exactly as 060 was verified. **Applied 2026-08-07 by Myles; 8 rows intact afterwards.**
+- [x] Record the application date and the pre-existing row count in the runbook.
 
 **Requirements:** the table holds **8 rows**, all on `door = 'passage'` (two Leviticus 1 doors — see *Read before starting*), which is why this is still free: no rewrite, no dedup, no backfill, no possible conflict. It will never be cheaper. Do not defer it on the argument that B3's section keys don't collide with B2's; "no collision today" is not a constraint, and B2 wrote this landmine down precisely so B3 would close it.
 
@@ -249,7 +252,7 @@ So **end-to-end generation works on both grains**, and the read path works signe
 
 - [x] `npx tsc -b` clean · `npx eslint .` at its **163-problem baseline**, not zero · `npx vitest run` green (**4,089** at plan time).
 - [x] Manual `tsc --noEmit --allowImportingTsExtensions` on `passage-insight/index.ts` — only the `deno.land` import and the `Deno` global may error.
-- [ ] Redeploy `passage-insight` — **anything under `supabase/functions/lamplight-study/` changing means the function is stale**, and B3 changes most of it. Re-verify boot: 401 unauthenticated, 400 on a bad body.
+- [x] Redeploy `passage-insight` — **anything under `supabase/functions/lamplight-study/` changing means the function is stale**, and B3 changes most of it. Re-verify boot: 401 unauthenticated, 400 on a bad body. **Deployed 2026-08-07; five boot checks pass, including `door=deeper` → 401 and `door=nonsense` → 400.**
 - [x] Client read path against the real table for a Door 2 ref: the exact query the hook issues returns `200 []`, so a reader correctly sees the generate action rather than an error.
 - [ ] **The live checks B3 inherits.** End-to-end generate and the signed-out cached read are **done for Door 1** (see *Read before starting*) — repeat both for Door 2, which is the one riding new code. Still genuinely unverified for either door, and human-only because they need a browser and an authenticated Plus/promo session:
   - [ ] a signed-out reader sees a cached door with **no spinner and no entitlement prompt** (the data layer is proven; the UI is not);
