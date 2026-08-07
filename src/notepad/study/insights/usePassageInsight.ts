@@ -1,5 +1,6 @@
 // src/notepad/study/insights/usePassageInsight.ts
-// Insights Door 1 ("The Passage") — the reader's two paths.
+// A generated Insights door — the reader's two paths. Door-generic since B3:
+// the door's id and section list come from the registry entry it is given.
 //
 // CACHED → one public DB read, rendered immediately. No spinner, no stream, no
 // entitlement: `bible_passage_insight` is public-read (migration 060), exactly
@@ -13,12 +14,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
-  PASSAGE_SECTIONS,
   passageRefId,
   passageScopeKind,
   type PassageInsightInvoke,
   type PassageInsightScope,
 } from './passage-insight-stream-client';
+import { PASSAGE_DOOR_VIEW, type InsightDoorView } from './insight-doors';
 
 export interface UsePassageInsightResult {
   /** null = never generated. A door that generated with nothing to say is `{}` of empty strings, which is different. */
@@ -33,17 +34,19 @@ export interface UsePassageInsightResult {
   generate: () => Promise<void>;
 }
 
-const DOOR = 'passage';
-
 interface CacheRow { section: string; body: string }
 
 /**
  * @param invoke null for a reader who cannot generate (signed out, or without
  *   Plus/promo). The cache read still runs — cached doors are free and public.
+ * @param door which door to read and generate. Defaults to Door 1 so B2's
+ *   call sites keep working; the id is what scopes the cache query, and the
+ *   section list is what shapes the result.
  */
 export function usePassageInsight(
   scope: PassageInsightScope,
   invoke: PassageInsightInvoke | null,
+  door: InsightDoorView = PASSAGE_DOOR_VIEW,
 ): UsePassageInsightResult {
   const [sections, setSections] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +57,8 @@ export function usePassageInsight(
   // Keyed on the primitive fields, not the object, so a caller passing an
   // inline literal does not refetch on every render.
   const { book, chapter, verse } = scope;
+  const doorId = door.id;
+  const sectionKeys = door.sections;
   const resolved = useMemo(
     () => ({ scope: { book, chapter, verse }, refId: passageRefId({ book, chapter, verse }) }),
     [book, chapter, verse],
@@ -74,7 +79,7 @@ export function usePassageInsight(
         .select('section, body')
         .eq('scope', passageScopeKind(resolved.scope))
         .eq('ref_id', resolved.refId)
-        .eq('door', DOOR);
+        .eq('door', doorId);
 
       if (cancelled) return;
 
@@ -86,14 +91,14 @@ export function usePassageInsight(
         setSections(null);
       } else {
         const bySection = new Map(rows.map((r) => [r.section, r.body]));
-        setSections(Object.fromEntries(PASSAGE_SECTIONS.map((s) => [s.key, bySection.get(s.key) ?? ''])));
+        setSections(Object.fromEntries(sectionKeys.map((s) => [s.key, bySection.get(s.key) ?? ''])));
         setCached(true);
       }
       setLoading(false);
     })();
 
     return () => { cancelled = true; };
-  }, [resolved]);
+  }, [resolved, doorId, sectionKeys]);
 
   const generate = useCallback(async () => {
     if (!invoke) return;
@@ -101,13 +106,14 @@ export function usePassageInsight(
     setError(null);
     // Start from four empty strings rather than null: the sections are about to
     // fill in one at a time, and the door renders each as it arrives.
-    setSections(Object.fromEntries(PASSAGE_SECTIONS.map((s) => [s.key, ''])));
+    setSections(Object.fromEntries(sectionKeys.map((s) => [s.key, ''])));
 
     try {
       await invoke(resolved.scope, {
+        doorId,
         onCached: ({ sections: warm }) => {
           // Another reader warmed this door between our read and our press.
-          setSections(Object.fromEntries(PASSAGE_SECTIONS.map((s) => [s.key, warm[s.key] ?? ''])));
+          setSections(Object.fromEntries(sectionKeys.map((s) => [s.key, warm[s.key] ?? ''])));
           setCached(true);
         },
         onEvent: (ev) => {
@@ -124,7 +130,7 @@ export function usePassageInsight(
             const payload = ev.payload as { sections?: Record<string, string>; cached?: boolean } | null;
             if (payload?.sections) {
               setSections(Object.fromEntries(
-                PASSAGE_SECTIONS.map((s) => [s.key, payload.sections?.[s.key] ?? '']),
+                sectionKeys.map((s) => [s.key, payload.sections?.[s.key] ?? '']),
               ));
             }
             // FALSE when the server refused to write an all-empty door. Saying
@@ -149,7 +155,7 @@ export function usePassageInsight(
     } finally {
       setStreaming(false);
     }
-  }, [invoke, resolved]);
+  }, [invoke, resolved, doorId, sectionKeys]);
 
   return { sections, loading, streaming, error, cached, generate };
 }

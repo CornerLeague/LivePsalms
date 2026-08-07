@@ -5,20 +5,24 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { PASSAGE_SECTIONS, type PassageInsightSseEvent, type PassageInsightInvoke } from './passage-insight-stream-client';
+import { DEEPER_DOOR_VIEW, PASSAGE_DOOR_VIEW } from './insight-doors';
 
 type Result = { data: unknown; error: unknown };
 
-const { from, setResult } = vi.hoisted(() => {
+const { from, setResult, eqs } = vi.hoisted(() => {
   let result: Result = { data: [], error: null };
+  const eqs: Array<[string, unknown]> = [];
   const from = vi.fn(() => {
     const builder: Record<string, unknown> = {};
     builder.select = () => builder;
-    builder.eq = () => builder;
+    // Recorded, not swallowed: "this door reads its OWN cache rows" is the
+    // assertion that keeps two doors from rendering each other's content.
+    builder.eq = (col: string, val: unknown) => { eqs.push([col, val]); return builder; };
     builder.then = (res: (v: Result) => unknown, rej?: (e: unknown) => unknown) =>
       Promise.resolve(result).then(res, rej);
     return builder;
   });
-  return { from, setResult: (r: Result) => { result = r; } };
+  return { from, setResult: (r: Result) => { result = r; }, eqs };
 });
 
 vi.mock('@/lib/supabase', () => ({ supabase: { from } }));
@@ -37,7 +41,7 @@ function scriptedInvoke(beats: PassageInsightSseEvent[]): PassageInsightInvoke {
   });
 }
 
-beforeEach(() => { setResult({ data: [], error: null }); from.mockClear(); });
+beforeEach(() => { setResult({ data: [], error: null }); from.mockClear(); eqs.length = 0; });
 afterEach(() => cleanup());
 
 describe('PassageDoor — a cached door', () => {
@@ -168,5 +172,67 @@ describe('PassageDoor — an uncached door', () => {
     // stay on screen pretending to be a door.
     expect(await screen.findByRole('button', { name: /study this passage/i })).toBeTruthy();
     expect(screen.queryByText('David opens')).toBeNull();
+  });
+});
+
+// ── Two doors, one component (B3) ────────────────────────────────────────────
+
+describe('PassageDoor — rendering Door 2', () => {
+  const DEEPER_KEYS = DEEPER_DOOR_VIEW.sections.map((s) => s.key);
+  const deeperRows = () => DEEPER_KEYS.map((k) => ({ section: k, body: `The body of ${k}.` }));
+
+  it('renders Door 2’s headings, not Door 1’s', async () => {
+    setResult({ data: deeperRows(), error: null });
+    render(<PassageDoor scope={SCOPE} invoke={scriptedInvoke([])} canGenerate door={DEEPER_DOOR_VIEW} />);
+
+    for (const s of DEEPER_DOOR_VIEW.sections) {
+      expect(await screen.findByText(s.label)).toBeTruthy();
+    }
+    // And none of Door 1's, which is the half that would fail silently.
+    for (const s of PASSAGE_DOOR_VIEW.sections) {
+      expect(screen.queryByText(s.label)).toBeNull();
+    }
+  });
+
+  it('reads its own cache rows', async () => {
+    setResult({ data: deeperRows(), error: null });
+    render(<PassageDoor scope={SCOPE} invoke={scriptedInvoke([])} canGenerate door={DEEPER_DOOR_VIEW} />);
+    await screen.findByText('How to Read This Passage');
+
+    expect(eqs).toContainEqual(['door', 'deeper']);
+    expect(eqs).not.toContainEqual(['door', 'passage']);
+  });
+
+  it('tells the server which door to generate', async () => {
+    const invoke = scriptedInvoke([]);
+    render(<PassageDoor scope={SCOPE} invoke={invoke} canGenerate door={DEEPER_DOOR_VIEW} />);
+
+    const button = await screen.findByRole('button', { name: /study this passage/i });
+    await userEvent.click(button);
+
+    await waitFor(() => expect(invoke).toHaveBeenCalled());
+    const handlers = (invoke as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(handlers.doorId).toBe('deeper');
+  });
+
+  it('omits an empty Read With Care entirely — no heading, no placeholder', async () => {
+    // Door 2 hits this more often than Door 1: a genealogy invites no cautions,
+    // and §9 says an ungroundable one is not written at all.
+    setResult({
+      data: deeperRows().map((r) => (r.section === 'read_with_care' ? { ...r, body: '' } : r)),
+      error: null,
+    });
+    render(<PassageDoor scope={SCOPE} invoke={scriptedInvoke([])} canGenerate door={DEEPER_DOOR_VIEW} />);
+
+    expect(await screen.findByText('Theological Significance')).toBeTruthy();
+    expect(screen.queryByText('Read With Care')).toBeNull();
+  });
+
+  it('still defaults to Door 1 when no door is passed', async () => {
+    setResult({ data: rows(), error: null });
+    render(<PassageDoor scope={SCOPE} invoke={scriptedInvoke([])} canGenerate />);
+
+    expect(await screen.findByText('Overview')).toBeTruthy();
+    expect(eqs).toContainEqual(['door', 'passage']);
   });
 });
