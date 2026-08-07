@@ -100,9 +100,18 @@ export function InsightsOverlay({ book, chapter, selectedVerse, doors, onClose }
       }}
     >
       <header
+        role="banner"
         style={{
           flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 16px', borderBottom: '1px solid var(--pale-stone)',
+          // Safe areas: this is the one deliberately full-bleed surface in the
+          // app — a body-level portal at inset 0 — so nothing else is padding
+          // for the notch on its behalf. StudyTabBar has always done this for
+          // the home indicator; the overlay that covers it never did.
+          paddingTop: 'calc(6px + env(safe-area-inset-top))',
+          paddingBottom: 6,
+          paddingLeft: 'calc(12px + env(safe-area-inset-left))',
+          paddingRight: 'calc(12px + env(safe-area-inset-right))',
+          borderBottom: '1px solid var(--pale-stone)',
         }}
       >
         {openDoor && !single && (
@@ -112,6 +121,9 @@ export function InsightsOverlay({ book, chapter, selectedVerse, doors, onClose }
             aria-label="Back to all insights"
             style={{
               display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px',
+              // 44px: the back and close controls are how a reader LEAVES a
+              // full-screen surface, and both were sized for a mouse.
+              minHeight: 44, flexShrink: 0,
               border: 'none', background: 'transparent', cursor: 'pointer',
               color: 'var(--deep-umber)', fontSize: 12,
             }}
@@ -120,14 +132,29 @@ export function InsightsOverlay({ book, chapter, selectedVerse, doors, onClose }
           </button>
         )}
 
-        <div data-testid="insights-scope" style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 13, color: 'var(--deep-umber)', fontWeight: 600 }}>{scopeLabel}</span>
+        {/* minWidth: 0 lets the label ellipsize instead of forcing the row wider
+            than the viewport — "2 Thessalonians 3" plus a toggle plus a back
+            control is more than 360px of header. */}
+        <div
+          data-testid="insights-scope"
+          style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}
+        >
+          <span
+            data-testid="insights-scope-label"
+            style={{
+              fontSize: 13, color: 'var(--deep-umber)', fontWeight: 600,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}
+          >
+            {scopeLabel}
+          </span>
           {selectedVerse !== null && (
             <button
               type="button"
               onClick={() => setWholeChapter((w) => !w)}
               style={{
-                border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
+                border: 'none', background: 'transparent', cursor: 'pointer',
+                padding: '4px 0', minHeight: 44, flexShrink: 0,
                 fontSize: 11, color: 'var(--lamplight-accent)',
               }}
             >
@@ -145,7 +172,8 @@ export function InsightsOverlay({ book, chapter, selectedVerse, doors, onClose }
           aria-label="Close insights"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 28, height: 28, border: 'none', background: 'transparent',
+            minWidth: 44, minHeight: 44, flexShrink: 0,
+            border: 'none', background: 'transparent',
             cursor: 'pointer', color: 'var(--silica)', borderRadius: 6,
           }}
         >
@@ -154,7 +182,18 @@ export function InsightsOverlay({ book, chapter, selectedVerse, doors, onClose }
       </header>
 
       <div style={{ flex: '1 1 0%', minHeight: 0, overflow: 'auto' }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '20px 16px 48px' }}>
+        <div
+          data-testid="insights-body"
+          style={{
+            maxWidth: 760, margin: '0 auto',
+            paddingTop: 20,
+            // The last section must clear the home indicator. 48px of slack was
+            // enough on a desktop and is not on a phone.
+            paddingBottom: 'calc(48px + env(safe-area-inset-bottom))',
+            paddingLeft: 'calc(16px + env(safe-area-inset-left))',
+            paddingRight: 'calc(16px + env(safe-area-inset-right))',
+          }}
+        >
           {openDoor
             ? openDoor.render(scope)
             : (

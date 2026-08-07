@@ -44,6 +44,15 @@ describe('client door registry ↔ server door registry', () => {
       for (const s of d.sections) expect(s.label.trim().length).toBeGreaterThan(0);
     }
   });
+
+  it('every client section carries a seeded prompt (B4)', () => {
+    // Also client-only, and asserted HERE rather than beside the prompts
+    // themselves so a door added later cannot ship a section whose footer
+    // renders nothing. The parity suite is the file a new door is read against.
+    for (const d of INSIGHT_DOOR_VIEWS) {
+      for (const s of d.sections) expect(typeof s.seededPrompt).toBe('function');
+    }
+  });
 });
 
 describe('the door ids the migration 061 check constraint admits', () => {

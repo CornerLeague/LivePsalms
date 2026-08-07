@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { InsightsOverlay } from '../insights/InsightsOverlay';
 import { referenceDoor, passageDoor, deeperDoor, canGenerateInsights } from '../insights/doors';
+import { useStudyHandoff } from '../insights/study-handoff';
 import { useLamplightEntitlement } from '@/notepad/hooks/useLamplightEntitlement';
 import '../study-theme.css';
 
@@ -52,14 +53,25 @@ export function MobileStudyWorkspace() {
   // Both halves: a global promo makes hasAccess true for everyone, signed in or
   // not. See canGenerateInsights.
   const canGenerate = canGenerateInsights({ userId, hasInlineAccess: hasAccess('inline') });
+  // The Insights → Chat seam. One press does three things, and only this
+  // component can do all three: close the overlay, switch to the Study tab, and
+  // hand the draft to the chat pane. The panes are display-toggled and never
+  // unmount, so the draft that lands survives the tab switch — that is what
+  // parent §8 means by "shared draft state, not a remount".
+  const { handoff, sendToChat } = useStudyHandoff();
+  const handleHandoff = useCallback((prompt: string) => {
+    sendToChat(prompt);
+    setInsightsOpen(false);
+    setTab('study');
+  }, [sendToChat]);
   const doors = useMemo(
     // Door order is reading order: The Passage first, Sources & Reference last.
     () => [
-      passageDoor({ translation, userId, adapter: lamplightAdapter, canGenerate }),
-      deeperDoor({ translation, userId, adapter: lamplightAdapter, canGenerate }),
+      passageDoor({ translation, userId, adapter: lamplightAdapter, canGenerate, onHandoff: handleHandoff }),
+      deeperDoor({ translation, userId, adapter: lamplightAdapter, canGenerate, onHandoff: handleHandoff }),
       referenceDoor({ translation, userId, adapter: lamplightAdapter }),
     ],
-    [translation, userId, lamplightAdapter, canGenerate],
+    [translation, userId, lamplightAdapter, canGenerate, handleHandoff],
   );
 
   // Stable + guarded so BibleReader's passage effect can't loop (see DesktopStudyWorkspace).
@@ -122,6 +134,7 @@ export function MobileStudyWorkspace() {
                 chapter={passage.chapter}
                 userId={userId}
                 onOpenInsights={() => setInsightsOpen(true)}
+                handoff={handoff}
               />
             </div>
             <div style={{ height: '100%', display: tab === 'context' ? 'block' : 'none', overflow: 'auto' }}>

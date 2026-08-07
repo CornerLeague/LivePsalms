@@ -23,7 +23,8 @@ export interface StreamStudyArgs {
   includeNotes?: boolean;
   noteIds?: string[];
   translation?: string;
-  mode?: 'chat' | 'insight';
+  /** The server still ACCEPTS the legacy `'insight'`; no client sends it. */
+  mode?: 'chat' | 'opener';
   threadId?: string;
 }
 
@@ -72,7 +73,7 @@ export function makeStudyStreamInvoke(client: SupabaseClient): StudyStreamInvoke
     }
     // Guard: only a 200 with SSE content-type confirms the server started the
     // stream AND persisted the user message. onStart gates the fallback, so it
-    // must not fire for non-SSE 200s (e.g. insight-skip JSON 200).
+    // must not fire for non-SSE 200s (e.g. opener-skip JSON 200).
     const contentType = res.headers?.get('content-type') ?? '';
     if (!contentType.includes('text/event-stream')) {
       throw new Error(`lamplight-study: unexpected non-SSE 200 response`);

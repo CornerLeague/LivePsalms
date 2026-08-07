@@ -9,7 +9,11 @@ import { NoteCollectionContext } from '../../context/useNoteCollection';
 import { FolderHierarchyContext } from '../../context/useFolderHierarchy';
 
 vi.mock('@/notepad/components/Editor', () => ({ NotepadEditor: () => <div>editor</div> }));
-vi.mock('./LamplightStudyPanel', () => ({ LamplightStudyPanel: () => <div>chat-panel</div> }));
+vi.mock('./LamplightStudyPanel', () => ({
+  LamplightStudyPanel: (p: { handoff?: { id: number; text: string } | null }) => (
+    <div data-testid="chat-panel" data-handoff={p.handoff ? p.handoff.text : ''}>chat-panel</div>
+  ),
+}));
 vi.mock('../memorize/MemorizePanel', () => ({ MemorizePanel: () => <div>memorize-panel</div> }));
 
 import { StudySidePanel } from './StudySidePanel';
@@ -140,5 +144,58 @@ describe('StudySidePanel', () => {
     expect(screen.getByRole('tab', { name: /memorize/i }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('false');
     expect(screen.getByText('memorize-panel')).toBeInTheDocument();
+  });
+});
+
+describe('StudySidePanel — the Insights handoff (B4)', () => {
+  let adapter: FakeStorageAdapter;
+  let collection: NoteCollection;
+  let hierarchy: FolderHierarchy;
+
+  beforeEach(() => {
+    adapter = new FakeStorageAdapter();
+    collection = new NoteCollection(adapter);
+    hierarchy = new FolderHierarchy(adapter);
+  });
+
+  function wrapper({ children }: { children: ReactNode }) {
+    return (
+      <NoteCollectionContext.Provider value={collection}>
+        <FolderHierarchyContext.Provider value={hierarchy}>
+          {children}
+        </FolderHierarchyContext.Provider>
+      </NoteCollectionContext.Provider>
+    );
+  }
+
+  const handoff = { id: 1, text: 'What is Psalm 27 not saying?' };
+
+  it('switches its own tab to Chat when a handoff arrives', () => {
+    const { rerender } = render(<StudySidePanel book="psa" chapter={27} userId="u1" />, { wrapper });
+    expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('true');
+
+    rerender(<StudySidePanel book="psa" chapter={27} userId="u1" handoff={handoff} />);
+    expect(screen.getByRole('tab', { name: /chat/i }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('passes the handoff on to the chat panel', () => {
+    const { rerender } = render(<StudySidePanel book="psa" chapter={27} userId="u1" />, { wrapper });
+    rerender(<StudySidePanel book="psa" chapter={27} userId="u1" handoff={handoff} />);
+    expect(screen.getByTestId('chat-panel').getAttribute('data-handoff')).toBe(handoff.text);
+  });
+
+  it('leaves the reader where they are when no handoff arrives', () => {
+    const { rerender } = render(<StudySidePanel book="psa" chapter={27} userId="u1" />, { wrapper });
+    fireEvent.click(screen.getByRole('tab', { name: /memorize/i }));
+    rerender(<StudySidePanel book="psa" chapter={27} userId="u1" />);
+    expect(screen.getByRole('tab', { name: /memorize/i }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('does NOT switch tabs when it mounts with a handoff already present', () => {
+    // The remount case: collapsing and re-expanding the pane must not yank the
+    // reader back to Chat on a handoff they already acted on.
+    render(<StudySidePanel book="psa" chapter={27} userId="u1" handoff={handoff} />, { wrapper });
+    expect(screen.getByRole('tab', { name: /notes/i }).getAttribute('aria-selected')).toBe('true');
   });
 });

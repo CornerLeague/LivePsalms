@@ -1,4 +1,4 @@
-// Opening study insight (no user question). Same voice as STUDY_CHAT_PROMPT,
+// The study OPENER (no user question). Same voice as STUDY_CHAT_PROMPT,
 // but a much shorter register — and therefore its own ceiling.
 import { STUDY_CHAT_PROMPT } from './study-chat.ts';
 import { makeChatReplyTool } from '../../lamplight-chat/prompts/bible-chat.ts';
@@ -11,7 +11,7 @@ const SYSTEM = STUDY_CHAT_PROMPT.system +
   // instructions would otherwise contradict each other in the same prompt.
   ' Ignore the word target above: this opener is 60–120 words, two or three sentences. Finish your final sentence.';
 
-export const STUDY_INSIGHT_PROMPT: ChatPromptModule = {
+export const STUDY_OPENER_PROMPT: ChatPromptModule = {
   // v4. Two changes, both tracking the study system this composes:
   //  · its own reply ceiling and an explicit word target. It previously
   //    inherited journaling's 1400 with no length guidance at all — the same

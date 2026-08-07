@@ -7,7 +7,7 @@ afterEach(cleanup);
 const sendStudyMessage = vi.fn();
 vi.mock('../study-chat-client', () => ({
   sendStudyMessage: (...a: unknown[]) => sendStudyMessage(...a),
-  requestStudyInsight: vi.fn().mockResolvedValue({ ok: false, reason: 'skipped' }),
+  requestStudyOpener: vi.fn().mockResolvedValue({ ok: false, reason: 'skipped' }),
 }));
 const studyThreadMessages: Array<{ id: string; role: 'user' | 'assistant'; content: string; citations: unknown[] }> = [];
 const studyThreadCalls: Array<unknown[]> = [];
@@ -353,5 +353,91 @@ describe('LamplightStudyPanel history timestamps keep ticking while open', () =>
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('LamplightStudyPanel — the Insights handoff (B4)', () => {
+  beforeEach(() => {
+    historyItems.length = 0;
+    studyThreadCalls.length = 0;
+    sendStudyMessage.mockReset();
+    streamStudyMessage.mockReset();
+  });
+  afterEach(() => { studyThreadMessages.length = 0; historyItems.length = 0; studyThreadCalls.length = 0; });
+
+  const SEEDED = 'What is Psalm 27:4 not saying?';
+
+  it('puts a handoff in the draft and does NOT send it', () => {
+    const { rerender } = render(<LamplightStudyPanel book="psa" chapter={27} userId="u1" />);
+    rerender(<LamplightStudyPanel book="psa" chapter={27} userId="u1" handoff={{ id: 1, text: SEEDED }} />);
+
+    expect((screen.getByPlaceholderText(/ask/i) as HTMLInputElement).value).toBe(SEEDED);
+    // Decision 7: the reader stays the author. Nothing goes out on its own.
+    expect(streamStudyMessage).not.toHaveBeenCalled();
+    expect(sendStudyMessage).not.toHaveBeenCalled();
+  });
+
+  it('focuses the input so the draft reads as editable, not as a thing to press send on', () => {
+    const { rerender } = render(<LamplightStudyPanel book="psa" chapter={27} userId="u1" />);
+    rerender(<LamplightStudyPanel book="psa" chapter={27} userId="u1" handoff={{ id: 1, text: SEEDED }} />);
+    expect(document.activeElement).toBe(screen.getByPlaceholderText(/ask/i));
+  });
+
+  it('the reader can edit the seeded draft, and a second handoff replaces it', () => {
+    const { rerender } = render(<LamplightStudyPanel book="psa" chapter={27} userId="u1" />);
+    rerender(<LamplightStudyPanel book="psa" chapter={27} userId="u1" handoff={{ id: 1, text: SEEDED }} />);
+
+    const input = screen.getByPlaceholderText(/ask/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'my own question' } });
+    expect(input.value).toBe('my own question');
+
+    rerender(<LamplightStudyPanel book="psa" chapter={27} userId="u1" handoff={{ id: 2, text: SEEDED }} />);
+    expect(input.value).toBe(SEEDED);
+  });
+
+  it('⚠️ a handoff arriving while a HISTORY THREAD is open returns to the passage', async () => {
+    // The failure this seam is most likely to ship with, and it only reproduces
+    // when the reader has been in history first. groundBook/groundChapter come
+    // from the SELECTION, not the props — so without the reset, a seeded prompt
+    // about Psalm 27 would ground on Romans 8 and append to Romans 8's thread,
+    // breaking the one thing decision 7 actually settles.
+    historyItems.push({ threadId: 'thread-42', book: 'rom', chapter: 8, title: 'Paul', updatedAt: '2026-06-27T12:00:00Z' });
+    streamStudyMessage.mockImplementation(async (_a: unknown, h: { onEvent: (ev: unknown) => void; onStart?: () => void }) => {
+      h.onStart?.();
+      h.onEvent({ t: 'done', payload: { ok: true, reply: 'ok', citations: [], offered_notes: [] } });
+    });
+
+    const { rerender } = render(<LamplightStudyPanel book="psa" chapter={27} userId="u1" />);
+    fireEvent.click(screen.getByRole('button', { name: /history/i }));
+    fireEvent.click(screen.getByText(/romans 8 ·/i));
+
+    rerender(<LamplightStudyPanel book="psa" chapter={27} userId="u1" handoff={{ id: 1, text: SEEDED }} />);
+
+    // The reopened thread is dropped: the thread hook goes back to passage mode.
+    expect(studyThreadCalls[studyThreadCalls.length - 1][3]).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(streamStudyMessage).toHaveBeenCalled());
+    const sent = streamStudyMessage.mock.calls[0][0] as { book: string; chapter: number; threadId?: string };
+    expect(sent.book).toBe('psa');
+    expect(sent.chapter).toBe(27);
+    expect(sent.threadId).toBeUndefined();
+  });
+
+  it('closes the history list, so the reader lands on the conversation they are about to add to', () => {
+    historyItems.push({ threadId: 'thread-42', book: 'rom', chapter: 8, title: 'Paul', updatedAt: '2026-06-27T12:00:00Z' });
+    const { rerender } = render(<LamplightStudyPanel book="psa" chapter={27} userId="u1" />);
+    fireEvent.click(screen.getByRole('button', { name: /history/i }));
+    expect(screen.getByText(/romans 8 ·/i)).toBeTruthy();
+
+    rerender(<LamplightStudyPanel book="psa" chapter={27} userId="u1" handoff={{ id: 1, text: SEEDED }} />);
+    expect(screen.queryByText(/romans 8 ·/i)).toBeNull();
+  });
+
+  it('applies nothing when it MOUNTS with a handoff already present', () => {
+    // Desktop collapse → re-expand remounts this panel with the workspace's
+    // last handoff still in state. It must not resurrect a cleared draft.
+    render(<LamplightStudyPanel book="psa" chapter={27} userId="u1" handoff={{ id: 9, text: SEEDED }} />);
+    expect((screen.getByPlaceholderText(/ask/i) as HTMLInputElement).value).toBe('');
   });
 });

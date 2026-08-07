@@ -371,7 +371,7 @@ describe('LamplightChat reflection streaming', () => {
     // Reflection routes through the SAME streaming transport, in insight mode.
     await waitFor(() => expect(stream).toHaveBeenCalledWith(
       'lamplight-chat',
-      { book: 'jhn', chapter: 10, mode: 'insight', translation: 'BSB' },
+      { book: 'jhn', chapter: 10, mode: 'opener', translation: 'BSB' },
       expect.objectContaining({ onEvent: expect.any(Function), signal: expect.any(AbortSignal) }),
     ));
     // Buffered insight path must NOT be used when streaming.

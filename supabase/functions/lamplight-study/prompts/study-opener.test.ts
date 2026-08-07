@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { STUDY_INSIGHT_PROMPT } from './study-insight.ts';
+import { STUDY_OPENER_PROMPT } from './study-opener.ts';
 import type { BibleChatContext } from '../../lamplight-chat/bible-chat-pipeline.ts';
 
 const ctx: BibleChatContext = {
@@ -9,42 +9,42 @@ const ctx: BibleChatContext = {
   bookContext: null,
 };
 
-describe('STUDY_INSIGHT_PROMPT', () => {
+describe('STUDY_OPENER_PROMPT', () => {
   it('versions itself and produces a single user turn with no question', () => {
-    expect(STUDY_INSIGHT_PROMPT.promptVersion).toMatch(/^study-insight-/);
-    const msgs = STUDY_INSIGHT_PROMPT.buildMessages(ctx);
+    expect(STUDY_OPENER_PROMPT.promptVersion).toMatch(/^study-insight-/);
+    const msgs = STUDY_OPENER_PROMPT.buildMessages(ctx);
     expect(msgs).toHaveLength(1);
     expect(msgs[0].role).toBe('user');
     expect(msgs[0].content).toContain('rom 8');
   });
 });
 
-describe('STUDY_INSIGHT_PROMPT — slice 1c', () => {
+describe('STUDY_OPENER_PROMPT — slice 1c', () => {
   it('bumps its version alongside the study system it composes', () => {
-    expect(STUDY_INSIGHT_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v5');
+    expect(STUDY_OPENER_PROMPT.promptVersion).toBe('study-insight-2026-08-06-v5');
   });
 
   it('overrides the study word target — an opener is a doorway, not an answer', () => {
     // It composes STUDY_CHAT_PROMPT.system, which asks for 200-400 words. Left
     // unaddressed the two instructions contradict each other in one prompt.
-    expect(STUDY_INSIGHT_PROMPT.system).toContain('Ignore the word target above');
-    expect(STUDY_INSIGHT_PROMPT.system).toMatch(/60.{0,3}120 words/);
+    expect(STUDY_OPENER_PROMPT.system).toContain('Ignore the word target above');
+    expect(STUDY_OPENER_PROMPT.system).toMatch(/60.{0,3}120 words/);
   });
 
   it('inherits the contested exemption from the system it composes', () => {
-    expect(STUDY_INSIGHT_PROMPT.allowContestedRefs).toBe(true);
-    expect(STUDY_INSIGHT_PROMPT.system).toContain('do not adjudicate');
+    expect(STUDY_OPENER_PROMPT.allowContestedRefs).toBe(true);
+    expect(STUDY_OPENER_PROMPT.system).toContain('do not adjudicate');
   });
 
   it('keeps the short-register ceiling, not the study-chat one', () => {
-    const reply = (STUDY_INSIGHT_PROMPT.tool as {
+    const reply = (STUDY_OPENER_PROMPT.tool as {
       input_schema: { properties: { reply: { maxLength: number } } };
     }).input_schema.properties.reply;
     expect(reply.maxLength).toBe(1400);
   });
 
   it('inherits the voices block and the naming rules', () => {
-    const msgs = STUDY_INSIGHT_PROMPT.buildMessages({
+    const msgs = STUDY_OPENER_PROMPT.buildMessages({
       ...ctx,
       libraryExcerpts: [{
         chunkId: 'lc1', sourceId: 'treasury-of-david',
@@ -54,10 +54,10 @@ describe('STUDY_INSIGHT_PROMPT — slice 1c', () => {
     });
     expect(msgs[0].content).toContain("Voices from the church's study:");
     expect(msgs[0].content).toContain('No condemnation — the charter of liberty.');
-    expect(STUDY_INSIGHT_PROMPT.system).toMatch(/name (it|them|the voice)/i);
+    expect(STUDY_OPENER_PROMPT.system).toMatch(/name (it|them|the voice)/i);
   });
 
   it('omits the voices block on a chapter with no library coverage', () => {
-    expect(STUDY_INSIGHT_PROMPT.buildMessages(ctx)[0].content).not.toContain('Voices');
+    expect(STUDY_OPENER_PROMPT.buildMessages(ctx)[0].content).not.toContain('Voices');
   });
 });

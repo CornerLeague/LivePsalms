@@ -1326,7 +1326,7 @@ async function runPassageInsightFixture(args: {
   const sectionKeys = doorEntry.spec.sections.map((s) => s.key);
 
   // The door has no reader question, so the retrieval query is the passage
-  // itself — the same substitution `lamplight-study` makes for insight mode and
+  // itself — the same substitution `lamplight-study` makes for opener mode and
   // the edge function makes for this door.
   const retrievalQuery = `${pi.book} ${pi.chapter}`;
 

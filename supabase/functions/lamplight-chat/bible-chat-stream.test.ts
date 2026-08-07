@@ -170,7 +170,7 @@ describe('streamBibleChat', () => {
     expect(json).toEqual({ error: 'quota_exceeded', reason: 'tier_cap' });
   });
 
-  it('insight on a non-empty thread: JSON 200 skipped, no stream, no persistence', async () => {
+  it('opener on a non-empty thread: JSON 200 skipped, no stream, no persistence', async () => {
     const persistUserMessage = vi.fn(async () => {});
     const persistAssistant = vi.fn(async () => {});
     const res = await streamBibleChat(
@@ -179,7 +179,7 @@ describe('streamBibleChat', () => {
         persistUserMessage,
         persistAssistant,
       }),
-      { userId: 'user-1', mode: 'insight', message: '', threadTitle: 't' },
+      { userId: 'user-1', mode: 'opener', message: '', threadTitle: 't' },
     );
 
     expect(res.status).toBe(200);

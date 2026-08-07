@@ -1,4 +1,4 @@
-// supabase/functions/lamplight-chat/prompts/bible-insight.ts
+// supabase/functions/lamplight-chat/prompts/bible-opener.ts
 // Proactive opening insight for a passage. Same ChatReply shape + tool as
 // bible-chat, but no user question: it offers ONE grounded observation that
 // connects the open passage to the user's own notes, ending in one open prompt.
@@ -6,7 +6,7 @@
 import type { BibleChatContext, ChatPromptModule } from '../bible-chat-pipeline.ts';
 import { BIBLE_CHAT_PROMPT } from './bible-chat.ts';
 
-export const BIBLE_INSIGHT_PROMPT = {
+export const BIBLE_OPENER_PROMPT = {
   promptVersion: 'bible-insight-2026-06-10-v3',
 
   system: `You are opening a study session on a specific passage. The user has not asked anything yet. Offer ONE short, grounded opening insight (50-110 words). When the user has notes, connect this passage to what they have already written — a pattern they may be too close to see. When they have none, ground the insight in the passage itself.

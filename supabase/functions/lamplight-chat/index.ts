@@ -16,10 +16,11 @@ import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
 import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
+import { parseChatMode } from '../_shared/chat-mode.ts';
 import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
 import { runBibleChatPipeline } from './bible-chat-pipeline.ts';
 import { buildChatContext } from './chat-context.ts';
-import { BIBLE_INSIGHT_PROMPT } from './prompts/bible-insight.ts';
+import { BIBLE_OPENER_PROMPT } from './prompts/bible-opener.ts';
 import { streamBibleChat, type BibleChatStreamDeps } from './bible-chat-stream.ts';
 
 const HISTORY_LIMIT = 10;
@@ -49,7 +50,7 @@ async function handleChat(req: Request): Promise<Response> {
 
   let body: { book?: string; chapter?: number; message?: string; mode?: string; translation?: string; stream?: boolean };
   try { body = await req.json(); } catch { return jsonResp({ error: 'bad json' }, 400); }
-  const mode = body.mode === 'insight' ? 'insight' : 'chat';
+  const mode = parseChatMode(body.mode);
   const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || body.stream === true;
 
   const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
@@ -138,7 +139,7 @@ async function handleChat(req: Request): Promise<Response> {
       },
       buildContext: async ({ history }) => {
         let retrievalQuery = message;
-        if (mode === 'insight') {
+        if (mode === 'opener') {
           const { data: chRows } = await supabase
             .from('bible_passages')
             .select('text')
@@ -149,7 +150,7 @@ async function handleChat(req: Request): Promise<Response> {
         }
         return buildChatContext(supabase, {
           userId, book, chapter, passageRef,
-          message: mode === 'insight' ? '' : message,
+          message: mode === 'opener' ? '' : message,
           retrievalQuery, history, voyageDeps, rerankEnabled, translation,
           // Reader-facing refs. The model prints back whatever form it is
           // handed, and this builder was handing it the OSIS key.
@@ -157,7 +158,7 @@ async function handleChat(req: Request): Promise<Response> {
         });
       },
       llm,
-      prompt: mode === 'insight' ? BIBLE_INSIGHT_PROMPT : undefined,
+      prompt: mode === 'opener' ? BIBLE_OPENER_PROMPT : undefined,
       classifier,
       verifyScripture: makeScriptureDeps(supabase, translation),
     });
@@ -182,15 +183,15 @@ async function handleChat(req: Request): Promise<Response> {
         .limit(HISTORY_LIMIT);
       const history = ((histRows ?? []) as Array<{ role: 'user' | 'assistant'; content: string }>).reverse();
 
-      // Insight only fires on an empty thread — refuse otherwise (idempotent, no cost).
-      if (mode === 'insight' && history.length > 0) {
+      // The opener only fires on an empty thread — refuse otherwise (idempotent, no cost).
+      if (mode === 'opener' && history.length > 0) {
         return { response: { ok: true, thread_id: threadId, skipped: true }, usage: null };
       }
 
-      // 3. Fetch the open chapter once so insight can seed retrieval from its text.
+      // 3. Fetch the open chapter once so the opener can seed retrieval from its text.
       //    (buildChatContext fetches it again for allowed refs; acceptable for V1.)
       let retrievalQuery = message;
-      if (mode === 'insight') {
+      if (mode === 'opener') {
         const { data: chRows } = await supabase
           .from('bible_passages')
           .select('text')
@@ -203,7 +204,7 @@ async function handleChat(req: Request): Promise<Response> {
       // 4. Build context + run the right prompt.
       const ctx = await buildChatContext(supabase, {
         userId, book, chapter, passageRef,
-        message: mode === 'insight' ? '' : message,
+        message: mode === 'opener' ? '' : message,
         retrievalQuery,
         history,
         voyageDeps, rerankEnabled, translation,
@@ -212,7 +213,7 @@ async function handleChat(req: Request): Promise<Response> {
       });
       const result = await runBibleChatPipeline({
         llm, ctx,
-        prompt: mode === 'insight' ? BIBLE_INSIGHT_PROMPT : undefined,
+        prompt: mode === 'opener' ? BIBLE_OPENER_PROMPT : undefined,
         classifier,
         verifyScripture: makeScriptureDeps(supabase, translation),
       });
@@ -221,7 +222,7 @@ async function handleChat(req: Request): Promise<Response> {
       }
 
       // 5. Persist. Insight = one assistant message; chat = user + assistant.
-      const rows = mode === 'insight'
+      const rows = mode === 'opener'
         ? [{ thread_id: threadId, user_id: userId, role: 'assistant', content: result.reply, citations: result.citations }]
         : [
             { thread_id: threadId, user_id: userId, role: 'user', content: message, citations: [] },

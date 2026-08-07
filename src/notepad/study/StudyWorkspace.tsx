@@ -22,6 +22,7 @@ import { loadInitialPassage } from '@/notepad/bible/initial-passage';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { InsightsOverlay } from './insights/InsightsOverlay';
 import { referenceDoor, passageDoor, deeperDoor, canGenerateInsights } from './insights/doors';
+import { useStudyHandoff } from './insights/study-handoff';
 import { useLamplightEntitlement } from '@/notepad/hooks/useLamplightEntitlement';
 
 type SidePanelMode = 'collapsed' | 'normal' | 'expanded';
@@ -63,16 +64,24 @@ export function DesktopStudyWorkspace() {
   // Both halves: a global promo makes hasAccess true for everyone, signed in or
   // not. See canGenerateInsights.
   const canGenerate = canGenerateInsights({ userId, hasInlineAccess: hasAccess('inline') });
+  // The Insights → Chat seam. Only the workspace can both close the overlay and
+  // hand the draft to the pane underneath, which is why it is minted here and
+  // not in the door that offers it.
+  const { handoff, sendToChat } = useStudyHandoff();
+  const handleHandoff = useCallback((prompt: string) => {
+    sendToChat(prompt);
+    setInsightsOpen(false);
+  }, [sendToChat]);
   // The overlay covers the whole workspace, so its state lives here rather than
   // in the side panel that hosts the door.
   const doors = useMemo(
     // Door order is reading order: The Passage first, Sources & Reference last.
     () => [
-      passageDoor({ translation, userId, adapter: lamplightAdapter, canGenerate }),
-      deeperDoor({ translation, userId, adapter: lamplightAdapter, canGenerate }),
+      passageDoor({ translation, userId, adapter: lamplightAdapter, canGenerate, onHandoff: handleHandoff }),
+      deeperDoor({ translation, userId, adapter: lamplightAdapter, canGenerate, onHandoff: handleHandoff }),
       referenceDoor({ translation, userId, adapter: lamplightAdapter }),
     ],
-    [translation, userId, lamplightAdapter, canGenerate],
+    [translation, userId, lamplightAdapter, canGenerate, handleHandoff],
   );
 
   // BibleReader reports its passage from an effect keyed on this callback. A fresh
@@ -217,6 +226,7 @@ export function DesktopStudyWorkspace() {
               onToggleExpand={() => setSideMode((m) => (m === 'expanded' ? 'normal' : 'expanded'))}
               onCollapse={() => setSideMode('collapsed')}
               onOpenInsights={() => setInsightsOpen(true)}
+              handoff={handoff}
             />
           </aside>
         )}

@@ -11,7 +11,7 @@ import type { InsightsDoor } from './InsightsOverlay';
 import { ReferenceDoor } from './ReferenceDoor';
 import { PassageDoor } from './PassageDoor';
 import { makePassageInsightStreamInvoke, type PassageInsightInvoke } from './passage-insight-stream-client';
-import { DEEPER_DOOR_VIEW } from './insight-doors';
+import { DEEPER_DOOR_VIEW, PASSAGE_DOOR_VIEW } from './insight-doors';
 
 /**
  * May this reader press "Study this passage"?
@@ -51,6 +51,12 @@ export interface DoorDeps {
    * already in the shared cache.
    */
   canGenerate?: boolean;
+  /**
+   * Carry a section's seeded prompt into study chat (design §2). Supplied by
+   * the workspace, which is the only place that can also close the overlay and
+   * — on mobile — switch to the Study tab. Omitted means no section footers.
+   */
+  onHandoff?: (prompt: string) => void;
 }
 
 // One transport per client, not one per render: the door array is memoized in
@@ -69,15 +75,19 @@ const passageInvoke: PassageInsightInvoke | null =
  */
 export function passageDoor(deps: DoorDeps): InsightsDoor {
   return {
-    id: 'passage',
-    label: 'The Passage',
-    blurb: 'What this passage is doing, what sits either side of it, the shape of the chapter, and where it lands.',
+    // Label and blurb read from the registry rather than restated here, as
+    // Door 2 already does. Door names are still parent open item 1 — a Myles
+    // call in the app's voice — and this makes that pass one file.
+    id: PASSAGE_DOOR_VIEW.id,
+    label: PASSAGE_DOOR_VIEW.label,
+    blurb: PASSAGE_DOOR_VIEW.blurb,
     render: (scope) => (
       <PassageDoor
         scope={scope}
         invoke={passageInvoke}
         canGenerate={deps.canGenerate === true}
         userId={deps.userId}
+        onHandoff={deps.onHandoff}
       />
     ),
   };
@@ -106,6 +116,7 @@ export function deeperDoor(deps: DoorDeps): InsightsDoor {
         canGenerate={deps.canGenerate === true}
         userId={deps.userId}
         door={DEEPER_DOOR_VIEW}
+        onHandoff={deps.onHandoff}
       />
     ),
   };

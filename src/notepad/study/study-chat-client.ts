@@ -30,10 +30,23 @@ export async function sendStudyMessage(invoke: InvokeFn, args: SendStudyArgs): P
   return { ok: true, threadId: d.thread_id ?? '', reply: d.reply ?? '', citations: d.citations ?? [], offeredNotes: d.offered_notes ?? [] };
 }
 
-export interface RequestStudyInsightArgs { book: string; chapter: number; translation?: BibleTranslation }
+export interface RequestStudyOpenerArgs { book: string; chapter: number; translation?: BibleTranslation }
 
-export async function requestStudyInsight(invoke: InvokeFn, args: RequestStudyInsightArgs): Promise<SendStudyResult> {
-  const { data, error } = await invoke('lamplight-study', { body: { book: args.book, chapter: args.chapter, mode: 'insight', translation: args.translation } });
+/**
+ * The study OPENER — one grounded observation on a passage the reader has just
+ * opened and not yet asked about. Renamed from `requestStudyInsight` in B4:
+ * "insight" had come to mean three things, and the feature called Insights is
+ * one of them (parent design §10).
+ *
+ * STILL PARKED, deliberately. Un-parking it is a product decision rather than
+ * part of a rename: it fires an unprompted, per-reader, per-open generation
+ * answering "what is going on in this passage?" — which is now Door 1's
+ * question, answered once and cached globally for everyone. A billed-per-open
+ * opener beside a shared cached door is a call for Myles.
+ *
+ */
+export async function requestStudyOpener(invoke: InvokeFn, args: RequestStudyOpenerArgs): Promise<SendStudyResult> {
+  const { data, error } = await invoke('lamplight-study', { body: { book: args.book, chapter: args.chapter, mode: 'opener', translation: args.translation } });
   if (error) return { ok: false, reason: error.message };
   const d = data as { ok?: boolean; reason?: string; skipped?: boolean; thread_id?: string; reply?: string; citations?: ChatCitation[]; offered_notes?: OfferedNote[] } | null;
   if (!d || d.ok !== true) return { ok: false, reason: d?.reason ?? 'unknown_error' };

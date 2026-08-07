@@ -14,6 +14,7 @@ import { buildFolderTreeView } from '@/notepad/sidebar/folder-tree-view';
 import { LamplightStudyPanel } from './LamplightStudyPanel';
 import { MemorizePanel } from '../memorize/MemorizePanel';
 import { InsightsButton } from '../insights/InsightsButton';
+import { useApplyHandoff, type StudyHandoff } from '../insights/study-handoff';
 
 type StudyTab = 'notes' | 'chat' | 'memorize';
 
@@ -29,6 +30,12 @@ export interface StudySidePanelProps {
   onCollapse?: () => void;
   /** Open the Insights overlay. When omitted, the Insights door is hidden. */
   onOpenInsights?: () => void;
+  /**
+   * A seeded prompt handed over from an Insights section footer. Switches this
+   * pane to Chat and rides on down to `LamplightStudyPanel`, which prefills the
+   * draft. Design §2 — the whole seam is this prop plus the tab switch.
+   */
+  handoff?: StudyHandoff | null;
 }
 
 const iconBtnStyle: React.CSSProperties = {
@@ -176,8 +183,14 @@ export function StudyNotesTab() {
   );
 }
 
-export function StudySidePanel({ book, chapter, userId, expanded = false, onToggleExpand, onCollapse, onOpenInsights }: StudySidePanelProps) {
+export function StudySidePanel({ book, chapter, userId, expanded = false, onToggleExpand, onCollapse, onOpenInsights, handoff = null }: StudySidePanelProps) {
   const [tab, setTab] = useState<StudyTab>('notes');
+
+  // A handoff means the reader pressed a question in an Insights footer, so the
+  // pane they came back to had better be the one holding it. Applied once by
+  // id — a remount (collapse → re-expand) carries the same handoff in the
+  // workspace's state and must not yank the reader back to Chat.
+  useApplyHandoff(handoff, () => setTab('chat'));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -236,7 +249,7 @@ export function StudySidePanel({ book, chapter, userId, expanded = false, onTogg
           flexDirection: 'column',
         }}
       >
-        <LamplightStudyPanel book={book} chapter={chapter} userId={userId} />
+        <LamplightStudyPanel book={book} chapter={chapter} userId={userId} handoff={handoff} />
       </div>
       <div
         style={{

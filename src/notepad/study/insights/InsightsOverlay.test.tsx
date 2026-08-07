@@ -129,3 +129,54 @@ describe('InsightsOverlay', () => {
     expect(screen.getByRole('button', { name: /Sources & Reference/ })).toBeTruthy();
   });
 });
+
+describe('InsightsOverlay on a phone (B4)', () => {
+  // The overlay is the one deliberately full-bleed surface in the app: it
+  // portals to document.body at `position: fixed; inset: 0`, over a workspace
+  // whose tab bar already pads for the home indicator. Nothing here did.
+
+  it('clears the notch at the top and the home indicator at the bottom', () => {
+    render(<InsightsOverlay {...base} />);
+    const header = screen.getByRole('banner');
+    const body = screen.getByTestId('insights-body');
+
+    expect(header.getAttribute('style')).toContain('env(safe-area-inset-top)');
+    expect(body.getAttribute('style')).toContain('env(safe-area-inset-bottom)');
+  });
+
+  it('clears the side insets too, for a landscape notch', () => {
+    render(<InsightsOverlay {...base} />);
+    expect(screen.getByRole('banner').getAttribute('style')).toContain('env(safe-area-inset-left)');
+    expect(screen.getByTestId('insights-body').getAttribute('style')).toContain('env(safe-area-inset-left)');
+  });
+
+  it('gives the close control a thumb-sized target', () => {
+    // 28×28 is fine for a mouse and below the 44px floor for a finger — on the
+    // control that gets a reader OUT of a full-screen surface.
+    render(<InsightsOverlay {...base} />);
+    const close = screen.getByRole('button', { name: /close/i });
+    expect(close.getAttribute('style')).toContain('min-width: 44px');
+    expect(close.getAttribute('style')).toContain('min-height: 44px');
+  });
+
+  it('gives the back-to-chooser control a thumb-sized target', () => {
+    render(<InsightsOverlay {...base} doors={[passage, reference]} />);
+    fireEvent.click(screen.getByRole('button', { name: /The Passage/ }));
+    const back = screen.getByRole('button', { name: /all insights/i });
+    expect(back.getAttribute('style')).toContain('min-height: 44px');
+  });
+
+  it('ellipsizes a long passage label rather than pushing the controls off-screen', () => {
+    // 360px, "2 Thessalonians 3", a "Whole chapter" toggle and an "All
+    // insights" back control in one flex row with no wrapping rule.
+    render(<InsightsOverlay {...base} book="2th" chapter={3} selectedVerse={17} doors={[passage, reference]} />);
+    fireEvent.click(screen.getByRole('button', { name: /The Passage/ }));
+
+    const label = screen.getByTestId('insights-scope-label');
+    expect(label.getAttribute('style')).toContain('ellipsis');
+    // The controls must not be the things that shrink.
+    for (const name of [/all insights/i, /close/i, /whole chapter/i]) {
+      expect(screen.getByRole('button', { name }).getAttribute('style')).toContain('flex-shrink: 0');
+    }
+  });
+});

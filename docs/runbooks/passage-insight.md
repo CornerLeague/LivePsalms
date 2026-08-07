@@ -2,9 +2,13 @@
 
 How the generated doors' shared cache is migrated, deployed, warmed, and refreshed. Two doors share it: **The Passage** (`door = 'passage'`, B2) and **Deeper In** (`door = 'deeper'`, B3). Mirrors the evidence-trail standard of `library-ingest.md` and `cross-references-ingest.md`: the run records what was done and what the counts were, so a later state can be checked against it.
 
-**Recorded state: 2026-08-07, after B3.** **The corpus holds 8 rows — two Door 1 doors, on Leviticus 1 at both grains** (§6). Warming is on-demand; those are the first two passages a reader generated. Door 2 holds nothing yet.
+**Recorded state: 2026-08-07, during B4.** **The corpus holds 12 rows — three doors on Leviticus 1** (§6): Door 1 at both grains, and **Door 2 at chapter grain**. Warming is on-demand; these are the first three doors a reader generated.
 
-**Migration `061` applied and `passage-insight` redeployed, 2026-08-07, in the same sitting** — §2 and §3. Both doors are live; Door 2 has generated nothing yet.
+⚠️ **"8 rows, Door 2 holds nothing yet" was true when B4's handoff was written and was stale 30 minutes later.** The Door 2 door was generated at 19:35:29 UTC; the handoff commit is stamped 19:05:43. Measured against the live table, not read out of the previous line — the same rule that has now caught a "0 rows" claim that was 8 and an "8 rows" claim that was 12.
+
+**Migration `061` applied and `passage-insight` redeployed, 2026-08-07, in the same sitting** — §2 and §3. Both doors are live and **both have now generated through the deployed function**.
+
+⚠️ **B4's rename touched `lamplight-study` and `lamplight-chat`; `passage-insight` was redeployed with them.** All three are live as of 2026-08-07 — `lamplight-study` v10, `lamplight-chat` v14, `passage-insight` v5. §9 has the ordering rule and the boot-check matrices.
 
 ⚠️ **Door 1's prompt moved to `passage-insight-2026-08-07-v2`**, so the two warmed Leviticus doors are stale. That is the designed behaviour (D2 — serve stale, refresh deliberately): the reader is never blocked, and `scripts/refresh-passage-insights.ts --stale` reports them at an estimated $0.11 whenever someone chooses to spend it.
 
@@ -27,7 +31,7 @@ A **globally shared, publicly readable** cache of generated study for one passag
 | Generate | Edge function `passage-insight`, gated on `hasInlineInsightAccess` (Plus/promo) |
 | Model | `deep` tier at `medium` effort — resolves to `gpt-5.6-sol` |
 | Retrieval | Per door, in `lamplight-study/insight-doors.ts`. Door 1: `libraryK 4`, no register filter. Door 2: `libraryK 6`, `registers: ['exegetical','confessional']` — both measured, §9 |
-| Cost | **~$0.066 per door, measured** across nine live fixtures ($0.59 / 9). Warming ~1,200 chapters is a one-time ~$80 per door |
+| Cost | **~$0.066 per door, measured** across nine live fixtures ($0.59 / 9). Warming ~1,200 chapters is a one-time ~$80 per door. Still fixture-derived: `lamplight_usage` is admin-gated, so the three warmed doors cannot confirm it from the repo |
 
 ## 2. Migration
 
@@ -80,7 +84,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_SUPABASE_URL/functions/v
 
 `401` is healthy: it means the deno.land import resolved, every cross-directory import bundled, and `OPENAI_API_KEY` / `VOYAGE_AI_KEY` are present — a missing key returns `500` *before* the auth check. A `500` with `BOOT_ERROR` means the bundle itself failed.
 
-**B3 needs a redeploy**, and it is overdue: the door registry, the widened `onConflict`, both prompt modules and the shared grounding all live under `lamplight-study/`. Add a second boot check for the door parameter — a bad door must be rejected, not silently served as Door 1:
+~~**B3 needs a redeploy**~~ — **done 2026-08-07**, and redeployed again for B4 (v5, §9). The rule that made it necessary stands: the door registry, the widened `onConflict`, both prompt modules and the shared grounding all live under `lamplight-study/`, so a change to any of them leaves this function stale.
+
+Always run the second boot check for the door parameter — a bad door must be rejected, not silently served as Door 1:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_SUPABASE_URL/functions/v1/passage-insight" -H "apikey: $VITE_SUPABASE_ANON_KEY" -H 'content-type: application/json' -d '{"book":"psa","chapter":27,"door":"nonsense"}'
@@ -88,7 +94,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_SUPABASE_URL/functions/v
 
 `400` is healthy. A `401` means the door was accepted and the request only failed on auth, which would mean the registry check is not running.
 
-**⚠️ Nothing typechecks `supabase/functions`.** `tsconfig.app.json` covers only `src`, the eval harness drives the pipeline rather than the shell, and the boot check returns before `buildContext` runs. That combination is how `index.ts` came to reference an undefined `DOOR_REGISTERS` on the generate path and stay there through a merge. Any change to a `*/index.ts` wants a hand-run `tsc --noEmit --allowImportingTsExtensions`, where the only acceptable errors are the `deno.land`/`jsr:` imports and the `Deno` global.
+~~**⚠️ Nothing typechecks `supabase/functions`.**~~ **Closed by #119**, merged 2026-08-07: `tsc -b` now covers `src`, `scripts` and every `supabase/functions` module including the ten Deno shells. The hand-run `tsc --noEmit --allowImportingTsExtensions` step this section used to prescribe is retired.
+
+The gap is worth remembering rather than deleting, because of how it was found: `tsconfig.app.json` covered only `src`, the eval harness drives the pipeline rather than the shell, and the boot check returns before `buildContext` runs — which together let `index.ts` reference an undefined `DOOR_REGISTERS` on the generate path and survive a merge.
 
 ## 4. Warming
 
@@ -119,11 +127,17 @@ Two writes that deliberately never happen:
 | Attribution — Door 2 theology names a voice | ✅ 5/5 fixtures, 1–4 voices each. Gated by `attribution_theology` |
 | Attribution — Door 1 | ⚠️ **Measured, not gated: 3 of 4 fixtures name a voice somewhere, `passage-psalm-27-v4` names none.** Pre-dates B3; see §7 |
 | Client read path against the real table | ✅ The exact query `usePassageInsight` issues returns `200 []` for `psa.27`, `psa.27.4`, `nam.1` — a reader today correctly sees *Study this passage* rather than an error |
-| **End-to-end generate through the deployed function** | ✅ **2026-08-07** — Leviticus 1 at both grains. See §6 |
-| **A second reader gets the cached door instantly** | ✅ **2026-08-07, in a browser, signed out.** Leviticus 1 → Insights → *The Passage* rendered all four sections immediately — no spinner, no sign-in prompt, no paywall. Refs read `Leviticus 1:1-4`, and the Overview names Jamieson, Fausset & Brown. Conclusive that it came from cache rather than generation: *Deeper In* showed the sign-in gate in the same session, so `canGenerate` was false and `invoke` null |
+| **End-to-end generate through the deployed function, Door 1** | ✅ **2026-08-07** — Leviticus 1 at both grains. See §6 |
+| **End-to-end generate through the deployed function, DOOR 2** | ✅ **2026-08-07 19:35:29 UTC** — `lev.1`, `deeper-insight-2026-08-07-v1` on `gpt-5.6-sol`. The whole edge path for `door=deeper` — quota bucket, entitlement, streaming, cache write on the terminal beat — is proven. See §6 |
+| **§9 holds in PRODUCTION, not just in fixtures** | ✅ The warmed `read_with_care` names no tradition or denomination. It names Calvin — a voice it leaned on, which is attribution, not a caution aimed at a group |
+| **Attribution, Door 2, in production** | ✅ All **four** sections name a supplied voice (Calvin/Jamieson, Clarke, Calvin/Jamieson, Calvin) — better than the fixture baseline, which gated `theology` alone |
+| **A second reader gets the cached door instantly, Door 1** | ✅ **2026-08-07, in a browser, signed out.** Leviticus 1 → Insights → *The Passage* rendered all four sections immediately — no spinner, no sign-in prompt, no paywall. Refs read `Leviticus 1:1-4`, and the Overview names Jamieson, Fausset & Brown. Conclusive that it came from cache rather than generation: *Deeper In* showed the sign-in gate in the same session, so `canGenerate` was false and `invoke` null |
+| **A second reader gets the cached door instantly, DOOR 2** | ✅ **2026-08-07, in a browser, signed out** — the repeat B3's Task 12 asked for, on the door riding new code. All four *Deeper In* sections rendered immediately. Signed out means `canGenerate` false and `invoke` null, so generation was not merely unused but unreachable: what rendered can only have come from the public cache |
 | **The three-door chooser** | ✅ First time exercised past two doors since B1 built it. The Passage · Deeper In · Sources & Reference, in reading order, with blurbs |
 | **A signed-out reader is offered generation** | ✅ **FIXED 2026-08-07 — it was.** See §7 |
 | **An interrupted generation leaves the door uncached** | ❌ Unit-tested only |
+| **A seeded prompt lands in study chat, prefilled and unsent** (B4) | ❌ Unit-tested only — §6 step 11 |
+| **The overlay on a real phone: tab bar, safe areas, 360px header** (B4) | ❌ Asserted in jsdom; needs a device — §6 step 12 |
 
 The remaining checks need a browser and an authenticated Plus/promo session, which is why they are listed rather than done. §6 is the procedure.
 
@@ -142,19 +156,28 @@ Signed in as a Plus (or promo-active) user, in the Study workspace:
    `select door, section, prompt_version from bible_passage_insight where ref_id = 'psa.27' order by door, section;`
 9. **Door 2 on a contested chapter.** Romans 9. It must generate — describing the argument, naming the question as disputed, and citing nothing in 9:11–23. Before B3 this failed outright on both doors.
 10. **Read With Care.** On any Door 2 passage, that section must describe how the passage gets misread and never name a tradition, denomination or group. If it names one, the door should have been rejected — check the function is actually running the B3 bundle.
+11. **The handoff (B4).** On a warm door, press the question under any section. The overlay closes, the Study side panel switches to Chat, and the question is sitting in the input — **editable, and not sent**. Press Send: the reply must append to the passage's existing thread rather than opening a new one (`select id, passage_ref, created_at from lamplight_chat_threads where passage_ref = 'psa.27' and surface = 'study' and archived = false;` — one row, not two). Then reopen a past conversation from History on a *different* passage and press a seeded prompt again: it must return to the open passage rather than adding to the reopened thread.
+12. **Mobile (B4).** On a real phone, not a narrow desktop window: the overlay covers the tab bar completely; its header clears the notch and its last section clears the home indicator; a long book name (2 Thessalonians 3, verse selected) ellipsizes rather than pushing the close control off-screen; and a seeded prompt lands on Study → Chat with the draft visible and **not hidden by the keyboard**.
 
 Record the first warmed passages below when step 1 lands.
 
 ### First warmed passages — 2026-08-07
 
-| `ref_id` | Grain | Generated (UTC) | `prompt_version` | `model_used` |
-|---|---|---|---|---|
-| `lev.1` | chapter | 2026-08-07 00:57:38 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
-| `lev.1.1` | verse | 2026-08-07 06:24:16 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
+| `ref_id` | Door | Grain | Generated (UTC) | `prompt_version` | `model_used` |
+|---|---|---|---|---|---|
+| `lev.1` | passage | chapter | 2026-08-07 00:57:38 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
+| `lev.1.1` | passage | verse | 2026-08-07 06:24:16 | `passage-insight-2026-08-06-v1` | `gpt-5.6-sol` |
+| **`lev.1`** | **deeper** | chapter | **2026-08-07 19:35:29** | `deeper-insight-2026-08-07-v1` | `gpt-5.6-sol` |
 
-**Steps 1, 2, 5 and 7 pass.** Both doors wrote four rows; all eight sections are non-empty and every one ends on terminal punctuation, so nothing truncated mid-word. **No OSIS codes reached the prose** — the `displayRefs` fix holds in production, not just in the eval. Voices are named in two of the eight sections (Jamieson/Fausset/Brown in `lev.1` Overview, Clarke in `lev.1.1` In the Chapter), which is the attribution pattern B3 is measuring against.
+**Steps 1, 2, 3, 5, 7, 8 and 10 pass.** All three doors wrote four rows each; all twelve sections are non-empty and every one ends on terminal punctuation, so nothing truncated mid-word. **No OSIS codes reached the prose** — the `displayRefs` fix holds in production, not just in the eval.
 
-**Step 3 (second reader) is half-proven** — see §5. **Step 6 (interruption) has still not been run**, and is easier now: there are real rows to diff against.
+**Step 8 is what closed the biggest gap.** The eval drives `runPassageInsightPipeline` directly, so until this door existed the whole `door=deeper` edge path — quota bucket, entitlement, streaming, cache write on the terminal beat — was unproven. It also confirms the doors cache independently: `lev.1` carries **eight** rows, four per `door`, and the verse-grain `lev.1.1` Door 2 remains cold, which is a normal state.
+
+**Attribution is stronger on Door 2 in production than in its fixtures.** All four sections name a supplied voice — Calvin and Jamieson in *How to Read This Passage*, Clarke in *Historical & Cultural Setting*, Calvin and Jamieson in *Theological Significance*, Calvin in *Read With Care*. The `attribution_theology` gate covers only the third; the other three are free.
+
+**Step 10 passes on real prose.** *Read With Care* names no tradition, denomination or group. It does name Calvin — a voice it leaned on, which is attribution rather than a caution aimed at anyone, and exactly the distinction §9's rule turns on.
+
+**Step 6 (interruption) has still not been run**, and is easier now: there are twelve real rows to diff against. **The cost figure is still not readable from the repo** — `lamplight_usage` is admin-gated, so the measured **$0.066/door** stands on the nine live fixtures rather than on this door.
 
 Verify the current state from the repo at any time:
 
@@ -192,7 +215,7 @@ Dry by default — it reports the doors and an estimated cost and writes nothing
 npx tsx scripts/refresh-passage-insights.ts --door=deeper --stale
 ```
 
-As of 2026-08-07 that reports nothing for Door 2 (no rows) and **two stale Door 1 doors at ~$0.11**, both Leviticus 1, left behind by the `v2` bump.
+As of 2026-08-07 that reports **two stale Door 1 doors at ~$0.11**, both Leviticus 1, left behind by the `v2` bump. Door 2's one warmed door is CURRENT — it was generated under `deeper-insight-2026-08-07-v1`, which is still Door 2's version — so `--door=deeper --stale` reports nothing to do. That is a warm door, not an empty one, and the two read identically in the output; check the row count before concluding anything from a quiet report.
 
 ```bash
 npx tsx scripts/refresh-passage-insights.ts --stale --limit=5 --apply
@@ -202,7 +225,82 @@ Other filters: `--scope=verse|chapter`, `--ref=psa.27`, `--door=passage|deeper`.
 
 **Two readers can see different prose for the same passage**, generated under different prompt versions. Acceptable here because the content is neither personalized nor time-sensitive: a correct Overview of Psalm 27 does not rot.
 
+## 9. B4 — the handoff seam and the `opener` rename
+
+B4's rename touches **`lamplight-study` and `lamplight-chat`**; `passage-insight` rides along only through an unused import (below). It is recorded here because the surface B4 decorates is this one.
+
+### The deploy ordering, and why it is in the code rather than in this runbook
+
+`mode: 'insight'` became `mode: 'opener'` (parent design §10). The mode is a request value only — **nothing persists it**, so there is no migration and no backfill. Two things make it more than a find-and-replace:
+
+- **`streamBibleChat` types the mode once and both chat functions call it**, so the rename could not stop at Study. `lamplight-chat` carries ~10 sites of its own plus its opener prompt.
+- **`requestOpeningInsight` is a live wire.** It fires on every journaling passage open with `mode: 'insight'` and no message; `lamplight-chat` rejects chat-mode with an empty message, so a client sending `'opener'` to a function that has not been redeployed returns **`400 bad payload` on every passage open, for every reader**. Vercel deploys the client automatically on merge; `supabase functions deploy` is run by hand. The client therefore reaches production first.
+
+So the ordering was enforced twice, and neither depended on remembering it:
+
+1. **`_shared/chat-mode.ts` accepts both spellings.** `'opener'` and `'insight'` both mean `opener`; anything else is `chat`.
+2. **The clients sent `'insight'`** until the functions shipped, pinned by a test that said why.
+
+**Both clients flipped to `'opener'` on 2026-08-07, after the deploy.** Verified against the deployed functions: `mode=opener` and `mode=insight` both return `401` on `lamplight-chat` and `lamplight-study`.
+
+⚠️ **Rule 1 is now the part that must not be removed, and its reason has changed.** The deploy-ordering argument is spent; the standing one is that **old client bundles keep sending the old spelling**. There is no service worker, but a reader with the app open in a tab runs whatever bundle they loaded until they reload, and the journaling opener fires on every passage open. Dropping `'insight'` would make those requests fall through to `chat`, meet an empty message, and `400`. Every client that has *reloaded* sends `'opener'`; that is not every client.
+
+**Deploy both functions** when this ships:
+
+```bash
+supabase functions deploy lamplight-study
+supabase functions deploy lamplight-chat
+```
+
+### Deployed 2026-08-07 — `lamplight-study` v10 (20:27:41 UTC), `lamplight-chat` v14 (20:27:59 UTC)
+
+Boot-checked with the matrix below. **The last two rows are the ones that matter**, and they are what tells a fresh bundle from a stale one:
+
+| body | `lamplight-chat` | `lamplight-study` | |
+|---|---|---|---|
+| `{"book","chapter","mode":"insight"}` | ✅ 401 | ✅ 401 | the legacy spelling still parses |
+| `{"book","chapter","mode":"opener"}` | ✅ 401 | ✅ 401 | the new spelling parses |
+| `{"book","chapter","message":"hi"}` | ✅ 401 | ✅ 401 | ordinary chat |
+| `{"book","chapter","message":"  "}` | ✅ 400 | ✅ 400 | **the discriminator** |
+| `{"chapter":27}` | ✅ 400 | ✅ 400 | bad payload |
+
+**Why row 4 is the proof, not row 1.** An opener body carries no message. If `'opener'` were falling through to `chat` — the stale-bundle failure — the parser would then reject it for the empty message and return **400**, exactly as row 4 does. Rows 2 and 4 returning *different* codes for the same absent message is what establishes that `'opener'` is genuinely being read as an opener rather than quietly mishandled. Row 1 alone would pass on a bundle that never heard of `'opener'` at all.
+
+**`400` on row 1 is the failure this section exists to prevent** — it would mean the legacy spelling was rejected, and every journaling passage open would break.
+
+### `passage-insight` — redeployed too, v5 (20:38:17 UTC)
+
+Its bundle *does* shift, though nothing it uses changed: `passage-insight/index.ts:29` imports `VALID_TRANSLATIONS` and `Translation` from `lamplight-study/parse-body.ts`, which now imports `_shared/chat-mode.ts`. Traced rather than assumed — the only delta reaching that bundle was **an unused import of a pure function**, and no mode parsing happens anywhere in its path.
+
+So the redeploy is a no-op in behaviour and worth doing anyway, which is §3's rule earning its keep: the deployed bundle now matches `main`, and nobody has to redo this trace to answer *"is `passage-insight` stale?"* after B4.
+
+Boot-checked after deploying — the full matrix, not just the 401:
+
+| body | | |
+|---|---|---|
+| `{"book","chapter"}` | ✅ 401 | bundle resolved, keys present, auth gate reached |
+| `{"book","chapter","door":"passage"}` | ✅ 401 | Door 1 accepted |
+| `{"book","chapter","door":"deeper"}` | ✅ 401 | Door 2 accepted |
+| `{"book","chapter","door":"nonsense"}` | ✅ 400 | unregistered door **rejected**, not silently served as Door 1 |
+| `{"book","chapter","verse":4}` | ✅ 401 | verse grain accepted |
+| `{"chapter":27}` | ✅ 400 | bad payload |
+
+Rows 3 and 4 are the **pair** that tells a fresh bundle from a stale one — a stale one answers `401` to both, because it never learned the registry.
+
+The read path was re-verified afterwards too, since a deploy cannot break it but a bad bundle could make it look broken: the public unauthenticated query returns **4 sections** for `lev.1` on each door and `lev.1.1` on Door 1, and **0** for `lev.1.1` Deeper and both doors on `psa.27` — the doors still warming independently, exactly as before. And in a browser, signed out, Leviticus 1 → *Deeper In* renders all four sections immediately with no spinner and no generate action.
+
+⚠️ **`prompt_version` strings did not move.** `study-insight-2026-08-06-v5` and `bible-insight-2026-06-10-v3` keep the word "insight" inside them, because they stamp `lamplight_usage` rows and the rename changed no emitted byte. Byte-identity fixtures in each `prompts/__fixtures__/` prove it. If one of those gates ever fails, the two correct responses are revert, or bump the version *and* re-baseline *and* regenerate the fixture in the same commit — never the fixture alone.
+
+### The handoff seam
+
+Every rendered section of a generated door carries **one seeded question** in its footer. Pressing it closes the overlay, switches the Study pane to Chat, and prefills the draft. It **never sends** — the reader is the author (parent decision 7) — and it appends to the passage's existing thread because study chat already grounds on the open passage.
+
+Operationally there is nothing to deploy or warm: the prompts are client strings composed from the open passage, no per-user content enters the cache, and no new request shape reaches any function. `section` and `scope` deliberately do **not** travel with the handoff; the section rides in the prompt's own words, which is what study chat uses as its retrieval query.
+
+**A signed-out reader gets no footers**, though they still read the cached prose. The chat input they would land in is disabled, and a disabled input shows its value rather than its "Sign in" placeholder — a greyed question beside a greyed Send, with no explanation. Same shape as the §7 defect fixed on 2026-08-07.
+
 ---
 
 *Door 1 — design: `docs/superpowers/specs/2026-08-06-study-insights-b2-design.md`, plan: `docs/superpowers/plans/2026-08-06-study-insights-b2.md`.*
 *Door 2 — design: `docs/superpowers/specs/2026-08-07-study-insights-b3-design.md`, plan: `docs/superpowers/plans/2026-08-07-study-insights-b3.md`.*
+*B4 — design: `docs/superpowers/specs/2026-08-07-study-insights-b4-design.md`, plan: `docs/superpowers/plans/2026-08-07-study-insights-b4.md`.*

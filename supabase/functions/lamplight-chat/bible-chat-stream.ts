@@ -13,6 +13,7 @@ import type { ChatReply, ContentRuleViolation } from '../_shared/validators.ts';
 import type { UsageRow } from '../_shared/usage.ts';
 import type { LLMAdapter, LLMModel, ReasoningEffort } from '../_shared/openai.ts';
 import type { ScriptureDeps } from '../_shared/scripture-verify.ts';
+import type { ChatMode } from '../_shared/chat-mode.ts';
 
 type HistoryRow = { role: 'user' | 'assistant'; content: string };
 
@@ -28,7 +29,7 @@ export interface BibleChatStreamDeps {
   persistAssistant: (threadId: string, reply: string, citations: ChatReply['citations']) => Promise<void>;
   buildContext: (input: { history: HistoryRow[] }) => Promise<BibleChatContext>;
   llm: LLMAdapter;
-  prompt?: ChatPromptModule; // insight passes BIBLE_INSIGHT_PROMPT; chat leaves undefined
+  prompt?: ChatPromptModule; // opener passes BIBLE_OPENER_PROMPT; chat leaves undefined
   // Model tier for the streamed turn; defaults to 'balanced' downstream. Study
   // passes 'deep' so streaming matches its buffered path — omitting this was the
   // tier-drift bug where production Study chat silently ran a tier below design.
@@ -71,7 +72,7 @@ async function checkQuotaOrError(
 
 export async function streamBibleChat(
   deps: BibleChatStreamDeps,
-  args: { userId: string; mode: 'chat' | 'insight'; message: string; threadTitle: string; signal?: AbortSignal },
+  args: { userId: string; mode: ChatMode; message: string; threadTitle: string; signal?: AbortSignal },
 ): Promise<Response> {
   // 1. Opt-in gate → JSON 403, no stream.
   if (!(await deps.isOptedIn(args.userId))) {
@@ -91,15 +92,15 @@ export async function streamBibleChat(
   const threadId = await deps.upsertThread(args.threadTitle);
   const history = await deps.loadHistory(threadId);
 
-  // 5. Insight only fires on an empty thread — refuse otherwise (idempotent,
+  // 5. The opener only fires on an empty thread — refuse otherwise (idempotent,
   //    no stream). Mirrors the buffered path's skip.
-  if (args.mode === 'insight' && history.length > 0) {
+  if (args.mode === 'opener' && history.length > 0) {
     return jsonResponse(deps.cors, { ok: true, thread_id: threadId, skipped: true }, 200);
   }
 
   // 6. Chat mode persists the USER message BEFORE generation, so that on a
   //    validators_failed the user message remains with no assistant row.
-  //    (Insight has no user message.)
+  //    (An opener has no user message.)
   if (args.mode === 'chat') await deps.persistUserMessage(threadId);
 
   // 7. Stream.

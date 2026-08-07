@@ -236,3 +236,105 @@ describe('PassageDoor — rendering Door 2', () => {
     expect(eqs).toContainEqual(['door', 'passage']);
   });
 });
+
+describe('PassageDoor — the section footer (B4)', () => {
+  const onHandoff = vi.fn();
+  beforeEach(() => onHandoff.mockClear());
+
+  it('offers its seeded prompt beneath a rendered section', async () => {
+    setResult({ data: rows(), error: null });
+    render(<PassageDoor scope={SCOPE} invoke={scriptedInvoke([])} canGenerate userId="u1" onHandoff={onHandoff} />);
+
+    for (const s of PASSAGE_DOOR_VIEW.sections) {
+      const prompt = s.seededPrompt({ passage: 'Psalm 27', book: 'Psalm', chapter: 27, verse: null });
+      expect(await screen.findByRole('button', { name: prompt })).toBeTruthy();
+    }
+  });
+
+  it('hands the composed question over, and sends nothing itself', async () => {
+    setResult({ data: rows(), error: null });
+    render(<PassageDoor scope={SCOPE} invoke={scriptedInvoke([])} canGenerate userId="u1" onHandoff={onHandoff} />);
+
+    const prompt = PASSAGE_DOOR_VIEW.sections[0].seededPrompt({ passage: 'Psalm 27', book: 'Psalm', chapter: 27, verse: null });
+    await userEvent.click(await screen.findByRole('button', { name: prompt }));
+    expect(onHandoff).toHaveBeenCalledExactlyOnceWith(prompt);
+  });
+
+  it('composes the prompt from the CURRENT scope, verse included', async () => {
+    setResult({ data: rows(), error: null });
+    render(
+      <PassageDoor
+        scope={{ book: 'psa', chapter: 27, verse: 4 }}
+        invoke={scriptedInvoke([])}
+        canGenerate
+        userId="u1"
+        onHandoff={onHandoff}
+      />,
+    );
+    // The overlay's "Whole chapter" toggle changes scope without unmounting, so
+    // a prompt frozen at first render would ask about the wrong passage.
+    expect((await screen.findAllByRole('button', { name: /Psalm 27:4/ })).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Psalm 27\?/ })).toBeNull();
+  });
+
+  it('renders NO footer for an omitted section', async () => {
+    // A prompt under a heading that is not there advertises a door into a room
+    // the grounding could not build.
+    setResult({ data: rows({ reflection: '' }), error: null });
+    render(<PassageDoor scope={SCOPE} invoke={scriptedInvoke([])} canGenerate userId="u1" onHandoff={onHandoff} />);
+
+    await screen.findByText('Overview');
+    const omitted = PASSAGE_DOOR_VIEW.sections[3];
+    expect(screen.queryByText(omitted.label)).toBeNull();
+    expect(
+      screen.queryByRole('button', {
+        name: omitted.seededPrompt({ passage: 'Psalm 27', book: 'Psalm', chapter: 27, verse: null }),
+      }),
+    ).toBeNull();
+  });
+
+  it('renders no footer at all when the host offers no handler', async () => {
+    setResult({ data: rows(), error: null });
+    render(<PassageDoor scope={SCOPE} invoke={scriptedInvoke([])} canGenerate userId="u1" />);
+
+    await screen.findByText('Overview');
+    for (const s of PASSAGE_DOOR_VIEW.sections) {
+      const prompt = s.seededPrompt({ passage: 'Psalm 27', book: 'Psalm', chapter: 27, verse: null });
+      expect(screen.queryByRole('button', { name: prompt })).toBeNull();
+    }
+  });
+
+  it('⚠️ offers no footer to a SIGNED-OUT reader, who can read a cached door', async () => {
+    // Cached doors are public and free, so a signed-out reader reaches this
+    // prose. The chat input they would land in is disabled and shows the draft
+    // instead of its "Sign in" placeholder — a greyed question and a greyed
+    // Send with no explanation. That is #120's shape again: check who is asking
+    // before offering the action.
+    setResult({ data: rows(), error: null });
+    render(<PassageDoor scope={SCOPE} invoke={null} canGenerate={false} userId={null} onHandoff={onHandoff} />);
+
+    expect(await screen.findByText('Overview')).toBeTruthy();
+    const prompt = PASSAGE_DOOR_VIEW.sections[0].seededPrompt({ passage: 'Psalm 27', book: 'Psalm', chapter: 27, verse: null });
+    expect(screen.queryByRole('button', { name: prompt })).toBeNull();
+  });
+
+  it('offers Door 2 its own prompts, not Door 1’s', async () => {
+    setResult({
+      data: DEEPER_DOOR_VIEW.sections.map((s) => ({ section: s.key, body: `The body of ${s.key}.` })),
+      error: null,
+    });
+    render(
+      <PassageDoor
+        scope={SCOPE}
+        invoke={scriptedInvoke([])}
+        canGenerate
+        userId="u1"
+        door={DEEPER_DOOR_VIEW}
+        onHandoff={onHandoff}
+      />,
+    );
+    const ref = { passage: 'Psalm 27', book: 'Psalm', chapter: 27, verse: null };
+    expect(await screen.findByRole('button', { name: DEEPER_DOOR_VIEW.sections[3].seededPrompt(ref) })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: PASSAGE_DOOR_VIEW.sections[0].seededPrompt(ref) })).toBeNull();
+  });
+});

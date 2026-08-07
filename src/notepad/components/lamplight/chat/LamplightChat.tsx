@@ -140,7 +140,10 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
     };
 
     try {
-      await stream('lamplight-chat', { book, chapter, mode: 'insight', translation }, { onEvent, signal: controller.signal });
+      // The streaming half of the opener. Same wire value as its buffered twin
+      // in `lamplight-chat-client.ts`, and the two must not diverge — the
+      // buffered path is the fallback when this stream throws.
+      await stream('lamplight-chat', { book, chapter, mode: 'opener', translation }, { onEvent, signal: controller.signal });
     } catch {
       if (alive()) {
         thread.updateLast({ streaming: false });

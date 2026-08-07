@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { sendStudyMessage, requestStudyInsight } from './study-chat-client';
+import { sendStudyMessage, requestStudyOpener } from './study-chat-client';
 
 describe('sendStudyMessage', () => {
   it('invokes lamplight-study and surfaces offered notes', async () => {
@@ -26,11 +26,11 @@ describe('sendStudyMessage', () => {
   });
 });
 
-describe('requestStudyInsight', () => {
-  it('sends insight mode and maps a skipped insight to ok:false', async () => {
+describe('requestStudyOpener', () => {
+  it('sends the opener mode and maps a skipped opener to ok:false', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { ok: true, thread_id: 't', skipped: true }, error: null });
-    const out = await requestStudyInsight(invoke, { book: 'rom', chapter: 8 });
-    expect(invoke).toHaveBeenCalledWith('lamplight-study', { body: { book: 'rom', chapter: 8, mode: 'insight' } });
+    const out = await requestStudyOpener(invoke, { book: 'rom', chapter: 8 });
+    expect(invoke).toHaveBeenCalledWith('lamplight-study', { body: { book: 'rom', chapter: 8, mode: 'opener' } });
     expect(out).toEqual({ ok: false, reason: 'skipped' });
   });
 });
@@ -51,10 +51,10 @@ describe('study-chat-client passes translation', () => {
     expect(bodies[0]).toMatchObject({ book: 'jhn', chapter: 3, message: 'hi', translation: 'KJV' });
   });
 
-  it('requestStudyInsight forwards the active translation in the body', async () => {
+  it('requestStudyOpener forwards the active translation in the body', async () => {
     const { invoke, bodies } = captureInvoke();
-    await requestStudyInsight(invoke, { book: 'jhn', chapter: 3, translation: 'WEB' });
-    expect(bodies[0]).toMatchObject({ book: 'jhn', chapter: 3, mode: 'insight', translation: 'WEB' });
+    await requestStudyOpener(invoke, { book: 'jhn', chapter: 3, translation: 'WEB' });
+    expect(bodies[0]).toMatchObject({ book: 'jhn', chapter: 3, mode: 'opener', translation: 'WEB' });
   });
 });
 

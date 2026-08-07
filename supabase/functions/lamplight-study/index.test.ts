@@ -8,11 +8,21 @@ describe('parseStudyBody', () => {
       includeNotes: false, noteIds: [], stream: false,
     });
   });
-  it('accepts include_notes + note_ids and insight mode', () => {
-    expect(parseStudyBody({ book: 'rom', chapter: 8, mode: 'insight', include_notes: true, note_ids: ['n1'] })).toEqual({
-      ok: true, book: 'rom', chapter: 8, message: '', mode: 'insight',
+  it('accepts include_notes + note_ids and opener mode', () => {
+    expect(parseStudyBody({ book: 'rom', chapter: 8, mode: 'opener', include_notes: true, note_ids: ['n1'] })).toEqual({
+      ok: true, book: 'rom', chapter: 8, message: '', mode: 'opener',
       includeNotes: true, noteIds: ['n1'], stream: false,
     });
+  });
+
+  it('still accepts the LEGACY `insight` spelling on the wire', () => {
+    // The client deploys before the edge functions do (Vercel on merge vs. a
+    // hand-run `supabase functions deploy`), so a function that stopped
+    // understanding 'insight' would fall through to chat, find an empty
+    // message, and 400 every journaling opener. See _shared/chat-mode.ts.
+    const out = parseStudyBody({ book: 'rom', chapter: 8, mode: 'insight' });
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.mode).toBe('opener');
   });
   it('rejects a missing/invalid passage', () => {
     expect(parseStudyBody({ chapter: 10 }).ok).toBe(false);
