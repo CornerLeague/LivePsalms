@@ -682,3 +682,66 @@ describe('buildStudyContext — chapter scope is untouched by the verse-scope pa
     expect(rest(verse.ctx)).toEqual(rest(chapter.ctx));
   });
 });
+
+// ── Register steering ────────────────────────────────────────────────────────
+// Designed in the parent design §7 and accepted by retrieveStudyLibrary since
+// slice 1c, but buildStudyContext never passed it through — so no study surface
+// could steer, and Door 1 could not bias devotional as the design says it does.
+
+describe('buildStudyContext — registers', () => {
+  // LIBRARY_ROWS has a devotional chunk (lc1, treasury) and an exegetical one
+  // (lc2, jfb); SOURCE_ROWS carries their registers.
+  it('restricts excerpts to the requested register', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(makeVoyage().deps, { registers: ['devotional'] }),
+    );
+    expect(ctx.libraryExcerpts!.map((e) => e.sourceId)).toEqual(['treasury-of-david']);
+  });
+
+  it('restricts to a different register just as hard', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(makeVoyage().deps, { registers: ['exegetical'] }),
+    );
+    expect(ctx.libraryExcerpts!.map((e) => e.sourceId)).toEqual(['jfb']);
+  });
+
+  it('accepts several registers at once', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(makeVoyage().deps, { registers: ['devotional', 'exegetical'] }),
+    );
+    expect(ctx.libraryExcerpts!.map((e) => e.sourceId).sort()).toEqual(['jfb', 'treasury-of-david']);
+  });
+
+  it('is a HARD filter — an empty result is a real answer, not a fallback to everything', async () => {
+    // The failure mode worth pinning: a register nothing matches must yield no
+    // excerpts, not silently widen back to the whole corpus.
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(makeVoyage().deps, { registers: ['confessional'] }),
+    );
+    expect(ctx.libraryExcerpts).toEqual([]);
+  });
+
+  it('is absent by default — study chat keeps the whole corpus', async () => {
+    const { ctx } = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(makeVoyage().deps),
+    );
+    expect(ctx.libraryExcerpts!.map((e) => e.sourceId).sort()).toEqual(['jfb', 'treasury-of-david']);
+  });
+
+  it('never widens the citation allowlist, whatever the register', async () => {
+    // The load-bearing rule survives steering: library excerpts are grounding,
+    // not citations, so changing which voices arrive must not change what may
+    // be cited.
+    const all = await buildStudyContext(makeSupabase({ table: defaultTables() }), studyArgs(makeVoyage().deps));
+    const devo = await buildStudyContext(
+      makeSupabase({ table: defaultTables() }),
+      studyArgs(makeVoyage().deps, { registers: ['devotional'] }),
+    );
+    expect([...devo.ctx.allowedVerseRefs].sort()).toEqual([...all.ctx.allowedVerseRefs].sort());
+  });
+});
