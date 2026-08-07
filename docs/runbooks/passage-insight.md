@@ -69,7 +69,6 @@ Two writes that deliberately never happen:
 | Migration applied, public read live | ✅ 2026-08-06, anon select returns `200 []` |
 | Function deployed and booting | ✅ 2026-08-06, `401` on unauthenticated POST |
 | Prompt quality across dense / thin / verse grains | ✅ `docs/lamplight/evals/2026-08-06-b2-passage-door` — 3/3, $0.17, zero Scripture violations, zero display-ref leaks |
-| Study chat unaffected by the shared `displayRefs` change **at the time B2 landed** | ✅ `docs/lamplight/evals/2026-08-06-b2-studychat-regression` (free, grounding-only). Historical: study chat was deliberately switched over afterwards — see §7 |
 | Client read path against the real table | ✅ The exact query `usePassageInsight` issues returns `200 []` for `psa.27`, `psa.27.4`, `nam.1` — a reader today correctly sees *Study this passage* rather than an error |
 | **End-to-end generate through the deployed function** | ❌ **Never run.** The eval drives the pipeline directly, not the edge function |
 | **A second reader gets the cached door instantly** | ❌ Unit-tested only |
