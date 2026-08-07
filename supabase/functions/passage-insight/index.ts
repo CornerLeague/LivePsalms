@@ -35,6 +35,23 @@ const NOTE_K = 4;
 // takes study CHAT's library budget rather than insight's halved one.
 const LIBRARY_K = 4;
 
+// NO REGISTER FILTER, deliberately — and this contradicts parent design §7's
+// "Door 1 biases devotional", for a reason worth writing down.
+//
+// `registers` is a HARD filter, not a bias. Measured on the real corpus
+// (2026-08-07, docs/lamplight/evals/2026-08-07-a1-door1-devotional): filtering
+// Door 1 to devotional collapses it from two voices to ONE on every fixture,
+// because `devotional` is only Treasury + Matthew Henry and Treasury fills all
+// four slots. On Nahum 1 it is worse than narrow — Treasury is Psalms-only, so
+// it reaches Nahum through the psa 91:1 cross-ref anchor, and filtering swaps
+// JFB-on-Nahum for Spurgeon-on-a-cross-referenced-psalm.
+//
+// A1 does not fix this: the five incoming sources are exegetical, so
+// `devotional` stays at two members. Door 1 wants a soft bias or nothing.
+// Door 2 is the one register steering will genuinely serve — after A1,
+// `exegetical` has five or six members and a top-k without steering goes to
+// whoever has the most rows.
+
 serve(async (req) => {
   const cors = corsHeaders(req, resolveAllowedOrigins(Deno.env));
   const jsonResp = (b: unknown, status = 200) =>
@@ -116,6 +133,7 @@ serve(async (req) => {
             noteK: NOTE_K,
             translation,
             libraryK: LIBRARY_K,
+            registers: DOOR_REGISTERS,
             // Reader-facing refs. Door 1's prose IS the product — the first live
             // eval sweep caught it printing "2ti 2:19" at readers, because the
             // model echoes back whatever ref form it was handed.

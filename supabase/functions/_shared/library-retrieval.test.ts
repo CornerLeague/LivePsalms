@@ -7,6 +7,7 @@ import {
   composeSourceLabel,
   stripEmbeddingPrefix,
   fetchLexiconEntries,
+  makeLibraryDeps,
   type LexiconDeps,
   type StrongsRow,
   type LibraryChunkRow,
@@ -542,6 +543,199 @@ describe('fetchLexiconEntries', () => {
     const b = makeLexiconDeps({ interlinear: words('H216'), throwOn: 'strongs' });
     await expect(fetchLexiconEntries(b.deps, { book: 'psa', chapter: 27 })).resolves.toEqual([]);
     expect(err).toHaveBeenCalledTimes(2);
+    err.mockRestore();
+  });
+});
+
+// ── makeLibraryDeps.fetchByChapters — the anchor channel's actual query ──────
+// Previously untested "glue", which is how it came to cap at 500 rows with no
+// ORDER BY: the ranking in searchLibrary only ever sees whatever rows the
+// planner happened to return first.
+
+interface FetchCall { source: string | null; or: string | null; order: string[]; limit: number | null }
+
+function makeFetchSupabase(rowsBySource: Record<string, number>) {
+  const calls: FetchCall[] = [];
+  const from = (table: string) => {
+    const call: FetchCall = { source: null, or: null, order: [], limit: null };
+    const chain: Record<string, unknown> = {
+      select: () => chain,
+      eq: (col: string, val: string) => { if (col === 'source_id') call.source = val; return chain; },
+      or: (v: string) => { call.or = v; return chain; },
+      order: (col: string) => { call.order.push(col); return chain; },
+      limit: (n: number) => {
+        call.limit = n;
+        calls.push(call);
+        // Emit `n` rows for the requested source (or across all, if unfiltered).
+        const emit = (src: string, count: number) =>
+          Array.from({ length: count }, (_, i) => ({
+            id: `${src}-${i}`, source_id: src, heading: `h${i}`, content: `c${i}`,
+            book: 'psa', chapter: 119, verse_start: null, verse_end: null,
+          }));
+        let rows: unknown[] = [];
+        if (call.source) rows = emit(call.source, Math.min(rowsBySource[call.source] ?? 0, n));
+        else for (const [s, c] of Object.entries(rowsBySource)) rows.push(...emit(s, c));
+        return Promise.resolve({ data: rows.slice(0, n), error: null });
+      },
+    };
+    void table;
+    return chain;
+  };
+  return { client: { from } as never, calls };
+}
+
+const SOURCE_ROWS_FOR_DEPS = [
+  { id: 'treasury-of-david', title: 'T', author: 'S', era: '1869', register: 'devotional' },
+  { id: 'matthew-henry-concise', title: 'M', author: 'H', era: '1706', register: 'devotional' },
+  { id: 'jfb', title: 'J', author: 'F', era: '1871', register: 'exegetical' },
+];
+
+function makeDepsSupabase(rowsBySource: Record<string, number>) {
+  const inner = makeFetchSupabase(rowsBySource);
+  const from = (table: string) => {
+    if (table === 'library_sources') {
+      const chain: Record<string, unknown> = {
+        select: () => Promise.resolve({ data: SOURCE_ROWS_FOR_DEPS, error: null }),
+      };
+      return chain;
+    }
+    return (inner.client as unknown as { from: (t: string) => unknown }).from(table);
+  };
+  return { client: { from } as never, calls: inner.calls };
+}
+
+describe('makeLibraryDeps — fetchByChapters breadth', () => {
+  const voyage = { apiKey: 'k', fetch: (() => { throw new Error('no network'); }) as never };
+
+  it('LOAD-BEARING: one flooding source cannot crowd the others out', async () => {
+    // Psalm 119 really is like this: 627 Treasury chunks against 22 Matthew
+    // Henry and 70 JFB, and every Treasury chunk has verse_start null so it
+    // overlaps ANY anchor. A single global cap makes breadth a matter of
+    // physical row order.
+    const { client, calls } = makeDepsSupabase({
+      'treasury-of-david': 627, 'matthew-henry-concise': 22, 'jfb': 70,
+    });
+    const deps = makeLibraryDeps(client, voyage as never);
+    const rows = await deps.fetchByChapters([{ book: 'psa', chapter: 119 }]);
+
+    const bySource = new Set(rows.map((r) => r.source_id));
+    expect([...bySource].sort()).toEqual(['jfb', 'matthew-henry-concise', 'treasury-of-david']);
+    // The thin sources arrive WHOLE, not as whatever survived the flood.
+    expect(rows.filter((r) => r.source_id === 'matthew-henry-concise')).toHaveLength(22);
+    expect(rows.filter((r) => r.source_id === 'jfb')).toHaveLength(70);
+    void calls;
+  });
+
+  it('queries per source rather than once globally', async () => {
+    const { client, calls } = makeDepsSupabase({ 'treasury-of-david': 5, 'matthew-henry-concise': 5, 'jfb': 5 });
+    const deps = makeLibraryDeps(client, voyage as never);
+    await deps.fetchByChapters([{ book: 'psa', chapter: 27 }]);
+
+    expect(calls.map((c) => c.source).sort())
+      .toEqual(['jfb', 'matthew-henry-concise', 'treasury-of-david']);
+    // Every call still carries the chapter filter.
+    expect(calls.every((c) => c.or === 'and(book.eq.psa,chapter.eq.27)')).toBe(true);
+  });
+
+  it('orders every query, so truncation is deterministic rather than planner-dependent', async () => {
+    const { client, calls } = makeDepsSupabase({ 'treasury-of-david': 900, 'matthew-henry-concise': 1, 'jfb': 1 });
+    const deps = makeLibraryDeps(client, voyage as never);
+    await deps.fetchByChapters([{ book: 'psa', chapter: 119 }]);
+
+    expect(calls.every((c) => c.order.length > 0)).toBe(true);
+    expect(calls.every((c) => (c.limit ?? 0) > 0)).toBe(true);
+  });
+
+  it('is stable across runs — same corpus, same rows', async () => {
+    const build = async () => {
+      const { client } = makeDepsSupabase({ 'treasury-of-david': 627, 'matthew-henry-concise': 22, 'jfb': 70 });
+      const deps = makeLibraryDeps(client, voyage as never);
+      return (await deps.fetchByChapters([{ book: 'psa', chapter: 119 }])).map((r) => r.id);
+    };
+    expect(await build()).toEqual(await build());
+  });
+
+  it('a chapter well under the cap returns everything, as it does today', async () => {
+    const { client } = makeDepsSupabase({ 'treasury-of-david': 108, 'matthew-henry-concise': 2, 'jfb': 13 });
+    const deps = makeLibraryDeps(client, voyage as never);
+    const rows = await deps.fetchByChapters([{ book: 'psa', chapter: 27 }]);
+    expect(rows).toHaveLength(108 + 2 + 13);
+  });
+});
+
+describe('makeLibraryDeps — one source failing must not lose the rest', () => {
+  const voyage = { apiKey: 'k', fetch: (() => { throw new Error('no network'); }) as never };
+
+  // Fan-out client where one named source errors and the others succeed.
+  function makeFlakySupabase(rowsBySource: Record<string, number>, failing: string) {
+    const from = (table: string) => {
+      if (table === 'library_sources') {
+        return { select: () => Promise.resolve({ data: SOURCE_ROWS_FOR_DEPS, error: null }) } as Record<string, unknown>;
+      }
+      let source: string | null = null;
+      const chain: Record<string, unknown> = {
+        select: () => chain,
+        eq: (col: string, val: string) => { if (col === 'source_id') source = val; return chain; },
+        or: () => chain,
+        order: () => chain,
+        limit: (n: number) => {
+          if (source === failing) {
+            return Promise.resolve({ data: null, error: { message: 'canceling statement due to statement timeout' } });
+          }
+          const rows = Array.from({ length: Math.min(rowsBySource[source!] ?? 0, n) }, (_, i) => ({
+            id: `${source}-${i}`, source_id: source, heading: 'h', content: 'c',
+            book: 'psa', chapter: 27, verse_start: null, verse_end: null,
+          }));
+          return Promise.resolve({ data: rows, error: null });
+        },
+      };
+      return chain;
+    };
+    return { from } as never;
+  }
+
+  it('LOAD-BEARING: a timing-out source degrades to ITSELF, not to the whole channel', async () => {
+    // The regression this replaced: Promise.all rejects on the first error, so
+    // searchLibrary's safely() caught it and the ENTIRE anchor channel returned
+    // []. One slow source lost all eight — strictly worse than the single query
+    // the fan-out replaced.
+    const client = makeFlakySupabase(
+      { 'treasury-of-david': 10, 'matthew-henry-concise': 10, 'jfb': 10 },
+      'jfb',
+    );
+    const deps = makeLibraryDeps(client, voyage as never);
+    const rows = await deps.fetchByChapters([{ book: 'psa', chapter: 27 }]);
+
+    expect(rows).toHaveLength(20);
+    expect(new Set(rows.map((r) => r.source_id))).toEqual(
+      new Set(['treasury-of-david', 'matthew-henry-concise']),
+    );
+  });
+
+  it('logs the source that failed, so a silent narrowing is not silent', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const client = makeFlakySupabase({ 'treasury-of-david': 5, 'matthew-henry-concise': 5, 'jfb': 5 }, 'jfb');
+    await makeLibraryDeps(client, voyage as never).fetchByChapters([{ book: 'psa', chapter: 27 }]);
+
+    expect(err).toHaveBeenCalled();
+    expect(err.mock.calls.flat().join(' ')).toContain('jfb');
+    err.mockRestore();
+  });
+
+  it('still returns [] when EVERY source fails, rather than pretending', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const from = (table: string) => {
+      if (table === 'library_sources') {
+        return { select: () => Promise.resolve({ data: SOURCE_ROWS_FOR_DEPS, error: null }) } as Record<string, unknown>;
+      }
+      const chain: Record<string, unknown> = {
+        select: () => chain, eq: () => chain, or: () => chain, order: () => chain,
+        limit: () => Promise.resolve({ data: null, error: { message: 'down' } }),
+      };
+      return chain;
+    };
+    const rows = await makeLibraryDeps({ from } as never, voyage as never).fetchByChapters([{ book: 'psa', chapter: 27 }]);
+    expect(rows).toEqual([]);
     err.mockRestore();
   });
 });

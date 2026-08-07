@@ -20,6 +20,60 @@ All three authors died before 1900; the works are public domain by age in the US
 grep -i DistributionLicense /opt/homebrew/share/sword/mods.d/{tdavid,mhcc,jfb}.conf
 ```
 
+## 1b. Phase A1 sources (added 2026-08-07)
+
+Five public-domain works added to broaden the corpus beyond one tradition — the prerequisite for Insights Door 2 (*Deeper In*), whose value over Door 1 is breadth of interpretation. Plan: `docs/superpowers/plans/2026-08-07-library-a1.md`.
+
+| Source id | Work | Author | Module | Register | License evidence |
+|---|---|---|---|---|---|
+| `wesley-notes` | Explanatory Notes on the Bible | John Wesley (1754–1765) | CrossWire `Wesley` 1.1 | devotional | `wesley.conf` → `DistributionLicense=Public Domain` |
+| `adam-clarke` | Commentary and Critical Notes | Adam Clarke (1810–1826) | CrossWire `Clarke` 2.0 | exegetical | `clarke.conf` → `DistributionLicense=Public Domain` |
+| `calvin-commentaries` | Calvin's Commentaries | John Calvin (1540–1564) | CrossWire `CalvinCommentaries` 1.1 | exegetical | `calvincommentaries.conf` → `DistributionLicense=Public Domain` |
+| `catena-aurea` | Catena Aurea | Aquinas, tr. Newman (1841) | CrossWire `Catena` 1.0.1 | exegetical | `catena.conf` → `DistributionLicense=Public Domain` |
+| `geneva-notes` | Geneva Bible Translation Notes | Geneva translators (1560–1599) | CrossWire `Geneva` 1.1 | confessional | **none — see below** |
+
+```bash
+installmgr --allow-internet-access-and-risk-tracing-and-jail-or-martyrdom -ri CrossWire Wesley
+# …likewise Clarke, CalvinCommentaries, Catena, Geneva
+```
+
+### Three provenance facts, recorded rather than smoothed over
+
+- **`Geneva` declares NO `DistributionLicense` at all.** Its `.conf` carries `InstallSize` and `SwordVersionDate` but no licence field, so there is nothing to quote against this runbook's own evidence standard. It is ingested on the **age** argument — the 1560/1599 marginalia are unambiguously public domain — and that is the claim recorded in `library_sources.license`, not a declaration that does not exist. The module is a 2001 ThML conversion of unstated provenance; if a cleaner source appears, prefer it.
+- **`Clarke`'s `TextSource` is Wikisource**, which the Insights design flags for ShareAlike quarantine handling. Clarke died in 1832, so the underlying text is PD by age, and a faithful transcription of a public-domain work creates no new copyright. Recorded because the flag was raised and deserves an answer.
+- **`CalvinCommentaries`'s `TextSource` is `ccel.org`** — and §1 above already excludes "CCEL's own editions (their formatting copyright)". The module itself declares Public Domain and the CTS translation is PD by age; what is inherited is a *conversion* of CCEL-hosted text, not a CCEL edition claim we are asserting. Flagged so a future audit starts from the fact rather than rediscovering it.
+
+### Module behaviour — observed, not assumed
+
+Probed with `parseChapterDump` against real output, per §3's standing instruction:
+
+| Module | Keying | Note |
+|---|---|---|
+| `Wesley` | clean per-verse | Catchword notes; many verses empty |
+| `Clarke` | clean per-verse | Verse 1 carries a chapter preface; bodies up to 26k chars |
+| `Geneva` | clean per-verse | Body is **verse text + `{a}`-marked glosses**; the verse text is stripped at ingest |
+| `Catena` | clean per-verse | Gospels only; inline patristic attributions, preserved |
+| `CalvinCommentaries` | **range-repeats, varying BY BOOK** | Psalm 27: 14 verse keys → **1 distinct body**. Romans 9: 33 → 33 |
+
+Calvin takes the same consecutive-collapse path as JFB and MHCC, and it must not be assumed off for any book — the behaviour varies *within* the module. No dumper changes were needed: `buildEntries` special-cases only `TDavid`.
+
+**Geneva's verse text is stripped** (`stripGenevaVerseText`), because it duplicates `bible_passages` and is half the corpus by character count. Two things only the real 14,695-entry dump revealed: markers are **alphanumeric** (`(1)` in Genesis 6:16, not just `(a)`), and **"The Argument" book prefaces must survive** — 28 of the 35 sit *before* the first note marker, so cutting at the marker would delete the best summary Geneva has for those books.
+
+### Recorded run — 2026-08-07
+
+| Source | Chunks | Unanchored |
+|---|---:|---:|
+| `adam-clarke` | 23,797 | 0 |
+| `calvin-commentaries` | 19,129 | 0 |
+| `wesley-notes` | 16,968 | 0 |
+| `geneva-notes` | 14,701 | 0 |
+| `catena-aurea` | 2,966 | 0 |
+| **Total** | **77,561** | **0** |
+
+Corpus **34,076 → 111,637**. Registers went from two (devotional, exegetical) to three, `confessional` gaining its first member. Zero unanchored chunks — every one resolved to a book/chapter/verse ref.
+
+**Load order:** Catena first, as the smallest, to prove the write path before committing the larger sources. `--dry-run` for all five first; the parsed counts matched the adapter counts exactly.
+
 **Not ingested, deliberately:** BibleProject (no-derivatives), Got Questions (200-word commercial cap), Louw-Nida (UBS copyright), CCEL's own editions (their formatting copyright — take PD text from SWORD instead), Chambers' *My Utmost* (renewed copyright), NET notes and Enduring Word (permission pending — v2). Lexical data is **not** a library source: `bible_strongs` + `bible_interlinear` (migration 041) already hold it publicly, and slice 1c's lexicon block reads them directly.
 
 ## 2. Install the SWORD tooling and modules
@@ -142,6 +196,49 @@ What this baseline pins, beyond "retrieval works":
 **Watch item:** `matthew-henry-concise` did not place in the top 5. Not necessarily wrong — it is the smallest source (4,136 chunks) and its comments summarise passage blocks rather than dwelling on single verses, so a devotional single-verse query favours the other two. If MHCC never surfaces across varied slice-1c queries, investigate before assuming it is earning its place.
 
 **Resolved 2026-08-06 (slice 1c).** `npx tsx scripts/library-fusion-smoke.ts` — which runs the real two-channel fusion rather than the bare RPC — surfaces all three sources across its four queries, MHCC included. The verse-anchor channel plus block-level questions are what reach it; a single-verse semantic query alone does not. MHCC is earning its place; Matthew Henry *Complete* stays deferred.
+
+## 6c. Acceptance re-run after Phase A1 (2026-08-07)
+
+Corpus **111,637 chunks across 8 sources**.
+
+| §6 query | result |
+|---|---|
+| per-source counts | clarke 23,797 · calvin 19,129 · jfb 17,195 · wesley 16,968 · geneva 14,701 · treasury 12,745 · mhcc 4,136 · catena 2,966 |
+| unembedded | **0** across all eight (checked per source) |
+| versification canary | Treasury on Psalm 51 still anchors to `psa 51` ✓ |
+| unknown book codes | see note below |
+
+**Book coverage per new source** — a better check than the sampled one, and it matches each module's stated scope exactly:
+
+| source | books |
+|---|---|
+| `adam-clarke` | 66/66 |
+| `wesley-notes` | 64/66 |
+| `geneva-notes` | 63/66 |
+| `calvin-commentaries` | 48/66 *(its partial canon)* |
+| `catena-aurea` | **4/66 — the four Gospels**, exactly as the module scopes |
+
+**On the unknown-book-code query:** the whole-table `book not.in.(66 codes)` form times out — a full scan of 111,637 rows, the same shape as §Known limits below. The property still holds structurally: `parseHeadingRef` resolves against `BIBLE_BOOKS` and returns null for anything it cannot match, the driver **skips** unresolvable refs, and the A1 ingest recorded **zero unanchored chunks** across all 77,561. An unknown code is not reachable from the adapter.
+
+### 6d. Retrieval baseline re-run (2026-08-07)
+
+Same query as §6b, `"waiting on the Lord in a season of fear"`:
+
+| # | sim | source | heading |
+|---|---|---|---|
+| 1 | **0.561** | **adam-clarke** | Psalm 27:14 |
+| 2 | 0.551 | jfb | Psalm 130:5-6 |
+| 3 | **0.549** | **wesley-notes** | Exodus 14:13 |
+| 4 | 0.536 | treasury-of-david | Psalm 27:14 |
+| 5 | 0.530 | treasury-of-david | Psalm 130:5 [2] |
+
+**Source diversity doubled: 2 sources → 4** in the top five. Treasury's share fell from 4-of-5 to 2-of-5, and the new top hit (Clarke, 0.561) outscores the old top hit (JFB, 0.551).
+
+The most interesting arrival is #3: Wesley on **Exodus 14:13** — *"Stand still and see the salvation of the LORD"* — a waiting-in-fear passage from **outside the Psalms**, which the three-source corpus never surfaced for this query. That is precisely what broadening was for. The similarity band is unchanged (~0.53–0.56), so slice-1c thresholds still hold.
+
+`npx tsx scripts/library-fusion-smoke.ts` surfaces **five** sources across its four Psalm 27 queries — Treasury, Matthew Henry, Clarke, JFB and Calvin — with MHCC still placing.
+
+**Watch item, in the tradition of §6b's MHCC note:** `catena-aurea`, `geneva-notes` and `wesley-notes` do not place in the fusion smoke. For Catena that is correct and expected — it is Gospels-only and every fusion query is on Psalm 27. Geneva and Wesley cover the Psalms and did not rank; not necessarily wrong (Geneva's notes are terse glosses, Wesley's are catchwords), but if neither surfaces across varied Gospel and Epistle queries, investigate before assuming they earn their place.
 
 ## 7. Re-running / rollback
 

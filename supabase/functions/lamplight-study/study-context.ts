@@ -106,6 +106,24 @@ export async function retrieveRelatedPassages(
     chapterVerseRefs: Set<string>; crossRefSet: Set<string>;
     /** Reader-facing book names rather than OSIS codes; see buildStudyContext's `displayRefs`. */
     displayRefs?: boolean;
+    /**
+     * Restrict library excerpts to these `library_sources.register` values.
+     *
+     * A HARD FILTER, not a bias — `searchLibrary`'s `inRegister` excludes
+     * everything else, the same way the daily devotion already asks for
+     * `['devotional']` because Spurgeon's warmth suits it and JFB's grammar
+     * apparatus does not.
+     *
+     * Absent = every register, which is today's behaviour and what study chat
+     * keeps: a reader's question can land anywhere, so narrowing the corpus
+     * under it would be guessing.
+     *
+     * This matters more as the corpus widens. With `k` excerpts drawn from
+     * eight sources, an unsteered top-k goes to whichever source has the most
+     * rows on that chapter — so steering is what stops one voice from
+     * crowding out the rest.
+     */
+    registers?: string[];
   },
 ): Promise<Array<{ ref: string; text: string }>> {
   const refOf = args.displayRefs === true ? formatDisplayVerseRef : formatVerseRef;
@@ -194,6 +212,24 @@ export async function buildStudyContext(
      * sweep and prompt_version bump.
      */
     displayRefs?: boolean;
+    /**
+     * Restrict library excerpts to these `library_sources.register` values.
+     *
+     * A HARD FILTER, not a bias — `searchLibrary`'s `inRegister` excludes
+     * everything else, the same way the daily devotion already asks for
+     * `['devotional']` because Spurgeon's warmth suits it and JFB's grammar
+     * apparatus does not.
+     *
+     * Absent = every register, which is today's behaviour and what study chat
+     * keeps: a reader's question can land anywhere, so narrowing the corpus
+     * under it would be guessing.
+     *
+     * This matters more as the corpus widens. With `k` excerpts drawn from
+     * eight sources, an unsteered top-k goes to whichever source has the most
+     * rows on that chapter — so steering is what stops one voice from
+     * crowding out the rest.
+     */
+    registers?: string[];
     /**
      * Skip every channel that needs an embedding: user notes, whole-Bible
      * related passages, and the library's semantic half. The deterministic
@@ -337,6 +373,7 @@ export async function buildStudyContext(
       ? retrieveStudyLibrary(libraryDeps, {
           anchors: libraryAnchors, queryEmbedding, query: args.retrievalQuery, k: libraryK,
           book: args.book, chapter: args.chapter,
+          ...(args.registers ? { registers: args.registers } : {}),
           // Reranking is a Voyage call; with the semantic half off there is no
           // key to make it with, and the anchor channel is already ordered.
           rerankEnabled: skipSemantic ? false : args.rerankEnabled,
