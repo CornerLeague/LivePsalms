@@ -8,7 +8,7 @@ How the generated doors' shared cache is migrated, deployed, warmed, and refresh
 
 **Migration `061` applied and `passage-insight` redeployed, 2026-08-07, in the same sitting** — §2 and §3. Both doors are live and **both have now generated through the deployed function**.
 
-⚠️ **B4 changes `lamplight-study` and `lamplight-chat`, not `passage-insight`** — but it changes them in a way that has an ordering rule attached. See §9.
+⚠️ **B4's rename touched `lamplight-study` and `lamplight-chat`; `passage-insight` was redeployed with them.** All three are live as of 2026-08-07 — `lamplight-study` v10, `lamplight-chat` v14, `passage-insight` v5. §9 has the ordering rule and the boot-check matrices.
 
 ⚠️ **Door 1's prompt moved to `passage-insight-2026-08-07-v2`**, so the two warmed Leviticus doors are stale. That is the designed behaviour (D2 — serve stale, refresh deliberately): the reader is never blocked, and `scripts/refresh-passage-insights.ts --stale` reports them at an estimated $0.11 whenever someone chooses to spend it.
 
@@ -84,7 +84,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_SUPABASE_URL/functions/v
 
 `401` is healthy: it means the deno.land import resolved, every cross-directory import bundled, and `OPENAI_API_KEY` / `VOYAGE_AI_KEY` are present — a missing key returns `500` *before* the auth check. A `500` with `BOOT_ERROR` means the bundle itself failed.
 
-**B3 needs a redeploy**, and it is overdue: the door registry, the widened `onConflict`, both prompt modules and the shared grounding all live under `lamplight-study/`. Add a second boot check for the door parameter — a bad door must be rejected, not silently served as Door 1:
+~~**B3 needs a redeploy**~~ — **done 2026-08-07**, and redeployed again for B4 (v5, §9). The rule that made it necessary stands: the door registry, the widened `onConflict`, both prompt modules and the shared grounding all live under `lamplight-study/`, so a change to any of them leaves this function stale.
+
+Always run the second boot check for the door parameter — a bad door must be rejected, not silently served as Door 1:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_SUPABASE_URL/functions/v1/passage-insight" -H "apikey: $VITE_SUPABASE_ANON_KEY" -H 'content-type: application/json' -d '{"book":"psa","chapter":27,"door":"nonsense"}'
