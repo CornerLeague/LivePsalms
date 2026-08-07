@@ -262,13 +262,26 @@ Boot-checked with the matrix below. **The last two rows are the ones that matter
 
 **`400` on row 1 is the failure this section exists to prevent** — it would mean the legacy spelling was rejected, and every journaling passage open would break.
 
-### `passage-insight` was NOT redeployed, deliberately
+### `passage-insight` — redeployed too, v5 (20:38:17 UTC)
 
-Its bundle *does* shift: `passage-insight/index.ts:29` imports `VALID_TRANSLATIONS` and `Translation` from `lamplight-study/parse-body.ts`, which now imports `_shared/chat-mode.ts`. Traced rather than assumed — the only delta reaching that bundle is **an unused import of a pure function**; the values it actually consumes are unchanged, and no mode parsing happens anywhere in its path.
+Its bundle *does* shift, though nothing it uses changed: `passage-insight/index.ts:29` imports `VALID_TRANSLATIONS` and `Translation` from `lamplight-study/parse-body.ts`, which now imports `_shared/chat-mode.ts`. Traced rather than assumed — the only delta reaching that bundle was **an unused import of a pure function**, and no mode parsing happens anywhere in its path.
 
-Left at **v4 (18:30:37 UTC)** and re-verified healthy after the other two shipped: `{"book","chapter"}` → 401, `door=deeper` → 401, `door=nonsense` → 400, `{"chapter"}` → 400. That 401/deeper + 400/nonsense **pair** is what proves the B3 door registry is still live in it.
+So the redeploy is a no-op in behaviour and worth doing anyway, which is §3's rule earning its keep: the deployed bundle now matches `main`, and nobody has to redo this trace to answer *"is `passage-insight` stale?"* after B4.
 
-The conservative reading of §3's "redeploy whenever anything under `lamplight-study/` changes" would say to ship it anyway. Both are defensible; what is not defensible is leaving it undecided, because the next person's "is it stale?" question then needs this whole trace redone. **Redeploying it is a safe no-op** if you would rather the deployed bundle simply match `main`.
+Boot-checked after deploying — the full matrix, not just the 401:
+
+| body | | |
+|---|---|---|
+| `{"book","chapter"}` | ✅ 401 | bundle resolved, keys present, auth gate reached |
+| `{"book","chapter","door":"passage"}` | ✅ 401 | Door 1 accepted |
+| `{"book","chapter","door":"deeper"}` | ✅ 401 | Door 2 accepted |
+| `{"book","chapter","door":"nonsense"}` | ✅ 400 | unregistered door **rejected**, not silently served as Door 1 |
+| `{"book","chapter","verse":4}` | ✅ 401 | verse grain accepted |
+| `{"chapter":27}` | ✅ 400 | bad payload |
+
+Rows 3 and 4 are the **pair** that tells a fresh bundle from a stale one — a stale one answers `401` to both, because it never learned the registry.
+
+The read path was re-verified afterwards too, since a deploy cannot break it but a bad bundle could make it look broken: the public unauthenticated query returns **4 sections** for `lev.1` on each door and `lev.1.1` on Door 1, and **0** for `lev.1.1` Deeper and both doors on `psa.27` — the doors still warming independently, exactly as before. And in a browser, signed out, Leviticus 1 → *Deeper In* renders all four sections immediately with no spinner and no generate action.
 
 ⚠️ **`prompt_version` strings did not move.** `study-insight-2026-08-06-v5` and `bible-insight-2026-06-10-v3` keep the word "insight" inside them, because they stamp `lamplight_usage` rows and the rename changed no emitted byte. Byte-identity fixtures in each `prompts/__fixtures__/` prove it. If one of those gates ever fails, the two correct responses are revert, or bump the version *and* re-baseline *and* regenerate the fixture in the same commit — never the fixture alone.
 

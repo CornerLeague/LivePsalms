@@ -62,7 +62,7 @@ Its Study twin `requestStudyInsight` is genuinely parked (`LamplightStudyPanel.t
 | 8 — the client half | done, **wire value deliberately NOT flipped** | see below |
 | 9 — registry tidy | done | |
 | 10 — runbook | done | runbook §9 |
-| 11 — completion gate | **partly — browser checks left** | gate green; **both functions deployed 2026-08-07**, 10/10 boot checks |
+| 11 — completion gate | **partly — browser checks left** | gate green; **all three functions deployed 2026-08-07**, 16/16 boot checks |
 
 ### Decisions made while implementing, that are not in the design
 
@@ -223,7 +223,7 @@ So both clients — `requestOpeningInsight` and the `LamplightChat.tsx` stream, 
 - [x] `npx tsc -b` clean · `npx eslint .` at its **163-problem baseline** · `npx vitest run` green — **4,251** at completion (4,171 at plan time).
 - [x] **Deploy `lamplight-chat` AND `lamplight-study`.** **Done 2026-08-07** — `lamplight-study` v10 (20:27:41 UTC), `lamplight-chat` v14 (20:27:59 UTC).
 - [x] Boot check the wire tolerance explicitly. **10/10 pass**, runbook §9. The discriminator is the empty-message row: an opener body carries no message, so if `'opener'` were falling through to `chat` the parser would reject it for that and return 400 — which is exactly what the empty-message row does return. The two rows differing is what proves the mode parses.
-- [x] **`passage-insight` traced and deliberately left at v4.** Its bundle shifts (`index.ts:29` imports from `parse-body.ts`, which now imports `chat-mode.ts`) but the only delta is an unused import of a pure function. Re-verified healthy afterwards; the `door=deeper` 401 / `door=nonsense` 400 pair still proves the B3 registry is live.
+- [x] **`passage-insight` redeployed too — v5 (20:38:17 UTC).** Its bundle shifts (`index.ts:29` imports from `parse-body.ts`, which now imports `chat-mode.ts`), though the only delta is an unused import of a pure function. A no-op in behaviour, done so the deployed bundle matches `main` and nobody has to redo the trace. 6/6 boot checks; the `door=deeper` 401 / `door=nonsense` 400 pair confirms the B3 registry survived, and the public cached read still returns 4 sections per warm door.
 - [ ] Only then ship Task 8's client half.
 - [ ] The browser checks from Task 6.
 
