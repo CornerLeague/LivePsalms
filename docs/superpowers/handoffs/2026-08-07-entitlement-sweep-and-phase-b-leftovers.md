@@ -84,13 +84,14 @@ Three guard kinds, each *verified* rather than declared: `entitledAndSignedIn` (
 
 ---
 
-## 2. Phase B's open live checks — one closed, two left
+## 2. Phase B's open live checks — two closed, one left
 
-Runbook §5 and §6. The two remaining need **different** things: the handoff check needs a signed-in session and runs on desktop; the mobile check needs a device.
+Runbook §5 and §6. **Only the mobile row remains, and it needs a device rather than a login.**
 
 - ~~**An interrupted generation leaves the door uncached.**~~ ✅ **Done 2026-08-07** — Psalm 27 Door 1, interrupted at 201 of ~6,500 characters, zero rows written, watched for five minutes. Runbook §6 step 6 carries the numbers. Open since B2; this was the last check needing a signed-in session.
 - **The true per-door cost.** `lamplight_usage` is admin-gated, so **$0.066/door** still rests on nine eval fixtures rather than on a real door. The row to look for is `passage_insight`, stamped **2026-08-07 19:35:29 UTC** — the Door 2 generation on `lev.1`.
-- **The B4 mobile checks, on a real phone.** Runbook §6 steps 11–12: the overlay over the tab bar, safe areas at the notch and the home indicator, the header at 360px on a long book name, and — the one this document cannot settle — **whether the keyboard covers the seeded draft** when a handoff lands in Chat. jsdom asserts the CSS; only a device asserts the keyboard.
+- ~~**The handoff (§6 step 11).**~~ ✅ **Done 2026-08-07** on Leviticus 1: prefilled and unsent, the pane switched on its own, and — the one that matters — with a thread from another passage reopened, a seeded prompt returned the header to `LEV 1`. The send appended to a thread created the day before rather than opening a second, and no other passage's thread was touched.
+- **The B4 mobile check, on a real phone.** Runbook §6 step 12: the overlay over the tab bar, safe areas at the notch and the home indicator, the header at 360px on a long book name, and — the one this document cannot settle — **whether the keyboard covers the seeded draft** when a handoff lands in Chat. jsdom asserts the CSS; only a device asserts the keyboard.
 
 **Also unread from the repo:** whether `monthly_reflection` usage rows are now recording. #119 fixed a silent data loss and it cannot be verified from here for the same admin-gating reason.
 
