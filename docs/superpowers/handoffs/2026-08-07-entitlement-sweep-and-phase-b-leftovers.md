@@ -84,11 +84,11 @@ Three guard kinds, each *verified* rather than declared: `entitledAndSignedIn` (
 
 ---
 
-## 2. Phase B's open live checks — three rows, all human-only
+## 2. Phase B's open live checks — one closed, two left
 
-Runbook §5 and §6. Each needs a browser and, for the first two, an authenticated Plus/promo session.
+Runbook §5 and §6. **Nothing left needs a login** — what remains needs a device or the admin dashboard.
 
-- **An interrupted generation leaves the door uncached.** Unit-tested only, and inherited from B2. Easier now than ever: there are **12 real rows** to diff against. Runbook §6 step 6.
+- ~~**An interrupted generation leaves the door uncached.**~~ ✅ **Done 2026-08-07** — Psalm 27 Door 1, interrupted at 201 of ~6,500 characters, zero rows written, watched for five minutes. Runbook §6 step 6 carries the numbers. Open since B2; this was the last check needing a signed-in session.
 - **The true per-door cost.** `lamplight_usage` is admin-gated, so **$0.066/door** still rests on nine eval fixtures rather than on a real door. The row to look for is `passage_insight`, stamped **2026-08-07 19:35:29 UTC** — the Door 2 generation on `lev.1`.
 - **The B4 mobile checks, on a real phone.** Runbook §6 steps 11–12: the overlay over the tab bar, safe areas at the notch and the home indicator, the header at 360px on a long book name, and — the one this document cannot settle — **whether the keyboard covers the seeded draft** when a handoff lands in Chat. jsdom asserts the CSS; only a device asserts the keyboard.
 

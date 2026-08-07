@@ -135,11 +135,11 @@ Two writes that deliberately never happen:
 | **A second reader gets the cached door instantly, DOOR 2** | ✅ **2026-08-07, in a browser, signed out** — the repeat B3's Task 12 asked for, on the door riding new code. All four *Deeper In* sections rendered immediately. Signed out means `canGenerate` false and `invoke` null, so generation was not merely unused but unreachable: what rendered can only have come from the public cache |
 | **The three-door chooser** | ✅ First time exercised past two doors since B1 built it. The Passage · Deeper In · Sources & Reference, in reading order, with blurbs |
 | **A signed-out reader is offered generation** | ✅ **FIXED 2026-08-07 — it was.** See §7 |
-| **An interrupted generation leaves the door uncached** | ❌ Unit-tested only |
+| **An interrupted generation leaves the door uncached** | ✅ **2026-08-07, in a browser, signed in.** Psalm 27 Door 1, interrupted **mid-stream** with 201 of ~6,500 characters on screen. Zero rows written, watched for 5 minutes. See §6 |
 | **A seeded prompt lands in study chat, prefilled and unsent** (B4) | ❌ Unit-tested only — §6 step 11 |
 | **The overlay on a real phone: tab bar, safe areas, 360px header** (B4) | ❌ Asserted in jsdom; needs a device — §6 step 12 |
 
-The remaining checks need a browser and an authenticated Plus/promo session, which is why they are listed rather than done. §6 is the procedure.
+**Every check that needs an authenticated session is now done.** What is left needs a *device* (the B4 mobile rows) or the admin dashboard (the per-door cost), not a login. §6 is the procedure.
 
 ## 6. Running the outstanding checks
 
@@ -177,7 +177,27 @@ Record the first warmed passages below when step 1 lands.
 
 **Step 10 passes on real prose.** *Read With Care* names no tradition, denomination or group. It does name Calvin — a voice it leaned on, which is attribution rather than a caution aimed at anyone, and exactly the distinction §9's rule turns on.
 
-**Step 6 (interruption) has still not been run**, and is easier now: there are twelve real rows to diff against. **The cost figure is still not readable from the repo** — `lamplight_usage` is admin-gated, so the measured **$0.066/door** stands on the nine live fixtures rather than on this door.
+### Step 6 — interruption, run 2026-08-07
+
+**The last of B2's three inherited checks, open since B2 and now closed.**
+
+Psalm 27 was chosen because it was cold on both doors, so "zero rows" is unambiguous rather than a claim about a table that already had some. Signed in with the entitlement, *The Passage* offered **Study this passage** (no sign-in gate, no paywall — the door really was uncached).
+
+**The interrupt was timed against the stream, not against the clock.** Pressing and closing after a fixed delay would prove very little: if the model had not begun emitting, there would be nothing for the server to have written and the test would pass vacuously. So the overlay was held open until prose was demonstrably arriving — **201 characters** of a roughly 6,500-character door, about 3% in — and closed at that moment.
+
+| | |
+|---|---|
+| Pressed | t+0 |
+| Stream demonstrably underway | t+15.9s, 201 chars rendered |
+| Overlay closed (interrupt) | t+15.9s |
+| Rows for `psa.27` | **0**, polled every 15s to t+120s, and again at ~5 minutes |
+| Table total | **12**, unchanged; newest row still `lev.1 deeper 19:35:29` |
+
+**Waiting past a full generation is the part that makes it conclusive.** A door takes ~30–60s, so a query straight after the interrupt would prove nothing — a late write would simply land afterwards. Nothing landed.
+
+**The reader-facing half holds too.** Reopening the door offers *Study this passage* again, with **zero** section headings and **zero** characters of prose — no half-written door, and no error copy. A reader who closes the overlay mid-generation is returned exactly to where they started.
+
+**The cost figure is still not readable from the repo** — `lamplight_usage` is admin-gated, so the measured **$0.066/door** stands on the nine live fixtures rather than on a warmed door. This run also spent a partial generation that the dashboard will show and the cache never received.
 
 Verify the current state from the repo at any time:
 
