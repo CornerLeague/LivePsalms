@@ -139,7 +139,12 @@ Two writes that deliberately never happen:
 | **A seeded prompt lands in study chat, prefilled and unsent** (B4) | ❌ Unit-tested only — §6 step 11 |
 | **The overlay on a real phone: tab bar, safe areas, 360px header** (B4) | ❌ Asserted in jsdom; needs a device — §6 step 12 |
 
-**Every check that needs an authenticated session is now done.** What is left needs a *device* (the B4 mobile rows) or the admin dashboard (the per-door cost), not a login. §6 is the procedure.
+Two rows are still open, and they need different things — worth separating, because "needs a browser" has been used loosely in this table before:
+
+- **The handoff (§6 step 11) needs a signed-in session, and is desktop-runnable.** Section footers render only for `userId != null`, so a signed-out reader sees no seeded prompts at all and the check cannot start. Its sharpest assertion is the one that only reproduces after the reader has been in History: pressing a seeded prompt while a thread from *another* passage is open must return to the reader's chapter rather than appending to the reopened thread.
+- **The mobile row (§6 step 12) needs a device**, not a login. jsdom asserts the CSS; only a phone answers whether the keyboard covers the seeded draft.
+
+§6 is the procedure.
 
 ## 6. Running the outstanding checks
 

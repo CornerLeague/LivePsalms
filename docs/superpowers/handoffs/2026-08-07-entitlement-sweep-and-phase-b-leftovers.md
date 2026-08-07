@@ -86,7 +86,7 @@ Three guard kinds, each *verified* rather than declared: `entitledAndSignedIn` (
 
 ## 2. Phase B's open live checks — one closed, two left
 
-Runbook §5 and §6. **Nothing left needs a login** — what remains needs a device or the admin dashboard.
+Runbook §5 and §6. The two remaining need **different** things: the handoff check needs a signed-in session and runs on desktop; the mobile check needs a device.
 
 - ~~**An interrupted generation leaves the door uncached.**~~ ✅ **Done 2026-08-07** — Psalm 27 Door 1, interrupted at 201 of ~6,500 characters, zero rows written, watched for five minutes. Runbook §6 step 6 carries the numbers. Open since B2; this was the last check needing a signed-in session.
 - **The true per-door cost.** `lamplight_usage` is admin-gated, so **$0.066/door** still rests on nine eval fixtures rather than on a real door. The row to look for is `passage_insight`, stamped **2026-08-07 19:35:29 UTC** — the Door 2 generation on `lev.1`.
