@@ -662,3 +662,80 @@ describe('makeLibraryDeps — fetchByChapters breadth', () => {
     expect(rows).toHaveLength(108 + 2 + 13);
   });
 });
+
+describe('makeLibraryDeps — one source failing must not lose the rest', () => {
+  const voyage = { apiKey: 'k', fetch: (() => { throw new Error('no network'); }) as never };
+
+  // Fan-out client where one named source errors and the others succeed.
+  function makeFlakySupabase(rowsBySource: Record<string, number>, failing: string) {
+    const from = (table: string) => {
+      if (table === 'library_sources') {
+        return { select: () => Promise.resolve({ data: SOURCE_ROWS_FOR_DEPS, error: null }) } as Record<string, unknown>;
+      }
+      let source: string | null = null;
+      const chain: Record<string, unknown> = {
+        select: () => chain,
+        eq: (col: string, val: string) => { if (col === 'source_id') source = val; return chain; },
+        or: () => chain,
+        order: () => chain,
+        limit: (n: number) => {
+          if (source === failing) {
+            return Promise.resolve({ data: null, error: { message: 'canceling statement due to statement timeout' } });
+          }
+          const rows = Array.from({ length: Math.min(rowsBySource[source!] ?? 0, n) }, (_, i) => ({
+            id: `${source}-${i}`, source_id: source, heading: 'h', content: 'c',
+            book: 'psa', chapter: 27, verse_start: null, verse_end: null,
+          }));
+          return Promise.resolve({ data: rows, error: null });
+        },
+      };
+      return chain;
+    };
+    return { from } as never;
+  }
+
+  it('LOAD-BEARING: a timing-out source degrades to ITSELF, not to the whole channel', async () => {
+    // The regression this replaced: Promise.all rejects on the first error, so
+    // searchLibrary's safely() caught it and the ENTIRE anchor channel returned
+    // []. One slow source lost all eight — strictly worse than the single query
+    // the fan-out replaced.
+    const client = makeFlakySupabase(
+      { 'treasury-of-david': 10, 'matthew-henry-concise': 10, 'jfb': 10 },
+      'jfb',
+    );
+    const deps = makeLibraryDeps(client, voyage as never);
+    const rows = await deps.fetchByChapters([{ book: 'psa', chapter: 27 }]);
+
+    expect(rows).toHaveLength(20);
+    expect(new Set(rows.map((r) => r.source_id))).toEqual(
+      new Set(['treasury-of-david', 'matthew-henry-concise']),
+    );
+  });
+
+  it('logs the source that failed, so a silent narrowing is not silent', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const client = makeFlakySupabase({ 'treasury-of-david': 5, 'matthew-henry-concise': 5, 'jfb': 5 }, 'jfb');
+    await makeLibraryDeps(client, voyage as never).fetchByChapters([{ book: 'psa', chapter: 27 }]);
+
+    expect(err).toHaveBeenCalled();
+    expect(err.mock.calls.flat().join(' ')).toContain('jfb');
+    err.mockRestore();
+  });
+
+  it('still returns [] when EVERY source fails, rather than pretending', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const from = (table: string) => {
+      if (table === 'library_sources') {
+        return { select: () => Promise.resolve({ data: SOURCE_ROWS_FOR_DEPS, error: null }) } as Record<string, unknown>;
+      }
+      const chain: Record<string, unknown> = {
+        select: () => chain, eq: () => chain, or: () => chain, order: () => chain,
+        limit: () => Promise.resolve({ data: null, error: { message: 'down' } }),
+      };
+      return chain;
+    };
+    const rows = await makeLibraryDeps({ from } as never, voyage as never).fetchByChapters([{ book: 'psa', chapter: 27 }]);
+    expect(rows).toEqual([]);
+    err.mockRestore();
+  });
+});

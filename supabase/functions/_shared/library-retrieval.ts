@@ -426,7 +426,12 @@ export function makeLibraryDeps(
       // single global cap let one source crowd the rest out, and with no
       // ORDER BY the survivors were whatever the planner returned first.
       const or = chapterOrFilter(pairs);
-      const batches = await Promise.all(sourceIds.map(async (sourceId) => {
+      // allSettled, NOT all: one source failing must cost that source only.
+      // With `Promise.all` a single rejection propagated out of here, and
+      // searchLibrary's `safely()` turned it into an empty anchor channel — so
+      // one timing-out source lost ALL of them, which is strictly worse than
+      // the single query this fan-out replaced.
+      const batches = await Promise.allSettled(sourceIds.map(async (sourceId) => {
         const { data, error } = await supabase
           .from('library_chunks')
           .select('id, source_id, heading, content, book, chapter, verse_start, verse_end')
@@ -437,10 +442,20 @@ export function makeLibraryDeps(
           .order('verse_start', { ascending: true, nullsFirst: false })
           .order('id', { ascending: true })
           .limit(PER_SOURCE_ROW_CAP);
-        if (error) throw error;
+        if (error) throw new Error(`${sourceId}: ${error.message}`);
         return (data ?? []) as LibraryChunkRow[];
       }));
-      return batches.flat();
+
+      const rows: LibraryChunkRow[] = [];
+      for (const b of batches) {
+        if (b.status === 'fulfilled') { rows.push(...b.value); continue; }
+        // Named, so a narrowed corpus is diagnosable. A dropped source looks
+        // exactly like a normal result otherwise — the grounding floors only
+        // fire at ZERO excerpts, and with eight sources one missing tradition
+        // is invisible.
+        console.error('[library] anchor fetch failed for', b.reason instanceof Error ? b.reason.message : b.reason);
+      }
+      return rows;
     },
     async matchSemantic({ embedding, limit, registers }) {
       // Raw number[] for p_query_vector, matching match_bible_embeddings in
