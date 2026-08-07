@@ -136,15 +136,12 @@ Two writes that deliberately never happen:
 | **The three-door chooser** | ✅ First time exercised past two doors since B1 built it. The Passage · Deeper In · Sources & Reference, in reading order, with blurbs |
 | **A signed-out reader is offered generation** | ✅ **FIXED 2026-08-07 — it was.** See §7 |
 | **An interrupted generation leaves the door uncached** | ✅ **2026-08-07, in a browser, signed in.** Psalm 27 Door 1, interrupted **mid-stream** with 201 of ~6,500 characters on screen. Zero rows written, watched for 5 minutes. See §6 |
-| **A seeded prompt lands in study chat, prefilled and unsent** (B4) | ❌ Unit-tested only — §6 step 11 |
+| **A seeded prompt lands in study chat, prefilled and unsent** (B4) | ✅ **2026-08-07** — Leviticus 1, signed in. Prefilled and NOT sent; the send appended to a thread created 2026-08-06 rather than opening a second. See §6 step 11 |
 | **The overlay on a real phone: tab bar, safe areas, 360px header** (B4) | ❌ Asserted in jsdom; needs a device — §6 step 12 |
 
-Two rows are still open, and they need different things — worth separating, because "needs a browser" has been used loosely in this table before:
+**One row is left, and it needs a device rather than a login** (§6 step 12). jsdom asserts the CSS; only a phone answers whether the keyboard covers the seeded draft. §6 is the procedure.
 
-- **The handoff (§6 step 11) needs a signed-in session, and is desktop-runnable.** Section footers render only for `userId != null`, so a signed-out reader sees no seeded prompts at all and the check cannot start. Its sharpest assertion is the one that only reproduces after the reader has been in History: pressing a seeded prompt while a thread from *another* passage is open must return to the reader's chapter rather than appending to the reopened thread.
-- **The mobile row (§6 step 12) needs a device**, not a login. jsdom asserts the CSS; only a phone answers whether the keyboard covers the seeded draft.
-
-§6 is the procedure.
+Everything else in this table is now closed. The distinction is worth keeping in mind for whatever comes next, because "needs a browser" was used loosely here for a while and it hid which checks a person could actually run: a login and a device are different blockers.
 
 ## 6. Running the outstanding checks
 
@@ -161,7 +158,27 @@ Signed in as a Plus (or promo-active) user, in the Study workspace:
    `select door, section, prompt_version from bible_passage_insight where ref_id = 'psa.27' order by door, section;`
 9. **Door 2 on a contested chapter.** Romans 9. It must generate — describing the argument, naming the question as disputed, and citing nothing in 9:11–23. Before B3 this failed outright on both doors.
 10. **Read With Care.** On any Door 2 passage, that section must describe how the passage gets misread and never name a tradition, denomination or group. If it names one, the door should have been rejected — check the function is actually running the B3 bundle.
-11. **The handoff (B4).** On a warm door, press the question under any section. The overlay closes, the Study side panel switches to Chat, and the question is sitting in the input — **editable, and not sent**. Press Send: the reply must append to the passage's existing thread rather than opening a new one (`select id, passage_ref, created_at from lamplight_chat_threads where passage_ref = 'psa.27' and surface = 'study' and archived = false;` — one row, not two). Then reopen a past conversation from History on a *different* passage and press a seeded prompt again: it must return to the open passage rather than adding to the reopened thread.
+11. **The handoff (B4).** On a warm door, press the question under any section. The overlay closes, the Study side panel switches to Chat, and the question is sitting in the input — **editable, and not sent**. Press Send: the reply must append to the passage's existing thread rather than opening a new one. Then reopen a past conversation from History on a *different* passage and press a seeded prompt again: it must return to the open passage rather than adding to the reopened thread.
+
+### Step 11 — run 2026-08-07, on Leviticus 1
+
+Split deliberately: **the on-screen half was observed by Myles, the database half verified from the repo.** Worth recording that way — a check is not green because the steps were performed, it is green because somebody saw the right thing happen, and half of what this check asserts leaves no trace in the table at all.
+
+Observed on screen:
+
+- the seeded prompt **prefilled the input and did not send** — the reader pressed Send themselves. This is the assertion decision 7 turns on, and **it is invisible to the database**: a user message row looks identical whether the reader sent it or the seam did;
+- the overlay closed and the side panel switched to Chat on its own;
+- ⚠️ **the History case passes.** With a thread from another passage reopened, pressing a seeded prompt returned the header to **`LEV 1`** rather than staying on the reopened thread. That is the failure this seam was most likely to ship with — `groundBook`/`groundChapter` come from the selection, not the props — and it only reproduces after the reader has been in History.
+
+Verified against the table afterwards:
+
+| | |
+|---|---|
+| Live study threads on `lev.1` | **1** — created `2026-08-06T07:43:18`, updated `2026-08-07T22:38:54` |
+| Messages in it | **4** — a user/assistant pair from 2026-08-06, and a fresh pair at `22:38` |
+| Other study threads touched since 22:30 | **none** |
+
+**The thread predating the test by a day is what makes it conclusive.** A newly created thread would be consistent with either behaviour; appending to one created 2026-08-06 can only be an append. And nothing landed on another passage's thread, so the seeded prompt never leaked across the History boundary.
 12. **Mobile (B4).** On a real phone, not a narrow desktop window: the overlay covers the tab bar completely; its header clears the notch and its last section clears the home indicator; a long book name (2 Thessalonians 3, verse selected) ellipsizes rather than pushing the close control off-screen; and a seeded prompt lands on Study → Chat with the draft visible and **not hidden by the keyboard**.
 
 Record the first warmed passages below when step 1 lands.
