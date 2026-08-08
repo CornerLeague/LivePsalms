@@ -64,9 +64,9 @@ This is not a reason to fail open. It is a reason to **sequence**: the gate ship
 | — eval script | done, **measured** | `2026-08-08-crisis-v1-unmitigated`, 0 false positives / 16 |
 | 5 — classification job | done | its own kind, its own retries |
 | 6 — the three gate sites | done, **shipped dark** | deps optional and unset |
-| 7 — backfill then flip | **script written, not run** | blocked on 062 |
-| 8 — response surface | **blocked on Myles** | copy + regional resources |
-| 9 — completion gate | not started | |
+| 7 — backfill then flip | **done** | 062 applied; 38 notes classified; gate wired at all 3 sites |
+| 8 — response surface | **BLOCKED ON MYLES** | copy + regional resources. Nothing renders yet |
+| 9 — completion gate | **not started — needs the deploy** | see the warning below |
 
 ### Decisions made while implementing, that are not in the design
 
@@ -78,12 +78,33 @@ This is not a reason to fail open. It is a reason to **sequence**: the gate ship
 - **`borderline` on a fixture, capped at two by test.** `burnout-unmitigated` returned risk 3/6 then 5/6 on identical calls while the canonical laments were 0/6 — the model is stable where it matters and genuinely undecided where the fixture was pre-labelled borderline. Borderline fixtures are now **sampled 6× and reported as a rate**, because one call at the line is not a measurement and a future "regression" there may be noise.
 - **The v1 baseline was softer than it looked, and checking paid.** Five of eight lament fixtures handed the classifier a protective statement ("I am not planning anything"). Stripped variants were added; 0 false positives across 16 held anyway.
 
+### The backfill, run 2026-08-07
+
+Migration 062 applied by Myles. `--apply` classified **38 notes for ~$0.02**; `--verify` reports zero remaining unclassified, which is what made the gate safe to wire.
+
+| | |
+|---|---|
+| ok | 37 |
+| lament | 1 |
+| risk | 0 |
+| prefilter hits | 0 |
+| classified by the model | 32 (6 empty notes short-circuited) |
+
+⚠️ **n=38 says almost nothing, and the numbers must not be read as if it did.** Zero risk across 32 classifications is reassuring, not evidence; 2.6% lament on one small vault is a data point, not a base rate. Running it now bought a safe gate flip, not an answer to the question the slice exists to ask. That answer comes from real usage.
+
+`store: false` was confirmed unconditional and test-pinned before 38 personal journal entries were sent to a model.
+
+### ⚠️ THE GATE IS LIVE IN CODE, NOT IN PRODUCTION
+
+The deps are wired at all three sites **on this branch**. `lamplight-generate` and `lamplight-study` have **not** been redeployed, so no reader is affected yet. A commit message saying "gate turned on" means the code path, not production.
+
+The deploy is Task 9, and it is deliberately held until the copy lands so 2a ships whole — a deployed gate that withholds notes while showing the reader nothing would be the worst of both halves.
+
 ### Still to do
 
-1. **Apply migration 062** via the SQL Editor.
-2. **Run the backfill** (`--apply`), then `--verify` until it reports zero.
-3. **Only then wire the gate deps** at the three sites — see the hazard in *Read before starting* §2.
-4. Task 8's copy, and Task 9.
+1. **Task 8's copy** — the reviewed response text and the regional resource list. ⚠️ It also decides the classifier's uncertainty policy: `risk`-on-uncertainty is only tolerable under confirm-then-resource phrasing. One decision, two files.
+2. **Task 9** — deploy both functions, then the completion gate.
+3. Then the PR.
 
 ---
 
