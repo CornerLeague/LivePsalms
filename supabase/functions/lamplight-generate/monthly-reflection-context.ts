@@ -7,6 +7,7 @@
 import { buildReflectionCandidates, type EdgeSupabase } from './reflection-candidates.ts';
 import type { MonthNote, MonthlyReflectionContext } from './prompts/monthly-reflection.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
+import { partitionBySafety, type NoteSafetyRow } from '../_shared/note-safety.ts';
 
 export function isValidPeriodKey(s: string): boolean {
   return /^\d{4}-\d{2}$/.test(s);
@@ -95,6 +96,15 @@ function formatPeriodLabel(periodKey: string, timeZone: string | null): string {
 }
 
 export interface BuildMonthlyReflectionContextDeps {
+  /**
+   * GATE SITE 2 of 3 (the others: _shared/note-context.ts, study-context.ts).
+   *
+   * OPTIONAL so the gate ships dark — omit it and this loader behaves exactly
+   * as before. Waymarks reads `notes` directly rather than through
+   * retrieveNoteContext, so site 1's filter does nothing here: a gate in one
+   * place covers none of the others.
+   */
+  fetchNoteSafety?: (noteIds: string[]) => Promise<NoteSafetyRow[]>;
   loadMonthNotes?: (
     supabase: EdgeSupabase,
     args: { userId: string; startUtc: string; endUtc: string },
@@ -113,8 +123,16 @@ export async function buildMonthlyReflectionContext(
   const toLocalDay = makeToLocalDay(timezone);
 
   const load = deps.loadMonthNotes ?? loadMonthNotes;
-  const notes = await load(supabase, { userId, startUtc, endUtc }, toLocalDay);
-  if (notes.length === 0) return null; // graceful floor → no_notes
+  const loaded = await load(supabase, { userId, startUtc, endUtc }, toLocalDay);
+  if (loaded.length === 0) return null; // graceful floor → no_notes
+
+  // ── THE CRISIS GATE ─────────────────────────────────────────────────────
+  // A month's letter is written ACROSS entries, so one withheld note does not
+  // stop the letter — it is simply not among what the month is written from.
+  const notes = deps.fetchNoteSafety
+    ? partitionBySafety(loaded, await deps.fetchNoteSafety(loaded.map((n) => n.id)), (n) => n.id).kept
+    : loaded;
+  if (notes.length === 0) return null; // every entry withheld reads as no_notes
 
   // embed is only invoked by buildReflectionCandidates for the 'semantic' provenance
   // (§reflection-candidates.ts). Real callers (index.ts) pass Voyage's embedQuery; this

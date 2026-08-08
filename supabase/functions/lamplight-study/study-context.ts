@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { type VoyageDeps, embedQuery } from '../_shared/voyage.ts';
 import { searchUserNotesByQuery, searchBible } from '../_shared/retrieval.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
+import { partitionBySafety, type NoteSafetyRow } from '../_shared/note-safety.ts';
 import { formatVerseRef, formatDisplayVerseRef, fetchPassageText } from '../_shared/bible-passage.ts';
 import { osisToBookName } from '../_shared/verse-verify.ts';
 import {
@@ -179,6 +180,12 @@ export async function buildStudyContext(
     includeNotes: boolean; noteIds?: string[];
     voyageDeps: VoyageDeps; rerankEnabled: boolean;
     crossRefK: number; noteK: number;
+    /**
+     * GATE SITE 3 of 3. Optional so the gate ships dark. Covers BOTH the notes
+     * sent to the model and the ones offered to the reader — `selectOfferedNotes`
+     * splits the same `relevant` array, so filtering it once does both.
+     */
+    fetchNoteSafety?: (noteIds: string[]) => Promise<NoteSafetyRow[]>;
     translation: string;
     /** Library excerpts to retrieve. 0 (the default) skips the library entirely. */
     libraryK?: number;
@@ -334,7 +341,27 @@ export async function buildStudyContext(
     { supabase, voyage: args.voyageDeps, rerankEnabled: args.rerankEnabled },
     { userId: args.userId, k: args.noteK, query: args.retrievalQuery, queryEmbedding },
   );
-  const noteIds = [...new Set(retrieved.map((r) => r.source_id))];
+  const rankedIds = [...new Set(retrieved.map((r) => r.source_id))];
+
+  // ── THE CRISIS GATE — GATE SITE 3 of 3 ──────────────────────────────────
+  // ⚠️ FILTERED BEFORE THE BODIES ARE FETCHED, and that ordering matters here
+  // in a way it does not at the other two sites. This path RANKS first: the
+  // vector search has already chosen a top-k. Filtering after the fetch would
+  // let a withheld note keep its slot and silently cost the reader a note that
+  // would have been shown — a thinner answer with no indication why.
+  //
+  // Filtering here still loses the slot (the search is done), but it loses it
+  // visibly: `withheldCount` is available to top up from if that is ever worth
+  // a second query. Recorded rather than hidden.
+  const safetyRows = args.fetchNoteSafety ? await args.fetchNoteSafety(rankedIds) : [];
+  const { kept: allowedIds, withheld: withheldIds } = args.fetchNoteSafety
+    ? partitionBySafety(rankedIds, safetyRows, (id) => id)
+    : { kept: rankedIds, withheld: [] as string[] };
+  if (withheldIds.length) {
+    console.info(`[study-context] withheld ${withheldIds.length} note(s) from the model`);
+  }
+
+  const noteIds = allowedIds;
   const relevant: RelevantNote[] = [];
   if (noteIds.length) {
     const { data: noteRows } = await supabase

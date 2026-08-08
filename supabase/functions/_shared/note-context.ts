@@ -13,6 +13,7 @@
 // queries once as the shared dep impls both builders pass.
 
 import { extractTextFromNoteContent } from './tiptap-text.ts';
+import { partitionBySafety, type NoteSafetyRow } from './note-safety.ts';
 import { buildPassages, type BiblePassage, type BiblePassageRow } from './bible-passage.ts';
 import type { RetrievedItem } from './retrieval.ts';
 import { CONTESTED_PASSAGES } from './voice.ts';
@@ -55,6 +56,19 @@ export type RetrievedBibleRow = RetrievedItem;
 
 export interface NoteContextDeps {
   fetchRecentNotes(userId: string, limit: number): Promise<RawNoteRow[]>;
+  /**
+   * GATE SITE 1 of 3 (the others: monthly-reflection-context, study-context).
+   *
+   * OPTIONAL so the gate can ship dark — omit it and this seam behaves exactly
+   * as it did before. Task 7 turns it on, and only after the backfill, because
+   * unclassified fails closed and every note that exists today is unclassified:
+   * flipping it early empties every AI surface for every user at once.
+   *
+   * The check lives HERE, at the point of use, rather than being trusted from
+   * ingest — `note_distillates` is written by a cron-swept job, so a note saved
+   * minutes ago may not be classified when a devotion runs. See note-safety.ts.
+   */
+  fetchNoteSafety?(noteIds: string[]): Promise<NoteSafetyRow[]>;
   embedQuery(text: string): Promise<number[]>;
   searchBible(args: { query: string; k: number; queryEmbedding: number[] }): Promise<RetrievedBibleRow[]>;
   fetchPassages(sourceIds: string[]): Promise<BiblePassageRow[]>;
@@ -143,8 +157,18 @@ export async function retrieveNoteContext(
   // No surviving notes → no embed/search work happens.
   if (notes.length === 0) return null;
 
+  // ── THE CRISIS GATE, before any note text is embedded or shown ──────────
+  // Runs before the embed so a withheld note costs no Voyage call either.
+  // Dark until `fetchNoteSafety` is supplied (Task 7, after the backfill).
+  const gated = deps.fetchNoteSafety
+    ? partitionBySafety(notes, await deps.fetchNoteSafety(notes.map((n) => n.id)), (n) => n.id).kept
+    : notes;
+  // Every note withheld reads the same as having none: the caller
+  // short-circuits to `no_notes` rather than generating on nothing.
+  if (gated.length === 0) return null;
+
   const k = opts.k ?? 3;
-  const themeQuery = opts.buildThemeQuery(notes);
+  const themeQuery = opts.buildThemeQuery(gated);
   const queryEmbedding = await deps.embedQuery(themeQuery);
   const retrieved = await deps.searchBible({ query: themeQuery, k: k + CONTESTED_HEADROOM, queryEmbedding });
 
@@ -174,9 +198,10 @@ export async function retrieveNoteContext(
     : undefined;
 
   return {
-    notes,
+    // The gated set IS the context's notes — nothing downstream sees the rest.
+    notes: gated,
     passages,
-    allowedNoteIds: new Set(notes.map((n) => n.id)),
+    allowedNoteIds: new Set(gated.map((n) => n.id)),
     // Deliberately passages only. A devotional excerpt that quotes a verse does
     // not make that verse quotable — its text was never supplied.
     allowedVerseRefs: new Set(passages.map((p) => p.ref)),

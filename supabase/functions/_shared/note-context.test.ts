@@ -480,3 +480,77 @@ describe('retrieveNoteContext — contested candidates', () => {
     err.mockRestore();
   });
 });
+
+describe('the crisis gate — GATE SITE 1 of 3 (Today\'s Lamp, smoke test)', () => {
+  // The gate lives at the point of USE, not ingest: `note_distillates` is
+  // written by a cron-swept job, so a note saved minutes ago may be
+  // unclassified when a devotion runs. This seam asks; it does not assume.
+  const rows = (notes: Array<{ id: string; title: string; content: string }>) => notes;
+
+  function depsWith(
+    notes: Array<{ id: string; title: string; content: string }>,
+    safety: Array<{ note_id: string; safety_class: 'ok' | 'lament' | 'risk' | null }>,
+  ) {
+    return {
+      fetchRecentNotes: async () => rows(notes),
+      fetchNoteSafety: async (ids: string[]) => safety.filter((s) => ids.includes(s.note_id)),
+      embedQuery: async () => [0.1],
+      searchBible: async () => [],
+      fetchPassages: async () => [],
+    };
+  }
+
+  const n = (id: string) => ({ id, title: `note ${id}`, content: `plain words for ${id}` });
+
+  it('withholds a note classified as risk', async () => {
+    const ctx = await retrieveNoteContext(
+      depsWith([n('a'), n('b')], [
+        { note_id: 'a', safety_class: 'ok' },
+        { note_id: 'b', safety_class: 'risk' },
+      ]) as never,
+      { userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: (ns) => ns[0]?.plaintext ?? '' },
+    );
+    expect(ctx?.notes.map((x) => x.id)).toEqual(['a']);
+  });
+
+  it('⚠️ withholds an UNCLASSIFIED note — no row means withheld', async () => {
+    const ctx = await retrieveNoteContext(
+      depsWith([n('a'), n('pending')], [{ note_id: 'a', safety_class: 'ok' }]) as never,
+      { userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: (ns) => ns[0]?.plaintext ?? '' },
+    );
+    expect(ctx?.notes.map((x) => x.id)).toEqual(['a']);
+  });
+
+  it('⚠️ passes LAMENT through — the app exists for this', async () => {
+    const ctx = await retrieveNoteContext(
+      depsWith([n('a')], [{ note_id: 'a', safety_class: 'lament' }]) as never,
+      { userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: (ns) => ns[0]?.plaintext ?? '' },
+    );
+    expect(ctx?.notes.map((x) => x.id)).toEqual(['a']);
+  });
+
+  it('returns null when EVERY note is withheld, rather than an empty context', async () => {
+    // Same shape as having no notes at all — the caller short-circuits to
+    // `no_notes` instead of generating a devotion grounded on nothing.
+    const ctx = await retrieveNoteContext(
+      depsWith([n('a')], [{ note_id: 'a', safety_class: 'risk' }]) as never,
+      { userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: (ns) => ns[0]?.plaintext ?? '' },
+    );
+    expect(ctx).toBeNull();
+  });
+
+  it('behaves exactly as before when no safety dep is supplied', async () => {
+    // The dep is optional so the seam is unchanged for callers that have not
+    // been wired yet — the gate ships dark until Task 7 turns it on.
+    const ctx = await retrieveNoteContext(
+      {
+        fetchRecentNotes: async () => rows([n('a'), n('b')]),
+        embedQuery: async () => [0.1],
+        searchBible: async () => [],
+        fetchPassages: async () => [],
+      } as never,
+      { userId: 'u1', noteLimit: 5, rerankEnabled: false, buildThemeQuery: (ns) => ns[0]?.plaintext ?? '' },
+    );
+    expect(ctx?.notes.map((x) => x.id)).toEqual(['a', 'b']);
+  });
+});
