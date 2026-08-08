@@ -57,6 +57,17 @@ alter table public.note_distillates enable row level security;
 -- The classification is written by the service role inside the edge function,
 -- which bypasses RLS — these policies exist so the OWNER can read and delete
 -- their own derived data, which the transparency contract requires.
+--
+-- Dropped first so the whole file is RE-RUNNABLE. Migration 060 used bare
+-- `create policy`, so a second run there succeeds through the indexes and then
+-- errors `policy … already exists` — an error that means "already applied",
+-- which the runbook then has to explain to everyone who sees it. Cheaper to
+-- not produce it.
+drop policy if exists "Users can view own note distillates" on public.note_distillates;
+drop policy if exists "Users can insert own note distillates" on public.note_distillates;
+drop policy if exists "Users can update own note distillates" on public.note_distillates;
+drop policy if exists "Users can delete own note distillates" on public.note_distillates;
+
 create policy "Users can view own note distillates"
   on public.note_distillates for select using (auth.uid() = user_id);
 create policy "Users can insert own note distillates"
