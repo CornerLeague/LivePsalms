@@ -78,3 +78,27 @@ export function partitionBySafety<T>(
   }
   return { kept, withheld };
 }
+
+/**
+ * The crisis gate's DB half, written once and shared by every site.
+ *
+ * Selects only what the predicate needs. A missing row is the common case —
+ * a note saved seconds ago — and reads as withheld.
+ */
+export async function fetchNoteSafetyRows(
+  supabase: { from: (t: string) => unknown },
+  noteIds: string[],
+): Promise<NoteSafetyRow[]> {
+  if (noteIds.length === 0) return [];
+  const q = supabase.from('note_distillates') as {
+    select: (c: string) => { in: (c: string, v: string[]) => Promise<{ data: unknown; error: unknown }> };
+  };
+  const { data, error } = await q.select('note_id, safety_class').in('note_id', noteIds);
+  // A failed read must NOT open the gate: with no rows, every note reads as
+  // unclassified and is withheld. Loud in the log, safe on the surface.
+  if (error) {
+    console.error('[note-safety] read failed — withholding all notes', error);
+    return [];
+  }
+  return (data ?? []) as NoteSafetyRow[];
+}

@@ -21,6 +21,7 @@ import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
 import { runBibleChatPipeline } from '../lamplight-chat/bible-chat-pipeline.ts';
 import { streamBibleChat, type BibleChatStreamDeps } from '../lamplight-chat/bible-chat-stream.ts';
 import { buildStudyContext } from './study-context.ts';
+import { fetchNoteSafetyRows } from '../_shared/note-safety.ts';
 import { STUDY_CHAT_PROMPT } from './prompts/study-chat.ts';
 import { STUDY_OPENER_PROMPT } from './prompts/study-opener.ts';
 // Per-mode effort / token / library budgets. Extracted so the gate can see them.
@@ -182,6 +183,9 @@ async function handleStudy(req: Request): Promise<Response> {
           // prints it straight back at the reader — which the 2026-08-06
           // baseline caught in every reply carrying a ref.
           displayRefs: true,
+          // GATE SITE 3 of 3. Covers the notes sent to the model AND the ones
+          // offered to the reader — selectOfferedNotes splits the same array.
+          fetchNoteSafety: (noteIds) => fetchNoteSafetyRows(supabase as never, noteIds),
         });
         capturedOffered = offered;
         return ctx;
@@ -251,6 +255,11 @@ async function handleStudy(req: Request): Promise<Response> {
         // See the streaming path above: the model prints back whatever ref form
         // it is handed, and the buffered path must not diverge from it.
         displayRefs: true,
+        // GATE SITE 3 of 3, buffered path. ⚠️ study chat has TWO call sites and
+        // they must not diverge — the first pass of this wiring caught only the
+        // streaming one, because the two are indented differently. The same
+        // "a filter in one place covers none of the others" trap, one level in.
+        fetchNoteSafety: (noteIds) => fetchNoteSafetyRows(supabase as never, noteIds),
       });
 
       const result = await runBibleChatPipeline({

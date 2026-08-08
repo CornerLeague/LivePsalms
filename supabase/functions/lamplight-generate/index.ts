@@ -26,6 +26,7 @@ import { createOpenAIAdapter } from '../_shared/openai.ts';
 import { makeDoctrinalClassifier } from '../_shared/doctrinal-classifier.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
 import { retrieveNoteContext, type NoteContextDeps, type RawNoteRow } from '../_shared/note-context.ts';
+import { fetchNoteSafetyRows } from '../_shared/note-safety.ts';
 import { makeLibraryDeps } from '../_shared/library-retrieval.ts';
 import { sanitizeFirstName } from '../_shared/personalization.ts';
 import {
@@ -274,6 +275,10 @@ async function handleGenerate(req: Request): Promise<Response> {
         const ctx = await buildMonthlyReflectionContext(supabase, {
           userId, periodKey, timezone,
           embed: (text) => embedQuery(text, voyageDeps),
+        }, {
+          // GATE SITE 2 of 3 — Waymarks reads `notes` directly, so site 1's
+          // filter does nothing for it.
+          fetchNoteSafety: (noteIds) => fetchNoteSafetyRows(supabase as never, noteIds),
         });
         const result = await runMonthlyReflectionPipeline({ llm, classifier, supabase, ctx, userId, periodKey });
         return { response: result, usage: reflectionUsageToCore(result.usage) };
@@ -421,6 +426,8 @@ function noteContextDeps(
       if (error) throw error;
       return (data ?? []) as RawNoteRow[];
     },
+    // GATE SITE 1 of 3 — live since the backfill completed (2026-08-07).
+    fetchNoteSafety: (noteIds) => fetchNoteSafetyRows(supabase as never, noteIds),
     embedQuery: (text) => embedQuery(text, voyageDeps),
     searchBible: (queryArgs) => searchBible({ supabase, voyage: voyageDeps, rerankEnabled }, { ...queryArgs, translation }),
     async fetchPassages(sourceIds) {
