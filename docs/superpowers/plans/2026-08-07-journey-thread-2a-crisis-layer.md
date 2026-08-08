@@ -51,6 +51,42 @@ This is not a reason to fail open. It is a reason to **sequence**: the gate ship
 
 ---
 
+## Progress
+
+**Tasks 1–6 done, plus the eval; Task 7's script written but unrunnable until migration 062 is applied.** Branch `feat/crisis-layer`. Gate: `tsc -b` clean, eslint at its 163 baseline, **4,318** tests (4,268 at plan time).
+
+| Task | State | Note |
+|---|---|---|
+| 1 — migration 062 + gate predicate | done, **NEEDS MANUAL APPLY** | `note_distillates`, safety fields only, RLS mirroring `notes` |
+| 2 — lament fixtures | done | 19 fixtures, 16 must-not-trip vs 3 risk |
+| 3 — prefilter | done, **design changed** | see below |
+| 4 — classifier | done | fails CLOSED, the inverse of the doctrinal one |
+| — eval script | done, **measured** | `2026-08-08-crisis-v1-unmitigated`, 0 false positives / 16 |
+| 5 — classification job | done | its own kind, its own retries |
+| 6 — the three gate sites | done, **shipped dark** | deps optional and unset |
+| 7 — backfill then flip | **script written, not run** | blocked on 062 |
+| 8 — response surface | **blocked on Myles** | copy + regional resources |
+| 9 — completion gate | not started | |
+
+### Decisions made while implementing, that are not in the design
+
+- **⚠️ THE PREFILTER CANNOT GATE THE CLASSIFIER, and the corpus proved it on the first run.** The plan had it gate — hits go to the model, misses skipped. Measured, it hits 2 of 3 true positives and misses `risk-preparation` **entirely**, because that entry contains no crisis phrase at all: affairs put in order, a possession given away, a sudden calm. Adding "preparation" phrases does not fix it — sorting paperwork is ordinary journalling. **Every note goes to the classifier**; the prefilter keeps only measurement and a deterministic fallback. The test asserts the limitation so nobody "fixes" it in the way that makes it worse.
+- **The classifier fails CLOSED — the inverse of `makeDoctrinalClassifier`**, which fails open so generation never hinges on a second model call. Inheriting that would have been a silent hole. `failedClosed` is carried separately from the verdict so a model outage never reads as a spike in real risk.
+- **⚠️ The uncertainty policy and the response copy are ONE DECISION IN TWO FILES.** On genuine uncertainty the classifier chooses `risk`, which is only tolerable because the response is an OFFER (confirm-then-resource). If Task 8's copy asserts something about the reader, this must invert. Recorded in both files; Task 8's author owns both.
+- **A `failedClosed` verdict is never persisted**, by the job or the backfill. It would permanently withhold an ordinary note and inflate the risk rate at once. The note stays unclassified, which is already the safe state.
+- **Site 3 filters before the bodies are fetched.** Study chat ranks first, so filtering after the fetch would let a withheld note keep its top-k slot and silently cost the reader a note that would have been shown.
+- **`borderline` on a fixture, capped at two by test.** `burnout-unmitigated` returned risk 3/6 then 5/6 on identical calls while the canonical laments were 0/6 — the model is stable where it matters and genuinely undecided where the fixture was pre-labelled borderline. Borderline fixtures are now **sampled 6× and reported as a rate**, because one call at the line is not a measurement and a future "regression" there may be noise.
+- **The v1 baseline was softer than it looked, and checking paid.** Five of eight lament fixtures handed the classifier a protective statement ("I am not planning anything"). Stripped variants were added; 0 false positives across 16 held anyway.
+
+### Still to do
+
+1. **Apply migration 062** via the SQL Editor.
+2. **Run the backfill** (`--apply`), then `--verify` until it reports zero.
+3. **Only then wire the gate deps** at the three sites — see the hazard in *Read before starting* §2.
+4. Task 8's copy, and Task 9.
+
+---
+
 ## File Structure
 
 **New (server):**
