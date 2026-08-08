@@ -40,7 +40,25 @@ interface Row {
   prefilter: boolean;
   /** The only two failure kinds that matter, named rather than inferred. */
   verdict: 'pass' | 'FALSE-POSITIVE' | 'MISS' | 'wrong-class';
+  /** Pre-registered as sitting on the line. Reported, never failed on. */
+  borderline: boolean;
+  /** Borderline fixtures only: how many of N samples came back `risk`. */
+  riskRate?: string;
 }
+
+/**
+ * Borderline fixtures are sampled N times instead of once.
+ *
+ * Measured 2026-08-07: `burnout-unmitigated` returned risk on 3 of 6 identical
+ * calls — a coin flip — while `job-3-unmitigated` and `psalm-88-unmitigated`
+ * were 0 of 6. So the model is stable where it matters and genuinely undecided
+ * exactly where the fixture was pre-labelled borderline.
+ *
+ * The consequence for anyone reading a future run: a single sample at the
+ * boundary is not a measurement, and a "regression" there may be noise. A rate
+ * is honest; one verdict is not.
+ */
+const BORDERLINE_SAMPLES = 6;
 
 function judge(f: SafetyFixture, actual: SafetyClass): Row['verdict'] {
   if (f.expected === 'risk') return actual === 'risk' ? 'pass' : 'MISS';
@@ -77,7 +95,9 @@ function loadDotEnvLocal(): void {
 function formatReport(rows: Row[], label: string, live: boolean): string {
   const guarded = rows.filter((r) => r.expected !== 'risk');
   const risky = rows.filter((r) => r.expected === 'risk');
-  const falsePositives = guarded.filter((r) => r.verdict === 'FALSE-POSITIVE');
+  const allFalsePositives = guarded.filter((r) => r.verdict === 'FALSE-POSITIVE');
+  const falsePositives = allFalsePositives.filter((r) => !r.borderline);
+  const borderlineFlips = allFalsePositives.filter((r) => r.borderline);
   const misses = risky.filter((r) => r.verdict === 'MISS');
   const blurred = rows.filter((r) => r.verdict === 'wrong-class');
 
@@ -99,6 +119,15 @@ function formatReport(rows: Row[], label: string, live: boolean): string {
       ? `No entry that must not trip the detector tripped it. That is the result this corpus exists to establish — a detector that answered "risk" to everything would score perfect recall and be unshippable.`
       : `⚠️ **${falsePositives.length} entr${falsePositives.length === 1 ? 'y' : 'ies'} that must not trip did:** ${falsePositives.map((r) => `\`${r.name}\``).join(', ')}. This app exists for people writing their worst days; each of these is a grieving or despairing person being handed a resource card. Fix before shipping, whatever recall says.`,
     ``,
+    borderlineFlips.length
+      ? `\n**${borderlineFlips.length} borderline flip${borderlineFlips.length === 1 ? '' : 's'}, reported and not failed:** ${borderlineFlips.map((r) => `\`${r.name}\`${r.riskRate ? ` (risk ${r.riskRate})` : ''}`).join(', ')}. These fixtures sit genuinely on the line and were labelled so BEFORE the run — a flip is a defensible clinical read, not a malfunction. Watch the count; it is capped at two by test.`
+      : '',
+    ``,
+    ...(rows.some((r) => r.borderline) ? [
+      `**Borderline fixtures are sampled ${BORDERLINE_SAMPLES}×**, because a single call at the line is not a measurement: ` +
+      rows.filter((r) => r.borderline).map((r) => `\`${r.name}\` risk ${r.riskRate}`).join(', ') + `.`,
+      ``,
+    ] : []),
     `## Recall`,
     ``,
     `**${risky.length - misses.length} of ${risky.length}** true positives caught.`,
@@ -160,18 +189,30 @@ async function main(): Promise<void> {
   const rows: Row[] = [];
 
   for (const f of SAFETY_CORPUS) {
-    const v = await classify(f.text);
+    const samples = f.borderline ? BORDERLINE_SAMPLES : 1;
+    const verdicts = [];
+    for (let i = 0; i < samples; i++) verdicts.push(await classify(f.text));
+
+    // Majority for the headline; the rate is what actually gets read.
+    const riskCount = verdicts.filter((v) => v.safety_class === 'risk').length;
+    const v = riskCount > samples / 2
+      ? verdicts.find((x) => x.safety_class === 'risk')!
+      : verdicts.find((x) => x.safety_class !== 'risk') ?? verdicts[0];
+
     rows.push({
       name: f.name,
       expected: f.expected,
       actual: v.safety_class,
       reason: v.reason,
-      failedClosed: v.failedClosed,
+      failedClosed: verdicts.some((x) => x.failedClosed),
       prefilter: prefilterHits(f.text),
       verdict: judge(f, v.safety_class),
+      borderline: f.borderline === true,
+      riskRate: f.borderline ? `${riskCount}/${samples}` : undefined,
     });
     const r = rows[rows.length - 1];
-    console.log(`${r.verdict === 'pass' ? '✓' : '✗'} ${f.name.padEnd(22)} ${f.expected} → ${v.safety_class}`);
+    const tail = r.riskRate ? `  (risk ${r.riskRate} — sampled)` : '';
+    console.log(`${r.verdict === 'pass' ? '✓' : '✗'} ${f.name.padEnd(22)} ${f.expected} → ${v.safety_class}${tail}`);
   }
 
   const report = formatReport(rows, label, live);
@@ -185,7 +226,9 @@ async function main(): Promise<void> {
 
   // A false positive fails the run even at perfect recall. That ordering is
   // the whole argument of this script.
-  const failures = rows.filter((r) => r.verdict === 'FALSE-POSITIVE' || r.verdict === 'MISS');
+  const failures = rows.filter(
+    (r) => (r.verdict === 'FALSE-POSITIVE' && !r.borderline) || r.verdict === 'MISS',
+  );
   if (failures.length) process.exitCode = 1;
 }
 

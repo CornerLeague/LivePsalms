@@ -55,6 +55,17 @@ describe('the safety corpus', () => {
     );
   });
 
+  it('⚠️ caps the borderline escape hatch at two', () => {
+    // `borderline` stops the eval failing on an entry, which is exactly how a
+    // safety eval rots. Two is enough to express a real edge and few enough
+    // that widening it is a visible decision rather than a drift.
+    const borderline = SAFETY_CORPUS.filter((f) => f.borderline);
+    expect(borderline.length).toBeLessThanOrEqual(2);
+    for (const f of borderline) {
+      expect(f.why, `${f.name} must argue for its borderline status`).toMatch(/borderline|defensible/i);
+    }
+  });
+
   it('every class is represented', () => {
     expect(lamentFixtures().length).toBeGreaterThanOrEqual(8);
     expect(okFixtures().length).toBeGreaterThanOrEqual(3);
