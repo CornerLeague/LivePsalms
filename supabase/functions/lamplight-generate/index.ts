@@ -22,6 +22,7 @@ import { serviceClient } from '../_shared/supabase.ts';
 import { embedQuery, type VoyageDeps } from '../_shared/voyage.ts';
 import { searchBible } from '../_shared/retrieval.ts';
 import { type BiblePassageRow, fetchPassageText } from '../_shared/bible-passage.ts';
+import { isValidTranslation, type Translation } from '../_shared/bible-translations.ts';
 import { createOpenAIAdapter } from '../_shared/openai.ts';
 import { makeDoctrinalClassifier } from '../_shared/doctrinal-classifier.ts';
 import { extractTextFromNoteContent } from '../_shared/tiptap-text.ts';
@@ -176,9 +177,7 @@ async function handleGenerate(req: Request): Promise<Response> {
     return jsonResp({ processed: outcomes.length });
   }
 
-  const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
-  type Translation = typeof VALID_TRANSLATIONS[number];
-  const bodyHasValidTranslation = (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '');
+  const bodyHasValidTranslation = isValidTranslation(body.translation);
 
   // Identity comes from the verified JWT, never from body.user_id.
   const userId = await deriveUserId(supabase, bearerToken(req));
@@ -204,8 +203,8 @@ async function handleGenerate(req: Request): Promise<Response> {
         .eq('id', userId)
         .maybeSingle();
       const pref = (profilePref as { bible_translation?: unknown } | null)?.bible_translation;
-      if (typeof pref === 'string' && (VALID_TRANSLATIONS as readonly string[]).includes(pref)) {
-        translation = pref as Translation;
+      if (isValidTranslation(pref)) {
+        translation = pref;
       }
     } catch {
       // Profile lookup failure is non-fatal — fall through with default 'BSB'.

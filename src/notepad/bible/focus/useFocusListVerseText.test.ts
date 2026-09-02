@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor, cleanup } from '@testing-library/react';
+import { renderHook, waitFor, cleanup, act } from '@testing-library/react';
 
 // Chainable supabase builder mock (mirrors useBiblePassages.test.ts): select/eq/
 // like/order return `this`; awaiting the builder resolves to { data, error }.
-const { order, like, select, eq, from, getBuilder, setOrderResult } = vi.hoisted(() => {
+const { order, like, select, eq, from, invoke, getBuilder, setOrderResult } = vi.hoisted(() => {
   const order = vi.fn();
   const like = vi.fn();
   const select = vi.fn();
   const eq = vi.fn();
   const from = vi.fn();
+  const invoke = vi.fn();
   let orderResult: { data: unknown; error: unknown } = { data: [], error: null };
   const builder: {
     select: typeof select; like: typeof like; order: typeof order; eq: typeof eq;
@@ -24,15 +25,16 @@ const { order, like, select, eq, from, getBuilder, setOrderResult } = vi.hoisted
   eq.mockImplementation(() => builder);
   from.mockImplementation(() => builder);
   return {
-    order, like, select, eq, from,
+    order, like, select, eq, from, invoke,
     getBuilder: () => builder,
     setOrderResult: (v: { data: unknown; error: unknown }) => { orderResult = v; },
   };
 });
 
-vi.mock('@/lib/supabase', () => ({ supabase: { from } }));
+vi.mock('@/lib/supabase', () => ({ supabase: { from, functions: { invoke } } }));
 
 import { assembleFocusItemTexts, useFocusListVerseText } from './useFocusListVerseText';
+import { clearBibleTextCache } from '../bible-text-client';
 import type { FocusListItem } from './focus-list-types';
 import type { FocusItemText, FocusVerseLine } from './useFocusListVerseText';
 
@@ -43,6 +45,8 @@ const item = (over: Partial<FocusListItem>): FocusListItem => ({
 
 beforeEach(() => {
   from.mockClear(); select.mockClear(); like.mockClear(); order.mockClear(); eq.mockClear();
+  invoke.mockReset();
+  clearBibleTextCache();
   const builder = getBuilder();
   select.mockImplementation(() => builder);
   like.mockImplementation(() => builder);
@@ -86,6 +90,17 @@ describe('assembleFocusItemTexts (pure)', () => {
     const out = assembleFocusItemTexts(items, new Map()); // no rows fetched for eph.2
     expect(out[0].missing).toBe(true);
     expect(out[0].lines).toEqual([]);
+    expect(out[0].error).toBeNull();
+  });
+
+  it('attaches a chapter error only to the items of that chapter', () => {
+    const items = [
+      item({ id: 'a', book: 'psa', chapter: 23, verseStart: 1, verseEnd: 1, label: 'Psalm 23:1' }),
+      item({ id: 'b', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16, label: 'John 3:16' }),
+    ];
+    const out = assembleFocusItemTexts(items, new Map([['jhn.3', [{ verse: 1, text: 'x' }]]]), new Map([['psa.23', 'busy']]));
+    expect(out[0]).toMatchObject({ missing: true, error: 'busy' });
+    expect(out[1]).toMatchObject({ missing: true, error: null });
   });
 
   it('preserves item order in the output', () => {
@@ -129,5 +144,79 @@ describe('useFocusListVerseText (hook)', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.itemTexts).toEqual([]);
     expect(from).not.toHaveBeenCalled();
+  });
+});
+
+describe('useFocusListVerseText (hook) for an api-sourced translation', () => {
+  it('fetches each chapter through bible-text and never queries bible_passages', async () => {
+    invoke.mockImplementation(async (_name: string, opts: { body: { book: string; chapter: number } }) => ({
+      data: { ok: true, verses: [{ verse: 16, text: `${opts.body.book}.${opts.body.chapter}:16` }] },
+      error: null,
+    }));
+    const items = [
+      item({ id: 'a', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16, label: 'John 3:16' }),
+      item({ id: 'b', book: 'rom', chapter: 8, verseStart: 16, verseEnd: 16, label: 'Romans 8:16' }),
+    ];
+    const { result } = renderHook(() => useFocusListVerseText(items, 'ESV'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(from).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(invoke).toHaveBeenCalledWith('bible-text', { body: { book: 'jhn', chapter: 3, translation: 'ESV' } });
+    expect(result.current.itemTexts.map((t) => t.lines[0]?.text)).toEqual(['jhn.3:16', 'rom.8:16']);
+  });
+
+  it('reports a provider failure as a worded error, not just a missing item', async () => {
+    invoke.mockResolvedValue({ data: { ok: false, reason: 'rate_limited' }, error: null });
+    const items = [item({ id: 'a', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16 })];
+    const { result } = renderHook(() => useFocusListVerseText(items, 'NLT'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.itemTexts[0].missing).toBe(true);
+    expect(result.current.itemTexts[0].error).toBe('The NLT service is busy right now. Try again in a minute.');
+    expect(result.current.error).toBe('The NLT service is busy right now. Try again in a minute.');
+  });
+
+  it('retry() refetches and clears the error once the provider answers', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: { message: 'non-2xx', context: { status: 401 } } });
+    const items = [item({ id: 'a', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16 })];
+    const { result } = renderHook(() => useFocusListVerseText(items, 'ESV'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe('Sign in to read the ESV.');
+
+    invoke.mockResolvedValueOnce({ data: { ok: true, verses: [{ verse: 16, text: 'back' }] }, error: null });
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.itemTexts[0].missing).toBe(false));
+    expect(result.current.error).toBeNull();
+    expect(result.current.itemTexts[0].error).toBeNull();
+    expect(result.current.itemTexts[0].lines[0].text).toBe('back');
+  });
+
+  it('pins a failure on the items of the chapter that failed, not on the whole list', async () => {
+    invoke.mockImplementation(async (_name: string, opts: { body: { book: string } }) =>
+      opts.body.book === 'psa'
+        ? { data: { ok: false, reason: 'rate_limited' }, error: null }
+        : { data: { ok: true, verses: [{ verse: 1, text: 'only verse one' }] }, error: null });
+    const items = [
+      item({ id: 'a', book: 'psa', chapter: 23, verseStart: 1, verseEnd: 1, label: 'Psalm 23:1' }),
+      item({ id: 'b', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16, label: 'John 3:16' }),
+    ];
+    const { result } = renderHook(() => useFocusListVerseText(items, 'NLT'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const [psalm, john] = result.current.itemTexts;
+    expect(psalm.missing).toBe(true);
+    expect(psalm.error).toBe('The NLT service is busy right now. Try again in a minute.');
+    expect(john.missing).toBe(true);   // verse 16 absent from a chapter that loaded
+    expect(john.error).toBeNull();     // so it is "not available", not a provider error
+    expect(result.current.error).toBe('The NLT service is busy right now. Try again in a minute.');
+  });
+
+  it('has no error when every chapter fetched, even if an item is genuinely absent', async () => {
+    invoke.mockResolvedValue({ data: { ok: true, verses: [{ verse: 1, text: 'only verse one' }] }, error: null });
+    const items = [item({ id: 'a', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16 })];
+    const { result } = renderHook(() => useFocusListVerseText(items, 'NLT'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.itemTexts[0].missing).toBe(true);
+    expect(result.current.itemTexts[0].error).toBeNull();
+    expect(result.current.error).toBeNull();
   });
 });

@@ -15,6 +15,7 @@ import { runGeneration, type GenerationLifecycleDeps } from '../_shared/generati
 import { bearerToken, deriveUserId } from '../_shared/auth-identity.ts';
 import { resolveQuotaLimits, checkQuota, supabaseQuotaDeps } from '../_shared/quota.ts';
 import { resolveAllowedOrigins, corsHeaders } from '../_shared/cors.ts';
+import { isValidTranslation, type Translation } from '../_shared/bible-translations.ts';
 import { makeScriptureDeps } from '../_shared/scripture-verify.ts';
 import { parseChatMode } from '../_shared/chat-mode.ts';
 import { classifyGenerateError } from '../lamplight-generate/classify-error.ts';
@@ -53,12 +54,7 @@ async function handleChat(req: Request): Promise<Response> {
   const mode = parseChatMode(body.mode);
   const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || body.stream === true;
 
-  const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
-  type Translation = typeof VALID_TRANSLATIONS[number];
-  const translation: Translation =
-    (VALID_TRANSLATIONS as readonly string[]).includes(body.translation ?? '')
-      ? (body.translation as Translation)
-      : 'BSB';
+  const translation: Translation = isValidTranslation(body.translation) ? body.translation : 'BSB';
   if (typeof body.book !== 'string' || typeof body.chapter !== 'number') {
     return jsonResp({ error: 'bad payload' }, 400);
   }

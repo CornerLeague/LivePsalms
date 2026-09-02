@@ -55,6 +55,38 @@ describe('fetchPassageText fallback', () => {
     expect(byId.get('jhn.3.16')?.text).toBe('KJV:jhn.3.16');
     expect(byId.get('jhn.3.17')?.text).toBe('BSB:jhn.3.17'); // fell back
   });
+
+  it('labels every row with the translation it was actually read from', async () => {
+    const byId = await fetchPassageText(fakeSupabase() as never, ['jhn.3.16', 'jhn.3.17'], 'KJV');
+    expect(byId.get('jhn.3.16')?.translation).toBe('KJV');
+    expect(byId.get('jhn.3.17')?.translation).toBe('BSB');
+  });
+
+  it('marks every row BSB for an api-sourced translation that has no rows', async () => {
+    // A fake that holds rows under BSB only — what bible_passages looks like
+    // for NLT/ESV in production, since their text is never stored.
+    const bsbOnly = {
+      from() {
+        return {
+          select() { return this; },
+          eq(_col: string, val: string) { (this as Record<string, unknown>)._t = val; return this; },
+          in(_col: string, ids: string[]) { (this as Record<string, unknown>)._ids = ids; return this; },
+          then(res: (v: unknown) => void) {
+            const t = (this as Record<string, string>)._t;
+            const ids = (this as Record<string, string[]>)._ids;
+            const rows = t === 'BSB'
+              ? ids.map((id) => ({ id, text: `BSB:${id}`, book: 'jhn', chapter: 3, verse_start: 16, verse_end: 16 }))
+              : [];
+            res({ data: rows, error: null });
+            return this;
+          },
+        };
+      },
+    };
+    const byId = await fetchPassageText(bsbOnly as never, ['jhn.3.16', 'jhn.3.17'], 'ESV');
+    expect([...byId.values()].map((r) => r.translation)).toEqual(['BSB', 'BSB']);
+    expect(byId.get('jhn.3.16')?.text).toBe('BSB:jhn.3.16');
+  });
 });
 
 describe('formatVerseRef', () => {

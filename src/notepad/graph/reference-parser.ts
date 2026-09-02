@@ -1,6 +1,6 @@
 import { extractPlainText } from '../utils/tiptap-text';
 import { supabase } from '@/lib/supabase';
-import { type BibleTranslation, DEFAULT_TRANSLATION } from '../bible/translations';
+import { type BibleTranslation, DEFAULT_TRANSLATION, passageRowsTranslation } from '../bible/translations';
 
 // Bible book patterns: each entry is a pipe-separated list of accepted names/abbreviations
 export const BOOK_PATTERNS: string[] = [
@@ -151,7 +151,10 @@ export async function fetchVerseText(
   options?: { signal?: AbortSignal; translation?: BibleTranslation },
 ): Promise<VerseResult | null> {
   if (!supabase) return null;
-  const translation = options?.translation ?? DEFAULT_TRANSLATION;
+  // An api-sourced translation (NLT, ESV) has no bible_passages rows, so its
+  // BSB stand-in is queried and REPORTED in the result's `translation`, which
+  // the tooltip and the scripture-ref node display. Never a silent swap.
+  const translation = passageRowsTranslation(options?.translation ?? DEFAULT_TRANSLATION);
   const parsed = parseVerseRef(ref);
   if (!parsed) return null;
   const osisBook = BOOK_TO_OSIS[parsed.book];

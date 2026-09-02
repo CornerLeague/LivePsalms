@@ -507,4 +507,12 @@ describe('fetchVerseText translation', () => {
     expect(eqCalls).toContainEqual({ col: 'translation', val: 'WEB' });
     expect(r?.translation).toBe('WEB');
   });
+
+  it('reads BSB rows for an api-sourced translation and reports BSB, not the one asked for', async () => {
+    eqCalls.length = 0;
+    const r = await fetchVerseText('John 3:16', { translation: 'NLT' });
+    expect(eqCalls).toContainEqual({ col: 'translation', val: 'BSB' });
+    expect(eqCalls).not.toContainEqual({ col: 'translation', val: 'NLT' });
+    expect(r?.translation).toBe('BSB');
+  });
 });

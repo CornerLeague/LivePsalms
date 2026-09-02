@@ -169,3 +169,38 @@ OSIS codes to the exact full English names already present in `BOOK_ABBREV`:
 
 The conversion is the right layer for this mapping — `BOOK_ABBREV` stays clean and the throw on
 unknown names remains intact as a correctness guard.
+
+---
+
+## 7. NLT and ESV are never ingested
+
+`BibleTranslationId` includes `NLT` and `ESV` so the type stays in step with
+`src/notepad/bible/translations.ts`, but `SOURCES` has no entry for either and
+`TRANSLATION=ESV npm run ingest` throws `unknown TRANSLATION`. That is the
+intended behaviour, not a gap:
+
+- Both are **api-sourced** (`TranslationInfo.source === 'api'`). Chapters are
+  fetched on demand by the `supabase/functions/bible-text` edge function and
+  cached only in browser session memory.
+- The ESV free licence forbids storing more than 500 verses (or half a book)
+  locally. Psalm 119 alone is 176 verses. Bulk ingest is off the table.
+- They never enter the semantic index either: embeddings stay BSB-only, and
+  verse search / Lamplight retrieval read BSB rows for them, labelled as such
+  in the UI.
+
+### Operator setup for `bible-text`
+
+| Secret        | Needed? | Notes |
+|---------------|---------|-------|
+| `ESV_API_KEY` | Yes, for ESV | Free self-serve signup at api.esv.org. Until it is set, ESV shows a clean "isn't connected on this server yet" state with a retry button. Limits: 5,000 queries/day, 1,000/hour, 60/minute, 500 verses/query. |
+| `NLT_API_KEY` | No (beta) | Without it the function uses the anonymous `key=TEST` tier: 50 verses/request, 500 requests/day. A real key raises that to 500 verses and 5,000/day. |
+
+```bash
+supabase secrets set ESV_API_KEY=... NLT_API_KEY=...
+supabase functions deploy bible-text
+```
+
+Deploy WITH JWT verification (the default; pinned in `supabase/config.toml`).
+Migration `062_profiles_bible_translation_widen.sql` must be applied (via the
+SQL editor, per the usual workflow) before a reader can save NLT or ESV as
+their global preference; the per-device pick works without it.

@@ -56,3 +56,15 @@ describe('VerseSuggestList', () => {
     expect(screen.queryByText(/keep typing/i)).toBeNull();
   });
 });
+
+describe('VerseSuggestList notice', () => {
+  it('shows the notice above the rows when given one', () => {
+    render(<VerseSuggestList items={[cand]} selectedIndex={0} onSelect={vi.fn()} loading={false} offline={false} notice="Results are BSB text — NLT can't be searched." />);
+    expect(screen.getByRole('note')).toHaveTextContent(/BSB text/);
+  });
+
+  it('renders no notice for a local translation', () => {
+    render(<VerseSuggestList items={[cand]} selectedIndex={0} onSelect={vi.fn()} loading={false} offline={false} notice={null} />);
+    expect(screen.queryByRole('note')).toBeNull();
+  });
+});

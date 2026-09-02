@@ -427,6 +427,14 @@ verify_jwt = true
 [functions.embed-note]
 verify_jwt = true
 
+# bible-text fetches NLT / ESV chapters from the publishers' APIs with keys
+# held as function secrets. Kept behind JWT verification because both
+# publishers meter by the day and the quota is shared by every reader of this
+# deployment — only signed-in users should spend it. An anonymous reader who
+# picks NLT or ESV sees a sign-in message, not a blank page.
+[functions.bible-text]
+verify_jwt = true
+
 # contact-message is a PUBLIC endpoint: anonymous site visitors submit the
 # contact form, and this project's client key is a non-JWT publishable key
 # (sb_publishable_...), which the default verify_jwt gate rejects with 401.

@@ -13,9 +13,13 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Control the assembled verse text so the view test stays about the view.
-const { verseTextRef } = vi.hoisted(() => ({
-  verseTextRef: { current: { itemTexts: [] as unknown[], loading: false } },
-}));
+const { verseTextRef, retryVerseText } = vi.hoisted(() => {
+  const retryVerseText = vi.fn();
+  return {
+    retryVerseText,
+    verseTextRef: { current: { itemTexts: [] as unknown[], loading: false, error: null as string | null, retry: retryVerseText } },
+  };
+});
 vi.mock('./useFocusListVerseText', () => ({
   useFocusListVerseText: () => verseTextRef.current,
 }));
@@ -52,13 +56,18 @@ function makeFocus(items: FocusListItem[]): UseScriptureFocusListsResult {
 // Drive the mocked hook from the focus's items.
 function wireVerseText(items: FocusListItem[]) {
   verseTextRef.current = {
-    itemTexts: items.map((it) => ({ item: it, lines: [{ verse: it.verseStart, text: `text ${it.label}` }], missing: false })),
+    itemTexts: items.map((it) => ({ item: it, lines: [{ verse: it.verseStart, text: `text ${it.label}` }], missing: false, error: null })),
     loading: false,
+    error: null,
+    retry: retryVerseText,
   };
 }
 
 const searchDeps = {} as VerseSearchDeps;
-beforeEach(() => { verseTextRef.current = { itemTexts: [], loading: false }; });
+beforeEach(() => {
+  retryVerseText.mockClear();
+  verseTextRef.current = { itemTexts: [], loading: false, error: null, retry: retryVerseText };
+});
 afterEach(cleanup);
 
 describe('FocusListView', () => {
@@ -125,6 +134,42 @@ describe('FocusListView', () => {
     expect(focus.reorderItem).toHaveBeenCalledWith('b', 'up');
     fireEvent.click(screen.getByRole('button', { name: /Remove John 3:16/ }));
     expect(focus.removeItem).toHaveBeenCalledWith('a');
+  });
+
+  it('says "Not available" for an item the translation genuinely lacks', () => {
+    const items = [item('a', 'John 3:16')];
+    verseTextRef.current = {
+      itemTexts: items.map((it) => ({ item: it, lines: [], missing: true, error: null })),
+      loading: false, error: null, retry: retryVerseText,
+    };
+    render(<FocusListView focus={makeFocus(items)} translation="KJV" searchDeps={searchDeps} />);
+    expect(screen.getByText('Not available in KJV.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the fetch error with Try again instead of "Not available" when the chapter could not be fetched', () => {
+    const items = [item('a', 'John 3:16')];
+    verseTextRef.current = {
+      itemTexts: items.map((it) => ({ item: it, lines: [], missing: true, error: 'Sign in to read the NLT.' })),
+      loading: false, error: 'Sign in to read the NLT.', retry: retryVerseText,
+    };
+    render(<FocusListView focus={makeFocus(items)} translation="NLT" searchDeps={searchDeps} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Sign in to read the NLT.');
+    expect(screen.queryByText(/Not available in NLT/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    expect(retryVerseText).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps "Not available" for an absent verse in a chapter that loaded, even when another chapter failed', () => {
+    const items = [item('a', 'John 3:16')];
+    verseTextRef.current = {
+      // The list-level error belongs to some other chapter; this item's own is null.
+      itemTexts: items.map((it) => ({ item: it, lines: [], missing: true, error: null })),
+      loading: false, error: 'The NLT service is busy right now. Try again in a minute.', retry: retryVerseText,
+    };
+    render(<FocusListView focus={makeFocus(items)} translation="NLT" searchDeps={searchDeps} />);
+    expect(screen.getByText('Not available in NLT.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('has no "Edit list" control', () => {

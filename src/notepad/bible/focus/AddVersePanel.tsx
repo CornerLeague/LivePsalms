@@ -6,7 +6,8 @@ import { parseReferences } from './reference-parser';
 import { formatVerseLabel, type ScriptureRef } from './focus-list-types';
 import { createVerseSearch } from '../verse-search';
 import type { VerseCandidate, VerseSearchDeps } from '../verse-search-types';
-import type { BibleTranslation } from '../translations';
+import { type BibleTranslation, passageRowsTranslation } from '../translations';
+import { searchFallbackNotice } from '../fallback-notice';
 import { searchBooks } from '../book-search';
 import type { BibleBook } from '../bible-books';
 import { loadChapterVerses as defaultLoadChapterVerses } from './chapter-verses';
@@ -50,6 +51,8 @@ export function AddVersePanel({
   const [navChapter, setNavChapter] = useState<number | null>(null);
   const [chapterVerses, setChapterVerses] = useState<number[]>([]);
   const [loadingVerses, setLoadingVerses] = useState(false);
+  const [verseLoadError, setVerseLoadError] = useState<string | null>(null);
+  const [verseLoadAttempt, setVerseLoadAttempt] = useState(0);
 
   const loadVerses = loadChapterVersesProp ?? defaultLoadChapterVerses;
 
@@ -64,14 +67,22 @@ export function AddVersePanel({
     setLoadingVerses(true);
 
     setChapterVerses([]);
+    setVerseLoadError(null);
     (async () => {
-      const verses = await loadVerses(navBook.abbrev, navChapter, translation);
-      if (cancelled) return;
-      setChapterVerses(verses);
+      try {
+        const verses = await loadVerses(navBook.abbrev, navChapter, translation);
+        if (cancelled) return;
+        setChapterVerses(verses);
+      } catch (err) {
+        // An api-sourced translation that could not be fetched (see
+        // chapter-verses.ts). Show the words, not an empty grid.
+        if (cancelled) return;
+        setVerseLoadError(err instanceof Error ? err.message : String(err));
+      }
       setLoadingVerses(false);
     })();
     return () => { cancelled = true; };
-  }, [navBook, navChapter, translation, loadVerses]);
+  }, [navBook, navChapter, translation, loadVerses, verseLoadAttempt]);
 
   const submitPaste = () => {
     const { refs, unparsed: bad } = parseReferences(text);
@@ -145,10 +156,15 @@ export function AddVersePanel({
             aria-label="Search verses"
             value={query}
             onChange={(e) => runSearch(e.target.value)}
-            placeholder={`Search verses in ${translation}…`}
+            placeholder={`Search verses in ${passageRowsTranslation(translation)}…`}
             className="w-full text-[12px] p-2 rounded outline-none"
             style={{ border: '1px solid var(--pale-stone)', color: 'var(--deep-umber)', background: 'transparent' }}
           />
+          {searchFallbackNotice(translation) && (
+            <p role="note" className="text-[10px] mt-1" style={{ color: 'var(--silica)' }}>
+              {searchFallbackNotice(translation)}
+            </p>
+          )}
 
           {/* Browse navigator — between the search input and keyword results */}
           <div className="mt-1.5 mb-1">
@@ -202,6 +218,18 @@ export function AddVersePanel({
                 </button>
                 {loadingVerses ? (
                   <p className="text-[10px]" style={{ color: 'var(--deep-umber)' }}>Loading…</p>
+                ) : verseLoadError ? (
+                  <div className="flex flex-col items-start gap-1.5">
+                    <p role="alert" className="text-[10px]" style={{ color: '#b45454' }}>{verseLoadError}</p>
+                    <button
+                      type="button"
+                      onClick={() => setVerseLoadAttempt((a) => a + 1)}
+                      className="text-[10px] px-2 py-1 rounded hover:bg-black/5"
+                      style={pillStyle}
+                    >
+                      Try again
+                    </button>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-8 gap-1.5">
                     {chapterVerses.map((v) => (

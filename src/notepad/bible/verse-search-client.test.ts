@@ -31,6 +31,22 @@ describe('createBrowserVerseSearchDeps translation', () => {
     await deps.resolvePericope('jhn.3', {});
     expect(captured).toContainEqual({ col: 'translation', val: 'WEB' });
   });
+
+  it('reports the chosen translation as the one whose rows it reads, for a local one', () => {
+    const deps = createBrowserVerseSearchDeps(fakeClient([]), 'KJV');
+    expect(deps.translation).toBe('KJV');
+    expect(deps.rowsTranslation).toBe('KJV');
+  });
+
+  it('searches BSB rows for an api-sourced translation and says so on the deps', async () => {
+    const captured: Array<{ col: string; val: unknown }> = [];
+    const deps = createBrowserVerseSearchDeps(fakeClient(captured), 'NLT');
+    await deps.ftsSearch('shepherd', {});
+    await deps.resolvePericope('psa.23', {});
+    expect(captured.filter((c) => c.col === 'translation').map((c) => c.val)).toEqual(['BSB', 'BSB']);
+    expect(deps.translation).toBe('NLT');
+    expect(deps.rowsTranslation).toBe('BSB');
+  });
 });
 
 describe('createBrowserVerseSearchDeps.ftsSearch', () => {

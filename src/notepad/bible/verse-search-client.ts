@@ -3,7 +3,7 @@ import { supabase as defaultSupabase } from '@/lib/supabase';
 import { fetchVerseText } from '../graph/reference-parser';
 import { osisBookToCanonical, detectGrain } from './verse-search';
 import type { RawFtsRow, RawSemanticRow, PericopeRange, VerseSearchDeps } from './verse-search-types';
-import { type BibleTranslation, DEFAULT_TRANSLATION } from './translations';
+import { type BibleTranslation, DEFAULT_TRANSLATION, passageRowsTranslation } from './translations';
 
 const FTS_LIMIT = 20;
 
@@ -11,13 +11,20 @@ export function createBrowserVerseSearchDeps(
   client: SupabaseClient | null = defaultSupabase,
   translation: BibleTranslation = DEFAULT_TRANSLATION,
 ): VerseSearchDeps {
+  // Searches read ROWS, and an api-sourced translation (NLT, ESV) has none —
+  // its text is never stored. So FTS and pericope resolution run against the
+  // BSB stand-in, and both translations are reported on the deps so the
+  // picker can say so (owner ruling 2: label it, don't hide it).
+  const rowsTranslation = passageRowsTranslation(translation);
   return {
+    translation,
+    rowsTranslation,
     async ftsSearch(query, opts): Promise<RawFtsRow[]> {
       if (!client || !query.trim()) return [];
       let q = client
         .from('bible_passages')
         .select('id, book, chapter, verse_start, verse_end, text')
-        .eq('translation', translation)
+        .eq('translation', rowsTranslation)
         // bible_passages holds BOTH verse-grain rows (id "psa.23.1", ≥2 dots) and
         // pericope-grain aggregates (id "psa.23", 1 dot). The /verse picker inserts
         // single verses, so restrict FTS to verse-grain at the DB level — LIKE treats
@@ -72,7 +79,7 @@ export function createBrowserVerseSearchDeps(
         .from('bible_passages')
         .select('chapter, verse_start, verse_end, text')
         .eq('pericope_id', pericopeId)
-        .eq('translation', translation)
+        .eq('translation', rowsTranslation)
         .order('verse_start', { ascending: true });
       if (opts.signal) q = q.abortSignal(opts.signal);
       const { data, error } = await q;

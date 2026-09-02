@@ -153,6 +153,30 @@ describe('BibleReader translation selector', () => {
     fireEvent.focus(screen.getByLabelText('Translation info'));
     const tooltip = await screen.findByRole('tooltip');
     expect(tooltip).toHaveTextContent(/public domain/i);
+    expect(tooltip).not.toHaveTextContent(/use the BSB/);
+  });
+
+  it('lists NLT and ESV in the translation control', () => {
+    render(<BibleReader translation="BSB" onTranslationChange={() => {}} />);
+    const select = screen.getByLabelText('Translation') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.value)).toEqual(['BSB', 'KJV', 'WEB', 'NLT', 'ESV']);
+  });
+
+  it('says visibly that search and Lamplight use the BSB for an api-sourced translation', async () => {
+    render(<BibleReader translation="NLT" onTranslationChange={() => {}} />);
+    fireEvent.focus(screen.getByLabelText('Translation info'));
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent(/Tyndale House/);
+    expect(tooltip).toHaveTextContent(/use the BSB for this version/);
+  });
+
+  it('shows the provider error with a Try again button that calls retry', () => {
+    const retry = vi.fn();
+    useBiblePassages.mockReturnValue({ loading: false, error: "The English Standard Version isn't connected on this server yet.", verses: [], retry });
+    render(<BibleReader translation="ESV" onTranslationChange={() => {}} />);
+    expect(screen.getByText(/isn't connected on this server yet/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    expect(retry).toHaveBeenCalledTimes(1);
   });
 });
 

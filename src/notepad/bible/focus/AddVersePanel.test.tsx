@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { AddVersePanel } from './AddVersePanel';
 import type { VerseSearchDeps, RawFtsRow } from '../verse-search-types';
+import type { BibleTranslation } from '../translations';
 
 afterEach(cleanup);
 
@@ -64,7 +65,7 @@ describe('AddVersePanel — search', () => {
 
 describe('AddVersePanel — browse navigator', () => {
   function renderSearch(
-    loadChapterVerses?: (book: string, chapter: number, translation: 'BSB' | 'KJV' | 'WEB') => Promise<number[]>,
+    loadChapterVerses?: (book: string, chapter: number, translation: BibleTranslation) => Promise<number[]>,
   ) {
     const onAddRefs = vi.fn();
     render(
@@ -132,5 +133,42 @@ describe('AddVersePanel — browse navigator', () => {
     // Back to book (chapter-level back button shows "← John")
     fireEvent.click(screen.getByRole('button', { name: '← John' }));
     expect(screen.getByRole('button', { name: 'John' })).toBeInTheDocument();
+  });
+});
+
+describe('AddVersePanel — chapter browser when the provider fails', () => {
+  it('shows the error instead of an empty grid, and Try again reloads', async () => {
+    const fakeLoad = vi.fn()
+      .mockRejectedValueOnce(new Error('The NLT service is busy right now. Try again in a minute.'))
+      .mockResolvedValueOnce([1, 2]);
+    render(<AddVersePanel onAddRefs={vi.fn()} searchDeps={depsWithFts([])} translation="NLT" loadChapterVerses={fakeLoad} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'John' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chapter 3' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/NLT service is busy/);
+    expect(screen.queryByRole('button', { name: /^Verse \d+$/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Verse 1' })).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(fakeLoad).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('AddVersePanel — api-sourced translation search notice', () => {
+  it('searches as BSB and says so under the search box', () => {
+    render(<AddVersePanel onAddRefs={vi.fn()} searchDeps={depsWithFts([])} translation="NLT" />);
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/ }));
+    expect((screen.getByLabelText(/search verses/i) as HTMLInputElement).placeholder).toBe('Search verses in BSB…');
+    expect(screen.getByRole('note')).toHaveTextContent("Results are BSB text — NLT can't be searched.");
+  });
+
+  it('shows no notice for a local translation', () => {
+    render(<AddVersePanel onAddRefs={vi.fn()} searchDeps={depsWithFts([])} translation="KJV" />);
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/ }));
+    expect((screen.getByLabelText(/search verses/i) as HTMLInputElement).placeholder).toBe('Search verses in KJV…');
+    expect(screen.queryByRole('note')).toBeNull();
   });
 });

@@ -1,7 +1,8 @@
 // src/notepad/bible/useBiblePassages.ts
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { BibleTranslation } from './translations';
+import { type BibleTranslation, translationInfo } from './translations';
+import { fetchBibleText, makeBibleTextInvoke, bibleTextErrorMessage } from './bible-text-client';
 
 export interface ReaderVerse {
   verse: number;
@@ -12,6 +13,8 @@ export interface UseBiblePassagesResult {
   verses: ReaderVerse[];
   loading: boolean;
   error: string | null;
+  /** Re-run the fetch (the reader's "Try again" after a provider failure). */
+  retry: () => void;
 }
 
 interface PassageRow {
@@ -21,14 +24,22 @@ interface PassageRow {
 }
 
 /**
- * Fetch a single chapter's verse rows from bible_passages. `book` is the OSIS
- * abbrev (e.g. "jhn"); verse rows are selected via the id prefix so the
- * whole-chapter pericope row ("jhn.10") is excluded.
+ * Fetch a single chapter's verse rows. `book` is the OSIS abbrev (e.g. "jhn").
+ *
+ * The seam branches on TranslationInfo.source:
+ *   - 'local' reads bible_passages; verse rows are selected via the id prefix
+ *     so the whole-chapter pericope row ("jhn.10") is excluded. This path is
+ *     byte-for-byte the original query — it is what keeps BSB/KJV/WEB
+ *     rendering unchanged.
+ *   - 'api' invokes the bible-text edge function (NLT, ESV) and never touches
+ *     the table; failures surface as a message the reader can retry.
  */
 export function useBiblePassages(book: string, chapter: number, translation: BibleTranslation): UseBiblePassagesResult {
   const [verses, setVerses] = useState<ReaderVerse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((a) => a + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +51,24 @@ export function useBiblePassages(book: string, chapter: number, translation: Bib
       setError('Bible text is unavailable.');
       setLoading(false);
       return;
+    }
+
+    if (translationInfo(translation).source === 'api') {
+      const invoke = makeBibleTextInvoke(supabase);
+      (async () => {
+        const res = await fetchBibleText(invoke, { book, chapter, translation });
+        if (cancelled) return;
+        if (res.ok) {
+          setVerses(res.verses);
+        } else {
+          setVerses([]);
+          setError(bibleTextErrorMessage(res.reason, translation));
+        }
+        setLoading(false);
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
 
     (async () => {
@@ -62,7 +91,7 @@ export function useBiblePassages(book: string, chapter: number, translation: Bib
     return () => {
       cancelled = true;
     };
-  }, [book, chapter, translation]);
+  }, [book, chapter, translation, attempt]);
 
-  return { verses, loading, error };
+  return { verses, loading, error, retry };
 }

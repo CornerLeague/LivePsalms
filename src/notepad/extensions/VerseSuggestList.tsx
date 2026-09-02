@@ -8,6 +8,8 @@ export interface VerseSuggestListProps {
   onSelect: (item: VerseCandidate) => void;
   loading: boolean;
   offline: boolean;
+  /** Shown above the rows, e.g. that results are BSB text for an api-sourced translation. */
+  notice?: string | null;
 }
 
 function rowLabel(c: VerseCandidate): string {
@@ -16,12 +18,13 @@ function rowLabel(c: VerseCandidate): string {
   return `${c.book} ${c.chapter}:${range}`;
 }
 
-export function VerseSuggestList({ items, selectedIndex, onSelect, loading, offline }: VerseSuggestListProps) {
+export function VerseSuggestList({ items, selectedIndex, onSelect, loading, offline, notice }: VerseSuggestListProps) {
   if (offline) {
     return <div className="verse-suggest verse-suggest--empty">Verse search needs connection</div>;
   }
   return (
     <div className="verse-suggest" role="listbox" aria-label="Verse suggestions">
+      {notice ? <div className="verse-suggest__hint verse-suggest__notice" role="note">{notice}</div> : null}
       {items.map((c, i) => (
         <div
           key={c.osis}
