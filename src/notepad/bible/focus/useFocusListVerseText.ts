@@ -21,6 +21,13 @@ export interface FocusItemText {
   item: FocusListItem;
   lines: FocusVerseLine[];
   missing: boolean;
+  /**
+   * Why THIS item's chapter could not be fetched (provider down, rate-limited,
+   * sign-in needed, key missing), worded for the reader; null when the chapter
+   * fetched fine. Per chapter, not per list: a failure in Psalm 23 must not be
+   * pinned on a verse that is simply absent from a John 3 that loaded.
+   */
+  error: string | null;
 }
 
 interface PassageRow {
@@ -33,11 +40,13 @@ interface PassageRow {
 export function assembleFocusItemTexts(
   items: FocusListItem[],
   rowsByChapter: Map<string, FocusVerseLine[]>,
+  errorsByChapter: Map<string, string> = new Map(),
 ): FocusItemText[] {
   return items.map((item) => {
-    const rows = rowsByChapter.get(`${item.book}.${item.chapter}`) ?? [];
+    const key = `${item.book}.${item.chapter}`;
+    const rows = rowsByChapter.get(key) ?? [];
     const lines = rows.filter((r) => r.verse >= item.verseStart && r.verse <= item.verseEnd);
-    return { item, lines, missing: lines.length === 0 };
+    return { item, lines, missing: lines.length === 0, error: errorsByChapter.get(key) ?? null };
   });
 }
 
@@ -45,10 +54,9 @@ export interface UseFocusListVerseTextResult {
   itemTexts: FocusItemText[];
   loading: boolean;
   /**
-   * Set when a chapter could not be FETCHED (provider down, rate-limited,
-   * sign-in needed, key missing), as opposed to fetched and found empty. Items
-   * in a failed chapter are still flagged `missing`, so the view must check
-   * this first: "Not available in NLT" is a lie when the truth is "NLT is busy".
+   * The first chapter fetch failure, if any — a list-level summary. The view
+   * reads each item's own `error` (per chapter) to decide what to show for
+   * it; this is for callers that only want to know whether anything failed.
    */
   error: string | null;
   /** Re-run the fetch (the view's "Try again"). */
@@ -65,8 +73,8 @@ export function useFocusListVerseText(
   translation: BibleTranslation,
 ): UseFocusListVerseTextResult {
   const [rowsByChapter, setRowsByChapter] = useState<Map<string, FocusVerseLine[]>>(new Map());
+  const [errorsByChapter, setErrorsByChapter] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => setAttempt((a) => a + 1), []);
 
@@ -83,26 +91,26 @@ export function useFocusListVerseText(
     if (!supabase || keys.length === 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRowsByChapter(new Map());
+      setErrorsByChapter(new Map());
       setLoading(false);
-      setError(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
-    setError(null);
     const apiSourced = translationInfo(translation).source === 'api';
     const invoke = apiSourced ? makeBibleTextInvoke(supabase) : null;
-    // The first fetch failure, worded for the reader. A chapter that failed to
-    // fetch still contributes no rows (its items read as missing), but the view
-    // shows this instead of "Not available in <translation>".
-    let firstError: string | null = null;
+    // A chapter that failed to FETCH contributes no rows (its items read as
+    // missing) and records why, per chapter, so the view can show the reason
+    // for those items and plain "Not available" for a verse that is simply
+    // absent from a chapter that loaded.
+    const failures = new Map<string, string>();
     (async () => {
       const entries = await Promise.all(
         keys.map(async (key) => {
           const [book, chapterStr] = key.split('.');
           if (apiSourced) {
             const res = await fetchBibleText(invoke, { book, chapter: Number(chapterStr), translation });
-            if (!res.ok) firstError ??= bibleTextErrorMessage(res.reason, translation);
+            if (!res.ok) failures.set(key, bibleTextErrorMessage(res.reason, translation));
             return [key, res.ok ? res.verses : ([] as FocusVerseLine[])] as const;
           }
           const { data, error } = await supabase!
@@ -111,7 +119,7 @@ export function useFocusListVerseText(
             .eq('translation', translation)
             .like('id', `${book}.${chapterStr}.%`)
             .order('verse_start', { ascending: true });
-          if (error) firstError ??= error.message;
+          if (error) failures.set(key, error.message);
           if (error || !data) return [key, [] as FocusVerseLine[]] as const;
           const lines = (data as PassageRow[]).map((r) => ({ verse: r.verse_start, text: r.text }));
           return [key, lines] as const;
@@ -119,16 +127,17 @@ export function useFocusListVerseText(
       );
       if (cancelled) return;
       setRowsByChapter(new Map(entries));
-      setError(firstError);
+      setErrorsByChapter(failures);
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [keySignature, translation, attempt]);
 
   const itemTexts = useMemo(
-    () => assembleFocusItemTexts(items, rowsByChapter),
-    [items, rowsByChapter],
+    () => assembleFocusItemTexts(items, rowsByChapter, errorsByChapter),
+    [items, rowsByChapter, errorsByChapter],
   );
+  const error = errorsByChapter.values().next().value ?? null;
 
   return { itemTexts, loading, error, retry };
 }

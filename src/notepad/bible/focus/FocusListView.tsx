@@ -26,7 +26,7 @@ export function FocusListView({ focus, translation, searchDeps }: FocusListViewP
   const countRef = useRef<HTMLDivElement>(null);
   // Click/tap anywhere outside closes the verse dropdown (desktop click + mobile touch).
   useClickOutside(countRef, countOpen, () => setCountOpen(false));
-  const { itemTexts, error: verseTextError, retry: retryVerseText } = useFocusListVerseText(focus.activeList.items, translation);
+  const { itemTexts, retry: retryVerseText } = useFocusListVerseText(focus.activeList.items, translation);
 
   const count = focus.activeList.items.length;
   const safeIndex = count === 0 ? 0 : Math.min(currentIndex, count - 1);
@@ -151,11 +151,11 @@ export function FocusListView({ focus, translation, searchDeps }: FocusListViewP
                 <ChevronRight className="w-4 h-4" style={{ color: 'var(--deep-umber)' }} />
               </button>
             </div>
-            {currentItem.missing && verseTextError ? (
-              /* The chapter could not be fetched — say that, not "not available". */
+            {currentItem.missing && currentItem.error ? (
+              /* THIS item's chapter could not be fetched — say that, not "not available". */
               <div className="flex flex-col items-start gap-2">
                 <p role="alert" className="text-[12px]" style={{ color: '#b45454', fontFamily: 'Outfit, sans-serif' }}>
-                  {verseTextError}
+                  {currentItem.error}
                 </p>
                 <button
                   type="button"

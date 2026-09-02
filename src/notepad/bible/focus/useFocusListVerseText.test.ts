@@ -90,6 +90,17 @@ describe('assembleFocusItemTexts (pure)', () => {
     const out = assembleFocusItemTexts(items, new Map()); // no rows fetched for eph.2
     expect(out[0].missing).toBe(true);
     expect(out[0].lines).toEqual([]);
+    expect(out[0].error).toBeNull();
+  });
+
+  it('attaches a chapter error only to the items of that chapter', () => {
+    const items = [
+      item({ id: 'a', book: 'psa', chapter: 23, verseStart: 1, verseEnd: 1, label: 'Psalm 23:1' }),
+      item({ id: 'b', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16, label: 'John 3:16' }),
+    ];
+    const out = assembleFocusItemTexts(items, new Map([['jhn.3', [{ verse: 1, text: 'x' }]]]), new Map([['psa.23', 'busy']]));
+    expect(out[0]).toMatchObject({ missing: true, error: 'busy' });
+    expect(out[1]).toMatchObject({ missing: true, error: null });
   });
 
   it('preserves item order in the output', () => {
@@ -161,6 +172,7 @@ describe('useFocusListVerseText (hook) for an api-sourced translation', () => {
     const { result } = renderHook(() => useFocusListVerseText(items, 'NLT'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.itemTexts[0].missing).toBe(true);
+    expect(result.current.itemTexts[0].error).toBe('The NLT service is busy right now. Try again in a minute.');
     expect(result.current.error).toBe('The NLT service is busy right now. Try again in a minute.');
   });
 
@@ -175,7 +187,27 @@ describe('useFocusListVerseText (hook) for an api-sourced translation', () => {
     act(() => result.current.retry());
     await waitFor(() => expect(result.current.itemTexts[0].missing).toBe(false));
     expect(result.current.error).toBeNull();
+    expect(result.current.itemTexts[0].error).toBeNull();
     expect(result.current.itemTexts[0].lines[0].text).toBe('back');
+  });
+
+  it('pins a failure on the items of the chapter that failed, not on the whole list', async () => {
+    invoke.mockImplementation(async (_name: string, opts: { body: { book: string } }) =>
+      opts.body.book === 'psa'
+        ? { data: { ok: false, reason: 'rate_limited' }, error: null }
+        : { data: { ok: true, verses: [{ verse: 1, text: 'only verse one' }] }, error: null });
+    const items = [
+      item({ id: 'a', book: 'psa', chapter: 23, verseStart: 1, verseEnd: 1, label: 'Psalm 23:1' }),
+      item({ id: 'b', book: 'jhn', chapter: 3, verseStart: 16, verseEnd: 16, label: 'John 3:16' }),
+    ];
+    const { result } = renderHook(() => useFocusListVerseText(items, 'NLT'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const [psalm, john] = result.current.itemTexts;
+    expect(psalm.missing).toBe(true);
+    expect(psalm.error).toBe('The NLT service is busy right now. Try again in a minute.');
+    expect(john.missing).toBe(true);   // verse 16 absent from a chapter that loaded
+    expect(john.error).toBeNull();     // so it is "not available", not a provider error
+    expect(result.current.error).toBe('The NLT service is busy right now. Try again in a minute.');
   });
 
   it('has no error when every chapter fetched, even if an item is genuinely absent', async () => {
@@ -184,6 +216,7 @@ describe('useFocusListVerseText (hook) for an api-sourced translation', () => {
     const { result } = renderHook(() => useFocusListVerseText(items, 'NLT'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.itemTexts[0].missing).toBe(true);
+    expect(result.current.itemTexts[0].error).toBeNull();
     expect(result.current.error).toBeNull();
   });
 });
