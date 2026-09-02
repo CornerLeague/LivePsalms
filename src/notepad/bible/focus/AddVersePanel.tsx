@@ -51,6 +51,8 @@ export function AddVersePanel({
   const [navChapter, setNavChapter] = useState<number | null>(null);
   const [chapterVerses, setChapterVerses] = useState<number[]>([]);
   const [loadingVerses, setLoadingVerses] = useState(false);
+  const [verseLoadError, setVerseLoadError] = useState<string | null>(null);
+  const [verseLoadAttempt, setVerseLoadAttempt] = useState(0);
 
   const loadVerses = loadChapterVersesProp ?? defaultLoadChapterVerses;
 
@@ -65,14 +67,22 @@ export function AddVersePanel({
     setLoadingVerses(true);
 
     setChapterVerses([]);
+    setVerseLoadError(null);
     (async () => {
-      const verses = await loadVerses(navBook.abbrev, navChapter, translation);
-      if (cancelled) return;
-      setChapterVerses(verses);
+      try {
+        const verses = await loadVerses(navBook.abbrev, navChapter, translation);
+        if (cancelled) return;
+        setChapterVerses(verses);
+      } catch (err) {
+        // An api-sourced translation that could not be fetched (see
+        // chapter-verses.ts). Show the words, not an empty grid.
+        if (cancelled) return;
+        setVerseLoadError(err instanceof Error ? err.message : String(err));
+      }
       setLoadingVerses(false);
     })();
     return () => { cancelled = true; };
-  }, [navBook, navChapter, translation, loadVerses]);
+  }, [navBook, navChapter, translation, loadVerses, verseLoadAttempt]);
 
   const submitPaste = () => {
     const { refs, unparsed: bad } = parseReferences(text);
@@ -208,6 +218,18 @@ export function AddVersePanel({
                 </button>
                 {loadingVerses ? (
                   <p className="text-[10px]" style={{ color: 'var(--deep-umber)' }}>Loading…</p>
+                ) : verseLoadError ? (
+                  <div className="flex flex-col items-start gap-1.5">
+                    <p role="alert" className="text-[10px]" style={{ color: '#b45454' }}>{verseLoadError}</p>
+                    <button
+                      type="button"
+                      onClick={() => setVerseLoadAttempt((a) => a + 1)}
+                      className="text-[10px] px-2 py-1 rounded hover:bg-black/5"
+                      style={pillStyle}
+                    >
+                      Try again
+                    </button>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-8 gap-1.5">
                     {chapterVerses.map((v) => (

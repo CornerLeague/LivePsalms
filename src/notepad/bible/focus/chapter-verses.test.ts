@@ -51,8 +51,13 @@ describe('loadChapterVerses', () => {
     expect(verses).toEqual([1, 2]);
   });
 
-  it('returns [] when the provider fails', async () => {
+  it('throws a worded error when the provider fails, so the grid is not shown empty', async () => {
     invoke.mockResolvedValue({ data: { ok: false, reason: 'missing_key' }, error: null });
-    expect(await loadChapterVerses('psa', 23, 'ESV')).toEqual([]);
+    await expect(loadChapterVerses('psa', 23, 'ESV')).rejects.toThrow("The English Standard Version isn't connected on this server yet.");
+  });
+
+  it('still returns [] for a local translation query error (unchanged behaviour)', async () => {
+    setOrderResult({ data: null, error: { message: 'boom' } });
+    expect(await loadChapterVerses('psa', 23, 'KJV')).toEqual([]);
   });
 });

@@ -6,10 +6,10 @@
 // local ones (BSB / KJV / WEB) from the table, api-sourced ones (NLT / ESV)
 // through the bible-text edge function — the branch is on
 // TranslationInfo.source, and the table query is untouched.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { type BibleTranslation, translationInfo } from '../translations';
-import { fetchBibleText, makeBibleTextInvoke } from '../bible-text-client';
+import { fetchBibleText, makeBibleTextInvoke, bibleTextErrorMessage } from '../bible-text-client';
 import type { FocusListItem } from './focus-list-types';
 
 export interface FocusVerseLine {
@@ -41,6 +41,20 @@ export function assembleFocusItemTexts(
   });
 }
 
+export interface UseFocusListVerseTextResult {
+  itemTexts: FocusItemText[];
+  loading: boolean;
+  /**
+   * Set when a chapter could not be FETCHED (provider down, rate-limited,
+   * sign-in needed, key missing), as opposed to fetched and found empty. Items
+   * in a failed chapter are still flagged `missing`, so the view must check
+   * this first: "Not available in NLT" is a lie when the truth is "NLT is busy".
+   */
+  error: string | null;
+  /** Re-run the fetch (the view's "Try again"). */
+  retry: () => void;
+}
+
 /**
  * Fetch + assemble verse text for a focus list's items in the given translation.
  * One query per distinct (book, chapter); re-runs when the chapter set or the
@@ -49,9 +63,12 @@ export function assembleFocusItemTexts(
 export function useFocusListVerseText(
   items: FocusListItem[],
   translation: BibleTranslation,
-): { itemTexts: FocusItemText[]; loading: boolean } {
+): UseFocusListVerseTextResult {
   const [rowsByChapter, setRowsByChapter] = useState<Map<string, FocusVerseLine[]>>(new Map());
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((a) => a + 1), []);
 
   // Distinct, sorted `${book}.${chapter}` keys; the join is the effect's signal so
   // a new array identity with the same chapters does not re-fetch.
@@ -67,18 +84,25 @@ export function useFocusListVerseText(
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRowsByChapter(new Map());
       setLoading(false);
+      setError(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
+    setError(null);
     const apiSourced = translationInfo(translation).source === 'api';
     const invoke = apiSourced ? makeBibleTextInvoke(supabase) : null;
+    // The first fetch failure, worded for the reader. A chapter that failed to
+    // fetch still contributes no rows (its items read as missing), but the view
+    // shows this instead of "Not available in <translation>".
+    let firstError: string | null = null;
     (async () => {
       const entries = await Promise.all(
         keys.map(async (key) => {
           const [book, chapterStr] = key.split('.');
           if (apiSourced) {
             const res = await fetchBibleText(invoke, { book, chapter: Number(chapterStr), translation });
+            if (!res.ok) firstError ??= bibleTextErrorMessage(res.reason, translation);
             return [key, res.ok ? res.verses : ([] as FocusVerseLine[])] as const;
           }
           const { data, error } = await supabase!
@@ -87,6 +111,7 @@ export function useFocusListVerseText(
             .eq('translation', translation)
             .like('id', `${book}.${chapterStr}.%`)
             .order('verse_start', { ascending: true });
+          if (error) firstError ??= error.message;
           if (error || !data) return [key, [] as FocusVerseLine[]] as const;
           const lines = (data as PassageRow[]).map((r) => ({ verse: r.verse_start, text: r.text }));
           return [key, lines] as const;
@@ -94,15 +119,16 @@ export function useFocusListVerseText(
       );
       if (cancelled) return;
       setRowsByChapter(new Map(entries));
+      setError(firstError);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [keySignature, translation]);
+  }, [keySignature, translation, attempt]);
 
   const itemTexts = useMemo(
     () => assembleFocusItemTexts(items, rowsByChapter),
     [items, rowsByChapter],
   );
 
-  return { itemTexts, loading };
+  return { itemTexts, loading, error, retry };
 }
