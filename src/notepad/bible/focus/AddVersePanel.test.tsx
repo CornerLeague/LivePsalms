@@ -134,3 +134,19 @@ describe('AddVersePanel — browse navigator', () => {
     expect(screen.getByRole('button', { name: 'John' })).toBeInTheDocument();
   });
 });
+
+describe('AddVersePanel — api-sourced translation search notice', () => {
+  it('searches as BSB and says so under the search box', () => {
+    render(<AddVersePanel onAddRefs={vi.fn()} searchDeps={depsWithFts([])} translation="NLT" />);
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/ }));
+    expect((screen.getByLabelText(/search verses/i) as HTMLInputElement).placeholder).toBe('Search verses in BSB…');
+    expect(screen.getByRole('note')).toHaveTextContent("Results are BSB text — NLT can't be searched.");
+  });
+
+  it('shows no notice for a local translation', () => {
+    render(<AddVersePanel onAddRefs={vi.fn()} searchDeps={depsWithFts([])} translation="KJV" />);
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/ }));
+    expect((screen.getByLabelText(/search verses/i) as HTMLInputElement).placeholder).toBe('Search verses in KJV…');
+    expect(screen.queryByRole('note')).toBeNull();
+  });
+});

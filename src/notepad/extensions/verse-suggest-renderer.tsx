@@ -3,6 +3,7 @@ import type { SuggestionProps, SuggestionKeyDownProps } from '@tiptap/suggestion
 import { VerseSuggestList } from './VerseSuggestList';
 import { createVerseSearch, MIN_SEMANTIC_CHARS } from '../bible/verse-search';
 import type { VerseCandidate, VerseSearchDeps } from '../bible/verse-search-types';
+import { searchFallbackNotice } from '../bible/fallback-notice';
 
 // Minimal DOM renderer for both Suggestion configs. Positioning uses fixed
 // coordinates from clientRect; styling lives in CSS (.verse-suggest).
@@ -29,6 +30,8 @@ export function renderVerseSuggestList(
   let liveItems: VerseCandidate[] | null = null;
   let loading = false;
   const verseSearch = search ? createVerseSearch(search) : null;
+  // An api-sourced translation (NLT, ESV) is searched as BSB rows; say so.
+  const notice = search?.translation ? searchFallbackNotice(search.translation) : null;
 
   const displayItems = (): VerseCandidate[] => liveItems ?? current?.items ?? [];
 
@@ -42,6 +45,7 @@ export function renderVerseSuggestList(
         selectedIndex={selectedIndex}
         loading={loading}
         offline={!online && items.length === 0}
+        notice={notice}
         onSelect={(c) => current?.command(c)}
       />,
     );

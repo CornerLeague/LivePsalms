@@ -1,8 +1,8 @@
 // parse-body.ts — extracted so unit tests can import without the Deno serve URL.
 import { parseChatMode, type ChatMode } from '../_shared/chat-mode.ts';
 
-export const VALID_TRANSLATIONS = ['BSB', 'KJV', 'WEB'] as const;
-export type Translation = (typeof VALID_TRANSLATIONS)[number];
+import { VALID_TRANSLATIONS, type Translation } from '../_shared/bible-translations.ts';
+export { VALID_TRANSLATIONS, type Translation };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

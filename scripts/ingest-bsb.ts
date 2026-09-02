@@ -53,7 +53,12 @@ export interface BsbChapter { number: number; verses: BsbVerse[] }
 export interface BsbBook { name: string; abbrev: string; chapters: BsbChapter[] }
 export interface BsbCorpus { books: BsbBook[] }
 
-export type BibleTranslationId = 'BSB' | 'KJV' | 'WEB';
+// Every id the app knows. NLT and ESV are here so the type stays in step with
+// src/notepad/bible/translations.ts, but they have NO entry in SOURCES below and
+// never will: they are api-sourced (fetched on demand by the bible-text edge
+// function) and the ESV free licence forbids storing more than 500 verses
+// locally. `TRANSLATION=ESV npm run ingest` must fail, not ingest.
+export type BibleTranslationId = 'BSB' | 'KJV' | 'WEB' | 'NLT' | 'ESV';
 
 export interface PassageRow {
   id: string;
@@ -111,7 +116,9 @@ interface IngestConfig {
   embed: boolean; // only BSB embeds (shared semantic index)
 }
 
-const SOURCES: Record<BibleTranslationId, IngestConfig> = {
+// Deliberately Partial: only the public-domain, locally stored translations have
+// a corpus. main() throws on a missing entry rather than ingesting nothing.
+const SOURCES: Partial<Record<BibleTranslationId, IngestConfig>> = {
   BSB: { translation: 'BSB', url: 'https://bereanbible.com/bsb.txt', cachePath: 'scripts/data/bsb.txt', embed: true },
   // KJV: Public Domain (US). Source: https://eBible.org/Scriptures/eng-kjv_vpl.zip
   //   (eBible.org eng-kjv distribution; UK Crown letters-patent caveat noted).

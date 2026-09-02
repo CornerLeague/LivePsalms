@@ -49,8 +49,41 @@ describe('verifyVerseRefs', () => {
     const sb = fakeSupabase({ 'psa.23.1': [{ id: 'psa.23.1', verse_start: 1, text: 'The LORD is my shepherd' }] });
     const flags = await verifyVerseRefs(sb as never, ['Psalm 23:1']);
     expect(flags).toEqual([
-      { ref: 'Psalm 23:1', status: 'found', canonicalText: 'The LORD is my shepherd' },
+      { ref: 'Psalm 23:1', status: 'found', canonicalText: 'The LORD is my shepherd', translation: 'BSB' },
     ]);
+  });
+
+  it('reports the requested translation when it has the rows', async () => {
+    const sb = fakeSupabase({ 'psa.23.1': [{ id: 'psa.23.1', verse_start: 1, text: 'The LORD is my shepherd' }] });
+    const flags = await verifyVerseRefs(sb as never, ['Psalm 23:1'], 'KJV');
+    expect(flags[0]).toMatchObject({ status: 'found', translation: 'KJV' });
+  });
+
+  it('reports BSB when the versification fallback served the text', async () => {
+    // Rows exist only under BSB: a fake whose non-BSB query comes back empty.
+    let calls = 0;
+    const sb = {
+      from: () => ({
+        select: () => ({
+          eq: (_c: string, t: string) => ({
+            in: () => ({
+              order: () => {
+                calls += 1;
+                return Promise.resolve({
+                  data: t === 'BSB' ? [{ id: 'psa.23.1', verse_start: 1, text: 'The LORD is my shepherd' }] : [],
+                  error: null,
+                });
+              },
+            }),
+          }),
+        }),
+      }),
+    };
+    const flags = await verifyVerseRefs(sb as never, ['Psalm 23:1'], 'ESV');
+    expect(flags).toEqual([
+      { ref: 'Psalm 23:1', status: 'found', canonicalText: 'The LORD is my shepherd', translation: 'BSB' },
+    ]);
+    expect(calls).toBe(2);
   });
 
   it('flags refs with zero rows as not_found', async () => {

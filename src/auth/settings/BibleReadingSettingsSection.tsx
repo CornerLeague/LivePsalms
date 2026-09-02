@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { toast } from 'sonner';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
 import { TRANSLATIONS, translationInfo, type BibleTranslation } from '@/notepad/bible/translations';
+import { readerFallbackNotice } from '@/notepad/bible/fallback-notice';
 import { VERSE_LAYOUTS, VERSE_LAYOUT_LABEL, type VerseLayout } from '@/notepad/bible/bible-layout-types';
 
 export function BibleReadingSettingsSection({
@@ -68,6 +69,11 @@ export function BibleReadingSettingsSection({
       <p className="text-[10px] mt-1" style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>
         {translationInfo(draftTranslation).attribution}
       </p>
+      {readerFallbackNotice(draftTranslation) && (
+        <p role="note" className="text-[10px] mt-1" style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>
+          {readerFallbackNotice(draftTranslation)}
+        </p>
+      )}
 
       <p className="block text-xs mt-4 mb-1" style={{ color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}>
         Verse layout

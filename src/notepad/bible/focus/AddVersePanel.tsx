@@ -6,7 +6,8 @@ import { parseReferences } from './reference-parser';
 import { formatVerseLabel, type ScriptureRef } from './focus-list-types';
 import { createVerseSearch } from '../verse-search';
 import type { VerseCandidate, VerseSearchDeps } from '../verse-search-types';
-import type { BibleTranslation } from '../translations';
+import { type BibleTranslation, passageRowsTranslation } from '../translations';
+import { searchFallbackNotice } from '../fallback-notice';
 import { searchBooks } from '../book-search';
 import type { BibleBook } from '../bible-books';
 import { loadChapterVerses as defaultLoadChapterVerses } from './chapter-verses';
@@ -145,10 +146,15 @@ export function AddVersePanel({
             aria-label="Search verses"
             value={query}
             onChange={(e) => runSearch(e.target.value)}
-            placeholder={`Search verses in ${translation}…`}
+            placeholder={`Search verses in ${passageRowsTranslation(translation)}…`}
             className="w-full text-[12px] p-2 rounded outline-none"
             style={{ border: '1px solid var(--pale-stone)', color: 'var(--deep-umber)', background: 'transparent' }}
           />
+          {searchFallbackNotice(translation) && (
+            <p role="note" className="text-[10px] mt-1" style={{ color: 'var(--silica)' }}>
+              {searchFallbackNotice(translation)}
+            </p>
+          )}
 
           {/* Browse navigator — between the search input and keyword results */}
           <div className="mt-1.5 mb-1">

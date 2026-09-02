@@ -5,6 +5,7 @@ import { sendChatMessage, requestOpeningInsight, type InvokeFn, type ChatCitatio
 import { createSentenceChunker } from '@/notepad/bible/sentence-chunker';
 import type { StreamInvoke } from '@/notepad/bible/lamplight-stream-client';
 import { useBiblePrefs } from '@/notepad/bible/prefs/bible-prefs-context';
+import { lamplightFallbackNotice } from '@/notepad/bible/fallback-notice';
 import { useNoteCollection } from '@/notepad/context/useNoteCollection';
 import { useChatThreadList } from '@/notepad/bible/useChatThreadList';
 import { ChatMessage } from './ChatMessage';
@@ -362,6 +363,11 @@ export function LamplightChat({ book, chapter, userId, invoke, streamInvoke }: L
           </p>
         )}
       </div>
+      {lamplightFallbackNotice(translation) && (
+        <p role="note" className="px-3 pb-1.5 text-[10px]" style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>
+          {lamplightFallbackNotice(translation)}
+        </p>
+      )}
       <div className="p-2.5 flex gap-2 items-center" style={{ borderTop: '1px solid var(--pale-stone)' }}>
         <input
           value={draft}

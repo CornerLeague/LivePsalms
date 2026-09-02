@@ -9,6 +9,12 @@ export interface VerseFlag {
   ref: string;
   status: 'found' | 'not_found';
   canonicalText?: string;
+  /**
+   * On 'found': the translation canonicalText was read from. Differs from the
+   * one requested when the BSB versification fallback fired — always, for an
+   * api-sourced translation (NLT, ESV) that has no rows.
+   */
+  translation?: string;
 }
 
 // Keep identical to BOOK_TO_OSIS in src/notepad/graph/reference-parser.ts.
@@ -197,10 +203,12 @@ export async function verifyVerseRefs(
     const ids = parseRefToIds(ref);
     if (!ids) continue;
 
+    let servedFrom = translation;
     let data = await queryForTranslation(ids, translation);
 
     // Versification fallback: if the chosen translation has no rows, try BSB.
     if (data.length === 0 && translation !== 'BSB') {
+      servedFrom = 'BSB';
       data = await queryForTranslation(ids, 'BSB');
     }
 
@@ -209,7 +217,7 @@ export async function verifyVerseRefs(
       continue;
     }
     const canonicalText = data.map((r) => r.text ?? '').join(' ').trim();
-    flags.push({ ref, status: 'found', canonicalText });
+    flags.push({ ref, status: 'found', canonicalText, translation: servedFrom });
   }
   return flags;
 }

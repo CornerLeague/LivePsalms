@@ -39,6 +39,14 @@ export type PericopeRange = {
 };
 
 export interface VerseSearchDeps {
+  /** The translation the reader chose. */
+  translation?: BibleTranslation;
+  /**
+   * The translation whose bible_passages rows the searches actually read. Equal
+   * to `translation` for a local one; BSB for an api-sourced one (NLT, ESV),
+   * which has no rows — the picker shows a notice whenever the two differ.
+   */
+  rowsTranslation?: BibleTranslation;
   ftsSearch: (query: string, opts: { signal?: AbortSignal }) => Promise<RawFtsRow[]>;
   semanticSearch: (query: string, opts: { signal?: AbortSignal }) => Promise<RawSemanticRow[]>;
   resolvePericope: (pericopeId: string, opts: { signal?: AbortSignal }) => Promise<PericopeRange | null>;

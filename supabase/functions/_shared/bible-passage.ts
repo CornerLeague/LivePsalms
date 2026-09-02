@@ -26,6 +26,14 @@ export interface BiblePassageRow {
   verse_start: number;
   verse_end: number;
   text: string;
+  /**
+   * The translation this row's text actually came from. Set by fetchPassageText
+   * so a caller can see when a row is the BSB fallback rather than the
+   * translation it asked for — which is every row for an api-sourced
+   * translation (NLT, ESV), since bible_passages never holds their text.
+   * Optional because rows also arrive from direct queries that don't set it.
+   */
+  translation?: string;
 }
 
 export interface BiblePassage {
@@ -188,7 +196,9 @@ export function buildPassages(
  *   back empty from the first (versification fallback).
  *
  * Returns a Map<id, BiblePassageRow> covering all supplied ids that exist in
- * either the requested translation or BSB.
+ * either the requested translation or BSB. Every row carries `translation`,
+ * the one it was actually read from, so the fallback is visible to the caller
+ * instead of silent: for NLT/ESV (never stored) every row says 'BSB'.
  */
 export async function fetchPassageText(
   supabase: _SupabaseLike,
@@ -206,7 +216,7 @@ export async function fetchPassageText(
       .eq('translation', t)
       .in('id', need);
     if (error) throw new Error(error.message);
-    for (const r of (data ?? []) as BiblePassageRow[]) byId.set(r.id, r);
+    for (const r of (data ?? []) as BiblePassageRow[]) byId.set(r.id, { ...r, translation: t });
   };
 
   await pull(translation, ids);

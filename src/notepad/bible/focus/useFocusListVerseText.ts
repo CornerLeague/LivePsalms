@@ -2,10 +2,14 @@
 // item to the rows within its verse range (and flags missing-in-translation
 // items); the hook batch-fetches one bible_passages query per distinct
 // (book, chapter) — mirroring useBiblePassages.ts — and re-fetches on translation
-// change. Text is fetched live so a list reads correctly in BSB / KJV / WEB.
+// change. Text is fetched live so a list reads correctly in every translation:
+// local ones (BSB / KJV / WEB) from the table, api-sourced ones (NLT / ESV)
+// through the bible-text edge function — the branch is on
+// TranslationInfo.source, and the table query is untouched.
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { BibleTranslation } from '../translations';
+import { type BibleTranslation, translationInfo } from '../translations';
+import { fetchBibleText, makeBibleTextInvoke } from '../bible-text-client';
 import type { FocusListItem } from './focus-list-types';
 
 export interface FocusVerseLine {
@@ -67,10 +71,16 @@ export function useFocusListVerseText(
     }
     let cancelled = false;
     setLoading(true);
+    const apiSourced = translationInfo(translation).source === 'api';
+    const invoke = apiSourced ? makeBibleTextInvoke(supabase) : null;
     (async () => {
       const entries = await Promise.all(
         keys.map(async (key) => {
           const [book, chapterStr] = key.split('.');
+          if (apiSourced) {
+            const res = await fetchBibleText(invoke, { book, chapter: Number(chapterStr), translation });
+            return [key, res.ok ? res.verses : ([] as FocusVerseLine[])] as const;
+          }
           const { data, error } = await supabase!
             .from('bible_passages')
             .select('id, verse_start, text')

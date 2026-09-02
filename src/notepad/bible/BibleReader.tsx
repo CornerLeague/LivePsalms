@@ -6,6 +6,7 @@ import { bookByAbbrev, type BibleBook } from './bible-books';
 import { searchBooks } from './book-search';
 import { useBiblePassages } from './useBiblePassages';
 import { type BibleTranslation, TRANSLATIONS, translationInfo } from './translations';
+import { readerFallbackNotice } from './fallback-notice';
 import { type VerseLayout, nextVerseLayout, VERSE_LAYOUT_LABEL } from './bible-layout-types';
 import { type TextSize, DEFAULT_TEXT_SIZE, nextTextSize, TEXT_SIZE_LABEL, TEXT_SIZE_SCALE } from './text-size-types';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -148,7 +149,7 @@ export function BibleReader({
   };
 
   const meta = bookByAbbrev(book);
-  const { verses, loading, error } = useBiblePassages(book, chapter, translation);
+  const { verses, loading, error, retry } = useBiblePassages(book, chapter, translation);
 
   useEffect(() => {
     onPassageChange?.({ book, chapter });
@@ -273,6 +274,9 @@ export function BibleReader({
             <TooltipContent className="max-w-[16rem]">
               <p>Changing the version here applies to this device only. To set it everywhere, update Profile → Bible &amp; Reading.</p>
               <p className="mt-1 opacity-70">{translationInfo(translation).attribution}</p>
+              {readerFallbackNotice(translation) && (
+                <p className="mt-1 opacity-70">{readerFallbackNotice(translation)}</p>
+              )}
             </TooltipContent>
           </Tooltip>
           <button
@@ -404,9 +408,19 @@ export function BibleReader({
           </p>
         )}
         {error && !loading && (
-          <p className="text-[11px] tracking-wider" style={{ color: '#b45454', fontFamily: 'Outfit, sans-serif' }}>
-            {error}
-          </p>
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-[11px] tracking-wider" style={{ color: '#b45454', fontFamily: 'Outfit, sans-serif' }}>
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={retry}
+              className="text-[11px] px-2.5 py-1 rounded hover:bg-black/5"
+              style={{ border: '1px solid var(--pale-stone)', color: 'var(--deep-umber)', fontFamily: 'Outfit, sans-serif' }}
+            >
+              Try again
+            </button>
+          </div>
         )}
         {!loading && !error && verses.length === 0 && (
           <p className="text-[11px] tracking-wider" style={{ color: 'var(--silica)', fontFamily: 'Outfit, sans-serif' }}>
